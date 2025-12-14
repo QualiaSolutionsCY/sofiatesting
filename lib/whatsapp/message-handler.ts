@@ -115,14 +115,17 @@ export async function handleWhatsAppMessage(
     // This reduces API calls and quota usage significantly
     let fullResponse = "";
 
-    // Get chat ID for conversation history (use phone-based ID as fallback)
-    let sessionChatId = `whatsapp-${phoneNumber}`;
+    // Get chat ID for conversation history (use deterministic UUID as fallback)
+    // Generate a deterministic UUID from phone number for fallback (avoids DB UUID constraint errors)
+    let sessionChatId = generateUUID(); // Fallback: new UUID each time (no history but no errors)
+    let hasDbChat = false;
     try {
       const dbUser = await getOrCreateWhatsAppUser(phoneNumber);
       const dbChat = await getOrCreateWhatsAppChat(dbUser.id, phoneNumber);
       sessionChatId = dbChat.id;
+      hasDbChat = true;
     } catch (dbErr) {
-      console.warn("[WhatsApp] Failed to get chat ID, using fallback:", dbErr);
+      console.warn("[WhatsApp] Failed to get chat ID, messages won't be saved:", dbErr);
     }
 
     // Get message history from database for conversation continuity
@@ -181,23 +184,25 @@ PLATFORM CONTEXT: WhatsApp Mobile Messaging
       parts: [{ type: "text", text: userMessage }],
     };
 
-    // Save user message to database BEFORE AI processing
-    try {
-      await saveMessages({
-        messages: [
-          {
-            chatId: sessionChatId,
-            id: newUserMessage.id,
-            role: "user",
-            parts: newUserMessage.parts,
-            attachments: [],
-            createdAt: new Date(),
-          },
-        ],
-      });
-      console.log("[WhatsApp] Saved user message to database");
-    } catch (saveErr) {
-      console.warn("[WhatsApp] Failed to save user message:", saveErr);
+    // Save user message to database BEFORE AI processing (only if we have a valid DB chat)
+    if (hasDbChat) {
+      try {
+        await saveMessages({
+          messages: [
+            {
+              chatId: sessionChatId,
+              id: newUserMessage.id,
+              role: "user",
+              parts: newUserMessage.parts,
+              attachments: [],
+              createdAt: new Date(),
+            },
+          ],
+        });
+        console.log("[WhatsApp] Saved user message to database");
+      } catch (saveErr) {
+        console.warn("[WhatsApp] Failed to save user message:", saveErr);
+      }
     }
 
     // Combine previous messages with new message for full context
@@ -312,23 +317,25 @@ PLATFORM CONTEXT: WhatsApp Mobile Messaging
       fullResponse.length
     );
 
-    // Save assistant response to database for conversation continuity
-    try {
-      await saveMessages({
-        messages: [
-          {
-            chatId: sessionChatId,
-            id: assistantMessageId,
-            role: "assistant",
-            parts: [{ type: "text", text: fullResponse }],
-            attachments: [],
-            createdAt: new Date(),
-          },
-        ],
-      });
-      console.log("[WhatsApp] Saved assistant message to database");
-    } catch (saveErr) {
-      console.warn("[WhatsApp] Failed to save assistant message:", saveErr);
+    // Save assistant response to database for conversation continuity (only if we have a valid DB chat)
+    if (hasDbChat) {
+      try {
+        await saveMessages({
+          messages: [
+            {
+              chatId: sessionChatId,
+              id: assistantMessageId,
+              role: "assistant",
+              parts: [{ type: "text", text: fullResponse }],
+              attachments: [],
+              createdAt: new Date(),
+            },
+          ],
+        });
+        console.log("[WhatsApp] Saved assistant message to database");
+      } catch (saveErr) {
+        console.warn("[WhatsApp] Failed to save assistant message:", saveErr);
+      }
     }
 
     console.log(
