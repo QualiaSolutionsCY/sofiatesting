@@ -148,6 +148,18 @@ export async function handleWhatsAppMessage(
     }
 
     // Prepare system prompt
+    // For smart template loading, include conversation history context
+    // This ensures templates remain loaded across the full conversation
+    // e.g., "rental registration" in msg 1 keeps Template 03 loaded for msg 2
+    const conversationContext = previousMessages
+      .filter((m) => m.role === "user")
+      .map((m) => {
+        const textPart = m.parts?.find((p) => p.type === "text");
+        return textPart && "text" in textPart ? textPart.text : "";
+      })
+      .join(" ");
+    const fullContext = `${conversationContext} ${userMessage}`;
+
     console.log("[WhatsApp] Building system prompt...");
     const baseSystemPrompt = await systemPrompt({
       selectedChatModel: WHATSAPP_MODEL,
@@ -157,7 +169,7 @@ export async function handleWhatsAppMessage(
         city: undefined,
         country: "Cyprus",
       },
-      userMessage,
+      userMessage: fullContext, // Include conversation history for template detection
     });
     console.log("[WhatsApp] System prompt length:", baseSystemPrompt.length);
 
