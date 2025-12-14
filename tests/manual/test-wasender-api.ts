@@ -4,6 +4,7 @@
  */
 
 import { config } from "dotenv";
+
 config({ path: ".env.local" });
 
 const API_KEY = process.env.WASENDER_API_KEY;
@@ -22,17 +23,20 @@ async function testTextMessage() {
   console.log("\n--- Test 1: Send Text Message ---");
 
   try {
-    const response = await fetch("https://api.wasenderapi.com/api/send-message", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${API_KEY}`,
-      },
-      body: JSON.stringify({
-        to: TEST_PHONE.replace("+", ""),
-        text: `SOFIA Test Message - ${new Date().toISOString()}`,
-      }),
-    });
+    const response = await fetch(
+      "https://api.wasenderapi.com/api/send-message",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${API_KEY}`,
+        },
+        body: JSON.stringify({
+          to: TEST_PHONE.replace("+", ""),
+          text: `SOFIA Test Message - ${new Date().toISOString()}`,
+        }),
+      }
+    );
 
     const data = await response.json();
     console.log("Response status:", response.status);
@@ -82,19 +86,22 @@ async function testSendDocument(uploadedUrl: string) {
   console.log("\n--- Test 3: Send Document ---");
 
   try {
-    const response = await fetch("https://api.wasenderapi.com/api/send-message", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${API_KEY}`,
-      },
-      body: JSON.stringify({
-        messageType: "document",
-        to: TEST_PHONE.replace("+", ""),
-        documentUrl: uploadedUrl,
-        text: "Test document from SOFIA",
-      }),
-    });
+    const response = await fetch(
+      "https://api.wasenderapi.com/api/send-message",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${API_KEY}`,
+        },
+        body: JSON.stringify({
+          messageType: "document",
+          to: TEST_PHONE.replace("+", ""),
+          documentUrl: uploadedUrl,
+          text: "Test document from SOFIA",
+        }),
+      }
+    );
 
     const data = await response.json();
     console.log("Send document response status:", response.status);
@@ -118,7 +125,11 @@ async function testSendDocxDocument() {
         children: [
           new Paragraph({
             children: [
-              new TextRun({ text: "SOFIA Test Document", bold: true, size: 28 }),
+              new TextRun({
+                text: "SOFIA Test Document",
+                bold: true,
+                size: 28,
+              }),
             ],
           }),
           new Paragraph({ text: "" }),
@@ -135,9 +146,7 @@ async function testSendDocxDocument() {
           }),
           new Paragraph({ text: "" }),
           new Paragraph({
-            children: [
-              new TextRun({ text: "Test Section:", bold: true }),
-            ],
+            children: [new TextRun({ text: "Test Section:", bold: true })],
           }),
           new Paragraph({ text: "• Property calculations" }),
           new Paragraph({ text: "• Transfer fees" }),
@@ -178,19 +187,22 @@ async function testSendDocxDocument() {
 
   // Send DOCX
   console.log("Sending DOCX via WhatsApp with URL:", docUrl);
-  const sendResponse = await fetch("https://api.wasenderapi.com/api/send-message", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${API_KEY}`,
-    },
-    body: JSON.stringify({
-      messageType: "document",
-      to: TEST_PHONE.replace("+", ""),
-      documentUrl: docUrl,
-      text: "SOFIA Test DOCX Document",
-    }),
-  });
+  const sendResponse = await fetch(
+    "https://api.wasenderapi.com/api/send-message",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${API_KEY}`,
+      },
+      body: JSON.stringify({
+        messageType: "document",
+        to: TEST_PHONE.replace("+", ""),
+        documentUrl: docUrl,
+        text: "SOFIA Test DOCX Document",
+      }),
+    }
+  );
 
   const sendData = await sendResponse.json();
   console.log("DOCX send status:", sendResponse.status);

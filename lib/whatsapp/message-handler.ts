@@ -27,8 +27,8 @@ import { generateUUID } from "../utils";
 import { getWhatsAppClient } from "./client";
 import { getDocumentType, shouldSendAsDocument } from "./document-detector";
 import { generateDocx } from "./docx-generator";
+import { formatForWhatsApp, splitEmailParts } from "./text-utils";
 import { createWhatsAppSendDocumentTool } from "./tools/send-document-whatsapp";
-import { formatForWhatsApp, splitSubjectFromBody } from "./text-utils";
 import type { WaSenderMessageData } from "./types";
 import {
   getOrCreateWhatsAppChat,
@@ -44,7 +44,11 @@ export async function handleWhatsAppMessage(
 ): Promise<void> {
   // Only handle text messages, skip group messages
   if (messageData.type !== "text" || !messageData.text || messageData.isGroup) {
-    console.log("Skipping WhatsApp message:", messageData.type, messageData.isGroup ? "group" : "");
+    console.log(
+      "Skipping WhatsApp message:",
+      messageData.type,
+      messageData.isGroup ? "group" : ""
+    );
     return;
   }
 
@@ -215,53 +219,98 @@ PLATFORM CONTEXT: WhatsApp Mobile Messaging
       "messages..."
     );
     const assistantMessageId = generateUUID();
-    fullResponse = await runWithUserContext(aiUserContext, async () => {
-      const result = await streamText({
-        model: chatModel,
-        system: finalSystemPrompt,
-        messages: convertToModelMessages(allMessages),
-        temperature: 0, // Match web chat for strict instruction following
-        stopWhen: stepCountIs(5), // Limit tool call chains to 5 steps max
-        experimental_activeTools: [
-          "calculateTransferFees",
-          "calculateCapitalGains",
-          "calculateVAT",
-          // "getGeneralKnowledge", // DISABLED - Knowledge now embedded in system prompt
-          "createListing",
-          "listListings",
-          "uploadListing",
-          "getZyprusData",
-          "createLandListing",
-          "uploadLandListing",
-          "sendDocument",
-        ],
-        tools: {
-          calculateTransferFees: calculateTransferFeesTool,
-          calculateCapitalGains: calculateCapitalGainsTool,
-          calculateVAT: calculateVATTool,
-          // getGeneralKnowledge, // DISABLED - Knowledge now embedded in system prompt
-          createListing: createListingTool,
-          listListings: listListingsTool,
-          uploadListing: uploadListingTool,
-          getZyprusData: getZyprusDataTool,
-          createLandListing: createLandListingTool,
-          uploadLandListing: uploadLandListingTool,
-          sendDocument: createWhatsAppSendDocumentTool(phoneNumber),
-        },
-        experimental_telemetry: {
-          isEnabled: isProductionEnvironment,
-          functionId: "whatsapp-stream-text",
-        },
-      });
+    // Generate AI response with retry mechanism
+    let result: any = null;
+    let retryCount = 0;
+    const MAX_RETRIES = 2;
+    const STREAM_TIMEOUT_MS = 45_000; // 45 seconds
 
-      // Collect the response
-      let response = "";
-      for await (const textPart of result.textStream as AsyncIterable<string>) {
-        response += textPart;
+    while (retryCount <= MAX_RETRIES) {
+      try {
+        result = await runWithUserContext(aiUserContext, async () => {
+          return await streamText({
+            model: chatModel,
+            system: finalSystemPrompt,
+            messages: convertToModelMessages(allMessages),
+            temperature: 0, // Match web chat for strict instruction following
+            stopWhen: stepCountIs(5), // Limit tool call chains to 5 steps max
+            experimental_activeTools: [
+              "calculateTransferFees",
+              "calculateCapitalGains",
+              "calculateVAT",
+              // "getGeneralKnowledge", // DISABLED - Knowledge now embedded in system prompt
+              "createListing",
+              "listListings",
+              "uploadListing",
+              "getZyprusData",
+              "createLandListing",
+              "uploadLandListing",
+              "sendDocument",
+            ],
+            tools: {
+              calculateTransferFees: calculateTransferFeesTool,
+              calculateCapitalGains: calculateCapitalGainsTool,
+              calculateVAT: calculateVATTool,
+              // getGeneralKnowledge, // DISABLED - Knowledge now embedded in system prompt
+              createListing: createListingTool,
+              listListings: listListingsTool,
+              uploadListing: uploadListingTool,
+              getZyprusData: getZyprusDataTool,
+              createLandListing: createLandListingTool,
+              uploadLandListing: uploadLandListingTool,
+              sendDocument: createWhatsAppSendDocumentTool(phoneNumber),
+            },
+            experimental_telemetry: {
+              isEnabled: isProductionEnvironment,
+              functionId: "whatsapp-stream-text",
+            },
+          });
+        });
+        break; // Success - exit retry loop
+      } catch (streamError) {
+        retryCount++;
+        console.error(`[WhatsApp] AI stream attempt ${retryCount} failed:`, {
+          phoneNumber,
+          attempt: retryCount,
+          error: streamError instanceof Error ? streamError.message : "Unknown",
+        });
+
+        if (retryCount > MAX_RETRIES) {
+          throw new Error(
+            `AI service unavailable after ${MAX_RETRIES} retries: ${streamError instanceof Error ? streamError.message : "Unknown error"}`
+          );
+        }
+
+        // Wait before retry (exponential backoff: 1s, 2s)
+        await new Promise((resolve) => setTimeout(resolve, 1000 * retryCount));
       }
-      console.log("[WhatsApp] AI response collected, length:", response.length);
-      return response;
-    });
+    }
+
+    // Collect response text with timeout protection
+    const streamStartTime = Date.now();
+
+    // TypeScript: result is guaranteed to be defined here (retry loop ensures it)
+    if (!result) {
+      throw new Error("AI model failed to initialize");
+    }
+
+    for await (const textPart of result.textStream) {
+      // Check for timeout
+      if (Date.now() - streamStartTime > STREAM_TIMEOUT_MS) {
+        console.error("[WhatsApp] AI stream timeout exceeded", {
+          phoneNumber,
+          duration: Date.now() - streamStartTime,
+          partialResponse: fullResponse.substring(0, 200),
+        });
+        throw new Error("Response generation timeout");
+      }
+
+      fullResponse += textPart;
+    }
+    console.log(
+      "[WhatsApp] AI response collected, length:",
+      fullResponse.length
+    );
 
     // Save assistant response to database for conversation continuity
     try {
@@ -303,32 +352,44 @@ PLATFORM CONTEXT: WhatsApp Mobile Messaging
       });
       console.log("[WhatsApp] Document send result:", docResult);
     } else {
-      // Send as plain text message (emails, calculations, etc.)
-      console.log("[WhatsApp] Sending as text message...");
+      // Send as plain text messages (emails, calculations, etc.)
+      // Format: 1st message = subject, 2nd message = body, 3rd message = notes/warnings
+      console.log("[WhatsApp] Sending as text messages...");
       const formattedResponse = formatForWhatsApp(fullResponse);
 
-      // Split subject line into separate message for email templates
-      const messageParts = splitSubjectFromBody(formattedResponse);
+      // Split into subject, body, and notes (3 parts)
+      const emailParts = splitEmailParts(formattedResponse);
 
-      if (messageParts.subject) {
+      if (emailParts.subject) {
         // Send subject as first message
-        console.log("[WhatsApp] Sending subject as separate message...");
+        console.log("[WhatsApp] Sending subject (1/3)...");
         await client.sendMessage({
           to: phoneNumber,
-          text: messageParts.subject,
+          text: emailParts.subject,
         });
 
         // Small delay to ensure message order
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         // Send body as second message
+        console.log("[WhatsApp] Sending body (2/3)...");
         const bodyResult = await client.sendLongMessage({
           to: phoneNumber,
-          text: messageParts.body,
+          text: emailParts.body,
         });
         console.log("[WhatsApp] Body send result:", bodyResult);
+
+        // Send notes as third message if present
+        if (emailParts.notes) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          console.log("[WhatsApp] Sending notes (3/3)...");
+          await client.sendMessage({
+            to: phoneNumber,
+            text: emailParts.notes,
+          });
+        }
       } else {
-        // No subject line, send as single message
+        // No subject line, send as single message (for non-email responses like calculations)
         const textResult = await client.sendLongMessage({
           to: phoneNumber,
           text: formattedResponse,

@@ -15,7 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **SOFIA v3.1.0** - Next.js 15 AI assistant for Zyprus Property Group (Cyprus real estate). Core features:
 - AI chat with Cyprus real estate tools (VAT, transfer fees, capital gains calculators)
 - Property listing management with Zyprus API integration (Drupal JSON:API)
-- Telegram bot integration (WhatsApp currently disabled)
+- Telegram and WhatsApp bot integration (dual-channel support)
 - Document generation (38 DOCX templates via `docx` package, sent via Resend email)
 
 ## AI Configuration
@@ -91,7 +91,7 @@ pnpm test:unit:parallel-uploads
 ```
 
 **Test file locations:**
-- `tests/unit/` - Unit tests (Node.js test runner via tsx)
+- `tests/unit/` - Unit tests (Node.js test runner via tsx) - 66+ tests including WhatsApp module
 - `tests/e2e/` - Playwright E2E tests
 - `tests/manual/` - Manual test scripts (e.g., `test-ai-models.ts`, `test-zyprus-api.ts`)
 
@@ -131,7 +131,7 @@ Key patterns:
 
 **Telegram** (`lib/telegram/`): Webhook at `/api/telegram/webhook`, typing indicators (time-based, 3s interval), message splitting, group lead management via `lib/telegram/lead-router.ts`
 
-**WhatsApp** (`lib/whatsapp/`): Uses WaSenderAPI (~$6/month) for DOCX attachments and text messages. Requires `WASENDER_API_KEY` env var. Features: text messages, document uploads (upload→URL→send flow), all AI tools including calculators, listings, and document generation.
+**WhatsApp** (`lib/whatsapp/`): Uses WaSenderAPI (~$6/month) for DOCX attachments and text messages. Requires `WASENDER_API_KEY` and `WASENDER_WEBHOOK_SECRET` env vars. Features: text messages, document uploads (upload→URL→send flow), all AI tools including calculators, listings, and document generation. Security: HMAC webhook authentication, Redis session storage, optimized deduplication cache.
 
 **Zyprus API** (`lib/zyprus/`): Drupal JSON:API backend for property/land listings. OAuth 2.0 auth, auto-upload as unpublished drafts. Redis-cached taxonomy (1h TTL) with in-memory fallback. See Zyprus API Quick Reference section below.
 
@@ -217,6 +217,8 @@ See `.env.example` for complete list.
 | Zyprus API 404 errors | Run `pnpm exec tsx tests/manual/test-zyprus-api.ts` to discover correct endpoint names |
 | "Unable to create listing" | Check Vercel logs for taxonomy errors; vocabulary names may have changed |
 | Sentry "Project not found" | Verify `SENTRY_PROJECT` env var matches Sentry project slug (not display name) |
+| WhatsApp issues | See `IMPLEMENTATION_PLAN.md` → "WhatsApp Integration Hardening" section (Issues #1-6 resolved, 66 tests) |
+| Prompt cache not updating | Bump cache key version in `lib/ai/prompts.ts` (e.g., `sophia-base-prompt-v10` → `v11`) |
 
 ## Key Patterns
 
@@ -229,6 +231,7 @@ See `.env.example` for complete list.
 - **Lead routing**: SOPHIA spec rules in `lib/telegram/lead-router.ts` for agent assignment
 - **Rate limiting**: Redis-backed via `@upstash/ratelimit`, limits in `lib/ai/entitlements.ts`
 - **Caching**: System prompt cached 24h (`unstable_cache`), taxonomy cache 1h (Redis with in-memory fallback)
+- **Webhook security**: HMAC signature verification for WhatsApp webhooks (`WASENDER_WEBHOOK_SECRET`)
 
 ---
 

@@ -222,7 +222,9 @@ export const createListingTool = tool({
       .positive()
       .max(500)
       .optional()
-      .describe("Veranda/outdoor covered area in square meters (deprecated - use coveredVeranda)"),
+      .describe(
+        "Veranda/outdoor covered area in square meters (deprecated - use coveredVeranda)"
+      ),
     coveredVeranda: z
       .number()
       .positive()
@@ -241,10 +243,7 @@ export const createListingTool = tool({
       .max(50_000)
       .optional()
       .describe("Total plot size in square meters (for houses/villas)"),
-    storageRoom: z
-      .boolean()
-      .optional()
-      .describe("Has storage/utility room"),
+    storageRoom: z.boolean().optional().describe("Has storage/utility room"),
     floor: z
       .string()
       .max(50)
@@ -254,14 +253,8 @@ export const createListingTool = tool({
       .enum(["excellent", "good", "needs_renovation"])
       .optional()
       .describe("Property condition"),
-    hasElevator: z
-      .boolean()
-      .optional()
-      .describe("Building has elevator"),
-    hasTitleDeeds: z
-      .boolean()
-      .optional()
-      .describe("Property has title deeds"),
+    hasElevator: z.boolean().optional().describe("Building has elevator"),
+    hasTitleDeeds: z.boolean().optional().describe("Property has title deeds"),
     titleDeedDocumentUrl: z
       .string()
       .url()

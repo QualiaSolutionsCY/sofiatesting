@@ -52,7 +52,7 @@ export const mergeSessionUpdates = (
  */
 export const isSessionExpired = (
   session: SessionState,
-  ttlMs: number = 1800000
+  ttlMs = 1_800_000
 ): boolean => {
   return Date.now() - session.lastActivity > ttlMs;
 };
@@ -106,7 +106,9 @@ export const EMAIL_TEMPLATES = [
  * Check if a template should be sent as email (text) or document (DOCX)
  */
 export const isEmailTemplate = (templateId: string): boolean => {
-  return EMAIL_TEMPLATES.includes(templateId as typeof EMAIL_TEMPLATES[number]);
+  return EMAIL_TEMPLATES.includes(
+    templateId as (typeof EMAIL_TEMPLATES)[number]
+  );
 };
 
 /**
@@ -119,21 +121,27 @@ export const getTemplateFromSelection = (selection: number): string | null => {
 /**
  * Get calculator type from selection number
  */
-export const getCalculatorFromSelection = (selection: number): string | null => {
+export const getCalculatorFromSelection = (
+  selection: number
+): string | null => {
   return CALCULATOR_SELECTIONS[selection] || null;
 };
 
 /**
  * Get property type from selection number
  */
-export const getListingTypeFromSelection = (selection: number): string | null => {
+export const getListingTypeFromSelection = (
+  selection: number
+): string | null => {
   return LISTING_TYPE_SELECTIONS[selection] || null;
 };
 
 /**
  * Build listing progress message based on collected data
  */
-export const buildListingProgress = (listingData: SessionState["listingData"]): {
+export const buildListingProgress = (
+  listingData: SessionState["listingData"]
+): {
   message: string;
   nextNeeded: string | null;
   isComplete: boolean;

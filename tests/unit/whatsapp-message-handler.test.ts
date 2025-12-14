@@ -20,11 +20,15 @@ describe("WhatsApp Message Handler", () => {
       const result = splitSubjectFromBody(input);
 
       assert.strictEqual(result.subject, null);
-      assert.strictEqual(result.body, "Just a plain message without subject line.");
+      assert.strictEqual(
+        result.body,
+        "Just a plain message without subject line."
+      );
     });
 
     it("should handle Subject followed by Dear pattern", () => {
-      const input = "Subject: Property Inquiry\nDear Mr. Smith,\n\nThank you for your interest.";
+      const input =
+        "Subject: Property Inquiry\nDear Mr. Smith,\n\nThank you for your interest.";
       const result = splitSubjectFromBody(input);
 
       assert.strictEqual(result.subject, "Subject: Property Inquiry");
@@ -32,7 +36,8 @@ describe("WhatsApp Message Handler", () => {
     });
 
     it("should handle Subject with Email Body marker", () => {
-      const input = "Subject: Important Update\nEmail Body:\n\nHere is the content.";
+      const input =
+        "Subject: Important Update\nEmail Body:\n\nHere is the content.";
       const result = splitSubjectFromBody(input);
 
       assert.strictEqual(result.subject, "Subject: Important Update");
@@ -59,7 +64,7 @@ describe("WhatsApp Message Handler", () => {
 
     it("should handle long subjects without ReDoS vulnerability", () => {
       // This would hang if ReDoS vulnerability exists
-      const longSubject = "Subject: " + "a".repeat(10000) + "\n\nBody";
+      const longSubject = "Subject: " + "a".repeat(10_000) + "\n\nBody";
       const startTime = Date.now();
       const result = splitSubjectFromBody(longSubject);
       const elapsed = Date.now() - startTime;
@@ -77,10 +82,14 @@ describe("WhatsApp Message Handler", () => {
     });
 
     it("should handle subject with special characters", () => {
-      const input = "Subject: RE: Property @ Limassol - 500,000€\n\nDetails follow.";
+      const input =
+        "Subject: RE: Property @ Limassol - 500,000€\n\nDetails follow.";
       const result = splitSubjectFromBody(input);
 
-      assert.strictEqual(result.subject, "Subject: RE: Property @ Limassol - 500,000€");
+      assert.strictEqual(
+        result.subject,
+        "Subject: RE: Property @ Limassol - 500,000€"
+      );
       assert.strictEqual(result.body, "Details follow.");
     });
   });

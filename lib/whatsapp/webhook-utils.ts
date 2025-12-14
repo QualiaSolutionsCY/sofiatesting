@@ -47,6 +47,9 @@ export const verifyWebhookSignature = (
  * @param secret - The secret key
  * @returns The HMAC-SHA256 signature as hex
  */
-export const createHmacSignature = (payload: string, secret: string): string => {
+export const createHmacSignature = (
+  payload: string,
+  secret: string
+): string => {
   return crypto.createHmac("sha256", secret).update(payload).digest("hex");
 };

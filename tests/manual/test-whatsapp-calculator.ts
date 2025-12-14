@@ -10,23 +10,23 @@ async function testCalculatorResponses() {
     {
       name: "VAT Calculation",
       message: "What is the VAT for a €300,000 property in Cyprus?",
-      expectedType: "text"
+      expectedType: "text",
     },
     {
       name: "Transfer Fees",
       message: "Calculate transfer fees for a €200,000 apartment",
-      expectedType: "text"
+      expectedType: "text",
     },
     {
       name: "Capital Gains",
       message: "What are the capital gains tax if I sell for €400,000?",
-      expectedType: "text"
+      expectedType: "text",
     },
     {
       name: "General Knowledge",
       message: "What are the property taxes in Cyprus?",
-      expectedType: "text"
-    }
+      expectedType: "text",
+    },
   ];
 
   console.log("=== WhatsApp Calculator Response Tests ===\n");
@@ -49,16 +49,16 @@ async function testCalculatorResponses() {
               key: {
                 id: `test-${Date.now()}-${test.name.replace(/\s+/g, "-")}`,
                 fromMe: false,
-                remoteJid: "35799111668@s.whatsapp.net"
+                remoteJid: "35799111668@s.whatsapp.net",
               },
               pushName: "Calculator Test",
               message: {
-                conversation: test.message
+                conversation: test.message,
               },
-              messageBody: test.message
-            }
-          }
-        })
+              messageBody: test.message,
+            },
+          },
+        }),
       });
 
       if (response.ok) {
@@ -72,11 +72,13 @@ async function testCalculatorResponses() {
     }
 
     // Wait between requests to avoid rate limiting
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
   }
 
   console.log("=== Test Complete ===");
-  console.log("\nCheck WhatsApp to verify all calculator responses are text, not documents!");
+  console.log(
+    "\nCheck WhatsApp to verify all calculator responses are text, not documents!"
+  );
 }
 
 // Run the test

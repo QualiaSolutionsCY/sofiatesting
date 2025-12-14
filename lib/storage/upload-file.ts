@@ -38,9 +38,9 @@ export async function uploadToSupabaseStorage({
     }
 
     // Get public URL
-    const { data: { publicUrl } } = supabaseAdmin.storage
-      .from(bucket)
-      .getPublicUrl(path);
+    const {
+      data: { publicUrl },
+    } = supabaseAdmin.storage.from(bucket).getPublicUrl(path);
 
     return {
       success: true,
@@ -84,9 +84,7 @@ export async function deleteFromSupabaseStorage({
   path: string;
 }) {
   try {
-    const { error } = await supabaseAdmin.storage
-      .from(bucket)
-      .remove([path]);
+    const { error } = await supabaseAdmin.storage.from(bucket).remove([path]);
 
     if (error) {
       console.error("Supabase storage delete error:", error);

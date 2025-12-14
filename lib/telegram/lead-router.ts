@@ -11,11 +11,11 @@ import { getTelegramClient } from "./client";
 import {
   AGENT_REQUEST_PATTERN,
   detectRussianLanguage,
-  isLimassolRegion,
   isLarnacaRegion,
+  isLimassolRegion,
   isOthersGroup,
-  LIMASSOL_AGENTS,
   LARNACA_AGENTS,
+  LIMASSOL_AGENTS,
   OTHERS_GROUP_AGENTS,
   PRIORITY_AGENTS,
   RUSSIAN_SPEAKER_AGENT,
@@ -633,10 +633,7 @@ export async function handleGroupMessage(
     }
   } else if (isLarnacaRegion(region)) {
     // For Larnaca, use same logic as Limassol but without Russian preference
-    selectedAgent = await getNextAgentInRotation(
-      "larnaca",
-      agentsWithTelegram
-    );
+    selectedAgent = await getNextAgentInRotation("larnaca", agentsWithTelegram);
   } else {
     // Standard rotation for other regions
     selectedAgent = await getNextAgentInRotation(

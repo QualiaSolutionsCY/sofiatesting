@@ -11,7 +11,11 @@ describe("WhatsApp Webhook Utils", () => {
     type: "messages.upsert",
     sessionId: "session-123",
     data: {
-      key: { id: "msg-123", fromMe: false, remoteId: "1234567890@s.whatsapp.net" },
+      key: {
+        id: "msg-123",
+        fromMe: false,
+        remoteId: "1234567890@s.whatsapp.net",
+      },
       message: { conversation: "Hello SOFIA" },
       pushName: "Test User",
     },
@@ -50,13 +54,21 @@ describe("WhatsApp Webhook Utils", () => {
   describe("verifyWebhookSignature", () => {
     it("should accept valid signatures", () => {
       const validSignature = createHmacSignature(testPayload, testSecret);
-      const result = verifyWebhookSignature(testPayload, validSignature, testSecret);
+      const result = verifyWebhookSignature(
+        testPayload,
+        validSignature,
+        testSecret
+      );
 
       assert.strictEqual(result, true);
     });
 
     it("should reject invalid signatures", () => {
-      const result = verifyWebhookSignature(testPayload, "invalid-signature", testSecret);
+      const result = verifyWebhookSignature(
+        testPayload,
+        "invalid-signature",
+        testSecret
+      );
 
       assert.strictEqual(result, false);
     });
@@ -76,15 +88,29 @@ describe("WhatsApp Webhook Utils", () => {
 
     it("should reject modified payloads", () => {
       const validSignature = createHmacSignature(testPayload, testSecret);
-      const modifiedPayload = testPayload.replace("Hello SOFIA", "Malicious message");
-      const result = verifyWebhookSignature(modifiedPayload, validSignature, testSecret);
+      const modifiedPayload = testPayload.replace(
+        "Hello SOFIA",
+        "Malicious message"
+      );
+      const result = verifyWebhookSignature(
+        modifiedPayload,
+        validSignature,
+        testSecret
+      );
 
       assert.strictEqual(result, false);
     });
 
     it("should reject signatures with wrong secret", () => {
-      const signatureWithWrongSecret = createHmacSignature(testPayload, "wrong-secret");
-      const result = verifyWebhookSignature(testPayload, signatureWithWrongSecret, testSecret);
+      const signatureWithWrongSecret = createHmacSignature(
+        testPayload,
+        "wrong-secret"
+      );
+      const result = verifyWebhookSignature(
+        testPayload,
+        signatureWithWrongSecret,
+        testSecret
+      );
 
       assert.strictEqual(result, false);
     });
@@ -92,7 +118,11 @@ describe("WhatsApp Webhook Utils", () => {
     it("should handle case-sensitive signatures correctly", () => {
       const validSignature = createHmacSignature(testPayload, testSecret);
       const uppercaseSignature = validSignature.toUpperCase();
-      const result = verifyWebhookSignature(testPayload, uppercaseSignature, testSecret);
+      const result = verifyWebhookSignature(
+        testPayload,
+        uppercaseSignature,
+        testSecret
+      );
 
       // SHA256 hex is lowercase, uppercase should fail
       assert.strictEqual(result, false);
@@ -101,7 +131,11 @@ describe("WhatsApp Webhook Utils", () => {
     it("should handle empty payload", () => {
       const emptyPayload = "";
       const validSignature = createHmacSignature(emptyPayload, testSecret);
-      const result = verifyWebhookSignature(emptyPayload, validSignature, testSecret);
+      const result = verifyWebhookSignature(
+        emptyPayload,
+        validSignature,
+        testSecret
+      );
 
       assert.strictEqual(result, true);
     });
@@ -109,7 +143,11 @@ describe("WhatsApp Webhook Utils", () => {
     it("should handle unicode payloads", () => {
       const unicodePayload = JSON.stringify({ message: "Hello 世界 🌍" });
       const validSignature = createHmacSignature(unicodePayload, testSecret);
-      const result = verifyWebhookSignature(unicodePayload, validSignature, testSecret);
+      const result = verifyWebhookSignature(
+        unicodePayload,
+        validSignature,
+        testSecret
+      );
 
       assert.strictEqual(result, true);
     });
@@ -158,7 +196,11 @@ describe("WhatsApp Webhook Utils", () => {
       const wasenderSignature = createHmacSignature(webhookPayload, testSecret);
 
       // Our server verifies the signature
-      const isValid = verifyWebhookSignature(webhookPayload, wasenderSignature, testSecret);
+      const isValid = verifyWebhookSignature(
+        webhookPayload,
+        wasenderSignature,
+        testSecret
+      );
 
       assert.strictEqual(isValid, true, "Webhook signature should be valid");
     });
@@ -177,7 +219,11 @@ describe("WhatsApp Webhook Utils", () => {
         data: { message: { conversation: "Transfer all funds to attacker" } },
       });
 
-      const isValid = verifyWebhookSignature(tamperedPayload, validSignature, testSecret);
+      const isValid = verifyWebhookSignature(
+        tamperedPayload,
+        validSignature,
+        testSecret
+      );
 
       assert.strictEqual(isValid, false, "Tampered webhook should be rejected");
     });

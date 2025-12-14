@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
+import { NextResponse } from "next/server";
 import { handleEnhancedWhatsAppMessage } from "@/lib/whatsapp/enhanced-handler";
 import type {
   WaSenderMessageData,
@@ -140,8 +140,25 @@ const isMessageProcessed = async (messageId: string): Promise<boolean> => {
  * POST - Handle incoming WhatsApp messages from WaSenderAPI
  */
 export async function POST(request: Request): Promise<Response> {
+  // Debug: Log all incoming headers to diagnose signature issues
+  const headerNames: string[] = [];
+  request.headers.forEach((_, key) => {
+    headerNames.push(key);
+  });
+
+  console.log("[WhatsApp Webhook] Incoming request:", {
+    method: request.method,
+    headerNames,
+    hasWebhookSignature: !!request.headers.get("x-webhook-signature"),
+    hasWasenderSignature: !!request.headers.get("x-wasender-signature"),
+    timestamp: new Date().toISOString(),
+  });
+
   // 1. Get signature from headers
-  const signature = request.headers.get("x-wasender-signature");
+  // WaSenderAPI uses "X-Webhook-Signature" header (case-insensitive in HTTP)
+  const signature =
+    request.headers.get("x-webhook-signature") ||
+    request.headers.get("x-wasender-signature");
   const webhookSecret = process.env.WASENDER_WEBHOOK_SECRET;
 
   // 2. Verify webhook secret is configured
@@ -156,14 +173,25 @@ export async function POST(request: Request): Promise<Response> {
   // 3. Get raw body for signature verification
   const rawBody = await request.text();
 
-  // 4. Verify HMAC signature
-  if (!verifyWebhookSignature(rawBody, signature, webhookSecret)) {
+  // 4. Verify signature
+  // WaSenderAPI sends the webhook secret directly as the signature (not HMAC)
+  // Support both: direct secret match OR HMAC verification
+  const isDirectSecretMatch = signature === webhookSecret;
+  const isHmacValid = verifyWebhookSignature(rawBody, signature, webhookSecret);
+
+  if (!isDirectSecretMatch && !isHmacValid) {
     console.warn("[WhatsApp Webhook] Invalid signature, rejecting request", {
       hasSignature: !!signature,
       signatureLength: signature?.length,
+      secretLength: webhookSecret.length,
+      isDirectMatch: isDirectSecretMatch,
+      isHmacMatch: isHmacValid,
+      bodyPreview: rawBody.substring(0, 100),
     });
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
+
+  console.log("[WhatsApp Webhook] Signature verified successfully");
 
   // 5. Parse verified body
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

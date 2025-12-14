@@ -37,7 +37,9 @@ describe("WhatsApp Session Utils", () => {
   describe("mergeSessionUpdates", () => {
     it("should merge updates into existing session", () => {
       const current = createDefaultSession();
-      const updated = mergeSessionUpdates(current, { currentMenu: "templates" });
+      const updated = mergeSessionUpdates(current, {
+        currentMenu: "templates",
+      });
 
       assert.strictEqual(updated.currentMenu, "templates");
     });
@@ -59,7 +61,9 @@ describe("WhatsApp Session Utils", () => {
         currentMenu: "templates" as const,
         listingData: { type: "apartment" },
       };
-      const updated = mergeSessionUpdates(current, { currentMenu: "calculator" });
+      const updated = mergeSessionUpdates(current, {
+        currentMenu: "calculator",
+      });
 
       assert.strictEqual(updated.currentMenu, "calculator");
       assert.deepStrictEqual(updated.listingData, { type: "apartment" });
@@ -90,7 +94,7 @@ describe("WhatsApp Session Utils", () => {
     });
 
     it("should return true for old session", () => {
-      const session = { lastActivity: Date.now() - 2000000 }; // ~33 minutes ago
+      const session = { lastActivity: Date.now() - 2_000_000 }; // ~33 minutes ago
       const expired = isSessionExpired(session);
 
       assert.strictEqual(expired, true);
@@ -100,7 +104,7 @@ describe("WhatsApp Session Utils", () => {
       const session = { lastActivity: Date.now() - 5000 }; // 5 seconds ago
 
       // Not expired with 10 second TTL
-      assert.strictEqual(isSessionExpired(session, 10000), false);
+      assert.strictEqual(isSessionExpired(session, 10_000), false);
 
       // Expired with 3 second TTL
       assert.strictEqual(isSessionExpired(session, 3000), true);
@@ -130,7 +134,10 @@ describe("WhatsApp Session Utils", () => {
     describe("getTemplateFromSelection", () => {
       it("should return template ID for valid selection", () => {
         assert.strictEqual(getTemplateFromSelection(1), "seller_registration");
-        assert.strictEqual(getTemplateFromSelection(4), "marketing_agreement_exclusive");
+        assert.strictEqual(
+          getTemplateFromSelection(4),
+          "marketing_agreement_exclusive"
+        );
       });
 
       it("should return null for invalid selection", () => {
@@ -202,7 +209,10 @@ describe("WhatsApp Session Utils", () => {
       assert.strictEqual(isEmailTemplate("seller_registration"), false);
       assert.strictEqual(isEmailTemplate("bank_registration_property"), false);
       assert.strictEqual(isEmailTemplate("viewing_form"), false);
-      assert.strictEqual(isEmailTemplate("marketing_agreement_exclusive"), false);
+      assert.strictEqual(
+        isEmailTemplate("marketing_agreement_exclusive"),
+        false
+      );
     });
 
     it("should return false for unknown templates", () => {

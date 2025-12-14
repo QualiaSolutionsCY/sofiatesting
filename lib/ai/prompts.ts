@@ -26,11 +26,22 @@ function loadCyprusKnowledgeUncached(): string {
 }
 
 // Cache knowledge for 24 hours - v9: phone masking fix + 3 separate messages
-const loadCyprusKnowledge = unstable_cache(
-  async () => loadCyprusKnowledgeUncached(),
-  ["cyprus-knowledge-base-v9"],
-  { revalidate: 86_400 }
-);
+// Note: unstable_cache can fail in non-Next.js contexts, so we fallback
+const loadCyprusKnowledge = async (): Promise<string> => {
+  try {
+    const cachedFn = unstable_cache(
+      async () => loadCyprusKnowledgeUncached(),
+      ["cyprus-knowledge-base-v9"],
+      { revalidate: 86_400 }
+    );
+    return await cachedFn();
+  } catch {
+    console.warn(
+      "[SOFIA] unstable_cache unavailable for knowledge, using uncached"
+    );
+    return loadCyprusKnowledgeUncached();
+  }
+};
 
 /**
  * SOFIA Prompt System - ORIGINAL SINGLE DOCUMENT
@@ -71,16 +82,39 @@ function loadSophiaInstructionsUncached(): string {
   return content;
 }
 
-// Cache base instructions for 24 hours - v10: 5%+VAT fix in developer templates
-const loadSophiaInstructions = unstable_cache(
-  async () => loadSophiaInstructionsUncached(),
-  ["sophia-base-prompt-v10"],
-  {
-    revalidate: 86_400, // 24 hours in seconds
+// Cache base instructions for 24 hours - v13: No meta-commentary when asking for fields
+// Note: unstable_cache can fail in non-Next.js contexts (Railway standalone), so we fallback
+const loadSophiaInstructions = async (): Promise<string> => {
+  try {
+    // Try using Next.js cache first
+    const cachedFn = unstable_cache(
+      async () => loadSophiaInstructionsUncached(),
+      ["sophia-base-prompt-v15"],
+      {
+        revalidate: 86_400, // 24 hours in seconds
+      }
+    );
+    return await cachedFn();
+  } catch {
+    // Fallback to uncached version when incremental cache is unavailable
+    console.warn(
+      "[SOFIA] unstable_cache unavailable, using uncached prompt loader"
+    );
+    return loadSophiaInstructionsUncached();
   }
-);
+};
 
-export const regularPrompt = await loadSophiaInstructions();
+// Lazy-load regular prompt to avoid top-level await issues with unstable_cache
+let _regularPrompt: string | null = null;
+export const getRegularPrompt = async (): Promise<string> => {
+  if (_regularPrompt === null) {
+    _regularPrompt = await loadSophiaInstructions();
+  }
+  return _regularPrompt;
+};
+
+// Backward compatibility export (may cause issues in some contexts)
+export const regularPrompt = loadSophiaInstructionsUncached();
 
 export type RequestHints = {
   latitude: Geo["latitude"];
@@ -113,7 +147,7 @@ export const getBaseSystemPrompt = async (
   const sophiaInstructions =
     useSmartLoading && userMessage
       ? await loadSmartInstructions(userMessage)
-      : regularPrompt;
+      : await getRegularPrompt();
 
   const propertyListingWorkflow = `
 🏠🏠🏠 PROPERTY LISTING COLLECTION - CRITICAL WORKFLOW 🏠🏠🏠
@@ -355,13 +389,43 @@ YOU MUST USE THESE EXACT FORMATS - NO EXCEPTIONS:
    ❌ "Would you like"
    ❌ "Based on your request"
    ❌ ANY greeting or pleasantry
+   ❌ "📄 Generating..." or any emoji headers
+   ❌ "Format:" or "Output:" descriptions
+   ❌ "Template XX" mentions
+   ❌ "I'll need some information"
+   ❌ "Please provide the required details"
+   ❌ ANY meta-commentary about what you're doing
 
 5. RESPONSE STRUCTURE (DURING DOCUMENT FLOWS):
    - NO introductions
    - NO explanations
    - NO confirmations
    - NO internal process descriptions
+   - NO template numbers or document type announcements
+   - NO "generating" or "creating" statements
    - OUTPUT ONLY: Field request OR document
+
+   🚨 WHEN ASKING FOR FIELDS - EXACT FORMAT:
+
+   Just list the required fields with line breaks between each one.
+   Each field MUST have an example in parentheses.
+
+   ✅ CORRECT FORMAT:
+   Please provide the **buyer's full name(s)** (e.g., John Smith and Maria Smith)
+
+   Please provide the **property registration number** (e.g., Reg. No. 0/1789 Germasogeia, Limassol)
+
+   Please provide the **property link** (optional - omit if not available)
+
+   Please provide the **viewing date and time** (e.g., Monday 15th December 2025 at 14:00)
+
+   ❌ WRONG FORMAT:
+   "📄 Generating Seller Registration Form
+   I'll need some information to complete this document:
+   Generate Seller Registration Form (Template 01).
+   Format: Generate as a formal document with proper structure.
+   Output: Will be sent as a DOCX file attachment.
+   Please provide the required details."
 
 6. YEAR HANDLING:
    - When a date is provided without a year, automatically assume the closest upcoming occurrence.
@@ -375,7 +439,19 @@ YOU MUST USE THESE EXACT FORMATS - NO EXCEPTIONS:
    - NEVER offer: "signature block for emails", "contract that requires signatures", "something else specific"
    - ONLY offer the 43 Cyprus real estate templates - nothing else
 
-Bank Registration Pre-Question: Before collecting ANY bank registration details (Templates 05 & 06), ALWAYS ask "Is the property type Land or House/Apartment?" first.
+Bank Registration Flow (Templates 05 & 06):
+1. FIRST: Ask "Is the property type Land or House/Apartment?"
+2. RECOGNIZE THE ANSWER - user may respond with:
+   - "land", "Land", "LAND", "it's land", "land property" → Use Template 06
+   - "house", "apartment", "property", "flat", "villa", "home" → Use Template 05
+3. AFTER receiving answer, IMMEDIATELY proceed to collect the required fields for that template
+4. DO NOT ask the Land/House question again once answered
+5. Required fields for BOTH templates:
+   - Bank Name (or detect from link)
+   - Client Name
+   - Client Phone
+   - Agent Mobile
+   - Property Link (MANDATORY)
 
 🔴🔴🔴 ABSOLUTE TEMPLATE COPYING RULE - ZERO TOLERANCE 🔴🔴🔴
 
@@ -625,6 +701,21 @@ FOR FACTUAL QUESTIONS ABOUT CYPRUS REAL ESTATE:
    - NEVER ask about year or planning permit date
    - ALWAYS calculate using post-2023 reform rules automatically
    - Only ask for: price, area (sqm), and main residence (yes/no)
+   - When user provides price in initial message, extract it and only ask for remaining fields
+
+🔑 PARSING USER RESPONSES FOR CALCULATORS:
+   - Users may answer multiple questions in a single compact response
+   - Parse compact responses intelligently:
+     * "150 no" = area: 150, main residence: no
+     * "150 sqm no" = area: 150, main residence: no  
+     * "150, not main residence" = area: 150, main residence: false
+     * "200 yes" = area: 200, main residence: yes
+     * "180 sqm, yes it's my main home" = area: 180, main residence: true
+   - ALWAYS extract numbers as area values (in sqm)
+   - ALWAYS interpret "no", "not", "investment", "rental" as is_main_residence: false
+   - ALWAYS interpret "yes", "main", "primary" as is_main_residence: true
+   - Once you have all required values, IMMEDIATELY call the calculator tool
+   - DO NOT ask again for information already provided in the conversation
 
 ⚠️ CAPITAL GAINS TAX - MANDATORY REDIRECT:
    - NEVER calculate capital gains tax yourself

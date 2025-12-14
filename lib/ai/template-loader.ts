@@ -287,11 +287,22 @@ async function loadFullInstructionsUncached(): Promise<string> {
   return content;
 }
 
-const loadFullInstructions = unstable_cache(
-  loadFullInstructionsUncached,
-  ["sophia-full-instructions-v2"], // v2: fixed touristic zones table
-  { revalidate: 86_400 } // 24 hours
-);
+// Note: unstable_cache can fail in non-Next.js contexts (Railway standalone), so we fallback
+const loadFullInstructions = async (): Promise<string> => {
+  try {
+    const cachedFn = unstable_cache(
+      loadFullInstructionsUncached,
+      ["sophia-full-instructions-v2"], // v2: fixed touristic zones table
+      { revalidate: 86_400 } // 24 hours
+    );
+    return await cachedFn();
+  } catch {
+    console.warn(
+      "[SOFIA] unstable_cache unavailable for templates, using uncached"
+    );
+    return loadFullInstructionsUncached();
+  }
+};
 
 /**
  * SMART LOADER: Load only relevant templates based on user message

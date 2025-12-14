@@ -59,7 +59,7 @@ export function parseWhatsAppCommand(message: string): WhatsAppCommand {
   if (/^[1-9]$/.test(trimmed)) {
     return {
       type: "menu_selection",
-      selection: parseInt(trimmed, 10),
+      selection: Number.parseInt(trimmed, 10),
       raw: trimmed,
     };
   }

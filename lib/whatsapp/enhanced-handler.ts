@@ -91,12 +91,16 @@ export async function handleEnhancedWhatsAppMessage(
       }
     }
 
-    // Check for calculator requests
-    if (
-      lowerMessage.includes("calculator") ||
-      lowerMessage.includes("calculate") ||
-      lowerMessage.includes("calc")
-    ) {
+    // Check for EXPLICIT calculator menu requests (short commands only)
+    // Conversational queries like "calculate VAT for €500,000" go to AI
+    const isExplicitCalcRequest =
+      lowerMessage === "calculator" ||
+      lowerMessage === "calculators" ||
+      lowerMessage === "calc" ||
+      lowerMessage === "/calc" ||
+      lowerMessage === "/calculator";
+
+    if (isExplicitCalcRequest) {
       await updateSession(phoneNumber, { currentMenu: "calculator" });
       await client.sendMessage({
         to: phoneNumber,
@@ -105,12 +109,17 @@ export async function handleEnhancedWhatsAppMessage(
       return;
     }
 
-    // Check for listing requests
-    if (
-      lowerMessage.includes("listing") ||
-      lowerMessage.includes("upload") ||
-      lowerMessage.includes("property")
-    ) {
+    // Check for EXPLICIT listing menu requests (short commands only)
+    // Conversational queries like "help me list a property" go to AI
+    const isExplicitListingRequest =
+      lowerMessage === "listing" ||
+      lowerMessage === "listings" ||
+      lowerMessage === "upload" ||
+      lowerMessage === "/listing" ||
+      lowerMessage === "/upload" ||
+      lowerMessage === "/property";
+
+    if (isExplicitListingRequest) {
       await updateSession(phoneNumber, { currentMenu: "listing_type" });
       await client.sendMessage({
         to: phoneNumber,

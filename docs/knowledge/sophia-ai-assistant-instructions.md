@@ -1033,30 +1033,30 @@ Template 01: Standard Seller Registration
 
 Subject: Registration – [BUYER_NAMES] – Reg No. [REG_NUMBER] – [PROPERTY_DESCRIPTION]
 
-Email Body:
+**EXACT EMAIL FORMAT (COPY CHARACTER BY CHARACTER):**
 
 Dear XXXXXXXX, (Seller)
 
 This email is to provide you with a registration.
 
-Client Information: [BUYER_NAMES]
+**Client Information:** [BUYER_NAMES]
 
-Property Introduced: Your Property in [LOCATION] with Registration No. [REG_NUMBER]
+**Property Introduced:** Your Property in [LOCATION] with Registration No. [REG_NUMBER]
 
-Property Link: [PROPERTY_LINK] (optional - omit if not provided)
+**Property Link:** [PROPERTY_LINK] (optional - omit if not provided)
 
-Viewing Arranged for: [VIEWING_DATETIME]
+**Viewing Arranged for:** [VIEWING_DATETIME]
 
 **Please confirm Registration and Viewing.**
 
-For the confirmation, Could you please reply **''Yes I confirm''**
+For the confirmation, Could you please reply **"Yes I confirm"**
 
 Looking forward to your prompt confirmation.
 Template 02: Seller with Marketing Agreement
 
 Subject: Registration – [BUYER_NAMES] – Reg No. [REG_NUMBER] – [PROPERTY_DESCRIPTION]
 
-Email Body:
+**EXACT EMAIL FORMAT (COPY CHARACTER BY CHARACTER):**
 
 Dear XXXXXXXX, (Seller)
 
@@ -1064,24 +1064,24 @@ Following our communication,
 
 With this email, we kindly ask for your approval for the below registration and viewing.
 
-Client Information: [BUYER_NAMES]
+**Client Information:** [BUYER_NAMES]
 
-Property Introduced: Your property with Registration No.[REG_NUMBER] [LOCATION] OR Your property within the project [PROJECT_NAME] with Unit No. [UNIT_NUMBER] at [LOCATION]
+**Property Introduced:** Your property with Registration No.[REG_NUMBER] [LOCATION] OR Your property within the project [PROJECT_NAME] with Unit No. [UNIT_NUMBER] at [LOCATION]
 
-Property Link: [PROPERTY_LINK] (optional - omit if not provided)
+**Property Link:** [PROPERTY_LINK] (optional - omit if not provided)
 
-Viewing arranged for: [VIEWING_DATETIME].
+**Viewing arranged for:** [VIEWING_DATETIME].
 
-Fees: Standard agency fee based on the final agreed sold price. If sold to the above-mentioned purchaser introduced to you by CSC Zyprus Property Group LTD.
+**Fees:** Standard agency fee based on the final agreed sold price. If sold to the above-mentioned purchaser introduced to you by CSC Zyprus Property Group LTD.
 
 In the unusual event that the above registered client of CSC Zyprus Property Group LTD communicates with you directly, you acknowledge and agree that you are legally bound to immediately cease such communication, notify us without delay, and inform our registered client that all further communication must be conducted solely through the agent CSC Zyprus Property Group LTD.
 
-If you agree with the above terms and conditions, could you please reply to this email stating: **''Yes I confirm''**
+If you agree with the above terms and conditions, could you please reply to this email stating: **"Yes I confirm"**
 Template 03: Rental Property Registration
 
 Subject: Registration – [TENANT_NAMES] – [PROPERTY_DESCRIPTION]
 
-Email Body:
+**EXACT EMAIL FORMAT (COPY CHARACTER BY CHARACTER):**
 
 Dear XXXXXXXX, (landlord)
 
@@ -1101,24 +1101,24 @@ In the unusual event that the above registered client of CSC Zyprus Property Gro
 
 **Please confirm Registration and Viewing.**
 
-For the confirmation, Could you please reply **''Yes I confirm''**
+For the confirmation, Could you please reply **"Yes I confirm"**
 
 Looking forward to your prompt confirmation.
 Template 04: Advanced Seller Registration
 
 Subject: Registration – [BUYER_NAMES] – Reg. Nos. [REG_NUMBERS] – [PROPERTY_DESCRIPTION]
 
-Email Body:
+**EXACT EMAIL FORMAT (COPY CHARACTER BY CHARACTER):**
 
 Dear XXXXXXXX,
 
 This email is to provide you with the full registration of our below client, under our Estate Agency: CSC Zyprus Property Group LTD.
 
-Client Information: [BUYER_NAMES] and any directly related company in which [he/she/they] is/are a sole shareholder or co-shareholder.
+**Client Information:** [BUYER_NAMES] and any directly related company in which [he/she/they] is/are a sole shareholder or co-shareholder.
 
-Property Introduced: Your property in [LOCATION], with the following Registration Numbers: [REG_NUMBERS] ([PROPERTY_DESCRIPTION])
+**Property Introduced:** Your property in [LOCATION], with the following Registration Numbers: [REG_NUMBERS] ([PROPERTY_DESCRIPTION])
 
-Our Agency Fees: [AGENCY_FEE]% + VAT based on the final agreed sold price. If sold to the above-mentioned purchaser introduced to you by CSC Zyprus Property Group LTD.
+**Our Agency Fees:** [AGENCY_FEE]%+ VAT based on the final agreed sold price. If sold to the above-mentioned purchaser introduced to you by CSC Zyprus Property Group LTD.
 
 Our fee becomes payable in full upon your receipt of the initial [PAYMENT_PERCENTAGE]% payment of the agreed purchase price. This ensures that, in cases where the remaining balance may be delayed due to the issuance of title deeds, licenses, or any other special agreement reached with the buyer/client, our agency is not required to wait indefinitely for settlement. This method of payment is consistent with standard market practice in similar transactions.
 
@@ -1128,7 +1128,7 @@ By confirming this email you also confirm that you legally represent the followi
 
 Please confirm registration.
 
-For the confirmation, please reply **''Yes I confirm''**
+For the confirmation, please reply **"Yes I confirm"**
 
 Looking forward to your prompt reply.
 
@@ -1280,21 +1280,21 @@ Location (optional - only if agent mentioned it, e.g., Paphos)
 
 Subject: Registration – [CLIENT_NAMES] – [PROJECT_NAME] – [LOCATION]
 
-Note: If Project Name or Location not mentioned, use only: Registration – [CLIENT_NAMES]
+Note: If Project Name or Location not mentioned, use only: Subject: Registration – [CLIENT_NAMES]
 
-Email Body:
+**EXACT EMAIL FORMAT (COPY CHARACTER BY CHARACTER):**
 
 Dear XXXXXXXX,
 
 This email is to provide you with the registration of our below client, under our Estate Agency: CSC Zyprus Property Group LTD.
 
-Registration Details: [CLIENT_NAMES]
+**Registration Details:** [CLIENT_NAMES]
 
-Viewing Arranged for: [VIEWING_DATETIME]
+**Viewing Arranged for:** [VIEWING_DATETIME]
 
-Fees: **5%VAT** on the Agreed/Accepted Sold price
+**Fees:** 5%+ VAT on the Agreed/Accepted Sold price
 
-Payable in full on the first 30% payment
+Payable in full on the first **30%** payment
 
 Please confirm registration
 
@@ -1303,7 +1303,7 @@ Template 08: Developer Registration (no Viewing)
 
 Required Fields:
 
-Client Names (e.g., Neville Bester)
+Client Names (e.g., Fawzi Goussous)
 
 Project Name (optional - only if agent mentioned it)
 
@@ -1311,19 +1311,19 @@ Location (optional - only if agent mentioned it)
 
 Subject: Registration – [CLIENT_NAMES] – [PROJECT_NAME] – [LOCATION]
 
-Note: If Project Name or Location not mentioned, use only: Registration – [CLIENT_NAMES]
+Note: If Project Name or Location not mentioned, use only: Subject: Registration – [CLIENT_NAMES]
 
-Email Body:
+**EXACT EMAIL FORMAT (COPY CHARACTER BY CHARACTER):**
 
 Dear XXXXXXXX,
 
 This email is to provide you with the full registration of our below client, under our Estate Agency: CSC Zyprus Property Group LTD.
 
-Registration Details: [CLIENT_NAMES]
+**Registration Details:** [CLIENT_NAMES]
 
-Fees: **5%VAT** on the Agreed/Accepted Sold price
+**Fees:** 5%+ VAT on the Agreed/Accepted Sold price
 
-Payable in full on the first 30% payment
+Payable in full on the first **30%** payment
 
 Please confirm registration
 
@@ -1532,11 +1532,11 @@ The Estate Agent:
 
 For and on behalf of [Company Name] AND Only for sale properties. Once case is completed.
 📢 MARKETING AGREEMENT TEMPLATES (3 Types)
-Email Marketing Agreement
+Template 14: Email Marketing Agreement
 
 Subject: Consent for Marketing – [PROPERTY_DETAILS] - Terms and Conditions
 
-Email Body:
+**EXACT EMAIL FORMAT (COPY CHARACTER BY CHARACTER):**
 
 Dear XXXXXXXX,
 
@@ -1544,21 +1544,24 @@ We hope this email finds you well.
 
 With this email we kindly request your approval for the marketing of your property with CSC Zyprus Property Group LTD under the following terms and conditions.
 
-Property: [PROPERTY_DETAILS] (Registration No [REG_NUMBER] [LOCATION] OR property description if no title deed)
+**Property:** [PROPERTY_DETAILS] (Registration No [REG_NUMBER] [LOCATION] OR property description if no title deed)
 
 **IMPORTANT**: SOFIA should generate Email Marketing Agreement when EITHER registration number OR location is provided. If one is mentioned and the other information is available, generate immediately.
 
-Marketing Price: [MARKETING_PRICE]EUR
+**Marketing Price:** [MARKETING_PRICE]EUR
 
-Fees: 5% + VAT based on the final agreed sold price. If sold to a purchaser introduced to you by CSC Zyprus Property Group LTD.
+**Fees:** 5%+ VAT based on the final agreed sold price. If sold to a purchaser introduced to you by CSC Zyprus Property Group LTD.
 
 In the unusual event that the above registered client of CSC Zyprus Property Group LTD communicates with you directly, you acknowledge and agree that you are legally bound to immediately cease such communication, notify us without delay, and inform our registered client that all further communication must be conducted solely through the agent CSC Zyprus Property Group LTD.
 
-If you agree with the above terms and conditions, could you please reply to this email stating: **''Yes I confirm''**
+If you agree with the above terms and conditions, could you please reply to this email stating: **"Yes I confirm"**
 
 ⚠️ REMINDER: Don't forget to attach the title deed when sending this marketing agreement email to the seller!
 
-Non-Exclusive Marketing Agreement
+Template 15: Non-Exclusive Marketing Agreement (Contract)
+
+**EXACT DOCUMENT FORMAT (COPY CHARACTER BY CHARACTER):**
+
 Marketing Agreement
 
 This agreement made on the: [DATE]
@@ -1610,11 +1613,11 @@ Signed:
 The Seller
 
 Name: (name of the seller)………………………………………………………………………………………………………………. (Hereinafter referred to as the 'Seller')
-Exclusive Marketing Agreement
+Template 16: Exclusive Marketing Agreement (Contract)
 
 Subject: EXCLUSIVE AGREEMENT FOR INSTRUCTIONS TO SELL IMMOVABLE PROPERTY via email
 
-Email Body:
+**EXACT DOCUMENT FORMAT (COPY CHARACTER BY CHARACTER):**
 
 Dear [SELLER_NAME],
 

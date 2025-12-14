@@ -9,13 +9,16 @@ import { createListingTool } from "../ai/tools/create-listing";
 import { getZyprusDataTool } from "../ai/tools/get-zyprus-data";
 // import { parseTitleDeedTool } from "../ai/tools/parse-title-deed"; // Temporarily commented out
 import { isProductionEnvironment } from "../constants";
-import { uploadToSupabaseStorage, generateFilePath } from "../storage/upload-file";
 import {
   getChatById,
   getMessagesByChatId,
   saveChat,
   saveMessages,
 } from "../db/queries";
+import {
+  generateFilePath,
+  uploadToSupabaseStorage,
+} from "../storage/upload-file";
 import type { ChatMessage } from "../types";
 import { convertToUIMessages, generateUUID } from "../utils";
 import { getTelegramClient } from "./client";
@@ -806,14 +809,14 @@ async function handleFileUpload(message: TelegramMessage): Promise<void> {
       const filePath = generateFilePath({
         chatId: chatId.toString(),
         fileName: fileName || "deed.pdf",
-        fileType: "title-deeds"
+        fileType: "title-deeds",
       });
 
       const uploadResult = await uploadToSupabaseStorage({
         file: fileData.buffer,
         bucket: "documents",
         path: filePath,
-        contentType: fileData.mimeType || "application/pdf"
+        contentType: fileData.mimeType || "application/pdf",
       });
 
       if (uploadResult.success && uploadResult.publicUrl) {
@@ -823,7 +826,9 @@ async function handleFileUpload(message: TelegramMessage): Promise<void> {
         // Try to parse the title deed if it's an image
         if (fileData.mimeType?.startsWith("image/")) {
           // TODO: Add OCR parsing for image-based deeds
-          console.log("Image title deed received - OCR parsing not implemented yet");
+          console.log(
+            "Image title deed received - OCR parsing not implemented yet"
+          );
         }
       } else {
         console.error("Failed to upload title deed:", uploadResult.error);

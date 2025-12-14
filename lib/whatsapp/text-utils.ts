@@ -4,29 +4,62 @@
  */
 
 /**
+ * Split email into subject, body, and notes for separate WhatsApp messages
+ * - 1st message: Subject line
+ * - 2nd message: Email body
+ * - 3rd message: Warnings/notes (if any)
+ */
+export function splitEmailParts(text: string): {
+  subject: string | null;
+  body: string;
+  notes: string | null;
+} {
+  let workingText = text;
+  let subject: string | null = null;
+  let notes: string | null = null;
+
+  // Extract subject line
+  const subjectMatch = workingText.match(
+    /^(Subject:\s*[^\n]+)(?:\n\n|\n(?=Dear|Email Body))/im
+  );
+  if (subjectMatch) {
+    subject = subjectMatch[1].trim();
+    workingText = workingText.replace(subjectMatch[0], "").trim();
+  }
+
+  // Remove "Email Body:" marker if present
+  workingText = workingText.replace(/^Email Body:\s*/im, "").trim();
+
+  // Extract notes/warnings from the end (look for lines starting with ⚠️, Note:, Warning:, Important:, etc.)
+  const notePatterns = [
+    /\n\n(⚠️[^\n]*(?:\n(?!Dear|Subject)[^\n]*)*)$/,
+    /\n\n((?:Note|Warning|Important|Reminder|Please note|N\.B\.):\s*[^\n]*(?:\n(?!Dear|Subject)[^\n]*)*)$/i,
+  ];
+
+  for (const pattern of notePatterns) {
+    const noteMatch = workingText.match(pattern);
+    if (noteMatch) {
+      notes = noteMatch[1].trim();
+      workingText = workingText.replace(noteMatch[0], "").trim();
+      break;
+    }
+  }
+
+  return { subject, body: workingText, notes };
+}
+
+/**
  * Split subject line from email body for separate WhatsApp messages
- * Subject line can appear as "Subject: X" or just at the start of the response
+ * @deprecated Use splitEmailParts instead for 3-part splitting
  */
 export function splitSubjectFromBody(text: string): {
   subject: string | null;
   body: string;
 } {
-  // Match "Subject:" at the start of a line (case-insensitive)
-  // Using [^\n]+ instead of .+? to prevent ReDoS (catastrophic backtracking)
-  const subjectMatch = text.match(/^(Subject:\s*[^\n]+)(?:\n\n|\n(?=Dear|Email Body))/im);
-
-  if (subjectMatch) {
-    const subject = subjectMatch[1].trim();
-    // Remove the subject line and any "Email Body:" marker from the body
-    const body = text
-      .replace(subjectMatch[0], "")
-      .replace(/^Email Body:\s*/im, "")
-      .trim();
-
-    return { subject, body };
-  }
-
-  return { subject: null, body: text };
+  const parts = splitEmailParts(text);
+  // Combine body and notes for backward compatibility
+  const body = parts.notes ? `${parts.body}\n\n${parts.notes}` : parts.body;
+  return { subject: parts.subject, body };
 }
 
 /**

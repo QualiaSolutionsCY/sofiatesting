@@ -4,34 +4,34 @@ import { z } from "zod";
 // Greek term mappings for title deed parsing
 const GREEK_TERMS = {
   // Area measurements
-  'ΚΛΕΙΣΤΟΣ ΧΩΡΟΣ': 'indoorArea',
-  'Κλειστός χώρος': 'indoorArea',
-  'ΚΑΛΥΜΜΕΝΕΣ ΒΕΡΑΝΤΕΣ': 'coveredVeranda',
-  'Καλυμμένες βεράντες': 'coveredVeranda',
-  'ΑΚΑΛΥΠΤΕΣ ΒΕΡΑΝΤΕΣ': 'uncoveredVeranda',
-  'Ακαλύπτες βεράντες': 'uncoveredVeranda',
-  'ΟΙΚΟΠΕΔΟ': 'plotArea',
-  'Οικόπεδο': 'plotArea',
+  "ΚΛΕΙΣΤΟΣ ΧΩΡΟΣ": "indoorArea",
+  "Κλειστός χώρος": "indoorArea",
+  "ΚΑΛΥΜΜΕΝΕΣ ΒΕΡΑΝΤΕΣ": "coveredVeranda",
+  "Καλυμμένες βεράντες": "coveredVeranda",
+  "ΑΚΑΛΥΠΤΕΣ ΒΕΡΑΝΤΕΣ": "uncoveredVeranda",
+  "Ακαλύπτες βεράντες": "uncoveredVeranda",
+  ΟΙΚΟΠΕΔΟ: "plotArea",
+  Οικόπεδο: "plotArea",
 
   // Features
-  'ΑΠΟΘΗΚΗ': 'storageRoom',
-  'Αποθήκη': 'storageRoom',
-  'ΑΠΟΘΗΚΕΣ': 'storageRooms',
-  'Αποθήκες': 'storageRooms',
-  'ΚΑΛΥΜΜΕΝΟΣ ΧΩΡΟΣ ΣΤΑΘΜΕΥΣΗΣ': 'coveredParking',
-  'Καλυμμένος χώρος στάθμευσης': 'coveredParking',
+  ΑΠΟΘΗΚΗ: "storageRoom",
+  Αποθήκη: "storageRoom",
+  ΑΠΟΘΗΚΕΣ: "storageRooms",
+  Αποθήκες: "storageRooms",
+  "ΚΑΛΥΜΜΕΝΟΣ ΧΩΡΟΣ ΣΤΑΘΜΕΥΣΗΣ": "coveredParking",
+  "Καλυμμένος χώρος στάθμευσης": "coveredParking",
 
   // Property details
-  'ΟΡΟΦΟΣ': 'floor',
-  'Όροφος': 'floor',
-  'ΕΤΟΣ ΚΑΤΑΣΚΕΥΗΣ': 'yearBuilt',
-  'Έτος κατασκευής': 'yearBuilt',
+  ΟΡΟΦΟΣ: "floor",
+  Όροφος: "floor",
+  "ΕΤΟΣ ΚΑΤΑΣΚΕΥΗΣ": "yearBuilt",
+  "Έτος κατασκευής": "yearBuilt",
 
   // Registration
-  'ΑΡΙΘΜΟΣ ΚΤΗΜΑΤΟΛΟΓΙΟΥ': 'deedNumber',
-  'Αριθμός Κτηματολογίου': 'deedNumber',
-  'ΣΥΝΟΛΙΚΟΣ ΑΡΙΘΜΟΣ': 'deedNumber',
-  'Συνολικός αριθμός': 'deedNumber'
+  "ΑΡΙΘΜΟΣ ΚΤΗΜΑΤΟΛΟΓΙΟΥ": "deedNumber",
+  "Αριθμός Κτηματολογίου": "deedNumber",
+  "ΣΥΝΟΛΙΚΟΣ ΑΡΙΘΜΟΣ": "deedNumber",
+  "Συνολικός αριθμός": "deedNumber",
 };
 
 /**
@@ -40,13 +40,19 @@ const GREEK_TERMS = {
  */
 function parseGreekNumber(text: string): number | null {
   // Remove common separators and find numbers
-  const cleanText = text.replace(/[.,]/g, match => match === ',' ? '.' : '');
+  const cleanText = text.replace(/[.,]/g, (match) =>
+    match === "," ? "." : ""
+  );
   const numberMatch = cleanText.match(/(\d+(?:\.\d+)?)/);
 
   if (numberMatch) {
-    const num = parseFloat(numberMatch[1]);
+    const num = Number.parseFloat(numberMatch[1]);
     // Check if it's in square meters
-    if (text.includes('τ.μ') || text.includes('τετραγων') || text.includes('μ²')) {
+    if (
+      text.includes("τ.μ") ||
+      text.includes("τετραγων") ||
+      text.includes("μ²")
+    ) {
       return num;
     }
   }
@@ -59,18 +65,18 @@ function parseGreekNumber(text: string): number | null {
  */
 function parseFloor(text: string): string | null {
   const floorMap: Record<string, string> = {
-    '1ος': '1st Floor',
-    '2ος': '2nd Floor',
-    '3ος': '3rd Floor',
-    '4ος': '4th Floor',
-    'Πρώτος': '1st Floor',
-    'Δεύτερος': '2nd Floor',
-    'Τρίτος': '3rd Floor',
-    'Τέταρτος': '4th Floor',
-    'ΙΣΟΓΕΙΟ': 'Ground Floor',
-    'Ισόγειο': 'Ground Floor',
-    'ΗΜΙΟΡΟΦΟΣ': 'Mezzanine',
-    'Ημιόροφος': 'Mezzanine'
+    "1ος": "1st Floor",
+    "2ος": "2nd Floor",
+    "3ος": "3rd Floor",
+    "4ος": "4th Floor",
+    Πρώτος: "1st Floor",
+    Δεύτερος: "2nd Floor",
+    Τρίτος: "3rd Floor",
+    Τέταρτος: "4th Floor",
+    ΙΣΟΓΕΙΟ: "Ground Floor",
+    Ισόγειο: "Ground Floor",
+    ΗΜΙΟΡΟΦΟΣ: "Mezzanine",
+    Ημιόροφος: "Mezzanine",
   };
 
   for (const [greek, english] of Object.entries(floorMap)) {
@@ -85,12 +91,32 @@ function parseFloor(text: string): string | null {
 /**
  * Parse district/municipality from address
  */
-function parseLocation(text: string): { district?: string; municipality?: string } | null {
-  const districts = ['ΛΕΜΕΣΟΣ', 'ΛΕΥΚΩΣΙΑ', 'ΠΑΦΟΣ', 'ΛΑΡΝΑΚΑ', 'ΑΜΜΟΧΩΣΤΟΣ', 'ΛΕΦΚΩΣΙΑ'];
+function parseLocation(
+  text: string
+): { district?: string; municipality?: string } | null {
+  const districts = [
+    "ΛΕΜΕΣΟΣ",
+    "ΛΕΥΚΩΣΙΑ",
+    "ΠΑΦΟΣ",
+    "ΛΑΡΝΑΚΑ",
+    "ΑΜΜΟΧΩΣΤΟΣ",
+    "ΛΕΦΚΩΣΙΑ",
+  ];
   const municipalities = [
-    'ΓΕΡΜΑΣΟΓΕΙΑ', 'ΛΙΜΑΣΣΟΛ', 'ΜΕΣΑ ΓΕΙΤΩΝΙΑ', 'ΑΓΛΑΝΤΖΙΑ', 'ΚΑΤΟ ΠΟΛΕΜΙΔΙΑ',
-    'ΛΑΤΣΙΑ', 'ΓΕΡΙ', 'ΣΤΡΟΒΟΛΟΣ', 'ΑΓΙΟΣ ΔΟΜΕΤΡΙΟΣ', 'ΕΓΚΟΜΗ',
-    'ΓΕΡΟΣΚΙΠΟΥ', 'ΠΕΓΕΙΑ', 'ΠΟΛΙΣ ΧΡΥΣΟΧΟΥΣ', 'ΚΟΡΝΟΣ'
+    "ΓΕΡΜΑΣΟΓΕΙΑ",
+    "ΛΙΜΑΣΣΟΛ",
+    "ΜΕΣΑ ΓΕΙΤΩΝΙΑ",
+    "ΑΓΛΑΝΤΖΙΑ",
+    "ΚΑΤΟ ΠΟΛΕΜΙΔΙΑ",
+    "ΛΑΤΣΙΑ",
+    "ΓΕΡΙ",
+    "ΣΤΡΟΒΟΛΟΣ",
+    "ΑΓΙΟΣ ΔΟΜΕΤΡΙΟΣ",
+    "ΕΓΚΟΜΗ",
+    "ΓΕΡΟΣΚΙΠΟΥ",
+    "ΠΕΓΕΙΑ",
+    "ΠΟΛΙΣ ΧΡΥΣΟΧΟΥΣ",
+    "ΚΟΡΝΟΣ",
   ];
 
   const result: { district?: string; municipality?: string } = {};
@@ -100,12 +126,12 @@ function parseLocation(text: string): { district?: string; municipality?: string
     if (text.includes(district)) {
       // Map Greek names to English
       const districtMap: Record<string, string> = {
-        'ΛΕΜΕΣΟΣ': 'Limassol',
-        'ΛΕΥΚΩΣΙΑ': 'Nicosia',
-        'ΠΑΦΟΣ': 'Paphos',
-        'ΛΑΡΝΑΚΑ': 'Larnaca',
-        'ΑΜΜΟΧΩΣΤΟΣ': 'Famagusta',
-        'ΛΕΦΚΩΣΙΑ': 'Nicosia'
+        ΛΕΜΕΣΟΣ: "Limassol",
+        ΛΕΥΚΩΣΙΑ: "Nicosia",
+        ΠΑΦΟΣ: "Paphos",
+        ΛΑΡΝΑΚΑ: "Larnaca",
+        ΑΜΜΟΧΩΣΤΟΣ: "Famagusta",
+        ΛΕΦΚΩΣΙΑ: "Nicosia",
       };
       result.district = districtMap[district] || district;
       break;
@@ -117,14 +143,14 @@ function parseLocation(text: string): { district?: string; municipality?: string
     if (text.includes(municipality)) {
       // Map to common English names
       const municipalityMap: Record<string, string> = {
-        'ΓΕΡΜΑΣΟΓΕΙΑ': 'Germasogeia',
-        'ΛΑΤΣΙΑ': 'Latsia',
-        'ΓΕΡΙ': 'Geri',
-        'ΣΤΡΟΒΟΛΟΣ': 'Strovolos',
-        'ΑΓΙΟΣ ΔΟΜΕΤΡΙΟΣ': 'Agios Dimitrios',
-        'ΕΓΚΟΜΗ': 'Engomi',
-        'ΠΕΓΕΙΑ': 'Peyia',
-        'ΠΟΛΙΣ ΧΡΥΣΟΧΟΥΣ': 'Polis Chrysochous'
+        ΓΕΡΜΑΣΟΓΕΙΑ: "Germasogeia",
+        ΛΑΤΣΙΑ: "Latsia",
+        ΓΕΡΙ: "Geri",
+        ΣΤΡΟΒΟΛΟΣ: "Strovolos",
+        "ΑΓΙΟΣ ΔΟΜΕΤΡΙΟΣ": "Agios Dimitrios",
+        ΕΓΚΟΜΗ: "Engomi",
+        ΠΕΓΕΙΑ: "Peyia",
+        "ΠΟΛΙΣ ΧΡΥΣΟΧΟΥΣ": "Polis Chrysochous",
       };
       result.municipality = municipalityMap[municipality] || municipality;
       break;
@@ -143,7 +169,7 @@ function parseOwner(text: string): string | null {
     /Ιδιοκτήτης[:\s]+([A-Z][Α-Ω\s]+)(?=\s|$)/i,
     /Κάτοχος[:\s]+([A-Z][Α-Ω\s]+)(?=\s|$)/i,
     /Κάτοχος\s+([A-Z][Α-Ω\s]+)(?=\s|$)/i,
-    /Owner[:\s]+([A-Za-z\s]+)(?=\s|$)/i
+    /Owner[:\s]+([A-Za-z\s]+)(?=\s|$)/i,
   ];
 
   for (const pattern of patterns) {

@@ -27,7 +27,7 @@ export const REGIONAL_ACCOUNTS: Record<string, string> = {
   Limassol: "requestlimassol@zyprus.com",
   Larnaca: "requestlarnaca@zyprus.com",
   Famagusta: "requestfamagusta@zyprus.com",
-  Paphos: "requestpaphos@zyprus.com"
+  Paphos: "requestpaphos@zyprus.com",
 };
 
 // Reviewer assignments based on meeting notes
@@ -40,7 +40,7 @@ export const REVIEWER_RULES = {
   FAMAGUSTA_REVIEWER: "regional_manager", // Only one reviewer
 
   // For rent properties (all areas)
-  RENT_REVIEWER: "listing_owner" // Same person who sent it
+  RENT_REVIEWER: "listing_owner", // Same person who sent it
 };
 
 // Russian-speaking preference
@@ -112,7 +112,7 @@ export function isLarnacaRegion(region: string | null): boolean {
  */
 export function isPriorityAgent(agentName: string | null): boolean {
   if (!agentName) return false;
-  return PRIORITY_AGENTS.some(priority =>
+  return PRIORITY_AGENTS.some((priority) =>
     agentName.toLowerCase().includes(priority.toLowerCase())
   );
 }
