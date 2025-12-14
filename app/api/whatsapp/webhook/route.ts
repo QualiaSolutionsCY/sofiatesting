@@ -278,8 +278,12 @@ export async function POST(request: Request): Promise<Response> {
             const remoteId = key.remoteId || key.remoteJid || "";
 
             // Check for senderPn (sender phone number) - some APIs provide this for @lid messages
+            // Check in key object first (WaSenderAPI SDK format), then in msgData root
             const senderPn =
-              (msgData as any).senderPn || (msgData as any).phoneNumber;
+              key.senderPn ||
+              (key as any).cleanedSenderPn ||
+              (msgData as any).senderPn ||
+              (msgData as any).phoneNumber;
 
             // Log LID format for debugging
             if (remoteId.includes("@lid")) {
