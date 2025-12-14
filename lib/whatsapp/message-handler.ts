@@ -283,6 +283,11 @@ export async function handleWhatsAppMessage(
       fullResponse += textPart;
     }
 
+    // Check if we got a response
+    if (!fullResponse || fullResponse.trim().length === 0) {
+      throw new Error("AI returned empty response");
+    }
+
     // Save assistant message
     if (hasDbChat) {
       await saveMessages({
@@ -306,13 +311,36 @@ export async function handleWhatsAppMessage(
     });
   } catch (error) {
     console.error("Error handling WhatsApp message:", error);
+    
+    // Determine error message based on error type
+    let errorMessage = "I encountered an error. Please try again or rephrase.";
+    
+    if (error instanceof Error) {
+      // Check for quota exhaustion
+      if (
+        error.message.includes("Resource has been exhausted") ||
+        error.message.includes("quota") ||
+        error.message.includes("429")
+      ) {
+        errorMessage =
+          "I'm currently experiencing high demand. Please try again in a few moments.";
+      } else if (error.message.includes("empty response")) {
+        errorMessage =
+          "I couldn't generate a response. Please try rephrasing your question.";
+      } else if (error.message.includes("failed to initialize")) {
+        errorMessage =
+          "I'm having trouble connecting. Please try again in a moment.";
+      }
+    }
+
     try {
       await client.sendMessage({
         to: phoneNumber,
-        text: "I encountered an error. Please try again or rephrase.",
+        text: errorMessage,
       });
-    } catch (_) {
-      // ignore
+    } catch (sendError) {
+      console.error("Failed to send error message:", sendError);
+      // ignore - can't do anything if we can't send messages
     }
   }
 }
