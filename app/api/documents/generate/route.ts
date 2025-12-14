@@ -2,7 +2,7 @@ import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
-import { generateDocx } from "@/lib/whatsapp/docx-generator";
+import { generateDocx } from "@/lib/documents/docx-generator";
 
 const generateDocumentSchema = z.object({
   content: z.string().min(1, "Content is required"),

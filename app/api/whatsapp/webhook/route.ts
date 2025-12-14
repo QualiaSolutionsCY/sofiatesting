@@ -1,6 +1,6 @@
 import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
-import { handleEnhancedWhatsAppMessage } from "@/lib/whatsapp/enhanced-handler";
+import { handleWhatsAppMessage } from "@/lib/whatsapp/message-handler";
 import type {
   WaSenderMessageData,
   WaSenderSessionData,
@@ -277,12 +277,51 @@ export async function POST(request: Request): Promise<Response> {
             // remoteId is the standard field per SDK, but check remoteJid for compatibility
             const remoteId = key.remoteId || key.remoteJid || "";
 
+            // Check for senderPn (sender phone number) - some APIs provide this for @lid messages
+            const senderPn =
+              (msgData as any).senderPn || (msgData as any).phoneNumber;
+
+            // Log LID format for debugging
+            if (remoteId.includes("@lid")) {
+              console.log("[WhatsApp Webhook] LID format detected:", {
+                remoteId,
+                senderPn,
+                participant: key.participant,
+                pushName: msgData.pushName,
+                allKeys: Object.keys(msgData),
+              });
+            }
+
             // Skip messages from self (bot's own messages)
             if (key.fromMe) {
               console.log(
                 "[WhatsApp Webhook] Skipping own message (fromMe=true)"
               );
               continue;
+            }
+
+            // Determine phone number for replying
+            // Priority: senderPn > participant (if not LID) > remoteId (stripped)
+            let phoneNumber: string;
+            if (senderPn) {
+              phoneNumber = String(senderPn).replace(/[^0-9]/g, "");
+              console.log("[WhatsApp Webhook] Using senderPn:", phoneNumber);
+            } else if (remoteId.includes("@lid")) {
+              // LID format without senderPn - cannot reply
+              console.error(
+                "[WhatsApp Webhook] Cannot reply to LID without senderPn:",
+                {
+                  remoteId,
+                  participant: key.participant,
+                  pushName: msgData.pushName,
+                }
+              );
+              // Skip this message - we can't determine the phone number
+              continue;
+            } else {
+              phoneNumber = remoteId
+                .replace("@s.whatsapp.net", "")
+                .replace("@g.us", "");
             }
 
             // Extract text from various message types
@@ -313,9 +352,7 @@ export async function POST(request: Request): Promise<Response> {
 
             messageData = {
               id: key.id,
-              from: remoteId
-                .replace("@s.whatsapp.net", "")
-                .replace("@g.us", ""),
+              from: phoneNumber, // Use the determined phone number
               to: "",
               type: msgType,
               text: messageText,
@@ -361,13 +398,9 @@ export async function POST(request: Request): Promise<Response> {
           // Process message and wait for completion
           // The 60s function timeout should be enough for AI processing
           try {
-            console.log(
-              "[WhatsApp Webhook] Starting enhanced message handler..."
-            );
-            await handleEnhancedWhatsAppMessage(messageData);
-            console.log(
-              "[WhatsApp Webhook] Enhanced handler completed successfully"
-            );
+            console.log("[WhatsApp Webhook] Starting message handler...");
+            await handleWhatsAppMessage(messageData);
+            console.log("[WhatsApp Webhook] Handler completed successfully");
           } catch (error) {
             console.error("[WhatsApp Webhook] Error processing message:", {
               error: error instanceof Error ? error.message : "Unknown error",

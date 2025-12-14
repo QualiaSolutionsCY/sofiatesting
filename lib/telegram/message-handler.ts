@@ -7,7 +7,6 @@ import { calculateTransferFeesTool } from "../ai/tools/calculate-transfer-fees";
 import { calculateVATTool } from "../ai/tools/calculate-vat";
 import { createListingTool } from "../ai/tools/create-listing";
 import { getZyprusDataTool } from "../ai/tools/get-zyprus-data";
-// import { parseTitleDeedTool } from "../ai/tools/parse-title-deed"; // Temporarily commented out
 import { isProductionEnvironment } from "../constants";
 import {
   getChatById,
@@ -215,7 +214,6 @@ export async function handleTelegramMessage(
             "calculateVAT",
             "createListing",
             "getZyprusData",
-            // "parseTitleDeed", // Temporarily commented out
             // Note: uploadListing deliberately NOT added - listings require reviewer approval
           ],
           tools: {
@@ -224,7 +222,6 @@ export async function handleTelegramMessage(
             calculateVAT: calculateVATTool,
             createListing: createListingTool,
             getZyprusData: getZyprusDataTool,
-            // parseTitleDeed: parseTitleDeedTool, // Temporarily commented out
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,

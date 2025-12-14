@@ -67,8 +67,6 @@ const getToolDisplayName = (type: ToolUIPart["type"]) => {
   const toolNames: Record<string, string> = {
     "tool-sendDocument": "Generate & Send Document",
     "tool-requestSuggestions": "Request Suggestions",
-    "tool-createDocument": "Create Document",
-    "tool-updateDocument": "Update Document",
     "tool-calculateTransferFees": "Calculate Transfer Fees",
     "tool-calculateCapitalGains": "Calculate Capital Gains",
     "tool-calculateVAT": "Calculate VAT",
