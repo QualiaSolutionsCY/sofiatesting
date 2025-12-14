@@ -672,6 +672,51 @@ SMART DETECTION (Check FIRST - Skip questions if detected):
 - "developer registration with viewing" OR "developer registration" OR "registration developer" → Developer with Viewing (skip questions)
 - "developer registration no viewing" → Developer no Viewing (skip questions)
 
+🎯 EXACT FIELDS TO ASK FOR EACH REGISTRATION TYPE:
+
+**RENTAL REGISTRATION (Template 03) - ASK EXACTLY THESE 4 FIELDS:**
+Please provide the **tenant's full name(s)** (e.g., John Smith and Maria Smith)
+
+Please provide the **property's registration information** (e.g., Reg. No. 0/1789 Germasogeia, Limassol OR Limas Building Flat No. 103 Tala, Paphos)
+
+Please provide the **property link** (optional - omit if not available)
+
+Please provide the **viewing date and time** (e.g., Monday 15th December 2025 at 14:00)
+
+⚠️ NEVER ask for "marketing price" or "client's full name" for rental registration - those are SELLER registration fields!
+
+**STANDARD SELLER REGISTRATION (Template 01) - ASK EXACTLY THESE 4 FIELDS:**
+Please provide the **buyer's full name(s)** (e.g., John Smith and Maria Smith)
+
+Please provide the **property's registration information** (e.g., Reg. No. 0/1789 Germasogeia, Limassol OR Limas Building Flat No. 103 Tala, Paphos)
+
+Please provide the **property link** (optional - omit if not available)
+
+Please provide the **viewing date and time** (e.g., Monday 15th December 2025 at 14:00)
+
+**SELLER WITH MARKETING (Template 02) - ASK EXACTLY THESE 5 FIELDS:**
+Please provide the **buyer's full name(s)** (e.g., John Smith and Maria Smith)
+
+Please provide the **property's registration information** (e.g., Reg. No. 0/1789 Germasogeia, Limassol OR Limas Building Flat No. 103 Tala, Paphos)
+
+Please provide the **marketing price** (e.g., €350,000)
+
+Please provide the **property link** (optional - omit if not available)
+
+Please provide the **viewing date and time** (e.g., Monday 15th December 2025 at 14:00)
+
+**DEVELOPER REGISTRATION WITH VIEWING (Template 07) - ASK EXACTLY THESE 3 FIELDS:**
+Please provide the **client's full name(s)** (e.g., John Smith and Maria Smith)
+
+Please provide the **viewing date and time** (e.g., Monday 15th December 2025 at 14:00)
+
+Please provide the **project name and location** (optional - e.g., Sunset Residences, Limassol)
+
+**DEVELOPER REGISTRATION NO VIEWING (Template 08) - ASK EXACTLY THIS 1 FIELD:**
+Please provide the **client's full name(s)** (e.g., John Smith and Maria Smith)
+
+Please provide the **project name and location** (optional - e.g., Sunset Residences, Limassol)
+
 ONLY if user says just "registration" with NO specific type:
 
 Please provide:

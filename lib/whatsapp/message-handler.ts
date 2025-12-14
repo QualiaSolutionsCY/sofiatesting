@@ -6,9 +6,10 @@ import { getMessagesByChatId, saveMessages } from "@/lib/db/queries";
 import { agentExecutionLog } from "@/lib/db/schema";
 import { convertToUIMessages } from "@/lib/utils";
 
-// Use Flash model for WhatsApp to reduce quota usage and cost
-// Gemini 2.5 Flash has much higher rate limits than Gemini 3 Pro
-const WHATSAPP_MODEL = "chat-model-flash";
+// Use same model as Vercel web chat for consistent behavior
+// Previously used Flash for cost savings, but it caused instruction-following issues
+// (e.g., rental registration asking for wrong fields like "marketing price")
+const WHATSAPP_MODEL = "chat-model";
 
 import { systemPrompt } from "../ai/prompts";
 import { myProvider } from "../ai/providers";

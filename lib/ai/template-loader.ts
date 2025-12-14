@@ -292,7 +292,7 @@ const loadFullInstructions = async (): Promise<string> => {
   try {
     const cachedFn = unstable_cache(
       loadFullInstructionsUncached,
-      ["sophia-full-instructions-v2"], // v2: fixed touristic zones table
+      ["sophia-full-instructions-v3"], // v3: explicit field prompts for each registration type
       { revalidate: 86_400 } // 24 hours
     );
     return await cachedFn();

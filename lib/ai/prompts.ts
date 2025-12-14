@@ -82,14 +82,14 @@ function loadSophiaInstructionsUncached(): string {
   return content;
 }
 
-// Cache base instructions for 24 hours - v13: No meta-commentary when asking for fields
+// Cache base instructions for 24 hours - v16: Explicit field prompts for each registration type
 // Note: unstable_cache can fail in non-Next.js contexts (Railway standalone), so we fallback
 const loadSophiaInstructions = async (): Promise<string> => {
   try {
     // Try using Next.js cache first
     const cachedFn = unstable_cache(
       async () => loadSophiaInstructionsUncached(),
-      ["sophia-base-prompt-v15"],
+      ["sophia-base-prompt-v16"],
       {
         revalidate: 86_400, // 24 hours in seconds
       }
