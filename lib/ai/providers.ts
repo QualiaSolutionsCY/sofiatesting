@@ -2,48 +2,34 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { customProvider } from "ai";
 import { isTestEnvironment } from "../constants";
 
-// Supabase Edge Function configuration
-// API key is stored securely in Supabase secrets, NOT exposed to Next.js
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ebgsbtqtkdgaafqejjye.supabase.co";
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// OpenRouter API configuration
+// API key is server-side only (in API routes), NOT exposed to browser
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
-const isSupabaseConfigured = (() => {
-  // In test environment, not needed
+const isOpenRouterConfigured = (() => {
   if (isTestEnvironment) {
     return false;
   }
 
-  // Build time detected - skipping validation
   const isBuildTime = process.env.NEXT_PHASE === "phase-production-build";
   if (isBuildTime) {
-    console.log("[SOFIA] Build time detected - skipping Supabase validation");
+    console.log("[SOFIA] Build time detected - skipping OpenRouter validation");
     return false;
   }
 
-  // Check for Supabase configuration
-  const hasSupabaseConfig = !!SUPABASE_ANON_KEY;
+  const hasKey = !!OPENROUTER_API_KEY;
 
-  if (
-    !hasSupabaseConfig &&
-    typeof window === "undefined" &&
-    !process.env.NODE_ENV?.includes("test")
-  ) {
-    console.warn(
-      "[SOFIA] WARNING: Supabase configuration missing. Chat functionality will not work."
-    );
+  if (!hasKey && typeof window === "undefined" && !process.env.NODE_ENV?.includes("test")) {
+    console.warn("[SOFIA] WARNING: OPENROUTER_API_KEY missing. Chat will not work.");
   }
 
-  return hasSupabaseConfig;
+  return hasKey;
 })();
 
-// Create OpenAI-compatible client that proxies through Supabase Edge Function
-// This keeps API keys secure in Supabase, not exposed in Next.js
-const supabaseAI = createOpenAI({
-  apiKey: SUPABASE_ANON_KEY || "dummy-key",
-  baseURL: `${SUPABASE_URL}/functions/v1/ai-chat`,
-  headers: {
-    "apikey": SUPABASE_ANON_KEY || "",
-  },
+// OpenRouter client - uses google/gemini-3-flash-preview
+const openrouter = createOpenAI({
+  apiKey: OPENROUTER_API_KEY || "missing-key",
+  baseURL: "https://openrouter.ai/api/v1",
 });
 
 export const myProvider = isTestEnvironment
@@ -61,17 +47,16 @@ export const myProvider = isTestEnvironment
       });
     })()
   : (() => {
-      if (!isSupabaseConfigured) {
-        // Fallback for missing configuration - prevents crash on startup
+      if (!isOpenRouterConfigured) {
         const errorModel = {
           specificationVersion: "v1",
-          provider: "supabase",
+          provider: "openrouter",
           modelId: "error-model",
           doGenerate: () => {
-            throw new Error("Supabase configuration is missing.");
+            throw new Error("OPENROUTER_API_KEY is not configured.");
           },
           doStream: () => {
-            throw new Error("Supabase configuration is missing.");
+            throw new Error("OPENROUTER_API_KEY is not configured.");
           },
         } as any;
 
@@ -88,20 +73,14 @@ export const myProvider = isTestEnvironment
         });
       }
 
-      // Supabase Edge Function with Gemini 3 Flash Preview
-      // API key is securely stored in Supabase secrets (not exposed to Next.js)
-      // The Edge Function calls OpenRouter with google/gemini-3-flash-preview
-      const defaultModel = supabaseAI("google/gemini-3-flash-preview");
+      // OpenRouter with Gemini 3 Flash Preview
+      const defaultModel = openrouter("google/gemini-3-flash-preview");
 
       return customProvider({
         languageModels: {
-          // Primary model: Gemini 3 Flash Preview via Supabase Edge Function
-          // API key stored in Supabase secrets - SECURE
           "chat-model": defaultModel,
-          "title-model": defaultModel, // Use same model for consistency
+          "title-model": defaultModel,
           "artifact-model": defaultModel,
-
-          // All aliases point to the same model for consistency
           "chat-model-pro": defaultModel,
           "chat-model-gemini3": defaultModel,
           "chat-model-flash-lite": defaultModel,
