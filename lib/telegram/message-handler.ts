@@ -2,15 +2,11 @@ import "server-only";
 import { convertToModelMessages, streamText } from "ai";
 import { systemPrompt } from "../ai/prompts";
 import { myProvider } from "../ai/providers";
-import { calculateCapitalGainsTool } from "../ai/tools/calculate-capital-gains";
-import { calculateTransferFeesTool } from "../ai/tools/calculate-transfer-fees";
-import { calculateVATTool } from "../ai/tools/calculate-vat";
-import { createListingTool } from "../ai/tools/create-listing";
-import { getZyprusDataTool } from "../ai/tools/get-zyprus-data";
+import { getTelegramToolConfig } from "../ai/tools/registry";
 import { isProductionEnvironment } from "../constants";
 import {
   getChatById,
-  getMessagesByChatId,
+  getMessagesByChatIdWithHistory,
   saveChat,
   saveMessages,
 } from "../db/queries";
@@ -157,8 +153,11 @@ export async function handleTelegramMessage(
       });
     }
 
-    // Get message history
-    const messagesFromDb = await getMessagesByChatId({ id: sessionChatId });
+    // Get message history - last 30 days for context
+    const messagesFromDb = await getMessagesByChatIdWithHistory({
+      id: sessionChatId,
+      days: 30,
+    });
     const previousMessages = convertToUIMessages(messagesFromDb);
 
     // Create new user message
@@ -193,6 +192,10 @@ export async function handleTelegramMessage(
     const MAX_RETRIES = 2;
     const STREAM_TIMEOUT_MS = 45_000; // 45 seconds
 
+    // Get Telegram-specific tool configuration from registry
+    // Note: uploadListing deliberately NOT added - listings require reviewer approval
+    const { tools, activeTools } = getTelegramToolConfig();
+
     while (retryCount <= MAX_RETRIES) {
       try {
         result = await streamText({
@@ -208,21 +211,8 @@ export async function handleTelegramMessage(
             userMessage: message.text,
           }),
           messages: convertToModelMessages(allMessages),
-          experimental_activeTools: [
-            "calculateTransferFees",
-            "calculateCapitalGains",
-            "calculateVAT",
-            "createListing",
-            "getZyprusData",
-            // Note: uploadListing deliberately NOT added - listings require reviewer approval
-          ],
-          tools: {
-            calculateTransferFees: calculateTransferFeesTool,
-            calculateCapitalGains: calculateCapitalGainsTool,
-            calculateVAT: calculateVATTool,
-            createListing: createListingTool,
-            getZyprusData: getZyprusDataTool,
-          },
+          experimental_activeTools: activeTools,
+          tools,
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
             functionId: "telegram-stream-text",

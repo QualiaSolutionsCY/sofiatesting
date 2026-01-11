@@ -282,6 +282,39 @@ export async function getMessagesByChatId({ id }: { id: string }) {
   }
 }
 
+/**
+ * Get messages from the last N days for a chat
+ * Used by WhatsApp and Telegram handlers to provide conversation history context
+ */
+export async function getMessagesByChatIdWithHistory({
+  id,
+  days = 30,
+}: {
+  id: string;
+  days?: number;
+}) {
+  try {
+    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    return await db
+      .select()
+      .from(message)
+      .where(and(eq(message.chatId, id), gte(message.createdAt, cutoffDate)))
+      .orderBy(asc(message.createdAt));
+  } catch (error) {
+    console.error("Database error in getMessagesByChatIdWithHistory:", {
+      chatId: id,
+      days,
+      error: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    throw new ChatSDKError(
+      "bad_request:database",
+      "Failed to get messages with history"
+    );
+  }
+}
+
 export async function voteMessage({
   chatId,
   messageId,

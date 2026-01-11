@@ -10,20 +10,10 @@ import { pruneConversationHistory } from "@/lib/ai/conversation-pruning";
 import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 import { type RequestHints, systemPrompt } from "@/lib/ai/prompts";
 import { myProvider } from "@/lib/ai/providers";
-import { calculateCapitalGainsTool } from "@/lib/ai/tools/calculate-capital-gains";
-import { calculateTransferFeesTool } from "@/lib/ai/tools/calculate-transfer-fees";
-import { calculateVATTool } from "@/lib/ai/tools/calculate-vat";
-import { createLandListingTool } from "@/lib/ai/tools/create-land-listing";
-import { createListingTool } from "@/lib/ai/tools/create-listing";
-import { getZyprusDataTool } from "@/lib/ai/tools/get-zyprus-data";
-import { listListingsTool } from "@/lib/ai/tools/list-listings";
-import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
-import { sendDocument } from "@/lib/ai/tools/send-document";
-import { uploadLandListingTool } from "@/lib/ai/tools/upload-land-listing";
-import { uploadListingTool } from "@/lib/ai/tools/upload-listing";
+import { getToolConfig } from "@/lib/ai/tools/registry";
 import { isProductionEnvironment } from "@/lib/constants";
 import { db } from "@/lib/db/client";
-import { getMessagesByChatId, saveMessages } from "@/lib/db/queries";
+import { getMessagesByChatIdWithHistory, saveMessages } from "@/lib/db/queries";
 import { agentExecutionLog } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
 import { convertToUIMessages, generateUUID } from "@/lib/utils";
@@ -115,11 +105,14 @@ export async function handleWhatsAppMessage(
       );
     }
 
-    // Get message history - EXACT same as web
+    // Get message history - last 30 days for context
     let previousMessages: ChatMessage[] = [];
     if (hasDbChat) {
       try {
-        const messagesFromDb = await getMessagesByChatId({ id: sessionChatId });
+        const messagesFromDb = await getMessagesByChatIdWithHistory({
+          id: sessionChatId,
+          days: 30,
+        });
         previousMessages = convertToUIMessages(messagesFromDb);
       } catch (err) {
         console.warn("[WhatsApp] Failed to retrieve history:", err);
@@ -192,6 +185,8 @@ export async function handleWhatsAppMessage(
     } as unknown as UIMessageStreamWriter<ChatMessage>;
 
     // Mock session for tools
+    // Create session-like object for tool context
+    // Note: This is a minimal mock that satisfies tool requirements without full NextAuth Session
     const mockSession = {
       user: {
         id: userContext.id,
@@ -199,7 +194,8 @@ export async function handleWhatsAppMessage(
         name: userContext.name,
         type: userContext.type,
       },
-    } as any;
+      expires: new Date(Date.now() + 86400000).toISOString(), // 24h from now
+    };
 
     const aiUserContext = { user: userContext };
 
@@ -210,12 +206,20 @@ export async function handleWhatsAppMessage(
       model: DEFAULT_CHAT_MODEL,
     });
 
-    let result: any = null;
+    // Result type inferred from streamText call
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let result: Awaited<ReturnType<typeof streamText<any>>> | null = null;
     let retryCount = 0;
     const MAX_RETRIES = 2;
 
     while (retryCount <= MAX_RETRIES) {
       try {
+        // Get tool configuration from registry - single source of truth
+        const { tools, activeTools } = getToolConfig({
+          session: mockSession,
+          dataStream: mockDataStream,
+        });
+
         result = await runWithUserContext(aiUserContext, async () => {
           return await streamText({
             model: myProvider.languageModel(DEFAULT_CHAT_MODEL),
@@ -223,38 +227,8 @@ export async function handleWhatsAppMessage(
             messages: convertToModelMessages(uiMessages),
             temperature: 0,
             stopWhen: stepCountIs(5),
-            experimental_activeTools: [
-              "calculateTransferFees",
-              "calculateCapitalGains",
-              "calculateVAT",
-              "createListing",
-              "listListings",
-              "uploadListing",
-              "createLandListing",
-              "uploadLandListing",
-              "getZyprusData",
-              "requestSuggestions",
-              "sendDocument",
-            ],
-            tools: {
-              calculateTransferFees: calculateTransferFeesTool,
-              calculateCapitalGains: calculateCapitalGainsTool,
-              calculateVAT: calculateVATTool,
-              createListing: createListingTool,
-              listListings: listListingsTool,
-              uploadListing: uploadListingTool,
-              createLandListing: createLandListingTool,
-              uploadLandListing: uploadLandListingTool,
-              getZyprusData: getZyprusDataTool,
-              requestSuggestions: requestSuggestions({
-                session: mockSession,
-                dataStream: mockDataStream,
-              }),
-              sendDocument: sendDocument({
-                session: mockSession,
-                dataStream: mockDataStream,
-              }),
-            },
+            experimental_activeTools: activeTools,
+            tools,
             experimental_telemetry: {
               isEnabled: isProductionEnvironment,
               functionId: "whatsapp-stream-text",
