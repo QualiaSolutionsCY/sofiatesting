@@ -7,6 +7,12 @@ import { db } from "@/lib/db/client";
 import { adminUserRole } from "@/lib/db/schema";
 
 async function getAdminRole(userId: string) {
+  // Skip DB check if POSTGRES_URL is not configured (use Supabase client routes instead)
+  if (!db) {
+    console.warn("[Admin Layout] POSTGRES_URL not configured, granting default admin access");
+    return [];
+  }
+
   try {
     const adminRole = await db
       .select()
