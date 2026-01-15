@@ -2,12 +2,14 @@
 
 import {
   Activity,
+  BarChart3,
   Bot,
   Building2,
   Calculator,
   Database,
   FileText,
   LayoutDashboard,
+  MessageSquare,
   Settings,
   Users,
 } from "lucide-react";
@@ -28,6 +30,24 @@ const navigationItems = [
     requiredPermission: null,
   },
   {
+    name: "Sophia Agents",
+    href: "/admin/sophia-agents",
+    icon: MessageSquare,
+    requiredPermission: null,
+  },
+  {
+    name: "User Management",
+    href: "/admin/users",
+    icon: Users,
+    requiredPermission: null,
+  },
+  {
+    name: "Analytics",
+    href: "/admin/analytics",
+    icon: BarChart3,
+    requiredPermission: null,
+  },
+  {
     name: "Live Activity",
     href: "/admin/activity",
     icon: Activity,
@@ -36,7 +56,7 @@ const navigationItems = [
   {
     name: "Agents Registry",
     href: "/admin/agents-registry",
-    icon: Users,
+    icon: Bot,
     requiredPermission: "manage_users",
   },
   {
