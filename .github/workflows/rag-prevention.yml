@@ -1,0 +1,125 @@
+name: RAG Prevention Checks
+
+on:
+  pull_request:
+    paths:
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.js'
+      - '**/*.jsx'
+      - 'supabase/functions/**'
+      - 'lib/**'
+      - 'app/**'
+  push:
+    branches:
+      - main
+
+jobs:
+  security-checks:
+    name: Security & PII Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for API keys in URLs
+        run: |
+          bash scripts/check-rag-issues.sh
+          echo "✅ Security checks completed"
+
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Check for multiple DB client instances
+        run: |
+          echo "Checking for multiple database client instances..."
+          EXIT_CODE=0
+
+          if grep -r 'new Supabase' app/ lib/ supabase/ 2>/dev/null | \
+            grep -v 'node_modules\|supabase.ts\|lib/supabase\|lib/db\|test' | \
+            grep -q 'new Supabase'; then
+            echo "❌ Database client instantiated outside singleton"
+            EXIT_CODE=1
+          fi
+
+          exit $EXIT_CODE
+
+      - name: Check for deprecated code without removal plan
+        run: |
+          echo "Checking deprecated code..."
+          grep -r '@deprecated' \
+            --include="*.ts" --include="*.js" \
+            app/ lib/ supabase/ 2>/dev/null | \
+            grep -v 'node_modules\|removal\|migrate\|202[6-9]\|203[0-9]' || true
+          echo "✅ Deprecated code check completed"
+
+  performance-checks:
+    name: Performance Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check for blocking operations in handlers
+        run: |
+          echo "Checking for blocking operation patterns..."
+
+          FETCH_IN_LOOP=$(grep -r -n -B3 -A3 'for ' \
+            --include="*.ts" \
+            app/ lib/ supabase/ 2>/dev/null | \
+            grep -c 'await fetch\|await supabase' || echo "0")
+
+          if [ "$FETCH_IN_LOOP" -gt "0" ]; then
+            echo "⚠️  Detected await in loop - verify performance impact"
+          fi
+          echo "✅ Performance check completed"
+
+      - name: Verify webhook handler structure
+        run: |
+          echo "Checking webhook handler structure..."
+          if grep -q 'return new Response' supabase/functions/sophia-bot/index.ts 2>/dev/null; then
+            echo "✅ Webhook handler returns Response correctly"
+          fi
+
+  summary:
+    name: RAG Prevention Summary
+    needs: [security-checks, code-quality, performance-checks]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Report results
+        run: |
+          echo "RAG Prevention checks completed"
+
+          if [ "${{ needs.security-checks.result }}" = "failure" ]; then
+            echo "❌ Security checks failed"
+            exit 1
+          fi
+
+          if [ "${{ needs.code-quality.result }}" = "failure" ]; then
+            echo "❌ Code quality checks failed"
+            exit 1
+          fi
+
+          if [ "${{ needs.performance-checks.result }}" = "failure" ]; then
+            echo "❌ Performance checks failed"
+            exit 1
+          fi
+
+          echo "✅ All RAG Prevention checks passed"

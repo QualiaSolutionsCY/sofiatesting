@@ -18,6 +18,7 @@
     "test": "PLAYWRIGHT=True pnpm exec playwright test",
     "test:unit": "pnpm exec tsx --test tests/unit/**/*.test.ts",
     "test:unit:parallel-uploads": "pnpm exec tsx --test tests/unit/parallel-image-uploads.test.ts",
+    "test:unit:telegram": "pnpm exec tsx --test tests/unit/telegram-routing.test.ts",
     "test:ai-models": "pnpm exec tsx tests/manual/test-ai-models.ts"
   },
   "dependencies": {

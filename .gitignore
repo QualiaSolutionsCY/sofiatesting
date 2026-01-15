@@ -60,3 +60,11 @@ mcp.json
 # Disabled features (kept for reference)
 app/api.admin.disabled/
 app/(admin.disabled)/
+.vercel
+
+# Temporary/local files
+supabase/.temp/
+todos/
+*.docx
+claude_code_*.sh
+UPLOAD-LISTINGS-EXTENSIVE-INFO/
