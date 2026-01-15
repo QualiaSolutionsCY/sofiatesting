@@ -311,17 +311,30 @@ function formatEmailBodyAsHtml(body: string): string {
  * These should ALWAYS be sent as text, never as DOCX
  */
 function isConfirmationMessage(text: string): boolean {
+  const lower = text.toLowerCase();
+
+  // Quick check for listing upload confirmations (any length)
+  // These should ALWAYS be sent as text, never as DOCX
+  if (lower.includes("uploaded the property") ||
+      lower.includes("uploaded as a draft") ||
+      lower.includes("draft listing") ||
+      (lower.includes("uploaded") && lower.includes("property"))) {
+    console.log("[Confirmation] Detected listing upload confirmation");
+    return true;
+  }
+
   // Patterns that indicate this is a confirmation, not document content
   const confirmationPatterns = [
+    // Email confirmations
     /i have sent/i,
-    /i['']ve sent/i,
+    /i.ve sent/i,  // Match any character between i and ve
     /has been sent/i,
     /successfully sent/i,
     /email sent/i,
     /document sent/i,
     /sent to .+@.+\..+/i,
     /please check your inbox/i,
-    /don['']t forget to/i,
+    /don.t forget to/i,  // Match any character for apostrophe
   ];
 
   // If the message is short and contains confirmation patterns
@@ -1454,13 +1467,22 @@ async function processRequest(
             break;
           }
 
+          // If tool succeeded with a message, use it directly (don't ask AI to respond again)
+          // This prevents the AI from generating DOCX when we just want a text confirmation
+          if (toolResult.success && toolResult.message) {
+            console.log(`[Tool] Success with message, using tool response directly`);
+            aiResponse = toolResult.message;
+            await addMessage(userId, "model", aiResponse);
+            break;
+          }
+
           // If tool returned an error, include it in the response
           if (toolResult.error) {
             console.log(`[Tool] Error result: ${toolResult.error}`);
           }
         }
 
-        // If we broke out of the loop due to needing input, stop here
+        // If we broke out of the loop due to needing input or success, stop here
         if (aiResponse) {
           break;
         }
