@@ -1,6 +1,10 @@
 import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
 import { handleWhatsAppMessage } from "@/lib/whatsapp/message-handler";
+import {
+  checkWebhookRateLimit,
+  isRateLimitingDisabled,
+} from "@/lib/whatsapp/rate-limiter";
 import type {
   WaSenderMessageData,
   WaSenderSessionData,
@@ -386,6 +390,21 @@ export async function POST(request: Request): Promise<Response> {
           if (messageData.type === "text" && !messageData.text) {
             console.log("[WhatsApp Webhook] Empty text message, skipping");
             continue;
+          }
+
+          // Rate limit check - prevent message flooding
+          if (!isRateLimitingDisabled()) {
+            const rateLimitResult = await checkWebhookRateLimit(messageData.from);
+            if (!rateLimitResult.success) {
+              console.warn("[WhatsApp Webhook] Rate limit exceeded:", {
+                from: messageData.from,
+                remaining: rateLimitResult.remaining,
+                resetIn: rateLimitResult.resetIn,
+                backend: rateLimitResult.backend,
+              });
+              // Return 429 but continue processing other messages in batch
+              continue;
+            }
           }
 
           // Deduplication check - prevent processing same message multiple times

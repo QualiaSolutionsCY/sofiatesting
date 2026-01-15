@@ -18,6 +18,7 @@ import { agentExecutionLog } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
 import { convertToUIMessages, generateUUID } from "@/lib/utils";
 import { getWhatsAppClient } from "./client";
+import { ERROR_MESSAGES, WHATSAPP_CONFIG } from "./constants";
 import type { WaSenderMessageData } from "./types";
 import {
   getOrCreateWhatsAppChat,
@@ -111,7 +112,7 @@ export async function handleWhatsAppMessage(
       try {
         const messagesFromDb = await getMessagesByChatIdWithHistory({
           id: sessionChatId,
-          days: 30,
+          days: WHATSAPP_CONFIG.HISTORY_RETENTION_DAYS,
         });
         previousMessages = convertToUIMessages(messagesFromDb);
       } catch (err) {
@@ -210,9 +211,8 @@ export async function handleWhatsAppMessage(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let result: Awaited<ReturnType<typeof streamText<any>>> | null = null;
     let retryCount = 0;
-    const MAX_RETRIES = 2;
 
-    while (retryCount <= MAX_RETRIES) {
+    while (retryCount <= WHATSAPP_CONFIG.MAX_AI_RETRIES) {
       try {
         // Get tool configuration from registry - single source of truth
         const { tools, activeTools } = getToolConfig({
@@ -238,10 +238,12 @@ export async function handleWhatsAppMessage(
         break;
       } catch (err) {
         retryCount++;
-        if (retryCount > MAX_RETRIES) {
+        if (retryCount > WHATSAPP_CONFIG.MAX_AI_RETRIES) {
           throw err;
         }
-        await new Promise((resolve) => setTimeout(resolve, 1000 * retryCount));
+        await new Promise((resolve) =>
+          setTimeout(resolve, WHATSAPP_CONFIG.RETRY_BACKOFF_BASE_MS * retryCount)
+        );
       }
     }
 
@@ -285,10 +287,10 @@ export async function handleWhatsAppMessage(
     });
   } catch (error) {
     console.error("Error handling WhatsApp message:", error);
-    
+
     // Determine error message based on error type
-    let errorMessage = "I encountered an error. Please try again or rephrase.";
-    
+    let errorMessage: string = ERROR_MESSAGES.DEFAULT;
+
     if (error instanceof Error) {
       // Check for quota exhaustion
       if (
@@ -296,14 +298,11 @@ export async function handleWhatsAppMessage(
         error.message.includes("quota") ||
         error.message.includes("429")
       ) {
-        errorMessage =
-          "I'm currently experiencing high demand. Please try again in a few moments.";
+        errorMessage = ERROR_MESSAGES.QUOTA_EXHAUSTED;
       } else if (error.message.includes("empty response")) {
-        errorMessage =
-          "I couldn't generate a response. Please try rephrasing your question.";
+        errorMessage = ERROR_MESSAGES.EMPTY_RESPONSE;
       } else if (error.message.includes("failed to initialize")) {
-        errorMessage =
-          "I'm having trouble connecting. Please try again in a moment.";
+        errorMessage = ERROR_MESSAGES.INITIALIZATION_FAILED;
       }
     }
 
