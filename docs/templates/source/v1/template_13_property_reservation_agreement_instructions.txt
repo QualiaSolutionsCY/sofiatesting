@@ -1,54 +1,149 @@
-📌 Template 13: Property Reservation Agreement
+📌 Template 13 (formerly 12): Property Reservation Agreement
 
-**Purpose**: Draft a comprehensive reservation agreement with escrow and banking details.
+**Purpose**: Generate a legally binding property reservation agreement as a DOCX document with multiple buyer support, legal clauses, escrow details, and signature blocks.
+
+**Output**: DOCX file attachment (NOT text message) with Zyprus logo
 
 🔹 Required Fields (MUST Collect Before Generating)
-- Date Reservation Fee Received (e.g., October 25, 2025)
-- Prospective Buyer (e.g., Alex Ioannou)
-- Vendor (e.g., ABC Ltd)
-- Property Details (e.g., Villa in Tala, Paphos)
-- Reservation Fee (e.g., €10,000 and words)
-- Purchase Price (e.g., €350,000 and words)
-- Agent Name (e.g., Danae Pirou)
-- Company Name (e.g., CSC Zyprus Property Group LTD)
-- Registration Number (e.g., 742)
-- License Number (e.g., 378/E)
-- Bank Name (e.g., Bank of Cyprus)
-- Account Number (e.g., 12345678)
-- IBAN Number (e.g., CY12 0030 0000 0000 1234 5678)
-- BIC Code (e.g., BCYPCY2N)
-- Agreement Date (Day/Month/Year) (e.g., 25/10/2025)
+
+**1. Prospective Buyer(s)** - For EACH buyer:
+- Full legal name (e.g., "Jacobi Avi")
+- Country of passport (e.g., "USA", "UK", "Cyprus")
+- Passport number (e.g., "671570053")
+- Support for multiple buyers (ask: "Are there additional buyers?")
+
+**2. Vendor** - The seller:
+- Company name + registration number (e.g., "CYRES LAND DEVELOPMENT LTD HE 376359")
+- OR individual's full name
+
+**3. Property Details**:
+- Property type (Apartment, Villa, House, Land, etc.)
+- Location (area, municipality, city - e.g., "Dimos Germasogeias, Potamos Germasogeias, Limassol, Cyprus")
+- Building/Block name (e.g., "Lordos River Beach Bl. C2-D2")
+- Unit number (e.g., "105")
+- Registration number (MANDATORY) (e.g., "0/25589")
+
+**4. Reservation Fee** - Amount in EUR (e.g., €5,000) - auto-converted to words
+**5. Purchase Price** - Amount in EUR (e.g., €160,000) - auto-converted to words
+
+🔹 Pre-filled Values (DO NOT ASK)
+
+- Agent: Charalambos Pitros
+- Company: CSC ZYPRUS PROPERTY GROUP LTD
+- CREA Reg. No.: 742
+- License No.: 378/E
+- Bank: CSC ZYPRUS PROPERTY GROUP LTD
+- Account No: 502-10-734364-01
+- IBAN: CY08 0050 0502 0005 0210 7343 6401
+- BIC: HEBACY2N
+- Reservation Period: 8 weeks (default)
+- Contract Deadline: 40 days (default)
 
 🔹 Critical Rules
-- Greeting: Default `Dear XXXXXXXX,` (placeholder) unless template requires personalization; follow template-specific overrides.
-- Dates/Times: "tomorrow" → Auto-convert to October 21, 2025; if year is missing automatically assume the upcoming occurrence (NEVER ask for the year); if time is missing ask for a time (24h or am/pm).
-- Links: Mandatory for Bank Registrations, Good Client, and Email Marketing; optional elsewhere (omit line if missing).
-- Bolding: Only monetary values or fees/percentages (e.g., **€350,000**, **5%+ VAT**). Nothing else.
-- Subject Lines: Follow template-specific formats exactly; do not bold.
-- Keep legal clauses intact and unchanged.
-- Ensure banking details formatting is exact.
 
-🔹 Exact Template
-Property Reservation Agreement
+- ALWAYS collect buyer passport info (name, country, passport number)
+- Support multiple buyers - ask if there are additional buyers after first one
+- NEVER ask for agent/bank details - use Zyprus defaults automatically
+- Auto-convert monetary amounts to words (e.g., €5,000 → "five thousand euro")
+- Include all legal clauses verbatim
+- Generate as DOCX file with logo, NOT text message
+
+🔹 Legal Clauses (Auto-included)
+
+1. 8-week reservation period clause
+2. Refund conditions (vendor fault, encumbrances, mortgages)
+3. Forfeiture conditions (buyer fault - 50/50 split)
+4. Bank mortgage refusal clause (full refund)
+5. 40-day contract signing deadline
+6. Estate agent arbiter clause
+7. Exclusive negotiation clause
+8. Witness signature sections
 
 🔹 Workflow
-1. Detect: Identify template from keywords (e.g., "rental registration" → Template 03).
-2. Extract: Silently extract provided fields (names, reg no., dates, links).
-3. Ask: Minimize questions; only ask missing required fields (e.g., "What time is the viewing?").
-4. Validate: Confirm year for dates; ensure links present where mandatory; ensure greeting style per template.
-5. Generate: Copy Exact Template verbatim, replacing placeholders; omit optional lines when data missing.
+
+1. Detect: "reservation agreement" or "property reservation agreement" keywords
+2. Ask: Buyer info (name, country, passport) - one at a time
+3. Ask: "Are there additional buyers?"
+4. Ask: Vendor info (company + reg number OR individual name)
+5. Ask: Property details (type, location, building, unit, registration number)
+6. Ask: Reservation fee amount
+7. Ask: Purchase price amount
+8. Generate: Complete DOCX document with all data filled in
+
+🔹 Example Conversation
+
+User: "I need a reservation agreement"
+SOPHIA: "I'll create a Property Reservation Agreement for you. Who is the prospective buyer? Please provide their **full name, country, and passport number**."
+
+User: "John Smith, UK passport 12345678"
+SOPHIA: "Are there any additional buyers, or is John Smith the only prospective buyer?"
+
+User: "Also his wife Jane Smith, UK passport 87654321"
+SOPHIA: "Who is the vendor/seller? Please provide the **company name and registration number** (or individual's name)."
+
+User: "ABC Development Ltd HE 123456"
+SOPHIA: "What property is being reserved? I need the **property type, location, building name, unit number, and registration number**."
+
+User: "Apartment in Limassol, Lordos Building unit 205, reg 0/12345"
+SOPHIA: "What is the **reservation fee** amount?"
+
+User: "€5,000"
+SOPHIA: "And what is the **purchase price**?"
+
+User: "€350,000"
+SOPHIA: [Generates complete DOCX document with all data filled in]
 
 🔹 Common Mistakes
-❌ Wrong		✅ Correct
-Bolding subject lines	No bolding except pricing/fees
-Using personalized greeting when placeholder is required	Use `Dear XXXXXXXX,` unless template says otherwise
-Generating with [FIELD] placeholders left	Ask for missing fields, then generate with no placeholders
 
-🔹 Example Output
-User Input: "Reservation Agreement €10,000, price €350,000, IBAN provided."
-Generated Document:
-PROPERTY RESERVATION AGREEMENT ...
+❌ Wrong                                    ✅ Correct
+Not asking for passport number              Ask: "name, country, and passport number"
+Using placeholder text                      Use real collected data only
+Asking for agent/bank details              Use Zyprus defaults automatically
+Sending as text message                    Generate DOCX file with logo
+Not supporting multiple buyers             Ask "Are there additional buyers?"
+
+🔹 Output Format
+
+PROPERTY RESERVATION
+
+Date Reservation Fee Received: [DATE]
+
+Prospective Buyer:
+[NAME 1]
+[COUNTRY] PASSPORT: [NUMBER]
+and
+[NAME 2]
+[COUNTRY] PASSPORT: [NUMBER]
+
+Vendor:
+[COMPANY NAME] [REG NUMBER]
+
+Property Details:
+[TYPE] in [LOCATION]
+[BUILDING] Unit No. [UNIT] with Reg Number [REG]
+
+Reservation Fee: €[AMOUNT] (In words [WORDS] only)
+Purchase Price: €[AMOUNT] (In words [WORDS] only)
+
+[LEGAL CLAUSES...]
+
+Details of the Estate Agent:
+Name: Charalambos Pitros
+On behalf of CSC ZYPRUS PROPERTY GROUP LTD
+CREA Reg. No. 742 & Lic. No. 378/E
+
+Banking Details
+Name: CSC ZYPRUS PROPERTY GROUP LTD
+Account No: 502-10-734364-01
+IBAN: CY08 0050 0502 0005 0210 7343 6401
+BIC: HEBACY2N
+
+[SIGNATURE BLOCKS WITH WITNESSES...]
 
 💡 Pro Tips
-- Do not abbreviate company name.
-- Include witness lines exactly.
+
+- Multiple buyers: Each gets their own signature section
+- Company vendors: Include registration number (e.g., "HE 123456")
+- Amounts: Automatically converted to words for legal validity
+- Defaults: 8-week period, 40-day deadline unless specified otherwise
+- Logo: Automatically included at top left of document

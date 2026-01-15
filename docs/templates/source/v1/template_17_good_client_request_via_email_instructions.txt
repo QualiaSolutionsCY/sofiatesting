@@ -40,10 +40,6 @@ Please let us know your preferred date and time for a phone call. To make schedu
 
 We look forward to speaking with you and assisting you further in finding the right property.
 
-Phone-Only Addon (if client refuses):
-
-Please note that as a standard practice, we exclusively handle requests through phone communication. Regrettably, if it is not feasible for you to proceed with a phone call, we won't be able to facilitate your request at this time.
-
 🔹 Workflow
 1. Detect: Identify template from keywords (e.g., "rental registration" → Template 03).
 2. Extract: Silently extract provided fields (names, reg no., dates, links).

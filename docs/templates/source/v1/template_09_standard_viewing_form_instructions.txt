@@ -2,6 +2,13 @@
 
 **Purpose**: Record a single person's viewing acknowledgment for a specific property.
 
+⚠️ **IMPORTANT - ASK FIRST**: When a user requests a "viewing form" without specifying which type, you MUST ask:
+> "Would you like the **Standard** viewing form or the **Advanced** viewing form?
+> - **Standard**: Simple acknowledgment of property viewing
+> - **Advanced**: Includes legal protection clause for exclusive representation"
+
+Only proceed with this template if the user confirms "Standard" or "simple" viewing form.
+
 🔹 Required Fields (MUST Collect Before Generating)
 - Date (e.g., October 25, 2025)
 - Registrant Name (e.g., John Smith)

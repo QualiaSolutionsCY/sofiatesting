@@ -2,6 +2,85 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+---
+
+## CRITICAL: Current Architecture
+
+**READ THIS FIRST - DO NOT ASSUME VERCEL**
+
+### Supabase Project (LIVE)
+| Key | Value |
+|-----|-------|
+| **Project ID** | `vceeheaxcrhmpqueudqx` |
+| **Dashboard** | https://supabase.com/dashboard/project/vceeheaxcrhmpqueudqx |
+| **Edge Functions URL** | `https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/` |
+| **WhatsApp Webhook** | `https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot` |
+
+### What Runs Where
+| Component | Runs On | Status |
+|-----------|---------|--------|
+| **WhatsApp Bot (Sophia)** | Supabase Edge Function `sophia-bot` | LIVE |
+| **Telegram Bot** | Supabase Edge Functions | **DISABLED** |
+| **AI Proxy (ai-chat)** | Supabase Edge Functions | LIVE |
+| **Web App (Next.js)** | NOT DEPLOYED | Future |
+| **Database** | Supabase PostgreSQL | LIVE |
+
+**THERE IS NO VERCEL DEPLOYMENT. NEVER SUGGEST VERCEL.**
+
+### Telegram Bot Toggle
+
+```bash
+# TURN ON SOPHIA on Telegram:
+supabase secrets set SOPHIA_TELEGRAM_ENABLED=true --project-ref vceeheaxcrhmpqueudqx
+
+# TURN OFF SOPHIA on Telegram:
+supabase secrets set SOPHIA_TELEGRAM_ENABLED=false --project-ref vceeheaxcrhmpqueudqx
+```
+
+**Current status: DISABLED** (as of Jan 2026)
+
+---
+
+### How to Edit SOPHIA Templates/Prompts
+
+**SOPHIA's brain lives in the `sophia-bot` Edge Function, NOT in local files.**
+
+1. **Get current code via Supabase MCP:**
+   ```
+   mcp__plugin_supabase_supabase__get_edge_function(project_id="vceeheaxcrhmpqueudqx", function_slug="sophia-bot")
+   ```
+
+2. **Key file: `prompts.ts`** - Contains ALL SOPHIA instructions, templates, and behavior
+
+3. **Edit locally, then deploy:**
+   ```bash
+   # Files are extracted to /tmp/sophia-deploy/supabase/functions/sophia-bot/
+   # Edit prompts.ts or other files
+   cd /tmp/sophia-deploy && supabase functions deploy sophia-bot --no-verify-jwt
+   ```
+
+4. **DO NOT edit these local files expecting changes to go live:**
+   - `lib/ai/instructions/` - NOT USED by live SOPHIA
+   - `docs/templates/` - Reference only, NOT USED by live SOPHIA
+   - `docs/knowledge/` - NOT USED by live SOPHIA
+   - `app/api/` - NOT USED (no Vercel deployment)
+
+**The ONLY way to update live SOPHIA is to deploy the `sophia-bot` Edge Function.**
+
+---
+
+**DO NOT** suggest:
+- Vercel deployments
+- Next.js API routes
+- Editing local `lib/` or `docs/` files for SOPHIA changes
+
+**DO** use:
+- Supabase MCP to get/deploy edge functions
+- `supabase functions deploy sophia-bot --no-verify-jwt`
+- Project ID: `vceeheaxcrhmpqueudqx`
+
+---
+
 ## Quick Reference
 
 **Key documents:** `IMPLEMENTATION_PLAN.md` (task tracking), `docs/PRD.md` (requirements), `docs/ARCHITECTURE.md` (system design)
@@ -10,39 +89,67 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Skills** (project-managed): `sofia-debugger` (debug SOFIA issues), `cyprus-calculator` (property tax calculations)
 
+---
+
+## Current Status
+
+### Recently Implemented
+- **`sendEmail` tool** (`lib/ai/tools/send-email.ts`) - Direct email sending from WhatsApp without UI forms
+  - Supports optional DOCX document attachments via `documentUrl` parameter
+  - Uses Resend API with `sofia@zyprus.com` as sender
+  - Registered in WhatsApp message handler (`lib/whatsapp/message-handler.ts`)
+  - Flow: User creates document → User asks to email it → AI uses `sendEmail` with document URL
+
+### Configured
+- `RESEND_API_KEY` - Set in Supabase Edge Function secrets
+
+### Pending
+1. **Resend Domain Verification** - Add SPF/DKIM records for `zyprus.com` in DNS (skip MX record to avoid Google Workspace conflicts)
+2. **Deploy to Supabase** - `supabase functions deploy whatsapp-webhook` after domain verification
+3. **End-to-End Testing** - Test flow: create document via WhatsApp → send via email with attachment
+
+### SOPHIA Updates (Jan 2026)
+
+**Templates & Documents:**
+- ✅ Removed "Phone-Only Addon" from Template 17 (Good Client Email)
+- ✅ Viewing Forms: SOPHIA now asks "Standard or Advanced?" when type not specified
+- ✅ Viewing Form DOCX titles now just show "Viewing Form" (no Standard/Advanced visible to client)
+- ✅ **Removed Template 16 (Exclusive Marketing Agreement)** - only Non-Exclusive and Email Marketing remain
+- ✅ Non-Exclusive Marketing Agreement fixes:
+  - Agent name: Charalambos Pitros (was Pitsillides)
+  - Removed "(name of the seller)" text
+  - Added signature spacing lines
+
+**Knowledge & Responses:**
+- ✅ Deleted `Zoning_Density_Land_.pptx` from knowledge
+- ✅ CREA wording now sends as **3 separate messages** (intro, copy-pasteable block, important note)
+
+**Deploy command:** `cd /tmp/sophia-deploy && supabase functions deploy sophia-bot --no-verify-jwt`
+
+---
+
 ## Project Overview
 
 **SOFIA v3.1.0** - Next.js 15 AI assistant for Zyprus Property Group (Cyprus real estate). Core features:
 - AI chat with Cyprus real estate tools (VAT, transfer fees, capital gains calculators)
 - Property listing management with Zyprus API integration (Drupal JSON:API)
 - Telegram and WhatsApp bot integration (dual-channel support)
-- Document generation (38 DOCX templates via `docx` package, sent via Resend email)
+- Document generation (37 DOCX templates via `docx` package, sent via Resend email)
 
 ## AI Configuration
 
-**Google Gemini API is mandatory** - set `GOOGLE_GENERATIVE_AI_API_KEY` or `GEMINI_API_KEY`. Using **Tier 1** (paid) for higher rate limits.
+**OpenRouter is the AI provider** - Gemini models accessed via OpenRouter proxy (Supabase Edge Function `ai-chat`).
 
-| Model ID | Actual Model | Use Case |
-|----------|-------------|----------|
-| `chat-model` | `gemini-3-pro-preview` | **Default** - Best reasoning, 1M context, multimodal |
-| `chat-model-gemini3` | `gemini-3-pro-preview` | Explicit alias for default |
-| `chat-model-pro` | `gemini-2.5-pro` | Previous gen reasoning fallback |
-| `chat-model-flash` | `gemini-2.5-flash` | Fast with good quality |
-| `chat-model-flash-lite` | `gemini-2.5-flash-lite` | Ultra-fast, cost-efficient |
-| `title-model` | `gemini-2.5-flash` | Chat title generation |
-| `artifact-model` | `gemini-3-pro-preview` | Uses default model |
+Set `OPENROUTER_API_KEY` in Supabase Edge Function secrets. **NO direct Gemini API key needed.**
 
-See `lib/ai/providers.ts` for implementation details.
+| Model | Via OpenRouter | Use Case |
+|-------|----------------|----------|
+| `google/gemini-2.0-flash` | Default | Fast, cost-effective |
+| `google/gemini-pro` | Fallback | Complex reasoning |
+
+**Edge Function**: `supabase/functions/ai-chat/` proxies requests to OpenRouter.
 
 ## Database
-
-**Supabase PostgreSQL** - Project ID: `ebgsbtqtkdgaafqejjye`, Region: eu-west-3 (Paris)
-
-**CRITICAL**: Vercel requires **Session Pooler** format (IPv4):
-```bash
-POSTGRES_URL="postgresql://postgres.ebgsbtqtkdgaafqejjye:[PASSWORD]@aws-1-eu-west-3.pooler.supabase.com:5432/postgres"
-# NOT: postgresql://postgres:[PASSWORD]@db.ebgsbtqtkdgaafqejjye.supabase.co:5432/postgres (will fail)
-```
 
 **Schema** (Drizzle ORM in `lib/db/schema.ts`):
 - `User` - email/password auth
@@ -127,11 +234,28 @@ Key patterns:
 
 **SSE Event Types**: `0:` text, `2:` tool call, `3:` tool result, `d:` done
 
-## Integrations
+## Integrations (Supabase Edge Functions)
 
-**Telegram** (`lib/telegram/`): Webhook at `/api/telegram/webhook`, typing indicators (time-based, 3s interval), message splitting, group lead management via `lib/telegram/lead-router.ts`
+**IMPORTANT**: All bot integrations run on Supabase Edge Functions, NOT Next.js API routes.
 
-**WhatsApp** (`lib/whatsapp/`): Uses WaSenderAPI (~$6/month) for DOCX attachments and text messages. Requires `WASENDER_API_KEY` and `WASENDER_WEBHOOK_SECRET` env vars. Features: text messages, document uploads (upload→URL→send flow), all AI tools including calculators, listings, and document generation. Security: HMAC webhook authentication, Redis session storage, optimized deduplication cache.
+**Telegram** (`supabase/functions/telegram-webhook/`):
+- Webhook receives updates from Telegram
+- Typing indicators (time-based, 3s interval)
+- Message splitting for long responses
+- Group lead management via lead-router logic
+- Deploy: `supabase functions deploy telegram-webhook`
+
+**WhatsApp** (`supabase/functions/whatsapp-webhook/`):
+- Uses WaSenderAPI (~$6/month) for DOCX attachments and text messages
+- Secrets: `WASENDER_API_KEY`, `WASENDER_WEBHOOK_SECRET` (set via Supabase dashboard)
+- Features: text messages, document uploads, all AI tools
+- Security: HMAC webhook authentication, Redis session storage
+- Deploy: `supabase functions deploy whatsapp-webhook`
+
+**Shared logic** (`lib/` folder):
+- `lib/telegram/` - Telegram-specific utilities (can be imported in Edge Functions)
+- `lib/whatsapp/` - WhatsApp-specific utilities
+- `lib/ai/` - AI providers, tools, prompts (shared across channels)
 
 **Zyprus API** (`lib/zyprus/`): Drupal JSON:API backend for property/land listings. OAuth 2.0 auth, auto-upload as unpublished drafts. Redis-cached taxonomy (1h TTL) with in-memory fallback. See Zyprus API Quick Reference section below.
 
@@ -145,7 +269,7 @@ Tool files in `lib/ai/tools/` - each exports `description`, `parameters` (Zod), 
 | **Land** | `createLandListing`, `uploadLandListing` |
 | **Calculators** | `calculateTransferFees`, `calculateCapitalGains`, `calculateVAT` |
 | **Taxonomy** | `getZyprusData` (fetch location/property type UUIDs) |
-| **Documents** | `sendDocument` (email DOCX templates via Resend) |
+| **Documents** | `sendDocument` (UI form for web), `sendEmail` (direct send for WhatsApp with attachments) |
 | **UX** | `requestSuggestions` |
 
 **Disabled tools**: `createDocument`, `updateDocument`, `getGeneralKnowledge` (knowledge now embedded in system prompt, cached 24h)
@@ -194,14 +318,21 @@ docs/
 
 ## Environment Variables
 
-Required:
+**Supabase Edge Function Secrets** (set via `supabase secrets set`):
 ```bash
-GOOGLE_GENERATIVE_AI_API_KEY=  # or GEMINI_API_KEY
-POSTGRES_URL=                   # Session Pooler format (see Database section)
-AUTH_SECRET=                    # NextAuth JWT key
+OPENROUTER_API_KEY=             # AI via OpenRouter (NOT Gemini directly)
+SUPABASE_URL=                   # Auto-set
+SUPABASE_SERVICE_ROLE_KEY=      # Auto-set
+TELEGRAM_BOT_TOKEN=             # Telegram bot
+WASENDER_API_KEY=               # WhatsApp via WaSender
+WASENDER_WEBHOOK_SECRET=        # Webhook HMAC verification
 ```
 
-Optional integrations: `TELEGRAM_BOT_TOKEN`, `WASENDER_API_KEY`, `WASENDER_WEBHOOK_SECRET`, `ZYPRUS_CLIENT_ID`, `ZYPRUS_CLIENT_SECRET`, `ZYPRUS_API_URL`
+**For future Next.js deployment:**
+```bash
+POSTGRES_URL=                   # Session Pooler format
+AUTH_SECRET=                    # NextAuth JWT key
+```
 
 See `.env.example` for complete list.
 
@@ -209,15 +340,16 @@ See `.env.example` for complete list.
 
 | Issue | Solution |
 |-------|----------|
-| 503 Errors | Check GEMINI_API_KEY in Vercel |
-| DNS errors on Vercel | Use Session Pooler, not direct connection |
+| 503 Errors | Check OPENROUTER_API_KEY in Supabase Edge Function secrets |
+| Edge Function timeout | Check `supabase functions logs <name>` for errors |
 | Tool not working | Verify dual registration (both arrays) |
 | Drizzle type errors | Run `pnpm db:generate` |
-| "Cannot find module" | Check path aliases (@/lib, @/app) |
+| "Cannot find module" | Check path aliases or Deno imports |
 | Zyprus API 404 errors | Run `pnpm exec tsx tests/manual/test-zyprus-api.ts` to discover correct endpoint names |
-| "Unable to create listing" | Check Vercel logs for taxonomy errors; vocabulary names may have changed |
+| "Unable to create listing" | Check Edge Function logs for taxonomy errors; vocabulary names may have changed |
 | Sentry "Project not found" | Verify `SENTRY_PROJECT` env var matches Sentry project slug (not display name) |
-| WhatsApp issues | See `IMPLEMENTATION_PLAN.md` → "WhatsApp Integration Hardening" section (Issues #1-6 resolved, 66 tests) |
+| WhatsApp issues | Check `supabase functions logs whatsapp-webhook` - see IMPLEMENTATION_PLAN.md for known issues |
+| Telegram issues | Check `supabase functions logs telegram-webhook` |
 | Prompt cache not updating | Bump cache key version in `lib/ai/prompts.ts` (e.g., `sophia-base-prompt-v10` → `v11`) |
 
 ## Key Patterns

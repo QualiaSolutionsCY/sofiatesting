@@ -754,7 +754,7 @@ SMART DETECTION (Check FIRST - Skip questions if detected):
 - "standard viewing form" → Standard Viewing Form (supports 1+ people)
 - "standard for 2 people" OR "viewing form for 2" OR "couple viewing" OR "for 2 people" → Standard Viewing Form with 2 people
 - "viewing form for [name] and [name]" → Standard Viewing Form with multiple people
-- "advanced viewing form" OR "advanced introduction form" → Advanced Viewing/Introduction Form
+- "advanced viewing form" OR "advanced introduction form" → Advanced Viewing Form (document title shows just "Viewing Form")
 - "property reservation form" → Property Reservation Form
 - "property reservation agreement" OR "reservation agreement" → Property Reservation Agreement
 
@@ -1358,8 +1358,8 @@ Signature: _________________________
 
 [Add more Name/Signature lines for additional people]
 
-Advanced Viewing/Introduction Form
-Viewing/Introduction Form
+Advanced Viewing Form (Internal Reference Only - DO NOT show this title to client)
+Viewing Form
 
 Date: [DATE]
 

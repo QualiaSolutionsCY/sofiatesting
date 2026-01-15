@@ -2,6 +2,13 @@
 
 **Purpose**: Record viewing and/or digital introduction with legal clause.
 
+⚠️ **IMPORTANT - ASK FIRST**: When a user requests a "viewing form" without specifying which type, you MUST ask:
+> "Would you like the **Standard** viewing form or the **Advanced** viewing form?
+> - **Standard**: Simple acknowledgment of property viewing
+> - **Advanced**: Includes legal protection clause for exclusive representation"
+
+Only proceed with this template if the user confirms "Advanced" or mentions "legal clause" / "protection" / "exclusive".
+
 🔹 Required Fields (MUST Collect Before Generating)
 - Date (e.g., October 25, 2025)
 - Registrant Name (e.g., John Smith)
@@ -38,8 +45,8 @@
 - Maintain punctuation and parentheses exactly.
 
 🔹 Exact Template
-Advanced Viewing/Introduction Form
-Viewing/Introduction Form
+**NOTE: Document title shown to client is just "Viewing Form" - do NOT include "Advanced" in the output**
+Viewing Form
 
 **Date:** [DATE]
 
