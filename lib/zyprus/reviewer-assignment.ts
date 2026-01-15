@@ -1,7 +1,20 @@
-import {
-  REGIONAL_ACCOUNTS,
-  REVIEWER_RULES,
-} from "../telegram/routing-constants";
+/**
+ * Regional account emails for listing review assignment
+ */
+const REGIONAL_ACCOUNTS: Record<string, string> = {
+  Limassol: "limassol@zyprus.com",
+  Paphos: "paphos@zyprus.com",
+  Larnaca: "larnaca@zyprus.com",
+  Nicosia: "nicosia@zyprus.com",
+  Famagusta: "famagusta@zyprus.com",
+};
+
+/**
+ * Reviewer assignment rules
+ */
+const REVIEWER_RULES = {
+  SALE_PRIMARY_REVIEWER: "listings@zyprus.com", // Lauren Ellingham
+} as const;
 
 /**
  * Get reviewers for a property listing based on type and region

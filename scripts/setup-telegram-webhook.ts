@@ -3,8 +3,9 @@
  */
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 const WEBHOOK_URL =
-  "https://sofiatesting-ogj0npcn8-qualiasolutionscy.vercel.app/api/telegram/webhook";
+  "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/telegram-sophia";
 
 if (!TELEGRAM_BOT_TOKEN) {
   console.error("❌ TELEGRAM_BOT_TOKEN not found in environment");
@@ -39,6 +40,7 @@ async function setupWebhook() {
         url: WEBHOOK_URL,
         allowed_updates: ["message", "edited_message"],
         drop_pending_updates: false,
+        secret_token: TELEGRAM_WEBHOOK_SECRET,
       }),
     }
   );

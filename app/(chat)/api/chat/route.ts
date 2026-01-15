@@ -18,17 +18,7 @@ import { entitlementsByUserType } from "@/lib/ai/entitlements";
 import type { ChatModel } from "@/lib/ai/models";
 import { type RequestHints, systemPrompt } from "@/lib/ai/prompts";
 import { myProvider } from "@/lib/ai/providers";
-import { calculateCapitalGainsTool } from "@/lib/ai/tools/calculate-capital-gains";
-import { calculateTransferFeesTool } from "@/lib/ai/tools/calculate-transfer-fees";
-import { calculateVATTool } from "@/lib/ai/tools/calculate-vat";
-import { createLandListingTool } from "@/lib/ai/tools/create-land-listing";
-import { createListingTool } from "@/lib/ai/tools/create-listing";
-import { getZyprusDataTool } from "@/lib/ai/tools/get-zyprus-data";
-import { listListingsTool } from "@/lib/ai/tools/list-listings";
-import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
-import { sendDocument } from "@/lib/ai/tools/send-document";
-import { uploadLandListingTool } from "@/lib/ai/tools/upload-land-listing";
-import { uploadListingTool } from "@/lib/ai/tools/upload-listing";
+import { getToolConfig } from "@/lib/ai/tools/registry";
 import { isProductionEnvironment } from "@/lib/constants";
 import {
   createStreamId,
@@ -208,42 +198,18 @@ export async function POST(request: Request) {
           userMessage: userMessageText,
         });
 
+        // Get tool configuration from registry - single source of truth
+        const { tools, activeTools } = getToolConfig({ session, dataStream });
+
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
           system: systemPromptValue,
           messages: convertToModelMessages(uiMessages),
           temperature: 0,
           stopWhen: stepCountIs(5),
-          experimental_activeTools: [
-            "calculateTransferFees",
-            "calculateCapitalGains",
-            "calculateVAT",
-            "createListing",
-            "listListings",
-            "uploadListing",
-            "createLandListing",
-            "uploadLandListing",
-            "getZyprusData",
-            // "getGeneralKnowledge", // DISABLED - Knowledge now embedded in system prompt
-            // "createDocument", // DISABLED - No artifacts needed
-            // "updateDocument", // DISABLED - No artifacts needed
-            "requestSuggestions",
-            "sendDocument", // Generate and send documents via email/WhatsApp/download
-          ], // SOFIA can use calculator, property listing, land listing, taxonomy, and document tools
+          experimental_activeTools: activeTools,
           experimental_transform: smoothStream({ chunking: "word" }),
-          tools: {
-            calculateTransferFees: calculateTransferFeesTool,
-            calculateCapitalGains: calculateCapitalGainsTool,
-            calculateVAT: calculateVATTool,
-            createListing: createListingTool,
-            listListings: listListingsTool,
-            uploadListing: uploadListingTool,
-            createLandListing: createLandListingTool,
-            uploadLandListing: uploadLandListingTool,
-            getZyprusData: getZyprusDataTool,
-            requestSuggestions: requestSuggestions({ session, dataStream }),
-            sendDocument: sendDocument({ session, dataStream }),
-          }, // Cyprus real estate tools - property listings, land listings, taxonomy, documents
+          tools,
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
             functionId: "stream-text",
