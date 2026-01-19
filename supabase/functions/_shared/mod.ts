@@ -98,37 +98,3 @@ export {
 
 // Prompts
 export { SYSTEM_PROMPT, ZYPRUS_LOGO_BASE64 } from "./prompts.ts";
-
-// Adapters - WhatsApp
-export {
-  parseWhatsAppMessage,
-  getWhatsAppMessageKey,
-  sendWhatsAppText,
-  sendWhatsAppDocument,
-  sendWhatsAppResponse,
-  verifyWhatsAppSignature,
-  type WaSendWebhookPayload,
-  type WaSendMessage,
-} from "./adapters/whatsapp.ts";
-
-// Adapters - Telegram
-export {
-  parseTelegramMessage,
-  getTelegramFileUrl,
-  getTelegramMessageKey,
-  sendTelegramText,
-  sendTelegramDocument,
-  sendTelegramTyping,
-  sendTelegramResponse,
-  type TelegramUpdate,
-  type TelegramMessage,
-  type TelegramUser,
-  type TelegramChat,
-} from "./adapters/telegram.ts";
-
-// Handler
-export {
-  handleMessage,
-  type HandlerConfig,
-  type ToolContext,
-} from "./handler.ts";
