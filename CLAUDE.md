@@ -2,13 +2,189 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+---
+
+## CRITICAL: Current Architecture
+
+**READ THIS FIRST - DO NOT ASSUME VERCEL**
+
+### Supabase Project (LIVE)
+| Key | Value |
+|-----|-------|
+| **Project ID** | `vceeheaxcrhmpqueudqx` |
+| **Dashboard** | https://supabase.com/dashboard/project/vceeheaxcrhmpqueudqx |
+| **Edge Functions URL** | `https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/` |
+| **WhatsApp Webhook** | `https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot` |
+
+### What Runs Where
+| Component | Runs On | Status |
+|-----------|---------|--------|
+| **WhatsApp Bot (Sophia)** | Supabase Edge Function `sophia-bot` | LIVE |
+| **Telegram Bot** | Supabase Edge Functions | **DISABLED** |
+| **AI Proxy (ai-chat)** | Supabase Edge Functions | LIVE |
+| **Web App (Next.js)** | NOT DEPLOYED | Future |
+| **Database** | Supabase PostgreSQL | LIVE |
+
+**THERE IS NO VERCEL DEPLOYMENT. NEVER SUGGEST VERCEL.**
+
+### Telegram Bot Toggle
+
+```bash
+# TURN ON SOPHIA on Telegram:
+supabase secrets set SOPHIA_TELEGRAM_ENABLED=true --project-ref vceeheaxcrhmpqueudqx
+
+# TURN OFF SOPHIA on Telegram:
+supabase secrets set SOPHIA_TELEGRAM_ENABLED=false --project-ref vceeheaxcrhmpqueudqx
+```
+
+**Current status: DISABLED** (as of Jan 2026)
+
+---
+
+### How to Edit SOPHIA Templates/Prompts
+
+**SOPHIA's brain lives in the `sophia-bot` Edge Function, NOT in local files.**
+
+1. **Get current code via Supabase MCP:**
+   ```
+   mcp__plugin_supabase_supabase__get_edge_function(project_id="vceeheaxcrhmpqueudqx", function_slug="sophia-bot")
+   ```
+
+2. **Key file: `prompts.ts`** - Contains ALL SOPHIA instructions, templates, and behavior
+
+3. **Edit locally, then deploy:**
+   ```bash
+   # Files are extracted to /tmp/sophia-deploy/supabase/functions/sophia-bot/
+   # Edit prompts.ts or other files
+   cd /tmp/sophia-deploy && supabase functions deploy sophia-bot --no-verify-jwt
+   ```
+
+4. **DO NOT edit these local files expecting changes to go live:**
+   - `lib/ai/instructions/` - NOT USED by live SOPHIA
+   - `docs/templates/` - Reference only, NOT USED by live SOPHIA
+   - `docs/knowledge/` - NOT USED by live SOPHIA
+   - `app/api/` - NOT USED (no Vercel deployment)
+
+**The ONLY way to update live SOPHIA is to deploy the `sophia-bot` Edge Function.**
+
+---
+
+**DO NOT** suggest:
+- Vercel deployments
+- Next.js API routes
+- Editing local `lib/` or `docs/` files for SOPHIA changes
+
+**DO** use:
+- Supabase MCP to get/deploy edge functions
+- `supabase functions deploy sophia-bot --no-verify-jwt`
+- Project ID: `vceeheaxcrhmpqueudqx`
+
+---
+
 ## Quick Reference
 
-**Key documents:** `IMPLEMENTATION_PLAN.md` (task tracking), `docs/PRD.md` (requirements), `docs/ARCHITECTURE.md` (system design)
+**Key documents:** `docs/PRD.md` (requirements), `docs/ARCHITECTURE.md` (system design)
 
 **Slash commands** (`.claude/commands/`): `/deploy-checklist`, `/test-all`, `/tool-audit`, `/new-tool <name> <desc>`, `/telegram-debug`, `/db-check`
 
 **Skills** (project-managed): `sofia-debugger` (debug SOFIA issues), `cyprus-calculator` (property tax calculations)
+
+---
+
+## Current Status
+
+### Recently Implemented
+- **`sendEmail` tool** (`lib/ai/tools/send-email.ts`) - Direct email sending from WhatsApp without UI forms
+  - Supports optional DOCX document attachments via `documentUrl` parameter
+  - Uses Resend API with `sofia@zyprus.com` as sender
+  - Registered in WhatsApp message handler (`lib/whatsapp/message-handler.ts`)
+  - Flow: User creates document → User asks to email it → AI uses `sendEmail` with document URL
+
+### Configured
+- `RESEND_API_KEY` - Set in Supabase Edge Function secrets
+
+### Pending
+1. **Resend Domain Verification** - Add SPF/DKIM records for `zyprus.com` in DNS (skip MX record to avoid Google Workspace conflicts)
+2. **Deploy to Supabase** - `supabase functions deploy whatsapp-webhook` after domain verification
+3. **End-to-End Testing** - Test flow: create document via WhatsApp → send via email with attachment
+
+### SOPHIA Updates (Jan 2026)
+
+**Property Uploads - NOW WORKING! ✅**
+- ✅ WhatsApp listing uploads work via Edge Function `sophia-bot`
+- ✅ Tool name: `createPropertyListing` (auto-uploads to Zyprus as draft)
+- ✅ Hardcoded fallback taxonomy UUIDs ensure uploads never fail on taxonomy lookup
+- ✅ Minimum 1 image required (reduced from 3)
+- ✅ Google Maps links: SOPHIA now asks for area name instead of guessing
+- ✅ ibb.co links: SOPHIA explains direct image URLs are needed (i.ibb.co not ibb.co)
+
+**New Fields Added (Jan 16, 2026):**
+- ✅ `field_listing_owner` - UUID of agent who owns the listing (for commission tracking)
+- ✅ `field_ai_draft_own_reference_id` - Auto-generated reference: `SOPHIA-YYYYMMDD-HHMMSS-TYP`
+- ✅ `field_property_views` - Sea View, Mountain View, etc. now properly populated
+- Files modified: `zyprus/client.ts`, `zyprus/taxonomy-cache.ts`
+
+**Description Format (Comprehensive Itemized - Jan 16, 2026):**
+- ✅ Now generates **itemized bullet lists** matching Zyprus website style
+- File: `supabase/functions/sophia-bot/services/description-generator.ts`
+- Format:
+  ```
+  Stunning 4 Bedroom Detached Villa For Sale in Agios Tychonas with Separate Title Deeds
+
+  [Location paragraph]
+
+  KEY FEATURES:
+  • 4 Bedrooms
+  • 3 Bathrooms
+  • 280m² Covered Area
+  • 1200m² Plot Size
+  • Built in 2019
+  • Separate Title Deeds
+
+  INDOOR FEATURES:
+  • Air Conditioning
+  • Central Heating
+  • Wine Cellar
+
+  OUTDOOR FEATURES:
+  • Private Swimming Pool
+  • Double Garage
+  • Landscaped Garden
+
+  PROPERTY VIEWS:
+  • Sea View
+  • Mountain View
+
+  [Closing + Price + CTA]
+  ```
+
+**Region Restrictions:**
+- Agents can ONLY upload properties in their assigned region
+- Error: "Unfortunately, you are not allowed to market a property outside your region"
+- Check `agents` table for `region` field (paphos, limassol, larnaca, nicosia, famagusta, all)
+
+**Image Handling:**
+- Phone gallery attachments: ✅ Work automatically (WaSend extracts URLs)
+- Direct image URLs: ✅ Must be actual images (not HTML pages like ibb.co sharing links)
+- Image validation: HEAD request with GET fallback for servers that don't support HEAD
+
+**Templates & Documents:**
+- ✅ Removed "Phone-Only Addon" from Template 17 (Good Client Email)
+- ✅ Viewing Forms: SOPHIA now asks "Standard or Advanced?" when type not specified
+- ✅ Viewing Form DOCX titles now just show "Viewing Form" (no Standard/Advanced visible to client)
+- ✅ **Removed Template 16 (Exclusive Marketing Agreement)** - only Non-Exclusive and Email Marketing remain
+- ✅ Non-Exclusive Marketing Agreement fixes:
+  - Agent name: Charalambos Pitros (was Pitsillides)
+  - Removed "(name of the seller)" text
+  - Added signature spacing lines
+
+**Knowledge & Responses:**
+- ✅ Deleted `Zoning_Density_Land_.pptx` from knowledge
+- ✅ CREA wording now sends as **3 separate messages** (intro, copy-pasteable block, important note)
+
+**Deploy command:** `supabase functions deploy sophia-bot --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx`
+
+---
 
 ## Project Overview
 
@@ -16,93 +192,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - AI chat with Cyprus real estate tools (VAT, transfer fees, capital gains calculators)
 - Property listing management with Zyprus API integration (Drupal JSON:API)
 - Telegram and WhatsApp bot integration (dual-channel support)
-- Document generation (38 DOCX templates via `docx` package, sent via Resend email)
-
----
-
-## CRITICAL: Supabase Edge Functions Architecture
-
-**SOPHIA runs on Supabase Edge Functions, NOT Vercel.**
-
-### Supabase Project
-| Key | Value |
-|-----|-------|
-| **Project ID** | `vceeheaxcrhmpqueudqx` |
-| **Dashboard** | https://supabase.com/dashboard/project/vceeheaxcrhmpqueudqx |
-| **Edge Functions URL** | `https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/` |
-
-### What Runs Where
-| Component | Function | Purpose |
-|-----------|----------|---------|
-| **WhatsApp Bot** | `sophia-bot` | Full SOPHIA - chat, calculators, uploads, DOCX |
-| **Telegram Bot** | `telegram-sophia` | Lead rerouting only (NOT full chat) |
-
-### Shared Code Architecture (`_shared/` folder)
-
-```
-supabase/functions/
-├── _shared/                    # Reusable modules
-│   ├── adapters/types.ts       # UnifiedMessage, Agent types
-│   ├── db.ts                   # Chat history, deduplication
-│   ├── prompts.ts              # SOPHIA system prompt (4,500 lines)
-│   ├── tools.ts                # Tool definitions + calculator handlers
-│   ├── calculators.ts          # VAT, Transfer Fees, Capital Gains
-│   ├── services.ts             # Image handling, URL validation
-│   ├── zyprus.ts               # Zyprus API client + taxonomy
-│   ├── assets/zyprus-logo.ts   # Logo base64
-│   └── mod.ts                  # Barrel export
-├── sophia-bot/                 # WhatsApp (imports from _shared/)
-│   ├── index.ts                # Main handler
-│   ├── tools/executor.ts       # Full tool execution (uploads)
-│   ├── zyprus/                 # Zyprus API specifics
-│   └── ...
-└── telegram-sophia/            # Telegram (lead routing only)
-    └── ...                     # Separate codebase, NOT using _shared/
-```
-
-### Deploy Commands
-```bash
-# Deploy WhatsApp bot
-supabase functions deploy sophia-bot --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
-
-# Telegram toggle (lead routing)
-supabase secrets set SOPHIA_TELEGRAM_ENABLED=true --project-ref vceeheaxcrhmpqueudqx
-supabase secrets set SOPHIA_TELEGRAM_ENABLED=false --project-ref vceeheaxcrhmpqueudqx
-```
-
-### Important Notes for Next Agent
-1. **DO NOT create a new telegram-bot** - Telegram is lead-routing only via `telegram-sophia`
-2. **sophia-bot imports from `_shared/`** - prompts.ts, db.ts are shared
-3. **Upload logic stays in sophia-bot** - `tools/executor.ts`, `zyprus/` folder
-4. **Never touch telegram-sophia** - it has its own codebase for lead routing
-
----
+- Document generation (37 DOCX templates via `docx` package, sent via Resend email)
 
 ## AI Configuration
 
-**Google Gemini API is mandatory** - set `GOOGLE_GENERATIVE_AI_API_KEY` or `GEMINI_API_KEY`. Using **Tier 1** (paid) for higher rate limits.
+**OpenRouter is the AI provider** - Gemini models accessed via OpenRouter proxy (Supabase Edge Function `ai-chat`).
 
-| Model ID | Actual Model | Use Case |
-|----------|-------------|----------|
-| `chat-model` | `gemini-3-pro-preview` | **Default** - Best reasoning, 1M context, multimodal |
-| `chat-model-gemini3` | `gemini-3-pro-preview` | Explicit alias for default |
-| `chat-model-pro` | `gemini-2.5-pro` | Previous gen reasoning fallback |
-| `chat-model-flash` | `gemini-2.5-flash` | Fast with good quality |
-| `chat-model-flash-lite` | `gemini-2.5-flash-lite` | Ultra-fast, cost-efficient |
-| `title-model` | `gemini-2.5-flash` | Chat title generation |
-| `artifact-model` | `gemini-3-pro-preview` | Uses default model |
+Set `OPENROUTER_API_KEY` in Supabase Edge Function secrets. **NO direct Gemini API key needed.**
 
-See `lib/ai/providers.ts` for implementation details.
+| Model | Via OpenRouter | Use Case |
+|-------|----------------|----------|
+| `google/gemini-2.0-flash` | Default | Fast, cost-effective |
+| `google/gemini-pro` | Fallback | Complex reasoning |
+
+**Edge Function**: `supabase/functions/ai-chat/` proxies requests to OpenRouter.
 
 ## Database
-
-**Supabase PostgreSQL** - Project ID: `ebgsbtqtkdgaafqejjye`, Region: eu-west-3 (Paris)
-
-**CRITICAL**: Vercel requires **Session Pooler** format (IPv4):
-```bash
-POSTGRES_URL="postgresql://postgres.ebgsbtqtkdgaafqejjye:[PASSWORD]@aws-1-eu-west-3.pooler.supabase.com:5432/postgres"
-# NOT: postgresql://postgres:[PASSWORD]@db.ebgsbtqtkdgaafqejjye.supabase.co:5432/postgres (will fail)
-```
 
 **Schema** (Drizzle ORM in `lib/db/schema.ts`):
 - `User` - email/password auth
@@ -187,28 +292,48 @@ Key patterns:
 
 **SSE Event Types**: `0:` text, `2:` tool call, `3:` tool result, `d:` done
 
-## Integrations
+## Integrations (Supabase Edge Functions)
 
-**Telegram** (`lib/telegram/`): Webhook at `/api/telegram/webhook`, typing indicators (time-based, 3s interval), message splitting, group lead management via `lib/telegram/lead-router.ts`
+**IMPORTANT**: All bot integrations run on Supabase Edge Functions, NOT Next.js API routes.
 
-**WhatsApp** (`lib/whatsapp/`): Uses WaSenderAPI (~$6/month) for DOCX attachments and text messages. Requires `WASENDER_API_KEY` and `WASENDER_WEBHOOK_SECRET` env vars. Features: text messages, document uploads (upload→URL→send flow), all AI tools including calculators, listings, and document generation. Security: HMAC webhook authentication, Redis session storage, optimized deduplication cache.
+**Telegram** (`supabase/functions/telegram-webhook/`):
+- Webhook receives updates from Telegram
+- Typing indicators (time-based, 3s interval)
+- Message splitting for long responses
+- Group lead management via lead-router logic
+- Deploy: `supabase functions deploy telegram-webhook`
+
+**WhatsApp** (`supabase/functions/whatsapp-webhook/`):
+- Uses WaSenderAPI (~$6/month) for DOCX attachments and text messages
+- Secrets: `WASENDER_API_KEY`, `WASENDER_WEBHOOK_SECRET` (set via Supabase dashboard)
+- Features: text messages, document uploads, all AI tools
+- Security: HMAC webhook authentication, Redis session storage
+- Deploy: `supabase functions deploy whatsapp-webhook`
+
+**Shared logic** (`lib/` folder):
+- `lib/telegram/` - Telegram-specific utilities (can be imported in Edge Functions)
+- `lib/whatsapp/` - WhatsApp-specific utilities
+- `lib/ai/` - AI providers, tools, prompts (shared across channels)
 
 **Zyprus API** (`lib/zyprus/`): Drupal JSON:API backend for property/land listings. OAuth 2.0 auth, auto-upload as unpublished drafts. Redis-cached taxonomy (1h TTL) with in-memory fallback. See Zyprus API Quick Reference section below.
 
-## Active Tools
+## Active Tools (WhatsApp via sophia-bot Edge Function)
 
-Tool files in `lib/ai/tools/` - each exports `description`, `parameters` (Zod), `execute`:
+Tool definitions in `supabase/functions/sophia-bot/tools/definitions.ts`, executor in `tools/executor.ts`:
 
-| Category | Tools |
-|----------|-------|
-| **Property** | `createListing`, `listListings`, `uploadListing` |
-| **Land** | `createLandListing`, `uploadLandListing` |
-| **Calculators** | `calculateTransferFees`, `calculateCapitalGains`, `calculateVAT` |
-| **Taxonomy** | `getZyprusData` (fetch location/property type UUIDs) |
-| **Documents** | `sendDocument` (email DOCX templates via Resend) |
-| **UX** | `requestSuggestions` |
+| Category | Tool Name | Description |
+|----------|-----------|-------------|
+| **Property** | `createPropertyListing` | Creates draft listing on Zyprus (auto-upload) |
+| **Taxonomy** | `getZyprusData` | Fetch locations, property types, features |
+| **Calculators** | `calculateVAT`, `calculateTransferFees`, `calculateCapitalGains` | Cyprus property tax calculations |
 
-**Disabled tools**: `createDocument`, `updateDocument`, `getGeneralKnowledge` (knowledge now embedded in system prompt, cached 24h)
+**Key Files for Uploads:**
+- `supabase/functions/sophia-bot/tools/executor.ts` - Tool execution logic
+- `supabase/functions/sophia-bot/zyprus/client.ts` - Zyprus API client
+- `supabase/functions/sophia-bot/zyprus/taxonomy-cache.ts` - UUID resolution with fallbacks
+- `supabase/functions/sophia-bot/services/image-handler.ts` - Image validation
+
+**Source of Truth for Zyprus API:** `UPLOAD-LISTINGS-EXTENSIVE-INFO/` (DO NOT modify this folder)
 
 ## Code Style (Ultracite/Biome)
 
@@ -254,14 +379,21 @@ docs/
 
 ## Environment Variables
 
-Required:
+**Supabase Edge Function Secrets** (set via `supabase secrets set`):
 ```bash
-GOOGLE_GENERATIVE_AI_API_KEY=  # or GEMINI_API_KEY
-POSTGRES_URL=                   # Session Pooler format (see Database section)
-AUTH_SECRET=                    # NextAuth JWT key
+OPENROUTER_API_KEY=             # AI via OpenRouter (NOT Gemini directly)
+SUPABASE_URL=                   # Auto-set
+SUPABASE_SERVICE_ROLE_KEY=      # Auto-set
+TELEGRAM_BOT_TOKEN=             # Telegram bot
+WASENDER_API_KEY=               # WhatsApp via WaSender
+WASENDER_WEBHOOK_SECRET=        # Webhook HMAC verification
 ```
 
-Optional integrations: `TELEGRAM_BOT_TOKEN`, `WASENDER_API_KEY`, `WASENDER_WEBHOOK_SECRET`, `ZYPRUS_CLIENT_ID`, `ZYPRUS_CLIENT_SECRET`, `ZYPRUS_API_URL`
+**For future Next.js deployment:**
+```bash
+POSTGRES_URL=                   # Session Pooler format
+AUTH_SECRET=                    # NextAuth JWT key
+```
 
 See `.env.example` for complete list.
 
@@ -269,15 +401,16 @@ See `.env.example` for complete list.
 
 | Issue | Solution |
 |-------|----------|
-| 503 Errors | Check GEMINI_API_KEY in Vercel |
-| DNS errors on Vercel | Use Session Pooler, not direct connection |
+| 503 Errors | Check OPENROUTER_API_KEY in Supabase Edge Function secrets |
+| Edge Function timeout | Check `supabase functions logs <name>` for errors |
 | Tool not working | Verify dual registration (both arrays) |
 | Drizzle type errors | Run `pnpm db:generate` |
-| "Cannot find module" | Check path aliases (@/lib, @/app) |
+| "Cannot find module" | Check path aliases or Deno imports |
 | Zyprus API 404 errors | Run `pnpm exec tsx tests/manual/test-zyprus-api.ts` to discover correct endpoint names |
-| "Unable to create listing" | Check Vercel logs for taxonomy errors; vocabulary names may have changed |
+| "Unable to create listing" | Check Edge Function logs for taxonomy errors; vocabulary names may have changed |
 | Sentry "Project not found" | Verify `SENTRY_PROJECT` env var matches Sentry project slug (not display name) |
-| WhatsApp issues | See `IMPLEMENTATION_PLAN.md` → "WhatsApp Integration Hardening" section (Issues #1-6 resolved, 66 tests) |
+| WhatsApp issues | Check `supabase functions logs whatsapp-webhook` - see IMPLEMENTATION_PLAN.md for known issues |
+| Telegram issues | Check `supabase functions logs telegram-webhook` |
 | Prompt cache not updating | Bump cache key version in `lib/ai/prompts.ts` (e.g., `sophia-base-prompt-v10` → `v11`) |
 
 ## Key Patterns
@@ -323,6 +456,14 @@ headers: {
 
 5. **AI Notes field**: `field_ai_assistant_notes` is a new text field auto-populated on listing upload with user requirements, property type, and key features summary
 
+6. **Required relationship fields** (Jan 2026):
+   - `field_listing_owner` - User UUID who owns the listing (use instructor UUID as fallback)
+   - `field_ai_listing_instructor` - User UUID who requested the upload
+   - `field_ai_listing_reviewer` - Array of reviewer User UUIDs
+   - `field_property_views` - Array of taxonomy_term--property_views UUIDs (Sea View, Mountain View, etc.)
+
+7. **Reference ID format**: `field_ai_draft_own_reference_id` should be `SOPHIA-YYYYMMDD-HHMMSS-TYP` where TYP is first 3 chars of property type (e.g., VIL, APA, TOW)
+
 ### Debugging
 
 ```bash
@@ -335,3 +476,40 @@ pnpm exec tsx tests/manual/test-zyprus-api.ts
 | 403 Forbidden | Missing User-Agent | Add `User-Agent: SophiaAI` header |
 | 404 on taxonomy | Wrong vocabulary name | Run test script above |
 | 422 Unprocessable | Invalid UUID | Verify taxonomy IDs from cache |
+| field_gallery_ null | Images failed validation | Check image URLs are direct links (not HTML pages) |
+
+### Testing Property Uploads
+
+```bash
+# Test multiple property uploads via webhook (RECOMMENDED)
+npx tsx tests/manual/test-multi-upload.ts
+
+# Test direct API upload (bypasses SOPHIA)
+npx tsx tests/manual/upload-sophia-ai.ts
+
+# Test Edge Function webhook (single property)
+npx tsx tests/manual/test-sophia-edge-upload.ts
+
+# Test all Zyprus API endpoints
+npx tsx tests/manual/test-zyprus-api.ts
+```
+
+**Important:** Test phone numbers must match registered agents in `agents` table.
+- Use `SELECT mobile, full_name, region FROM agents WHERE can_upload = true` to find valid numbers
+- Agent region must match property location or upload will be rejected
+
+**Verification:**
+- Draft Dashboard: https://dev9.zyprus.com/draft-dashboard?ai_state=draft
+- Edge Function Logs: Use Supabase MCP `get_logs` with service="edge-function"
+- Chat History: Query `chat_history` table in Supabase for SOPHIA responses
+
+**Key Constants:**
+```typescript
+SOPHIA_AI_UUID = "7026c7a3-1ef0-419f-9957-15a8c161b614"  // For field_ai_listing_instructor
+MICHELLE_UUID = "dc2688d2-0ea1-4c13-b03d-3309ee8de6a4"   // Michelle Pitsillides
+LAUREN_UUID = "0caa9a75-362a-4156-b11b-b52839243b74"    // Lauren (reviewer)
+DEFAULT_LOCATION = "7dbc931e-90eb-4b89-9ac8-b5e593831cf8"  // Acropolis, Strovolos
+DEFAULT_PROPERTY_TYPE = "e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44"  // Apartment
+```
+
+See `tests/manual/README-UPLOADS.md` for complete test documentation.
