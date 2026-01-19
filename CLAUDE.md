@@ -18,6 +18,66 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Telegram and WhatsApp bot integration (dual-channel support)
 - Document generation (38 DOCX templates via `docx` package, sent via Resend email)
 
+---
+
+## CRITICAL: Supabase Edge Functions Architecture
+
+**SOPHIA runs on Supabase Edge Functions, NOT Vercel.**
+
+### Supabase Project
+| Key | Value |
+|-----|-------|
+| **Project ID** | `vceeheaxcrhmpqueudqx` |
+| **Dashboard** | https://supabase.com/dashboard/project/vceeheaxcrhmpqueudqx |
+| **Edge Functions URL** | `https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/` |
+
+### What Runs Where
+| Component | Function | Purpose |
+|-----------|----------|---------|
+| **WhatsApp Bot** | `sophia-bot` | Full SOPHIA - chat, calculators, uploads, DOCX |
+| **Telegram Bot** | `telegram-sophia` | Lead rerouting only (NOT full chat) |
+
+### Shared Code Architecture (`_shared/` folder)
+
+```
+supabase/functions/
+├── _shared/                    # Reusable modules
+│   ├── adapters/types.ts       # UnifiedMessage, Agent types
+│   ├── db.ts                   # Chat history, deduplication
+│   ├── prompts.ts              # SOPHIA system prompt (4,500 lines)
+│   ├── tools.ts                # Tool definitions + calculator handlers
+│   ├── calculators.ts          # VAT, Transfer Fees, Capital Gains
+│   ├── services.ts             # Image handling, URL validation
+│   ├── zyprus.ts               # Zyprus API client + taxonomy
+│   ├── assets/zyprus-logo.ts   # Logo base64
+│   └── mod.ts                  # Barrel export
+├── sophia-bot/                 # WhatsApp (imports from _shared/)
+│   ├── index.ts                # Main handler
+│   ├── tools/executor.ts       # Full tool execution (uploads)
+│   ├── zyprus/                 # Zyprus API specifics
+│   └── ...
+└── telegram-sophia/            # Telegram (lead routing only)
+    └── ...                     # Separate codebase, NOT using _shared/
+```
+
+### Deploy Commands
+```bash
+# Deploy WhatsApp bot
+supabase functions deploy sophia-bot --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
+
+# Telegram toggle (lead routing)
+supabase secrets set SOPHIA_TELEGRAM_ENABLED=true --project-ref vceeheaxcrhmpqueudqx
+supabase secrets set SOPHIA_TELEGRAM_ENABLED=false --project-ref vceeheaxcrhmpqueudqx
+```
+
+### Important Notes for Next Agent
+1. **DO NOT create a new telegram-bot** - Telegram is lead-routing only via `telegram-sophia`
+2. **sophia-bot imports from `_shared/`** - prompts.ts, db.ts are shared
+3. **Upload logic stays in sophia-bot** - `tools/executor.ts`, `zyprus/` folder
+4. **Never touch telegram-sophia** - it has its own codebase for lead routing
+
+---
+
 ## AI Configuration
 
 **Google Gemini API is mandatory** - set `GOOGLE_GENERATIVE_AI_API_KEY` or `GEMINI_API_KEY`. Using **Tier 1** (paid) for higher rate limits.
