@@ -59,7 +59,7 @@ export const REGIONAL_MANAGERS: Record<string, string> = {
 // Regex pattern for detecting when client requests a specific agent
 // Per spec: "Client wants to speak with [Agent Name]" → Forward directly to named agent
 export const AGENT_REQUEST_PATTERN =
-  /(?:wants?\s+to\s+speak\s+with|asked?\s+for|requesting?|speak(?:ing)?\s+(?:to|with))\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i;
+  /(?:wants?\s+to\s+speak\s+with|asked?\s+for|requesting?|speak(?:ing)?\s+(?:to|with)|(?:this\s+(?:is\s+)?for)|(?:for))\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i;
 
 /**
  * Detect if a message contains Russian language indicators

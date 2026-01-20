@@ -1,0 +1,175 @@
+Property Listing Upload Instructions
+Target: Sophia AI
+Action: Create New Property Listing
+Method: POST
+Endpoint: /jsonapi/node/property
+1. Payload Overview
+The payload must follow the standard JSON:API structure.
+JSON
+
+
+Plain Text
+
+
+
+
+
+
+
+
+{
+  "data": {
+    "type": "node--property",
+    "attributes": {
+      "title": "...",
+      "body": { "value": "..." },
+      "field_price": 0,
+      "field_covered_area": 0,
+      "field_map": { ... }
+      // ... other attributes
+    },
+    "relationships": {
+      "field_property_type": { ... },
+      "field_listing_type": { ... }
+      // ... other relationships
+    }
+  }
+}
+
+
+
+
+
+2. Attributes Configuration
+These fields represent direct data about the property (House, Apartment, etc.).
+A. Mandatory Attributes
+Constraint: These fields must be present in the payload for a valid request.
+title (string)
+The headline of the listing. Max 255 characters.
+
+body (object)
+The main description text. Must contain the property value.
+Example: {"value": "A spacious 3-bedroom apartment..."}
+
+field_price (number)
+The selling price or monthly rent.
+
+field_covered_area (integer)
+Internal area of the property in square meters (sqm).
+
+JSON{ "value": "POINT (33.429859 35.126413)", // POINT (LON LAT) "geo_type": "Point", "lat": 35.126413, "lon": 33.429859, "latlon": "35.126413,33.429859"}
+Geographical location. Strict structure required:
+
+
+B. Optional Attributes (Property Details)
+Constraint: Sophia AI should populate these to provide a rich listing.
+field_no_bedrooms (integer): Number of bedrooms.
+field_no_bathrooms (integer): Number of bathrooms.
+field_no_kitchens (integer): Number of kitchens.
+field_no_living_rooms (integer): Number of living rooms.
+field_no_storage_rooms (integer): Number of storage rooms.
+field_no_covered_verandas (integer): Covered veranda area (sqm).
+field_no_uncovered_verandas (integer): Uncovered veranda area (sqm).
+field_year_built (integer): Year of construction.
+field_new_build (boolean): true if brand new.
+field_energy_class (string): Energy rating (e.g., "A", "B"). Max 2 chars.
+field_land_size (integer): Plot size (if applicable, e.g., for Villas).
+field_own_reference_id (string): External/Client Reference ID.
+field_phone_number (string): Contact phone.
+field_video_walkthrough (string): YouTube/Vimeo link.
+field_property_notes (string): Internal notes.
+
+C. AI Workflow Attributes
+Constraint: Sophia AI must populate these to track the generation process.
+field_ai_generated (boolean): Set to true.
+field_ai_state (string): Set to "draft"
+field_ai_message (object): Generation notes. Requires value.
+Example: {"value": "Generated from raw text input."}
+
+field_ai_probably_exists (boolean): true if duplicate suspected.
+field_ai_draft_own_reference_id (string): Internal AI tracking ID.
+
+D. System Attributes (Read-Only)
+Constraint: Do not send these fields.
+drupal_internal__nid, drupal_internal__vid, created, changed, promote, path.
+
+
+
+
+3. Relationships & Taxonomy Endpoints
+Instruction: For every relationship below, Sophia AI must perform a GET request to the provided Endpoint Route to fetch available options. Use the retrieved id (UUID) and type to construct the relationship object.
+A. Mandatory Relationships
+field_property_type
+Description: The specific type (e.g., Apartment, Villa, Office).
+Resource Type: taxonomy_term--property_type
+Endpoint Route: /jsonapi/taxonomy_term/property_type
+
+field_listing_type
+Description: The status (e.g., For Sale, For Rent).
+Resource Type: taxonomy_term--listing_type
+Endpoint Route: /jsonapi/taxonomy_term/listing_type
+Default UUID: 8f187816-a888-4cda-a937-1cee84b9c0ee
+
+field_location
+Description: The City, Area, or Neighborhood.
+Resource Type: Varies (e.g., taxonomy_term--location or node--location).
+Endpoint Route: /jsonapi/node/location (or relevant location endpoint).
+
+field_price_modifier
+Description: VAT/Tax context (e.g., No VAT, Plus VAT).
+Resource Type: taxonomy_term--price_modifier
+Endpoint Route: /jsonapi/taxonomy_term/price_modifier
+Default UUID: ab39af2d-c8f5-4971-9fa5-2df6822ab9a9
+
+field_title_deed
+Description: Legal status of the title.
+Resource Type: taxonomy_term--title_deed
+Endpoint Route: /jsonapi/taxonomy_term/title_deed
+Default UUID: 5c553db1-e53d-46a2-b609-093d17e75a7a
+
+field_gallery_ (Note the underscore)
+Description: Main image gallery.
+Resource Type: file--file
+Endpoint Route: File upload required first.
+Note: Must be an Array. Minimum 1 item.
+
+
+B. Optional Relationships
+field_indoor_property_features
+Description: Features like "Air Conditioning", "Central Heating".
+Resource Type: taxonomy_term--indoor_property_views
+Endpoint Route: /jsonapi/taxonomy_term/indoor_property_views
+Note: Array (Multiple selections allowed).
+
+field_outdoor_property_features
+Description: Features like "Pool", "Garden", "Parking".
+Resource Type: taxonomy_term--outdoor_property_features
+Endpoint Route: /jsonapi/taxonomy_term/outdoor_property_features
+Note: Array (Multiple selections allowed).
+
+field_property_views
+Description: Views like "Sea View", "City View".
+Resource Type: taxonomy_term--property_views
+Endpoint Route: /jsonapi/taxonomy_term/property_views
+Note: Array.
+
+field_property_status
+Description: Construction stage (e.g., "Under Construction").
+Resource Type: taxonomy_term--property_status
+Endpoint Route: /jsonapi/taxonomy_term/property_status
+
+field_floor_plan / field_pdf_floor_plan
+Resource Type: file--file
+Note: Image or PDF file uploads.
+
+field_epc
+Description: Energy Performance Certificate.
+Resource Type: file--file
+
+field_ai_listing_instructor / field_ai_listing_reviewer
+Resource Type: user--user
+
+
+
+
+

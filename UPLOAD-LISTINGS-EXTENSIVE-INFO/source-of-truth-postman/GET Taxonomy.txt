@@ -1,0 +1,107 @@
+This section guides Sophia AI on how to query the specific vocabularies to retrieve the UUIDs required for the relationships in Property and Land listings.
+
+
+
+Taxonomy Reference Guide
+Target: Sophia AI
+Action: Lookup Term IDs
+Method: GET
+Usage: Query these endpoints to find the id (UUID) for dropdown-style fields.
+1. Core Status & Classification
+Used in both Property and Land listings.
+A. Listing Type (Status)
+Endpoint: /jsonapi/taxonomy_term/listing_type
+Description: Defines if the listing is for sale, rent, or exchange.
+Search Attribute: name (e.g., "For Sale", "For Rent")
+Mandatory: Yes.
+
+B. Price Modifier
+Endpoint: /jsonapi/taxonomy_term/price_modifier
+Description: Clarifies tax/VAT context for the price.
+Search Attribute: name (e.g., "Plus VAT", "No VAT", "VAT Included")
+Mandatory: Yes.
+
+C. Title Deed
+Endpoint: /jsonapi/taxonomy_term/title_deed
+Description: The legal status of the ownership documents.
+Search Attribute: name (e.g., "Title Deed", "Final Approval", "Share of Land")
+Mandatory: Yes (or strongly recommended).
+
+
+
+
+2. Property Specifics
+Used primarily in _node--property_.
+A. Property Type
+Endpoint: /jsonapi/taxonomy_term/property_type
+Description: The category of the property.
+Search Attribute: name (e.g., "Apartment", "Villa", "Office", "Shop")
+Mandatory: Yes.
+
+B. Property Status (Build Status)
+Endpoint: /jsonapi/taxonomy_term/property_status
+Description: The construction stage.
+Search Attribute: name (e.g., "Under Construction", "Resale", "Off Plan", "Ready to Move")
+Mandatory: Optional, but recommended.
+
+C. Indoor Features
+Endpoint: /jsonapi/taxonomy_term/indoor_property_views
+Description: Interior amenities.
+Search Attribute: name (e.g., "Air Conditioning", "Central Heating", "Fireplace", "Elevator")
+Usage: Select multiple.
+
+D. Outdoor Features
+Endpoint: /jsonapi/taxonomy_term/outdoor_property_features
+Description: Exterior amenities.
+Search Attribute: name (e.g., "Private Pool", "Communal Pool", "Garden", "Gated Complex")
+Usage: Select multiple.
+
+E. Property Views
+Endpoint: /jsonapi/taxonomy_term/property_views
+Description: Scenery visible from the property.
+Search Attribute: name (e.g., "Sea View", "Mountain View", "City View")
+Usage: Select multiple.
+
+
+
+
+3. Land Specifics
+Used primarily in _node--land_.
+A. Land Type
+Endpoint: /jsonapi/taxonomy_term/land_type
+Description: Classification of the land.
+Search Attribute: name (e.g., "Plot", "Field", "Agricultural")
+Mandatory: Yes.
+
+B. Infrastructure
+Endpoint: /jsonapi/taxonomy_term/infrastructure_
+Description: Utilities and access available on the land.
+Search Attribute: name (e.g., "Electricity", "Water", "Road Access")
+Usage: Select multiple.
+
+
+
+
+4. Location Hierarchy
+Used to filter Locations.
+A. Towns (Districts)
+Endpoint: /jsonapi/taxonomy_term/towns
+Description: Major cities or districts.
+Search Attribute: name (e.g., "Limassol", "Paphos", "Nicosia")
+Usage: Primarily used to verify the field_town relationship when searching for a node--location.
+
+
+
+
+Universal Taxonomy Search Strategy
+To find the correct UUID for any term above, Sophia AI must execute the following workflow:
+Construct Query: [ENDPOINT]?filter[name]=TERM_NAME
+Example: /jsonapi/taxonomy_term/property_type?filter[name]=Apartment
+
+Validate: Ensure the response contains data.
+Extract: Get the id from the first item in the data array.
+JSON"relationship_name": { "data": { "type": "taxonomy_term--[VOCABULARY_ID]", "id": "EXTRACTED_UUID" }}
+
+
+
+

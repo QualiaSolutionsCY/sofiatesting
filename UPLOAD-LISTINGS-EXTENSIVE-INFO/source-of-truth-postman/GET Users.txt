@@ -1,0 +1,76 @@
+Since this endpoint is Read-Only, the instructions focus on how Sophia AI should query and filter this resource to find the correct User UUIDs needed for the field_ai_listing_instructor and field_ai_listing_reviewer relationships in the Property and Land listings.
+
+
+
+User Resource Reference (Read-Only)
+Target: Sophia AI
+Action: Lookup User IDs
+Method: GET
+Endpoint: /jsonapi/user/user
+1. Resource Overview
+This endpoint is used exclusively to retrieve existing system users. Sophia AI must query this endpoint to find the id (UUID) of specific users (e.g., the Listing Instructor or Reviewers) to link them to a Property or Land listing.
+2. Attributes (For Search & Identification)
+When performing a GET request, Sophia AI can filter by these attributes to find the correct user.
+name (string)
+The username. This is the primary field for identification.
+
+mail (string)
+The email address of the user. Useful for precise lookups.
+
+drupal_internal__uid (integer)
+The numeric ID.
+
+display_name (string)
+The visible name of the user.
+
+status (boolean)
+true indicates an active user. Sophia should generally only link to active users.
+
+timezone (string)
+User's timezone.
+
+
+3. Relationships (Context)
+These fields provide context about the user's permissions and assignments.
+roles
+Type: user_role--user_role
+Usage: Used to identify if a user has the correct permissions (e.g., "Administrator", "Manager") to be assigned as a reviewer.
+
+field_region_managed
+Type: Varies (generic relationship).
+Usage: Contextual region assignment.
+
+
+4. Usage Strategy: Linking Users to Listings
+To populate field_ai_listing_instructor or field_ai_listing_reviewer in a Property/Land payload, follow these steps:
+Search: Perform a filtered GET request to find the specific user.
+Example Filter: /jsonapi/user/user?filter[name]=JohnDoe
+
+Extract: Parse the response to get the id (UUID) from the matching resource object.
+Link: Use this UUID in the Property/Land payload.
+
+Example Relationship Construction (For Property Payload)
+Once the User UUID is found (e.g., 94503467-3327-4c75-870f-560662d5351a), construct the relationship in the Property listing like this:
+JSON
+
+
+Plain Text
+
+
+
+
+
+
+
+
+"field_ai_listing_instructor": {
+  "data": {
+    "type": "user--user",
+    "id": "94503467-3327-4c75-870f-560662d5351a"
+  }
+}
+
+
+
+
+

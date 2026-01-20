@@ -1,0 +1,107 @@
+This section explains how Sophia AI must handle file uploads. Since JSON:API treats files as separate resources, Sophia must upload the file first to generate a UUID, and then use that UUID in the Property or Land payload.
+
+
+
+File Upload & Media Management
+Target: Sophia AI
+Action: Upload Binary File
+Method: POST (Binary Stream)
+Endpoint Template: /jsonapi/node/{{nodeBundle}}/{{imageField}}
+1. Endpoint Construction
+Sophia AI must construct the upload URL dynamically based on the Content Type and the specific Field being targeted.
+{{nodeBundle}}: Replace with property or land.
+{{imageField}}: Replace with the machine name of the file field (see table below).
+
+Supported File Fields
+For Property (node--property):
+| Field Name ({{imageField}}) | File Type | Description |
+| :--- | :--- | :--- |
+| field_gallery_ | Image (JPG/PNG) | Mandatory. Main property images. |
+| field_floor_plan | Image (JPG/PNG) | Floor plan images. |
+| field_pdf_floor_plan | Document (PDF) | Floor plan documents. |
+| field_epc | Document (PDF) | Energy Performance Certificate. |
+For Land (node--land):
+| Field Name ({{imageField}}) | File Type | Description |
+| :--- | :--- | :--- |
+| field_land_gallery | Image (JPG/PNG) | Mandatory. Main land images. |
+| field_marketing_agreement | Document (PDF) | Marketing contract. |
+| field_title_deed_file | Document (PDF) | Scanned title deed. |
+2. Request Configuration
+To upload a file successfully, the request headers must be configured strictly as follows.
+Header: Content-Type
+Value: application/octet-stream
+Reason: Tells the server the body is raw binary data.
+
+Header: Content-Disposition
+Value: file; filename="[FILENAME.EXT]"
+Example: file; filename="living_room_01.jpg"
+Reason: Assigns a name to the uploaded file on the server.
+
+Body:
+Value: Raw binary file content.
+
+
+3. Workflow: Upload and Attach
+Sophia AI must follow this 2-step process for every file.
+Step A: Upload the File
+Execute the POST request to the constructed endpoint.
+Request:
+POST /jsonapi/node/property/field_gallery_
+Content-Disposition: file; filename="view.jpg"
+[Binary Data]
+Response (Success):
+The server will return a JSON object containing the new File ID.
+JSON
+
+
+JSON
+
+
+
+
+
+
+
+
+{
+  "data": {
+    "type": "file--file",
+    "id": "c3d4e5f6-7890-abcd-ef01-234567890123", <--- EXTRACT THIS UUID
+    "attributes": {
+      "uri": { "value": "public://..." }
+    }
+  }
+}
+
+
+Step B: Attach to Listing Payload
+Take the extracted UUID from Step A and insert it into the relationships array of the Property or Land payload.
+Payload Example (Property):
+JSON
+
+
+JSON
+
+
+
+
+
+
+
+
+"relationships": {
+  "field_gallery_": {
+    "data": [
+      {
+        "type": "file--file",
+        "id": "c3d4e5f6-7890-abcd-ef01-234567890123" // UUID from Step A
+      }
+    ]
+  }
+}
+
+
+Note: For fields that allow multiple files (like field_gallery_), repeat Step A for every image, and add each resulting UUID to the data array in Step B.
+
+
+

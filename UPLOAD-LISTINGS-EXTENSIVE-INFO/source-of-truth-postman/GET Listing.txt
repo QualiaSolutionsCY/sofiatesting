@@ -1,0 +1,40 @@
+This is a crucial capability for Sophia AI to check for duplicate listings (field_ai_probably_exists logic) and to retrieve data for editing or migration tasks.
+
+
+
+Listing View (Read-Only)
+Target: Sophia AI
+Action: View/Retrieve Property or Land Data
+Method: GET
+Endpoint Template: /jsonapi/node/{{nodeBundle}}
+1. Endpoint Construction
+Sophia AI can view all listings of a certain type, or retrieve a single, specific listing by its UUID.
+| Content Type | Endpoint for ALL Listings | Endpoint for ONE Listing (by UUID) |
+| Property | /jsonapi/node/property | /jsonapi/node/property/[UUID] |
+| Land | /jsonapi/node/land | /jsonapi/node/land/[UUID] |
+2. Viewing a Specific Listing (by UUID)
+To fetch the complete data for a listing, Sophia AI must append the listing's UUID to the bundle endpoint.
+Action: Retrieve all attributes and relationships for listing 7b1c2d3e-4f5a-6b7c-8d9e-0f1a2b3c4d5e.
+Example Request (Property): GET /jsonapi/node/property/7b1c2d3e-4f5a-6b7c-8d9e-0f1a2b3c4d5e
+
+3. Filtering and Searching Listings
+When Sophia AI needs to check for duplicates or find listings matching specific criteria (e.g., all listings by a certain Agent, or all listings in a specific location), it can use standard JSON:API filtering on the base endpoint (/jsonapi/node/property).
+A. Filtering by Attributes
+Sophia can search using any attribute defined in Section 2 (Attributes Configuration).
+| Goal | Filter Example (Attribute) |
+| Find listing by Title | ?filter[title]=Apartment near the beach |
+| Find listing by Price | ?filter[field_price]=500000 |
+| Find listing by AI Status | ?filter[field_ai_state]=draft |
+| Find listing by Reference ID | ?filter[field_own_reference_id]=ZYPR-1001 |
+B. Filtering by Relationships (Location Lookup)
+Sophia can search by the UUID of a related entity. This is most common when searching by Location.
+| Goal | Filter Example (Relationship) |
+| Find all properties in Location UUID A1B2... | ?filter[field_location.id]=A1B2... |
+| Find all listings of Listing Type UUID C3D4... | ?filter[field_listing_type.id]=C3D4... |
+C. Advanced Filtering (Nested Search)
+Sophia can combine filters to perform complex queries.
+| Goal | Filter Example (Combined) |
+| Find all "draft" properties in Location UUID A1B2... | ?filter[field_location.id]=A1B2...&filter[field_ai_state]=draft |
+
+
+

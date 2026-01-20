@@ -1,0 +1,65 @@
+This endpoint is Read-Only and is critical because both Property and Land listings have a mandatory field_location relationship. Sophia AI must query this endpoint to find the correct Area/Neighborhood UUID to link to the listing.
+
+
+
+Location Resource Reference (Read-Only)
+Target: Sophia AI
+Action: Lookup Location (Area) IDs
+Method: GET
+Endpoint: /jsonapi/node/location
+1. Resource Overview
+This endpoint allows you to search for specific geographical Areas or Neighborhoods (e.g., "Marina", "Downtown", "Potamos Germasogeias").
+You must query this endpoint to retrieve the id (UUID) required to populate the field_location relationship in both Property and Land listings.
+2. Attributes (For Search & Identification)
+Use these attributes to filter the list and find the correct location.
+title (string)
+Description: The name of the Area or Neighborhood.
+Usage: This is your primary search key.
+Example Filter: ?filter[title]=Marina
+
+field_map (object)
+Description: Geo-coordinates of the area.
+Usage: Use this to verify if the location matches the coordinates of the property you are uploading.
+
+
+3. Relationships (Context)
+Use this relationship to ensure you have selected the area within the correct Town/City.
+field_town
+Type: taxonomy_term--towns
+Usage: Links the Area (Node) to a Town (Taxonomy).
+Strategy: If searching for "Marina" returns multiple results (e.g., one in Limassol and one in Larnaca), check the field_town relationship to pick the correct one.
+
+
+4. Usage Strategy: Linking Location to Listings
+To populate field_location in a Property/Land payload, follow these steps:
+Search: Perform a filtered GET request using the Area Name.
+Endpoint: /jsonapi/node/location?filter[title]=Limassol Marina
+
+Extract: Parse the response to get the id (UUID) from the matching resource object.
+Link: Use this UUID in the Property/Land payload.
+
+Example Relationship Construction (For Property Payload)
+Once the Location Node UUID is found (e.g., a1b2c3d4-e5f6-7890-abcd-ef0123456789), construct the relationship in the listing like this:
+JSON
+
+
+JSON
+
+
+
+
+
+
+
+
+"field_location": {
+  "data": {
+    "type": "node--location",
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef0123456789"
+  }
+}
+
+
+
+
+
