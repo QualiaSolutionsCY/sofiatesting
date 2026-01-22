@@ -36,3 +36,11 @@ export {
   ZYPRUS_DEFAULTS,
 } from "./reservation-agreement.ts";
 
+// Marketing Agreement (Non-Exclusive)
+export {
+  createMarketingAgreement,
+  parseMarketingAgreementData,
+  type MarketingAgreementData,
+} from "./marketing-agreement.ts";
+
+

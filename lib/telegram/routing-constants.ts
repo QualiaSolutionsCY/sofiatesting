@@ -14,9 +14,9 @@ export const LIMASSOL_AGENTS = ["Michelle Longridge", "Diana Kultaseva"];
 // Larnaca region: Use same agents as Limassol (Michelle/Diana)
 export const LARNACA_AGENTS = ["Michelle Longridge", "Diana Kultaseva"];
 
-// "Zyprus Others" group (Nicosia, Famagusta): ONLY these two
-// Per spec: "RULE: Forward to regional manager of that area, Restricted to Lauren and Haralambos only"
-export const OTHERS_GROUP_AGENTS = ["Lauren Ellingham", "Charalambos Pitros"];
+// "Zyprus Others" group (Nicosia, Larnaca, Famagusta): Lauren, Charalambos, and Lysandros
+// Per spec: "RULE: Forward to regional manager of that area"
+export const OTHERS_GROUP_AGENTS = ["Lauren Ellingham", "Charalambos Pitros", "Lysandros Ioanni"];
 
 // Priority agents for office listings
 export const PRIORITY_AGENTS = ["Marios Azinas", "Dimitris Panayiotou"];

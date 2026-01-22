@@ -1,6 +1,6 @@
 /**
  * Template Registry - Defines which templates are TEXT vs DOCX
- * 
+ *
  * This is the single source of truth for template routing.
  * - TEXT templates: Sent as WhatsApp messages
  * - DOCX templates: Sent as file attachments
@@ -8,23 +8,22 @@
 
 /**
  * DOCX Templates - These are sent as file attachments
- * Only these 6 templates should generate DOCX files
+ * Only these 5 templates should generate DOCX files
  */
 export const DOCX_TEMPLATE_TITLES = [
   // Viewing Forms (Templates 09-10)
-  "Viewing Form",                      // Standard viewing form (single or multiple)
+  "Viewing Form", // Standard viewing form (single or multiple)
   "Standard Viewing Form",
   "Advanced Viewing Form",
   "Advanced Viewing/Introduction Form",
-  
+
   // Reservation Forms (Templates 11-12)
   "Property Reservation Form",
   "Property Reservation Agreement",
-  
-  // Marketing Agreements (Templates 15-16)
+
+  // Marketing Agreement (Template 15)
+  "Marketing Agreement",
   "Non-Exclusive Marketing Agreement",
-  "Exclusive Marketing Agreement",
-  "Marketing Agreement",               // Generic catch for marketing agreements
 ] as const;
 
 /**
@@ -49,11 +48,17 @@ export const TEMPLATE_CATEGORIES = {
     outputType: "DOCX" as const,
     description: "Property reservation forms and agreements - sent as DOCX files",
   },
-  MARKETING: {
-    name: "Marketing Agreements",
-    templates: ["14", "15", "16"],
-    outputType: "MIXED" as const, // 14 is TEXT, 15-16 are DOCX
-    description: "Email marketing (TEXT) and signed agreements (DOCX)",
+  MARKETING_EMAIL: {
+    name: "Email Marketing Agreement",
+    templates: ["14"],
+    outputType: "TEXT" as const,
+    description: "Email marketing agreement - sent as WhatsApp message",
+  },
+  MARKETING_NON_EXCLUSIVE: {
+    name: "Non-Exclusive Marketing Agreement",
+    templates: ["15"],
+    outputType: "DOCX" as const,
+    description: "Non-exclusive marketing agreement for signature - sent as DOCX file",
   },
   CLIENT_COMMS: {
     name: "Client Communications",
@@ -188,27 +193,32 @@ export function shouldSendAsDocx(response: string): boolean {
 
   // Rule 3: Check for specific DOCX template markers in first 500 chars
   const firstPart = response.substring(0, 500).toLowerCase();
-  
+
   // Viewing Form detection
-  if (firstPart.includes("viewing form") && 
-      (firstPart.includes("herein, i") || firstPart.includes("confirm that"))) {
+  if (
+    firstPart.includes("viewing form") &&
+    (firstPart.includes("herein, i") || firstPart.includes("confirm that"))
+  ) {
     return true;
   }
-  
+
   // Reservation Form detection
-  if ((firstPart.includes("property reservation form") || 
-       firstPart.includes("reservation agreement")) &&
-      firstPart.includes("property")) {
+  if (
+    (firstPart.includes("property reservation form") ||
+      firstPart.includes("reservation agreement")) &&
+    firstPart.includes("property")
+  ) {
     return true;
   }
-  
-  // Marketing Agreement detection (must be the main document, not just mentioned)
-  if ((firstPart.includes("non-exclusive marketing agreement") ||
-       firstPart.includes("exclusive marketing agreement")) &&
-      !firstPart.includes("subject:")) {
+
+  // Marketing Agreement detection (Non-Exclusive)
+  if (
+    firstPart.includes("marketing agreement") &&
+    (firstPart.includes("between") || firstPart.includes("csc zyprus"))
+  ) {
     return true;
   }
-  
+
   // Default: TEXT
   return false;
 }
@@ -217,13 +227,13 @@ export function shouldSendAsDocx(response: string): boolean {
  * Get the template type for a given template number
  */
 export function getTemplateOutputType(templateNumber: string): "TEXT" | "DOCX" {
-  const num = templateNumber.padStart(2, '0');
-  
-  // DOCX templates: 09, 10, 11, 12, 15, 16
-  if (["09", "10", "11", "12", "15", "16"].includes(num)) {
+  const num = templateNumber.padStart(2, "0");
+
+  // DOCX templates: 09, 10, 11, 12, 15
+  if (["09", "10", "11", "12", "15"].includes(num)) {
     return "DOCX";
   }
-  
+
   return "TEXT";
 }
 

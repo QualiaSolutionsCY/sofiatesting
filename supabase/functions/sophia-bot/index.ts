@@ -14,6 +14,8 @@ import {
   parseViewingFormAdvancedData,
   createReservationAgreement,
   parseReservationAgreementData,
+  createMarketingAgreement,
+  parseMarketingAgreementData,
 } from "./docx/templates/index.ts";
 // Property listing upload modules
 import { identifyAgentByPhone, type Agent } from "./agents/identifier.ts";
@@ -40,6 +42,11 @@ import {
   validateExternalUrl,
   safeFetch,
 } from "./utils/url-validator.ts";
+import {
+  decryptWhatsAppImage,
+  needsDecryption,
+  isPublicUrl,
+} from "./services/media-decryptor.ts";
 
 // Memory and personalization (RAG)
 import {
@@ -525,6 +532,57 @@ function isInformationalResponse(aiResponse: string, userMessage: string): boole
 }
 
 /**
+ * CRITICAL FIX: Detects when user asked for marketing agreement DOCX but AI generated email
+ * Returns true if we should force DOCX generation for marketing agreement
+ */
+function shouldForceMarketingDocx(userMessage: string, aiResponse: string): boolean {
+  const lowerMessage = userMessage.toLowerCase();
+  const lowerResponse = aiResponse.toLowerCase();
+
+  // Check if user asked for marketing agreement
+  const wantsMarketingAgreement =
+    lowerMessage.includes("marketing agreement") ||
+    lowerMessage.includes("non-exclusive") ||
+    lowerMessage.includes("non exclusive");
+
+  // Check if user specifically asked for email (should NOT force DOCX)
+  const wantsEmail =
+    lowerMessage.includes("email marketing") ||
+    lowerMessage.includes("via email") ||
+    lowerMessage.includes("by email") ||
+    lowerMessage.includes("send marketing") && lowerMessage.includes("email");
+
+  // Check if AI response is an email (has Subject:)
+  const aiGeneratedEmail = aiResponse.includes("Subject:");
+
+  // Check if AI response has marketing agreement content
+  const hasMarketingContent =
+    lowerResponse.includes("marketing agreement") ||
+    lowerResponse.includes("non-exclusive") ||
+    (lowerResponse.includes("seller") && lowerResponse.includes("agent"));
+
+  // 🔍 DEBUG LOGGING
+  console.log("=== shouldForceMarketingDocx DEBUG ===");
+  console.log(JSON.stringify({
+    wantsMarketingAgreement,
+    wantsEmail,
+    aiGeneratedEmail,
+    hasMarketingContent,
+    messagePreview: lowerMessage.substring(0, 100),
+    responseHasSubject: aiResponse.includes("Subject:"),
+  }, null, 2));
+  console.log("=====================================");
+
+  if (wantsMarketingAgreement && !wantsEmail && aiGeneratedEmail && hasMarketingContent) {
+    console.log("[MARKETING OVERRIDE] User wants DOCX but AI generated email - FORCING DOCX");
+    return true;
+  }
+
+  console.log("[MARKETING OVERRIDE] Conditions not met - NOT forcing DOCX");
+  return false;
+}
+
+/**
  * Determines the template type from user message for retry prompt
  */
 function detectTemplateType(userMessage: string): string | null {
@@ -542,14 +600,19 @@ function detectTemplateType(userMessage: string): string | null {
   if (message.includes("reservation agreement")) {
     return "Property Reservation Agreement";
   }
-  if (message.includes("non-exclusive") && message.includes("marketing")) {
-    return "Non-Exclusive Marketing Agreement";
-  }
-  if (message.includes("exclusive") && message.includes("marketing")) {
-    return "Exclusive Marketing Agreement";
-  }
-  if (message.includes("marketing agreement")) {
-    return "Marketing Agreement";
+  // Marketing Agreement - distinguish between email and DOCX versions
+  // DOCX: "marketing agreement", "non-exclusive marketing", "signature marketing"
+  // Email: "email marketing", "marketing via email", "send marketing by email"
+  if (message.includes("marketing agreement") || message.includes("non-exclusive") || message.includes("non exclusive")) {
+    // Check if user specifically wants EMAIL version
+    if (message.includes("email marketing") ||
+        message.includes("via email") ||
+        message.includes("by email") ||
+        message.includes("send marketing agreement to")) {
+      return "Email Marketing Agreement";
+    }
+    // Default: DOCX version for signature
+    return "Marketing Agreement DOCX";
   }
 
   return null;
@@ -1002,19 +1065,24 @@ function formatPhoneNumber(remoteJid: string | null): string | null {
  * WaSend Format: { event: "messages.received", data: { messages: { key: {...}, messageBody: "...", message: {...} } } }
  * IMPORTANT: data.messages is a SINGLE OBJECT, not an array
  * IMPORTANT: Use key.cleanedSenderPn for phone number (remoteJid can be LID format)
+ * IMPORTANT: WhatsApp images are encrypted - we decrypt them via WaSend API
  */
-function extractMessage(payload: any): {
+async function extractMessage(payload: any): Promise<{
   message: any;
   remoteJid: string | null;
   userMessage: string;
   imageUrls: string[];
-} | null {
+} | null> {
   console.log("Extracting message from payload...");
+  // DEBUG: Log full payload structure to diagnose image handling
+  console.log("[DEBUG] Full payload keys:", Object.keys(payload));
+  console.log("[DEBUG] Payload preview:", JSON.stringify(payload).substring(0, 500));
 
   let message = null;
   let remoteJid: string | null = null;
   let userMessage = "";
   const imageUrls: string[] = [];
+  let imageDetectedButFailed = false; // Track if images were found but decryption failed
 
   // WaSend Format: { event: "messages.received", data: { messages: {...} } }
   if (payload.event && payload.data) {
@@ -1054,6 +1122,42 @@ function extractMessage(payload: any): {
   if (!message) {
     console.log("No message object found");
     return null;
+  }
+
+  // DEBUG: Comprehensive logging to diagnose image handling
+  console.log("[DEBUG] === MESSAGE STRUCTURE ANALYSIS ===");
+  console.log("[DEBUG] Message keys:", Object.keys(message));
+  console.log("[DEBUG] Full message:", JSON.stringify(message).substring(0, 2000));
+
+  if (message.message) {
+    console.log("[DEBUG] message.message keys:", Object.keys(message.message));
+    console.log("[DEBUG] message.message:", JSON.stringify(message.message).substring(0, 1000));
+  }
+
+  // Check specific fields that indicate image presence
+  const hasImageIndicators = {
+    "message.imageMessage": !!message.imageMessage,
+    "message.message?.imageMessage": !!message.message?.imageMessage,
+    "message.mediaUrl": !!message.mediaUrl,
+    "message.media": !!message.media,
+    "message.hasMedia": message.hasMedia,
+    "message.messageType": message.messageType,
+    "message.type": message.type,
+  };
+  console.log("[DEBUG] Image indicators:", JSON.stringify(hasImageIndicators));
+
+  // Deep search for "imageMessage" keyword in the entire payload
+  const payloadStr = JSON.stringify(message);
+  if (payloadStr.includes("imageMessage")) {
+    console.log("[DEBUG] *** Found 'imageMessage' somewhere in payload! ***");
+    const imgIdx = payloadStr.indexOf("imageMessage");
+    console.log("[DEBUG] Context around imageMessage:", payloadStr.substring(Math.max(0, imgIdx - 50), imgIdx + 200));
+  }
+  if (payloadStr.includes("mediaKey")) {
+    console.log("[DEBUG] *** Found 'mediaKey' - this is likely an image message ***");
+  }
+  if (payloadStr.includes("mmg.whatsapp.net")) {
+    console.log("[DEBUG] *** Found encrypted WhatsApp media URL ***");
   }
 
   // Check if message is from me (outgoing) - ignore it
@@ -1105,25 +1209,122 @@ function extractMessage(payload: any): {
 
   console.log("Extracted userMessage:", userMessage.substring(0, 100));
 
+  // Get message ID for decryption
+  const messageId = message.key?.id || message.id || `msg_${Date.now()}`;
+
   // Extract image URLs from WhatsApp media messages
-  // WaSend provides the URL in message.message.imageMessage.url
-  if (message.message?.imageMessage?.url) {
-    const imageUrl = message.message.imageMessage.url;
-    console.log("Found image URL in imageMessage:", imageUrl.substring(0, 100));
-    imageUrls.push(imageUrl);
+  // WaSend provides encrypted URLs that need decryption via their API
+  // Check MULTIPLE locations for imageMessage (WaSend payload variations)
+
+  // Helper to process an imageMessage object
+  const processImageMessage = async (imgMsg: any, source: string) => {
+    const rawUrl = imgMsg.url;
+    console.log(`[IMAGE] Found in ${source}, URL: ${rawUrl?.substring(0, 80) || "none"}`);
+    console.log(`[IMAGE] Has mediaKey: ${!!imgMsg.mediaKey}, mimetype: ${imgMsg.mimetype || "unknown"}`);
+
+    if (rawUrl) {
+      // Check if this is an encrypted WhatsApp URL that needs decryption
+      if (needsDecryption(rawUrl) && imgMsg.mediaKey) {
+        console.log(`[IMAGE] Decrypting via WaSend API...`);
+        const decryptedUrl = await decryptWhatsAppImage(messageId, {
+          url: rawUrl,
+          mimetype: imgMsg.mimetype || "image/jpeg",
+          mediaKey: imgMsg.mediaKey,
+          fileSha256: imgMsg.fileSha256,
+          fileLength: imgMsg.fileLength?.toString(),
+        });
+        if (decryptedUrl) {
+          console.log(`[IMAGE] Decryption successful! Public URL: ${decryptedUrl.substring(0, 80)}`);
+          imageUrls.push(decryptedUrl);
+        } else {
+          console.log(`[IMAGE] Decryption failed - marking imageDetectedButFailed`);
+          imageDetectedButFailed = true;
+        }
+      } else if (isPublicUrl(rawUrl)) {
+        console.log(`[IMAGE] Already public URL`);
+        imageUrls.push(rawUrl);
+      } else {
+        console.log(`[IMAGE] Encrypted but missing mediaKey - marking imageDetectedButFailed`);
+        imageDetectedButFailed = true;
+      }
+    }
+  };
+
+  // Location 1: message.message.imageMessage (standard WaSend format)
+  if (message.message?.imageMessage) {
+    await processImageMessage(message.message.imageMessage, "message.message.imageMessage");
+  }
+
+  // Location 2: message.imageMessage directly (some WaSend variations)
+  if (message.imageMessage && !message.message?.imageMessage) {
+    await processImageMessage(message.imageMessage, "message.imageMessage");
+  }
+
+  // Location 3: data.imageMessage (if message IS the data object)
+  if (message.data?.imageMessage && !message.message?.imageMessage) {
+    await processImageMessage(message.data.imageMessage, "message.data.imageMessage");
+  }
+
+  // Location 4: Check if WaSend provides decryptedMediaUrl directly
+  if (message.decryptedMediaUrl || message.message?.decryptedMediaUrl) {
+    const url = message.decryptedMediaUrl || message.message?.decryptedMediaUrl;
+    console.log(`[IMAGE] Found decryptedMediaUrl: ${url?.substring(0, 80)}`);
+    if (url && isPublicUrl(url)) {
+      imageUrls.push(url);
+    }
+  }
+
+  // Location 5: Check mediaUrl field (some webhook formats)
+  if (message.mediaUrl && !imageUrls.includes(message.mediaUrl)) {
+    console.log(`[IMAGE] Found mediaUrl: ${message.mediaUrl.substring(0, 80)}`);
+    if (isPublicUrl(message.mediaUrl)) {
+      imageUrls.push(message.mediaUrl);
+    }
   }
 
   // Also check for document messages with images
   if (message.message?.documentMessage?.url &&
       message.message?.documentMessage?.mimetype?.startsWith("image/")) {
-    const docImageUrl = message.message.documentMessage.url;
-    console.log("Found image URL in documentMessage:", docImageUrl.substring(0, 100));
-    imageUrls.push(docImageUrl);
+    const docMsg = message.message.documentMessage;
+    const rawUrl = docMsg.url;
+    console.log("Found image in documentMessage, URL:", rawUrl?.substring(0, 80) || "none");
+
+    if (rawUrl) {
+      if (needsDecryption(rawUrl) && docMsg.mediaKey) {
+        console.log("Decrypting document image via WaSend API...");
+        const decryptedUrl = await decryptWhatsAppImage(messageId + "_doc", {
+          url: rawUrl,
+          mimetype: docMsg.mimetype,
+          mediaKey: docMsg.mediaKey,
+          fileSha256: docMsg.fileSha256,
+          fileLength: docMsg.fileLength?.toString(),
+          fileName: docMsg.fileName,
+        });
+        if (decryptedUrl) {
+          console.log("Document image decryption successful!");
+          imageUrls.push(decryptedUrl);
+        }
+      } else if (isPublicUrl(rawUrl)) {
+        imageUrls.push(rawUrl);
+      }
+    }
+  }
+
+  // Support for test/simple webhook format with "media" array
+  // Format: { from: "+123", body: "...", media: ["url1", "url2"] }
+  // These are typically already public URLs from testing
+  if (message.media && Array.isArray(message.media)) {
+    for (const mediaUrl of message.media) {
+      if (typeof mediaUrl === "string" && mediaUrl.startsWith("http")) {
+        console.log("Found image URL in media array:", mediaUrl.substring(0, 100));
+        imageUrls.push(mediaUrl);
+      }
+    }
   }
 
   // Log extracted image URLs
   if (imageUrls.length > 0) {
-    console.log(`Extracted ${imageUrls.length} image URL(s) from message`);
+    console.log(`Successfully extracted ${imageUrls.length} usable image URL(s)`);
   }
 
   if (!userMessage || userMessage.trim() === "") {
@@ -1131,6 +1332,10 @@ function extractMessage(payload: any): {
     if (imageUrls.length > 0) {
       console.log("No text content but found images, using placeholder message");
       userMessage = "[User sent image(s)]";
+    } else if (imageDetectedButFailed) {
+      // Images were detected but decryption failed - don't drop the message!
+      console.log("No text content, images detected but decryption failed - using failure placeholder");
+      userMessage = "[User sent image(s) but decryption failed]";
     } else {
       console.log("No text content found in message");
       return null;
@@ -1360,6 +1565,10 @@ async function processRequest(
     if (imageUrls.length > 0) {
       imageContext = `\n\n---\n## 📷 ATTACHED IMAGES\n\n**IMPORTANT: The user has attached ${imageUrls.length} image(s) with this message.**\n\n**Image URLs (use these for property listings):**\n${imageUrls.map((url, i) => `${i + 1}. ${url}`).join('\n')}\n\n**When the user is creating a property listing, use these image URLs in the \`imageUrls\` parameter of the createPropertyListing or createLandListing tool. DO NOT ask the user for image URLs - they have already provided them.**\n\n---\n`;
       console.log(`[Images] Added ${imageUrls.length} image URL(s) to AI context`);
+    } else if (userMessage.includes("[User sent image(s) but decryption failed]")) {
+      // Special context when images were detected but could not be decrypted
+      imageContext = `\n\n---\n## ⚠️ IMAGE PROCESSING ISSUE\n\n**The user sent image(s) but our system could not process them.**\n\nPlease respond with something like:\n"I received your images, but I wasn't able to process them. This sometimes happens with WhatsApp's image encryption. Could you please try sending the photos again? If the problem persists, you can also try:\n1. Sending the images one at a time\n2. Taking fresh photos instead of selecting from gallery\n3. Sending the images as documents instead of photos"\n\n**DO NOT proceed with any property listing until you have successfully received the images.**\n\n---\n`;
+      console.log(`[Images] Added decryption failure context to AI`);
     }
 
     const systemPromptWithDate = SYSTEM_PROMPT + dateContext + senderContext + imageContext + personalizationContext;
@@ -1701,19 +1910,48 @@ async function processRequest(
 
     // Initial DOCX detection
     let shouldSendAsDocx = !isInformational && isDocxTemplate(aiResponse, updatedHistory);
+
+    // 🚨 CRITICAL OVERRIDE: Force DOCX when user wants marketing agreement but AI generated email
+    const forceMarketingDocx = shouldForceMarketingDocx(userMessage, aiResponse);
+    if (forceMarketingDocx) {
+      console.log("=== MARKETING AGREEMENT OVERRIDE ===");
+      console.log("User asked for marketing agreement DOCX but AI generated email");
+      console.log("FORCING DOCX generation using specialized template");
+
+      // Get agent name for the marketing agreement
+      const agentName = identifiedAgent?.fullName || "Agent";
+      const marketingData = parseMarketingAgreementData(aiResponse, agentName);
+
+      if (marketingData) {
+        console.log("Successfully parsed marketing data from email response:", marketingData);
+
+        // Force DOCX generation
+        shouldSendAsDocx = true;
+
+        // Add flag to use specialized marketing template
+        // We'll handle this in the DOCX generation section below
+      } else {
+        console.log("Could not parse marketing data from email - will ask user for info");
+        // Don't force DOCX, let it send as text (which will ask for missing info)
+      }
+      console.log("=== END MARKETING OVERRIDE ===");
+    }
+
     // For simple greetings, don't consider DOCX requested regardless of history
     const isSimpleUserGreeting = userMessage.toLowerCase().trim().match(/^(hi|hello|hey|good morning|good afternoon|good evening)$/);
     const wasDocxRequested = isSimpleUserGreeting ? false : wasDocxTemplateRequested(updatedHistory);
     const detectedTemplateType = detectTemplateType(userMessage);
 
     // Additional field validation check - if AI is collecting information, don't send as DOCX
-    if (shouldSendAsDocx && isCollectingInformation(aiResponse)) {
+    // SKIP this check if forceMarketingDocx is true (we already validated marketing data)
+    if (shouldSendAsDocx && !forceMarketingDocx && isCollectingInformation(aiResponse)) {
       console.log("[Field Validator] Response is collecting information, overriding DOCX → TEXT");
       shouldSendAsDocx = false;
     }
 
     // Check if all required fields are present for DOCX generation
-    if (shouldSendAsDocx && !hasAllRequiredFields(aiResponse, detectedTemplateType || undefined)) {
+    // SKIP this check if forceMarketingDocx is true (marketing data was already parsed successfully)
+    if (shouldSendAsDocx && !forceMarketingDocx && !hasAllRequiredFields(aiResponse, detectedTemplateType || undefined)) {
       console.log("[Field Validator] Missing required fields, overriding DOCX → TEXT");
       shouldSendAsDocx = false;
     }
@@ -1723,6 +1961,7 @@ async function processRequest(
     console.log(JSON.stringify({
       event: "docx_routing_check",
       shouldSendAsDocx,
+      forceMarketingDocx,  // 🚨 NEW: Track forced marketing override
       wasDocxRequested,
       hasEmailFormat,
       detectedTemplateType: detectedTemplateType || "none",
@@ -1889,13 +2128,45 @@ async function processRequest(
       let filename = `document_${Date.now()}.docx`;
       console.log("Creating DOCX file:", filename);
 
+      // 🚨 FORCED MARKETING AGREEMENT: Handle the case where user asked for marketing agreement
+      // but AI generated email (with Subject: line). Use specialized generator directly.
+      if (forceMarketingDocx) {
+        console.log("=== FORCED MARKETING AGREEMENT DOCX GENERATION ===");
+        const agentName = identifiedAgent?.fullName || "Agent";
+        const marketingData = parseMarketingAgreementData(aiResponse, agentName);
+
+        if (marketingData) {
+          console.log("Marketing data for DOCX:", marketingData);
+          const docxDoc = createMarketingAgreement(marketingData);
+          const buffer = await Packer.toBuffer(docxDoc);
+          const docxContent = new Uint8Array(buffer);
+          filename = "Non_Exclusive_Marketing_Agreement.docx";
+          console.log("Marketing Agreement DOCX created, size:", docxContent.length, "bytes");
+
+          const sendResult = await sendDocxFile(phoneNumber, docxContent, filename);
+          const sendResultText = await sendResult.text();
+          console.log("Marketing DOCX send result status:", sendResult.status);
+          console.log("Marketing DOCX send result body:", sendResultText);
+
+          if (!sendResult.ok) {
+            console.error("Failed to send Marketing DOCX! Falling back to text.");
+            await sendTextMessage(phoneNumber, aiResponse);
+          }
+          console.log("=== MARKETING AGREEMENT SENT AS DOCX ===");
+          return; // Exit early - we've handled the forced marketing case
+        } else {
+          console.error("Could not parse marketing data - falling back to normal flow");
+          // Fall through to normal processing
+        }
+      }
+
       // Check if this is a viewing form that should use specialized generators
       const templateType = detectDocxTemplateType(aiResponse);
       console.log("Detected template type:", templateType);
 
       let docxContent: Uint8Array;
 
-      if (templateType.startsWith('viewing-form-') || templateType === 'reservation-agreement') {
+      if (templateType.startsWith('viewing-form-') || templateType === 'reservation-agreement' || templateType === 'marketing-non-exclusive') {
         // Use specialized DOCX generators
         console.log("Using specialized DOCX generator for type:", templateType);
 
@@ -1962,6 +2233,20 @@ async function processRequest(
                 filename = "Property_Reservation_Agreement.docx";
               } else {
                 console.log("Failed to parse reservation agreement data, falling back to generic");
+              }
+              break;
+            }
+            case 'marketing-non-exclusive': {
+              console.log("Parsing non-exclusive marketing agreement data...");
+              // Get agent name from identified agent (SOPHIA knows who is messaging)
+              const agentName = identifiedAgent?.fullName || "Agent";
+              const marketingData = parseMarketingAgreementData(aiResponse, agentName);
+              if (marketingData) {
+                console.log("Creating non-exclusive marketing agreement document...");
+                docxDoc = createMarketingAgreement(marketingData);
+                filename = "Non_Exclusive_Marketing_Agreement.docx";
+              } else {
+                console.log("Failed to parse marketing agreement data, falling back to generic");
               }
               break;
             }
@@ -2114,6 +2399,37 @@ serve(async (req) => {
         return new Response("Bad Request", { status: 400 });
       }
 
+      // DEBUG: Save raw payload to database for debugging image issues
+      // This captures the exact structure WaSend sends before any processing
+      const payloadStr = JSON.stringify(payload);
+      const hasImageInPayload = payloadStr.includes("imageMessage") ||
+                                payloadStr.includes("mediaKey") ||
+                                payloadStr.includes("mmg.whatsapp.net");
+
+      // Extract phone for debugging
+      let debugPhone = "unknown";
+      try {
+        const data = payload.data || payload;
+        const msgs = data.messages || data.message || data;
+        const m = Array.isArray(msgs) ? msgs[0] : msgs;
+        debugPhone = m?.key?.cleanedSenderPn || m?.key?.remoteJid || m?.from || "unknown";
+      } catch { /* ignore */ }
+
+      // Save to debug table (always for images, sample for others)
+      if (hasImageInPayload || Math.random() < 0.1) {
+        try {
+          await supabase.from("webhook_debug_logs").insert({
+            event_type: payload.event || "unknown",
+            phone_number: debugPhone,
+            raw_payload: payload,
+            image_detected: hasImageInPayload,
+          });
+          console.log(`[DEBUG] Saved payload to webhook_debug_logs (image: ${hasImageInPayload})`);
+        } catch (e) {
+          console.log(`[DEBUG] Failed to save debug log: ${e}`);
+        }
+      }
+
       // SECURITY: Validate payload structure
       if (!validateWebhookPayload(payload)) {
         logger.warn("Invalid webhook payload structure", {
@@ -2124,8 +2440,32 @@ serve(async (req) => {
 
       logger.debug("Received webhook payload", { operation: "webhook_receive" });
 
-      // Extract message from payload
-      const extracted = extractMessage(payload);
+      // Extract message from payload (async due to image decryption)
+      const extracted = await extractMessage(payload);
+
+      // DEBUG: Update the debug log with extraction result
+      if (hasImageInPayload) {
+        try {
+          const decryptionFailed = extracted?.userMessage?.includes("[User sent image(s) but decryption failed]") || false;
+          const extractionResult = extracted ? {
+            hasMessage: true,
+            userMessage: extracted.userMessage?.substring(0, 100),
+            imageCount: extracted.imageUrls?.length || 0,
+            imageUrls: extracted.imageUrls?.map((u: string) => u.substring(0, 80)),
+            decryptionFailed,
+          } : { hasMessage: false, reason: "extractMessage returned null" };
+
+          // Update the most recent debug log for this phone
+          await supabase.from("webhook_debug_logs")
+            .update({ extraction_result: extractionResult })
+            .eq("phone_number", debugPhone)
+            .order("created_at", { ascending: false })
+            .limit(1);
+          console.log(`[DEBUG] Updated extraction result: ${JSON.stringify(extractionResult)}`);
+        } catch (e) {
+          console.log(`[DEBUG] Failed to update extraction result: ${e}`);
+        }
+      }
 
       if (!extracted) {
         logger.info("Could not extract valid message from payload");

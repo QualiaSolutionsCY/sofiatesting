@@ -56,6 +56,9 @@ export async function executeTool(
       case "calculateCapitalGains":
         return handleCalculateCapitalGains(tool.arguments);
 
+      case "sendEmail":
+        return await handleSendEmail(tool.arguments, agent);
+
       default:
         return { error: `Unknown tool: ${tool.name}` };
     }
@@ -108,7 +111,9 @@ async function handleCreatePropertyListing(
   const listingType = args.listingType as "sale" | "rent";
 
   // Default city coordinates for Cyprus locations (fallback if AI doesn't provide coordinates)
+  // Note: These are approximate area centers, not exact addresses
   const DEFAULT_COORDINATES: Record<string, { lat: number; lon: number }> = {
+    // Main cities
     "limassol": { lat: 34.6841, lon: 33.0413 },
     "paphos": { lat: 34.7720, lon: 32.4297 },
     "pafos": { lat: 34.7720, lon: 32.4297 },
@@ -116,16 +121,72 @@ async function handleCreatePropertyListing(
     "larnaca": { lat: 34.9229, lon: 33.6233 },
     "famagusta": { lat: 35.1174, lon: 33.9417 },
     "ammochostos": { lat: 35.1174, lon: 33.9417 },
-    "paralimni": { lat: 35.0385, lon: 33.9823 },
-    "ayia napa": { lat: 34.9869, lon: 34.0028 },
-    "protaras": { lat: 35.0112, lon: 34.0583 },
-    "polis": { lat: 35.0347, lon: 32.4275 },
-    "coral bay": { lat: 34.8409, lon: 32.3547 },
-    "kato paphos": { lat: 34.7542, lon: 32.4139 },
+    // Paphos district
+    "peyia": { lat: 34.8846, lon: 32.3859 },
+    "pegeia": { lat: 34.8846, lon: 32.3859 },
     "tala": { lat: 34.8475, lon: 32.4297 },
     "chloraka": { lat: 34.7933, lon: 32.4083 },
-    "potamos germasogeias": { lat: 34.6970, lon: 33.0870 },
+    "kato paphos": { lat: 34.7542, lon: 32.4139 },
+    "paphos city center": { lat: 34.7750, lon: 32.4220 },
+    "paphos city centre": { lat: 34.7750, lon: 32.4220 },
+    "paphos city": { lat: 34.7750, lon: 32.4220 },
+    "paphos town": { lat: 34.7750, lon: 32.4220 },
+    "coral bay": { lat: 34.8409, lon: 32.3547 },
+    "polis": { lat: 35.0347, lon: 32.4275 },
+    "kissonerga": { lat: 34.8178, lon: 32.3897 },
+    "geroskipou": { lat: 34.7589, lon: 32.4542 },
+    "emba": { lat: 34.8039, lon: 32.4339 },
+    "kamares": { lat: 34.8550, lon: 32.4400 },  // Kamares in Paphos area
+    "sea caves": { lat: 34.8975, lon: 32.3267 },
+    "tomb of kings": { lat: 34.7697, lon: 32.4039 },
+    "universal": { lat: 34.7750, lon: 32.4167 },
+    // Limassol district
     "germasogeia": { lat: 34.6970, lon: 33.0870 },
+    "potamos germasogeias": { lat: 34.6970, lon: 33.0870 },
+    "mesa geitonia": { lat: 34.6850, lon: 33.0600 },
+    "agios tychonas": { lat: 34.7150, lon: 33.1283 },
+    "agios athanasios": { lat: 34.6917, lon: 33.0417 },
+    "panthea": { lat: 34.6933, lon: 33.0383 },
+    "tourist area": { lat: 34.6900, lon: 33.0700 },
+    "columbia": { lat: 34.6880, lon: 33.0550 },
+    "zakaki": { lat: 34.6650, lon: 33.0100 },
+    "mouttagiaka": { lat: 34.7083, lon: 33.1017 },
+    "pareklisia": { lat: 34.7253, lon: 33.1556 },
+    "pissouri": { lat: 34.6667, lon: 32.6983 },
+    "episkopi": { lat: 34.6667, lon: 32.8867 },
+    "erimi": { lat: 34.6683, lon: 32.9150 },
+    "pyrgos": { lat: 34.7083, lon: 33.1817 },
+    "limassol marina": { lat: 34.6700, lon: 33.0433 },
+    "old town limassol": { lat: 34.6750, lon: 33.0417 },
+    // Larnaca district
+    "oroklini": { lat: 34.9603, lon: 33.6353 },
+    "pervolia": { lat: 34.8317, lon: 33.5767 },
+    "livadia": { lat: 34.9500, lon: 33.6267 },
+    "dekelia": { lat: 35.0000, lon: 33.7200 },
+    "dhekelia": { lat: 35.0000, lon: 33.7200 },
+    "aradippou": { lat: 34.9500, lon: 33.5833 },
+    "meneou": { lat: 34.8517, lon: 33.5833 },
+    "kiti": { lat: 34.8500, lon: 33.5667 },
+    // Nicosia district
+    "strovolos": { lat: 35.1367, lon: 33.3353 },
+    "engomi": { lat: 35.1600, lon: 33.3517 },
+    "lakatamia": { lat: 35.1167, lon: 33.3000 },
+    "aglantzia": { lat: 35.1533, lon: 33.3767 },
+    "latsia": { lat: 35.1017, lon: 33.3633 },
+    "geri": { lat: 35.0833, lon: 33.4000 },
+    "dali": { lat: 35.0217, lon: 33.4217 },
+    "tseri": { lat: 35.0667, lon: 33.3233 },
+    "acropolis": { lat: 35.1450, lon: 33.3400 },
+    // Famagusta district
+    "paralimni": { lat: 35.0385, lon: 33.9823 },
+    "ayia napa": { lat: 34.9869, lon: 34.0028 },
+    "agia napa": { lat: 34.9869, lon: 34.0028 },
+    "protaras": { lat: 35.0112, lon: 34.0583 },
+    "deryneia": { lat: 35.0633, lon: 33.9567 },
+    "sotira": { lat: 35.0350, lon: 33.9283 },
+    "frenaros": { lat: 35.0517, lon: 33.9017 },
+    "kapparis": { lat: 35.0500, lon: 34.0167 },
+    "cape greco": { lat: 34.9667, lon: 34.0833 },
   };
 
   // 3. Validate regional access
@@ -233,6 +294,42 @@ async function handleCreatePropertyListing(
     console.log(`[ToolExecutor] ${invalidImages.length} images failed validation`);
   }
 
+  // 9a. Resolve coordinates for Google Maps link in My Notes
+  const resolvedCoordinates = (args.coordinates as { lat: number; lon: number } | undefined) ||
+    // Fallback: use default coordinates based on location name
+    // IMPORTANT: Find the MOST SPECIFIC match (longest matching key)
+    (() => {
+      const locationLower = location.toLowerCase();
+      let bestMatch: { key: string; coords: { lat: number; lon: number } } | null = null;
+
+      for (const [key, coords] of Object.entries(DEFAULT_COORDINATES)) {
+        if (locationLower.includes(key)) {
+          // Keep the longest matching key (most specific)
+          if (!bestMatch || key.length > bestMatch.key.length) {
+            bestMatch = { key, coords };
+          }
+        }
+      }
+
+      if (bestMatch) {
+        console.log(`[ToolExecutor] Using default coordinates for "${bestMatch.key}": ${bestMatch.coords.lat}, ${bestMatch.coords.lon}`);
+        return bestMatch.coords;
+      }
+      return undefined;
+    })();
+
+  // 9b. CRITICAL: Check we have at least 1 valid image AFTER validation
+  // Zyprus API requires field_gallery_ to have at least 1 image
+  if (validImages.length === 0) {
+    const invalidDetails = invalidImages.length > 0
+      ? invalidImages.map((img) => `• ${img.url.substring(0, 50)}... - ${img.error}`).join('\n')
+      : "• No images were provided";
+    console.error("[ToolExecutor] No valid images after validation:", invalidImages);
+    return {
+      error: `None of the provided images could be uploaded. The Zyprus API requires at least 1 valid image.\n\n**Image issues:**\n${invalidDetails}\n\n**Tips:**\n• Send photos directly from your phone gallery\n• Use direct image URLs (ending in .jpg, .png, etc.)\n• Avoid webpage links like ibb.co sharing pages (use i.ibb.co direct links instead)`,
+    };
+  }
+
   // 10. Generate description
   const description = generateDescription({
     type: args.propertyType as string,
@@ -247,9 +344,10 @@ async function handleCreatePropertyListing(
     price: args.price as number,
     yearBuilt: args.yearBuilt as number | undefined,
     floor: args.floor as string | undefined,
+    areaDescription: args.areaDescription as string | undefined,
   });
 
-  // 11. Generate My Notes
+  // 11. Generate My Notes (with listing owner and reviewer - NOT "SOPHIA AI")
   const myNotes = generateMyNotes(
     {
       name: args.ownerName as string,
@@ -260,6 +358,10 @@ async function handleCreatePropertyListing(
     agent,
     {
       duplicateWarning: duplicates.isDuplicate ? createDuplicateNote(duplicates.potentialMatches) : undefined,
+      coordinates: resolvedCoordinates,
+      listingOwner: reviewers.listingOwner,
+      reviewer1: reviewers.reviewer1,
+      reviewer2: reviewers.reviewer2 || undefined,
     }
   );
 
@@ -299,18 +401,12 @@ async function handleCreatePropertyListing(
     floor: args.floor as string | undefined,
     potentialDuplicate: duplicates.isDuplicate,
     aiMessage: duplicates.isDuplicate ? generateDuplicateWarning(duplicates.potentialMatches) : null,
-    coordinates: (args.coordinates as { lat: number; lon: number } | undefined) ||
-      // Fallback: use default coordinates based on location name
-      (() => {
-        const locationLower = location.toLowerCase();
-        for (const [key, coords] of Object.entries(DEFAULT_COORDINATES)) {
-          if (locationLower.includes(key)) {
-            console.log(`[ToolExecutor] Using default coordinates for "${key}": ${coords.lat}, ${coords.lon}`);
-            return coords;
-          }
-        }
-        return undefined;
-      })(),
+    // For Own Reference ID: Owner - {Agent} - {Seller} - {Phone} - Reg No.{Reg}
+    agentName: agent.fullName,
+    ownerName: args.ownerName as string,
+    ownerPhone: args.ownerPhone as string,
+    registrationNumber: args.registrationNumber as string | undefined,
+    coordinates: resolvedCoordinates,
     });
     console.log("[ToolExecutor] Draft listing created successfully:", result.listingId);
   } catch (createError) {
@@ -328,6 +424,7 @@ async function handleCreatePropertyListing(
   message += `• Images: ${validImages.length} uploaded\n`;
   message += `• Assigned to: ${reviewers.listingOwner}\n`;
   message += `• Reviewer: ${reviewers.reviewer1}\n`;
+  message += `\n🔗 **Draft URL:** ${result.listingUrl}\n`;
 
   // Add warnings
   const imageWarnings = generateImageWarnings(validImages);
@@ -587,5 +684,129 @@ function handleCalculateCapitalGains(args: Record<string, unknown>): ToolResult 
       `• **CGT (20%): €${tax.toLocaleString()}**`,
     data: { tax, gain, taxableGain, exemption },
   };
+}
+
+/**
+ * Send Email via Resend API
+ */
+async function handleSendEmail(
+  args: Record<string, unknown>,
+  agent: Agent | null
+): Promise<ToolResult> {
+  const to = args.to as string;
+  const subject = args.subject as string;
+  const body = args.body as string;
+  const recipientName = args.recipientName as string | undefined;
+  const replyTo = (args.replyTo as string) || agent?.communicationEmail;
+  const attachmentUrl = args.attachmentUrl as string | undefined;
+  const attachmentName = args.attachmentName as string | undefined;
+
+  // Validate email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(to)) {
+    return { error: `Invalid email address: ${to}` };
+  }
+
+  // Get Resend API key from environment
+  const resendApiKey = Deno.env.get("RESEND_API_KEY");
+  if (!resendApiKey) {
+    console.error("[sendEmail] RESEND_API_KEY not set in environment");
+    return { error: "Email service not configured. Please contact admin." };
+  }
+
+  console.log(`[sendEmail] Sending email to: ${to}, subject: ${subject}`);
+
+  // Build email payload
+  const emailPayload: {
+    from: string;
+    to: string[];
+    subject: string;
+    html: string;
+    text: string;
+    reply_to?: string;
+    attachments?: { filename: string; content: string }[];
+  } = {
+    from: "SOPHIA <sofia@zyprus.com>",
+    to: [to],
+    subject,
+    html: body.replace(/\*([^*]+)\*/g, "<strong>$1</strong>").replace(/\n/g, "<br>"),
+    text: body.replace(/\*([^*]+)\*/g, "$1"),
+  };
+
+  if (replyTo) {
+    emailPayload.reply_to = replyTo;
+  }
+
+  // Handle attachment if provided
+  if (attachmentUrl) {
+    try {
+      console.log(`[sendEmail] Fetching attachment from: ${attachmentUrl}`);
+      const attachmentResponse = await fetch(attachmentUrl);
+      if (!attachmentResponse.ok) {
+        console.error(`[sendEmail] Failed to fetch attachment: ${attachmentResponse.status}`);
+        return { error: `Failed to fetch attachment from URL: ${attachmentResponse.status}` };
+      }
+      const attachmentBuffer = await attachmentResponse.arrayBuffer();
+      const attachmentBase64 = btoa(
+        String.fromCharCode(...new Uint8Array(attachmentBuffer))
+      );
+
+      emailPayload.attachments = [{
+        filename: attachmentName || "attachment.docx",
+        content: attachmentBase64,
+      }];
+      console.log(`[sendEmail] Attachment prepared: ${attachmentName || "attachment.docx"}`);
+    } catch (attachError) {
+      console.error("[sendEmail] Error fetching attachment:", attachError);
+      return { error: `Failed to process attachment: ${String(attachError)}` };
+    }
+  }
+
+  // Send via Resend API
+  try {
+    console.log("[sendEmail] Calling Resend API...");
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(emailPayload),
+    });
+
+    const responseText = await response.text();
+    console.log(`[sendEmail] Resend response status: ${response.status}`);
+    console.log(`[sendEmail] Resend response body: ${responseText}`);
+
+    if (!response.ok) {
+      let errorDetail = responseText;
+      try {
+        const errorJson = JSON.parse(responseText);
+        errorDetail = errorJson.message || errorJson.error || responseText;
+      } catch {
+        // Use raw text
+      }
+      console.error(`[sendEmail] Resend API error: ${response.status} - ${errorDetail}`);
+      return { error: `Failed to send email: ${errorDetail}` };
+    }
+
+    const result = JSON.parse(responseText);
+    console.log(`[sendEmail] Email sent successfully, ID: ${result.id}`);
+
+    return {
+      success: true,
+      message: `✅ Email sent successfully!\n\n` +
+        `To: ${recipientName || to}\n` +
+        `Subject: ${subject}\n` +
+        (attachmentName ? `Attachment: ${attachmentName}\n` : "") +
+        `\nThe email was sent from sofia@zyprus.com.\n\n` +
+        `(Relay this confirmation to the user exactly as written - do not add asterisks or formatting around emails or other details)`,
+      data: { emailId: result.id, to, subject },
+    };
+  } catch (error) {
+    console.error("[sendEmail] Error sending email:", error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    return { error: `Failed to send email: ${errorMsg}` };
+  }
 }
 

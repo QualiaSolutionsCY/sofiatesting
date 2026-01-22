@@ -45,9 +45,8 @@ export const TEMPLATE_CATALOG: TemplateInfo[] = [
   { id: '11', name: 'Property Reservation', category: 'reservations', keywords: ['reservation', 'property reservation'], isDocx: true },
   { id: '12', name: 'Reservation Agreement', category: 'reservations', keywords: ['reservation agreement'], isDocx: true },
 
-  // Marketing Agreements (14-16)
-  { id: '14', name: 'Email Marketing Agreement', category: 'marketing', keywords: ['email marketing', 'marketing agreement'], isDocx: false },
-  { id: '15', name: 'Non-Exclusive Marketing', category: 'marketing', keywords: ['non-exclusive', 'non exclusive', 'signature document', 'signature form'], isDocx: true },
+  // Marketing Agreements (14)
+  { id: '14', name: 'Email Marketing Agreement', category: 'marketing', keywords: ['email marketing', 'marketing agreement', 'signature document', 'signature form'], isDocx: false },
 
   // Client Communications (17-43)
   { id: '17', name: 'Good Client Email', category: 'client_comms', keywords: ['good client', 'client email'], isDocx: false },

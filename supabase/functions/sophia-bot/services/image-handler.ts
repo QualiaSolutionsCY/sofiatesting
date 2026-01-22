@@ -159,8 +159,9 @@ function classifyImage(url: string): ImageClassification {
 /**
  * Validate image URL is accessible and safe
  * Checks both security (SSRF) and accessibility
+ * Returns detailed error information for debugging
  */
-async function checkImageAccessible(url: string): Promise<boolean> {
+async function checkImageAccessibleWithError(url: string): Promise<{ valid: boolean; error: string }> {
   try {
     // P0 SECURITY: Validate URL before making any request (SSRF prevention)
     const securityCheck = validateImageUrl(url);
@@ -168,7 +169,7 @@ async function checkImageAccessible(url: string): Promise<boolean> {
       console.warn(`[Image Handler] SSRF blocked: ${securityCheck.error}`, {
         url: url.substring(0, 100),
       });
-      return false;
+      return { valid: false, error: `Security: ${securityCheck.error}` };
     }
 
     // Try HEAD first, fall back to GET if HEAD fails (some servers like picsum don't support HEAD)
@@ -182,13 +183,18 @@ async function checkImageAccessible(url: string): Promise<boolean> {
     }
 
     if (!response.ok) {
-      return false;
+      return { valid: false, error: `HTTP ${response.status}: ${response.statusText}` };
     }
 
     const contentType = response.headers.get("content-type");
-    return contentType?.startsWith("image/") || false;
-  } catch {
-    return false;
+    if (!contentType?.startsWith("image/")) {
+      return { valid: false, error: `Not an image (${contentType || "no content-type"})` };
+    }
+
+    return { valid: true, error: "" };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    return { valid: false, error: `Fetch failed: ${errorMsg}` };
   }
 }
 
@@ -223,22 +229,27 @@ export async function processImages(
   return processed.sort((a, b) => a.order - b.order);
 }
 
+export interface InvalidImage {
+  url: string;
+  error: string;
+}
+
 /**
  * Validate that all images are accessible
  */
 export async function validateImages(
   images: ProcessedImage[]
-): Promise<{ valid: ProcessedImage[]; invalid: string[] }> {
+): Promise<{ valid: ProcessedImage[]; invalid: InvalidImage[] }> {
   const valid: ProcessedImage[] = [];
-  const invalid: string[] = [];
+  const invalid: InvalidImage[] = [];
 
   await Promise.all(
     images.map(async (img) => {
-      const isValid = await checkImageAccessible(img.url);
-      if (isValid) {
+      const result = await checkImageAccessibleWithError(img.url);
+      if (result.valid) {
         valid.push(img);
       } else {
-        invalid.push(img.url);
+        invalid.push({ url: img.url, error: result.error });
       }
     })
   );

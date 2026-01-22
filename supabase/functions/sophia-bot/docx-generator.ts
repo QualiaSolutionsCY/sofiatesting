@@ -1,14 +1,13 @@
 /**
  * DOCX Generator
- * 
+ *
  * Generates professional DOCX documents from AI responses.
- * Only 6 specific templates generate DOCX files:
+ * Only 5 specific templates generate DOCX files:
  * - Standard Viewing Form (Template 09)
  * - Advanced Viewing Form (Template 10)
  * - Property Reservation Form (Template 11)
  * - Property Reservation Agreement (Template 12)
  * - Non-Exclusive Marketing Agreement (Template 15)
- * - Exclusive Marketing Agreement (Template 16)
  */
 
 import { Document, Packer, Paragraph, ImageRun, TextRun, AlignmentType } from "https://esm.sh/docx@8.5.0";
@@ -25,9 +24,8 @@ const DOCX_TEMPLATE_TITLES = [
   "advanced viewing/introduction form",
   "property reservation form",
   "property reservation agreement",
-  "non-exclusive marketing agreement",
-  "exclusive marketing agreement",
   "marketing agreement",
+  "non-exclusive marketing agreement",
 ];
 
 /**
@@ -270,33 +268,27 @@ export function isDocxTemplate(
     return true;
   }
 
-  // EARLY EXIT: If asking for information, ALWAYS return TEXT
-  if (firstPart.includes("please provide") || firstPart.includes("i need the following") || firstPart.includes("which type")) {
-    console.log("[DOCX] Contains 'please provide' or question -> TEXT");
-    return false;
-  }
-
   // Marketing Agreement detection - multiple patterns
   const marketingPatterns = [
-    firstPart.includes("non-exclusive marketing agreement"),
-    firstPart.includes("exclusive marketing agreement"),
-    firstPart.includes("marketing agreement") && !firstPart.includes("subject:"),
-    firstPart.includes("sole agent") && firstPart.includes("agreement"),
-    firstPart.includes("terms and conditions for property listing"),  // NEW FORMAT
+    firstPart.includes("marketing agreement"),
+    firstPart.includes("non-exclusive") && firstPart.includes("agreement"),
+    firstPart.includes("between") && firstPart.includes("csc zyprus") && firstPart.includes("agent"),
+    firstPart.includes("seller") && firstPart.includes("agent may advertise"),
   ];
   if (marketingPatterns.some(p => p)) {
-    // Check if it's actually requesting agreement information
+    // Check if it's actually requesting form information
     if (isRequestingInformation(aiResponse) || containsPlaceholders(aiResponse)) {
       console.log("[DOCX] Marketing agreement pattern but requesting info/has placeholders -> TEXT");
       return false;
     }
-    // Must have actual seller data, not just template
-    if (!(/seller:\s*[A-Z][a-z]+/i.test(aiResponse))) {
-      console.log("[DOCX] Marketing agreement pattern but no seller name -> TEXT");
-      return false;
-    }
     console.log("[DOCX] Marketing agreement pattern with complete data -> DOCX");
     return true;
+  }
+
+  // EARLY EXIT: If asking for information, ALWAYS return TEXT
+  if (firstPart.includes("please provide") || firstPart.includes("i need the following") || firstPart.includes("which type")) {
+    console.log("[DOCX] Contains 'please provide' or question -> TEXT");
+    return false;
   }
 
   // Rule 4: Check for document structure (more lenient detection)
@@ -304,9 +296,9 @@ export function isDocxTemplate(
   if (aiResponse.length >= 500 && hasDocumentStructure(aiResponse)) {
     // Additional check: make sure it looks like one of our DOCX templates
     const lowerResponse = aiResponse.toLowerCase();
-    const isDocxRelated = [
-      "viewing", "reservation", "marketing", "agreement", "form"
-    ].some(keyword => lowerResponse.includes(keyword));
+    const isDocxRelated = ["viewing", "reservation", "form", "marketing agreement"].some((keyword) =>
+      lowerResponse.includes(keyword)
+    );
 
     if (isDocxRelated) {
       // Final check for placeholders or information requests
@@ -344,8 +336,14 @@ export function wasDocxTemplateRequested(
     "reservation form",
     "reservation agreement",
     "marketing agreement",
-    "template 09", "template 10", "template 11", 
-    "template 12", "template 15", "template 16",
+    "non-exclusive",
+    "signature document",
+    "signature form",
+    "template 09",
+    "template 10",
+    "template 11",
+    "template 12",
+    "template 15",
   ];
   
   return docxKeywords.some(keyword => allMessages.includes(keyword));

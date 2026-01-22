@@ -46,6 +46,11 @@ export interface ListingData {
   floor?: string;
   potentialDuplicate?: boolean;
   aiMessage?: string | null;
+  // For Own Reference ID format: Owner - {Agent} - {Seller} - {Phone} - Reg No.{Reg}
+  agentName?: string;
+  ownerName?: string;
+  ownerPhone?: string;
+  registrationNumber?: string;
 }
 
 export interface CreateResult {
@@ -134,16 +139,38 @@ function addPrivacyOffset(coords: { lat: number; lon: number }): { lat: number; 
 }
 
 /**
- * Generate a draft reference ID for tracking
- * Format: SOPHIA-YYYYMMDD-HHMMSS-TYPE
- * Per meeting spec: "Draft Own Reference - Required for quick reviewer reference"
+ * Generate Own Reference ID for quick reviewer reference
+ * Format: Owner - {Agent Name} - {Seller Name} - {Seller Phone} - Reg No.{Registration}
+ * Example: Owner - Evelina Neophytou - Jane Smith - 99123456 - Reg No.0/1234
+ * Per Zyprus screenshot spec: Used for both field_own_reference_id and field_ai_draft_own_reference_id
  */
-function generateDraftReferenceId(propertyType: string): string {
-  const now = new Date();
-  const date = now.toISOString().slice(0, 10).replace(/-/g, "");
-  const time = now.toISOString().slice(11, 19).replace(/:/g, "");
-  const typeCode = propertyType.substring(0, 3).toUpperCase();
-  return `SOPHIA-${date}-${time}-${typeCode}`;
+function generateOwnReferenceId(
+  agentName?: string,
+  ownerName?: string,
+  ownerPhone?: string,
+  registrationNumber?: string
+): string {
+  const parts: string[] = ["Owner"];
+
+  if (agentName) {
+    parts.push(agentName);
+  }
+
+  if (ownerName) {
+    parts.push(ownerName);
+  }
+
+  if (ownerPhone) {
+    // Clean phone number - remove spaces, +357, etc.
+    const cleanPhone = ownerPhone.replace(/[\s\-\+]/g, "").replace(/^357/, "");
+    parts.push(cleanPhone);
+  }
+
+  if (registrationNumber) {
+    parts.push(`Reg No.${registrationNumber}`);
+  }
+
+  return parts.join(" - ");
 }
 
 /**
@@ -163,11 +190,22 @@ function buildJsonApiPayload(
   outdoorFeatureUuids: string[],
   viewUuids: string[]
 ): Record<string, unknown> {
-  // Generate draft reference ID for tracking per meeting spec
-  const draftReferenceId = generateDraftReferenceId(listing.propertyType);
+  // Generate Own Reference ID for quick reviewer reference
+  // Format: Owner - {Agent Name} - {Seller Name} - {Seller Phone} - Reg No.{Registration}
+  const ownReferenceId = generateOwnReferenceId(
+    listing.agentName,
+    listing.ownerName,
+    listing.ownerPhone,
+    listing.registrationNumber
+  );
+
+  // Build proper title: "2 Bedroom Bungalow For Sale in Kamares, Tala"
+  const bedroomText = listing.bedrooms === 1 ? "1 Bedroom" : `${listing.bedrooms} Bedroom`;
+  const listingTypeText = listing.listingType === "rent" ? "For Rent" : "For Sale";
+  const propertyTypeCapitalized = listing.propertyType.charAt(0).toUpperCase() + listing.propertyType.slice(1).toLowerCase();
 
   const attributes: Record<string, unknown> = {
-    title: `${listing.bedrooms} Bed ${listing.propertyType} in ${listing.location}`,
+    title: `${bedroomText} ${propertyTypeCapitalized} ${listingTypeText} in ${listing.location}`,
     status: false, // Always unpublished draft
     field_price: listing.price,
     field_no_bedrooms: listing.bedrooms,
@@ -182,8 +220,9 @@ function buildJsonApiPayload(
     field_ai_generated: true,
     field_ai_state: "draft",
     field_negotiable: true,
-    // Per meeting spec: Draft Own Reference for quick reviewer reference
-    field_ai_draft_own_reference_id: draftReferenceId,
+    // Own Reference ID: Owner - {Agent} - {Seller} - {Phone} - Reg No.{Reg}
+    field_own_reference_id: ownReferenceId,
+    field_ai_draft_own_reference_id: ownReferenceId,
   };
 
   // Optional fields
@@ -441,7 +480,7 @@ export async function createDraftListing(
     findUserUuid(listing.listingInstructor), // Resolve instructor email to UUID
     findUserUuids(reviewerEmails), // Resolve reviewer emails to UUIDs
     findUserUuid(listing.listingOwner), // CRITICAL: Resolve listing owner email to UUID
-    findIndoorFeatureUuids(listing.features || []), // Resolve indoor features
+    findIndoorFeatureUuids(listing.features || [], listing.bathrooms), // Resolve indoor features (auto-adds guest toilet + master bed if bathrooms >= 2)
     findOutdoorFeatureUuids(listing.features || []), // Resolve outdoor features
     findPropertyViewUuids(listing.features || []), // Resolve property views (sea view, etc.)
   ]);

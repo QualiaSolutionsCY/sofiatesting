@@ -1,16 +1,15 @@
 /**
  * DOCX Template Detection
- * 
+ *
  * Determines if an AI response should be sent as a DOCX file attachment
- * or as a text message. Only 6 specific templates are DOCX:
- * 
+ * or as a text message. Only 5 specific templates are DOCX:
+ *
  * - Standard Viewing Form (Template 09)
  * - Advanced Viewing Form (Template 10)
  * - Property Reservation Form (Template 11)
  * - Property Reservation Agreement (Template 12)
  * - Non-Exclusive Marketing Agreement (Template 15)
- * - Exclusive Marketing Agreement (Template 16)
- * 
+ *
  * All other templates are sent as TEXT messages.
  */
 
@@ -120,15 +119,15 @@ export function wasDocxTemplateRequested(
     "advanced viewing",
     "reservation form",
     "reservation agreement",
-    "non-exclusive marketing agreement",
-    "exclusive marketing agreement",
-    "non exclusive marketing",
+    "non-exclusive",
+    "non exclusive",
+    "marketing agreement",
+    "signature document",
     "template 09",
     "template 10",
     "template 11",
     "template 12",
     "template 15",
-    "template 16",
   ];
   
   return docxKeywords.some(keyword => allMessages.includes(keyword));
@@ -138,14 +137,13 @@ export function wasDocxTemplateRequested(
  * Detect specific DOCX template type from response content
  * Returns the template identifier for specialized generation
  */
-export type DocxTemplateType = 
+export type DocxTemplateType =
   | "viewing-form-single"
   | "viewing-form-multiple"
   | "viewing-form-advanced"
   | "reservation-form"
   | "reservation-agreement"
   | "marketing-non-exclusive"
-  | "marketing-exclusive"
   | "unknown";
 
 export function detectDocxTemplateType(response: string): DocxTemplateType {
@@ -180,16 +178,13 @@ export function detectDocxTemplateType(response: string): DocxTemplateType {
   if (first500.includes("reservation agreement") || first500.includes("property reservation agreement")) {
     return "reservation-agreement";
   }
-  
-  // Marketing Agreements
-  if (first500.includes("non-exclusive marketing agreement") || 
-      first500.includes("non exclusive marketing")) {
+
+  // Marketing Agreement (Non-Exclusive)
+  if (first500.includes("marketing agreement") ||
+      (first500.includes("non-exclusive") && lower.includes("agent may advertise"))) {
     return "marketing-non-exclusive";
   }
-  if (first500.includes("exclusive marketing agreement")) {
-    return "marketing-exclusive";
-  }
-  
+
   return "unknown";
 }
 

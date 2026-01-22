@@ -223,10 +223,10 @@ async function getTargetAgents(
       return agents;
     }
 
-    // RULE 2: "Zyprus Others" group leads go ONLY to Lauren or Charalambos
-    // Per spec: "Restricted to Lauren and Haralambos only"
+    // RULE 2: "Zyprus Others" group leads go to Lauren, Charalambos, or Lysandros
+    // Per spec: "Forward to regional manager of that area"
     if (groupType && isOthersGroup(groupType)) {
-      console.log("Others group detected - routing to Lauren/Charalambos only");
+      console.log("Others group detected - routing to Lauren/Charalambos/Lysandros");
       const agents = await db
         .select()
         .from(zyprusAgent)
@@ -509,7 +509,7 @@ async function logLead(data: {
  * Implements SOPHIA AI spec routing rules:
  * 1. If client requests specific agent → route directly to that agent
  * 2. Limassol leads → Michelle or Diana only (prefer Diana for Russian speakers)
- * 3. "Zyprus Others" group → Lauren or Charalambos only
+ * 3. "Zyprus Others" group → Lauren, Charalambos, or Lysandros
  * 4. Other regions → standard regional routing with fair rotation
  */
 export async function handleGroupMessage(

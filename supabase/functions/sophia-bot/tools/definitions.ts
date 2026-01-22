@@ -81,6 +81,10 @@ export const TOOLS: ToolDefinition[] = [
             enum: ["separate", "final_approval", "pending", "unknown"],
             description: "Status of the title deeds",
           },
+          registrationNumber: {
+            type: "string",
+            description: "Property registration number from title deed (e.g., 0/1234)",
+          },
           imageUrls: {
             type: "array",
             items: { type: "string" },
@@ -106,6 +110,10 @@ export const TOOLS: ToolDefinition[] = [
           specialNotes: {
             type: "string",
             description: "Any special notes from the owner or agent",
+          },
+          areaDescription: {
+            type: "string",
+            description: "User-provided description of the area/neighborhood (e.g., 'peaceful neighborhood with excellent access to tourist areas, city center, and highway. Near universities and Kings Avenue Mall'). IMPORTANT: Always capture and pass any location/area details the user provides - these are valuable marketing points that should NOT be replaced with generic descriptions.",
           },
           coordinates: {
             type: "object",
@@ -247,6 +255,50 @@ export const TOOLS: ToolDefinition[] = [
           },
         },
         required: ["purchasePrice", "salePrice", "purchaseYear"],
+      },
+    },
+  },
+
+  // Send Email Tool
+  {
+    type: "function",
+    function: {
+      name: "sendEmail",
+      description:
+        "Send an email to a recipient. Use this when an agent asks to send/email a document, template, registration, marketing agreement, or any other content to a recipient. The email will be sent from sofia@zyprus.com.",
+      parameters: {
+        type: "object",
+        properties: {
+          to: {
+            type: "string",
+            description: "Recipient's email address",
+          },
+          subject: {
+            type: "string",
+            description: "Email subject line",
+          },
+          body: {
+            type: "string",
+            description: "Email body content (plain text or HTML)",
+          },
+          recipientName: {
+            type: "string",
+            description: "Recipient's name for personalization (optional)",
+          },
+          replyTo: {
+            type: "string",
+            description: "Reply-to email address (optional, defaults to agent's email if known)",
+          },
+          attachmentUrl: {
+            type: "string",
+            description: "URL of a document to attach (optional, e.g., DOCX file URL)",
+          },
+          attachmentName: {
+            type: "string",
+            description: "Filename for the attachment (optional, e.g., 'Marketing_Agreement.docx')",
+          },
+        },
+        required: ["to", "subject", "body"],
       },
     },
   },

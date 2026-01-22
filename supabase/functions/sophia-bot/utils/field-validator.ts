@@ -251,53 +251,6 @@ function validateViewingFormFields(content: string): boolean {
 }
 
 /**
- * Validates if all required fields are present for a marketing agreement
- */
-function validateMarketingAgreementFields(content: string, isExclusive: boolean): boolean {
-  const lowerContent = content.toLowerCase();
-
-  // Base required fields for both types
-  const basePatterns = [
-    // Seller's name (should have actual name)
-    /seller[:\s]+[A-Z][a-z]+\s+[A-Z][a-z]+/,
-    // Property registration (format: 0/1234)
-    /registration[\s\w]*[:\s]+\d+\/\d+/,
-    // Marketing price (should have actual amount)
-    /price[:\s]+[€$]\s*[\d,]+/,
-    // Property location
-    /(location|address|property at)[:\s]+[A-Z][a-z]+/,
-    // Agent name
-    /agent[:\s]+[A-Z][a-z]+/,
-  ];
-
-  // Additional fields for exclusive agreement
-  const exclusivePatterns = [
-    // Passport number
-    /passport[\s\w]*[:\s]+[A-Z0-9]{5,}/i,
-    // Seller's country/nationality
-    /(country|nationality)[:\s]+[A-Z][a-z]+/,
-    // Property description (apartment, villa, etc.)
-    /(property\s+)?description[:\s]+(apartment|villa|house|land|shop|office)/i,
-    // Agreement start date
-    /start[\s\w]*date[:\s]+\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/,
-  ];
-
-  const requiredPatterns = isExclusive
-    ? [...basePatterns, ...exclusivePatterns]
-    : basePatterns;
-
-  let missingFields = 0;
-  for (const pattern of requiredPatterns) {
-    if (!pattern.test(content)) {
-      missingFields++;
-    }
-  }
-
-  // Allow up to 2 missing fields (might be using defaults)
-  return missingFields <= 2;
-}
-
-/**
  * Checks if content looks like a completed reservation agreement document
  */
 function isCompletedReservationAgreementDocument(content: string): boolean {
@@ -393,12 +346,6 @@ export function hasAllRequiredFields(aiResponse: string, templateType?: string):
     if (templateType.includes('reservation-agreement') || templateType.includes('reservation agreement')) {
       return validateReservationAgreementFields(aiResponse);
     }
-    if (templateType.includes('non-exclusive')) {
-      return validateMarketingAgreementFields(aiResponse, false);
-    }
-    if (templateType.includes('exclusive') && !templateType.includes('non-')) {
-      return validateMarketingAgreementFields(aiResponse, true);
-    }
   }
 
   // Auto-detect template type from content
@@ -408,13 +355,6 @@ export function hasAllRequiredFields(aiResponse: string, templateType?: string):
   if (lowerResponse.includes('reservation agreement') || lowerResponse.includes('property reservation')) {
     return validateReservationAgreementFields(aiResponse);
   }
-  if (lowerResponse.includes('non-exclusive marketing')) {
-    return validateMarketingAgreementFields(aiResponse, false);
-  }
-  if (lowerResponse.includes('exclusive marketing') && !lowerResponse.includes('non-')) {
-    return validateMarketingAgreementFields(aiResponse, true);
-  }
-
   // For other templates, just check for placeholders and information requests
   return !containsPlaceholders(aiResponse) && !isRequestingInformation(aiResponse);
 }
