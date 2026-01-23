@@ -365,6 +365,12 @@ async function handleCreatePropertyListing(
     }
   );
 
+  // DEBUG: Log My Notes to verify no "SOPHIA AI"
+  console.log("[ToolExecutor] === MY NOTES CONTENT ===");
+  console.log(myNotes);
+  console.log("[ToolExecutor] === END MY NOTES ===");
+  console.log("[ToolExecutor] My Notes contains 'SOPHIA AI':", myNotes.toLowerCase().includes("sophia ai"));
+
   // 12. Generate AI Notes
   const aiNotes = generateAIAssistantNotes(
     `${listingType === "rent" ? "Rental" : "Sale"} listing from WhatsApp`,
@@ -688,23 +694,29 @@ function handleCalculateCapitalGains(args: Record<string, unknown>): ToolResult 
 
 /**
  * Send Email via Resend API
+ * Automatically uses agent's communicationEmail - ignores any 'to' parameter from AI
  */
 async function handleSendEmail(
   args: Record<string, unknown>,
   agent: Agent | null
 ): Promise<ToolResult> {
-  const to = args.to as string;
-  const subject = args.subject as string;
-  const body = args.body as string;
-  const recipientName = args.recipientName as string | undefined;
-  const replyTo = (args.replyTo as string) || agent?.communicationEmail;
+  // ALWAYS use agent's communicationEmail - ignore any 'to' parameter
+  if (!agent?.communicationEmail) {
+    console.error("[sendEmail] No agent communicationEmail available");
+    return { error: "Unable to send email - agent email not found. Please contact support." };
+  }
+
+  const to = agent.communicationEmail;  // Force use of agent's registered email
+  const subject = String(args.subject || "");
+  const body = String(args.body || "");
   const attachmentUrl = args.attachmentUrl as string | undefined;
   const attachmentName = args.attachmentName as string | undefined;
 
-  // Validate email
+  // Validate email (defensive check, should always be valid from DB)
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(to)) {
-    return { error: `Invalid email address: ${to}` };
+    console.error(`[sendEmail] Invalid agent email: ${to}`);
+    return { error: "Invalid agent email format. Please contact support." };
   }
 
   // Get Resend API key from environment
@@ -714,7 +726,7 @@ async function handleSendEmail(
     return { error: "Email service not configured. Please contact admin." };
   }
 
-  console.log(`[sendEmail] Sending email to: ${to}, subject: ${subject}`);
+  console.log(`[sendEmail] Sending email with subject: ${subject}`);
 
   // Build email payload
   const emailPayload: {
@@ -723,7 +735,6 @@ async function handleSendEmail(
     subject: string;
     html: string;
     text: string;
-    reply_to?: string;
     attachments?: { filename: string; content: string }[];
   } = {
     from: "SOPHIA <sofia@zyprus.com>",
@@ -732,10 +743,6 @@ async function handleSendEmail(
     html: body.replace(/\*([^*]+)\*/g, "<strong>$1</strong>").replace(/\n/g, "<br>"),
     text: body.replace(/\*([^*]+)\*/g, "$1"),
   };
-
-  if (replyTo) {
-    emailPayload.reply_to = replyTo;
-  }
 
   // Handle attachment if provided
   if (attachmentUrl) {
@@ -791,17 +798,15 @@ async function handleSendEmail(
     }
 
     const result = JSON.parse(responseText);
-    console.log(`[sendEmail] Email sent successfully, ID: ${result.id}`);
+    console.log(`[sendEmail] Email sent successfully to ${to}, ID: ${result.id}`);
 
     return {
       success: true,
-      message: `✅ Email sent successfully!\n\n` +
-        `To: ${recipientName || to}\n` +
+      message: `✅ Sent to your email\n\n` +
         `Subject: ${subject}\n` +
         (attachmentName ? `Attachment: ${attachmentName}\n` : "") +
-        `\nThe email was sent from sofia@zyprus.com.\n\n` +
-        `(Relay this confirmation to the user exactly as written - do not add asterisks or formatting around emails or other details)`,
-      data: { emailId: result.id, to, subject },
+        `\n(Relay this confirmation to the user exactly as written - do not add asterisks or formatting)`,
+      data: { emailId: result.id, subject },
     };
   } catch (error) {
     console.error("[sendEmail] Error sending email:", error);
