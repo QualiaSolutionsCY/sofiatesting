@@ -143,6 +143,18 @@ function isClarificationQuestion(response: string): boolean {
     "to proceed",
     "to generate this",
     "to create this",
+    // NEW: Choice questions - asking user to pick between options
+    "would you like",
+    "do you want",
+    "do you need",
+    "which one",
+    "which type",
+    "which would you",
+    "please choose",
+    "please select",
+    "let me know which",
+    "let me know if",
+    " or the ", // "X or the Y?" pattern
   ];
 
   // Check if response is short and contains clarification patterns
@@ -166,12 +178,30 @@ function isClarificationQuestion(response: string): boolean {
     return true;
   }
 
+  // NEW: Any question mark in a short response is likely a clarification
+  if (questionCount >= 1 && response.length < 500) {
+    console.log(`[Registry] Clarification detected: question mark in short response (${response.length} chars)`);
+    return true;
+  }
+
   return false;
 }
 
 /**
+ * Minimum length for a real document (not a question or short response)
+ */
+const MIN_DOCX_LENGTH = 400;
+
+/**
  * Determine if a response should be sent as DOCX based on its content
  * This is the main detection function used by the response router
+ *
+ * IMPORTANT: Only these templates should EVER be DOCX:
+ * - Standard Viewing Form
+ * - Advanced Viewing Form
+ * - Property Reservation Form
+ * - Property Reservation Agreement
+ * - Non-Exclusive Marketing Agreement
  */
 export function shouldSendAsDocx(response: string): boolean {
   // Rule 0: If it's a clarification question, NEVER send as DOCX
@@ -182,44 +212,60 @@ export function shouldSendAsDocx(response: string): boolean {
 
   // Rule 1: If it has a Subject: line, it's an email template -> TEXT
   if (response.includes("Subject:")) {
+    console.log("[Registry] Has Subject: line -> TEXT");
     return false;
   }
 
-  // Rule 2: Extract title and check against DOCX templates
+  // Rule 2: Response must be long enough to be a real document
+  if (response.length < MIN_DOCX_LENGTH) {
+    console.log(`[Registry] Too short for DOCX: ${response.length} < ${MIN_DOCX_LENGTH} -> TEXT`);
+    return false;
+  }
+
+  // Rule 3: Extract title and check against DOCX templates
   const title = extractTemplateTitle(response);
   if (title && isDocxTemplateTitle(title)) {
+    console.log(`[Registry] Title match: "${title}" -> DOCX`);
     return true;
   }
 
-  // Rule 3: Check for specific DOCX template markers in first 500 chars
+  // Rule 4: Check for specific DOCX template markers - must have document structure
   const firstPart = response.substring(0, 500).toLowerCase();
+  const fullLower = response.toLowerCase();
 
-  // Viewing Form detection
+  // Viewing Form detection - requires actual form content
   if (
     firstPart.includes("viewing form") &&
-    (firstPart.includes("herein, i") || firstPart.includes("confirm that"))
+    (fullLower.includes("herein, i") || fullLower.includes("confirm that")) &&
+    (fullLower.includes("id number") || fullLower.includes("passport") || fullLower.includes("signature"))
   ) {
+    console.log("[Registry] Viewing Form content detected -> DOCX");
     return true;
   }
 
-  // Reservation Form detection
+  // Reservation Form detection - requires actual form content
   if (
     (firstPart.includes("property reservation form") ||
       firstPart.includes("reservation agreement")) &&
-    firstPart.includes("property")
+    (fullLower.includes("buyer") || fullLower.includes("vendor") || fullLower.includes("deposit"))
   ) {
+    console.log("[Registry] Reservation content detected -> DOCX");
     return true;
   }
 
-  // Marketing Agreement detection (Non-Exclusive)
+  // Marketing Agreement detection (Non-Exclusive) - requires actual agreement content
   if (
     firstPart.includes("marketing agreement") &&
-    (firstPart.includes("between") || firstPart.includes("csc zyprus"))
+    fullLower.includes("non-exclusive") &&
+    (fullLower.includes("between") || fullLower.includes("csc zyprus")) &&
+    (fullLower.includes("owner") || fullLower.includes("agent") || fullLower.includes("property"))
   ) {
+    console.log("[Registry] Marketing Agreement content detected -> DOCX");
     return true;
   }
 
   // Default: TEXT
+  console.log("[Registry] No DOCX match -> TEXT");
   return false;
 }
 
