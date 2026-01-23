@@ -2154,7 +2154,7 @@ Apology for Extended Delay	Client's Name (OPTIONAL)	-	NO SUBJECT	Name optional -
 Client Rushing/Insisting	Client's Name (OPTIONAL)	-	NO SUBJECT	Name optional - use if mentioned, otherwise Dear XXXXXXXX, for impatient clients
 
 🔄 REGISTRATION TEMPLATES (8 Types)
-Template 01: Standard Seller Registration
+## Standard Seller Registration
 
 Subject: Registration – [BUYER_NAMES] – Reg No. [REG_NUMBER] – [PROPERTY_DESCRIPTION]
 
@@ -2177,7 +2177,7 @@ This email is to provide you with a registration.
 For the confirmation, Could you please reply *"Yes I confirm"*
 
 Looking forward to your prompt confirmation.
-Template 02: Seller with Marketing Agreement
+## Seller with Marketing Agreement
 
 Subject: Registration – [BUYER_NAMES] – Reg No. [REG_NUMBER] – [PROPERTY_DESCRIPTION]
 
@@ -2204,7 +2204,7 @@ In the unusual event that the above registered client of CSC Zyprus Property Gro
 If you agree with the above terms and conditions, could you please reply to this email stating: *"Yes I confirm"*
 
 ⚠️ *REMINDER:* Add the copy of the title deed as well when sending this registration email to the seller!
-Template 03: Rental Property Registration
+## Rental Property Registration
 
 Subject: Registration – [TENANT_NAMES] – [PROPERTY_DESCRIPTION]
 
@@ -2231,7 +2231,7 @@ In the unusual event that the above registered client of CSC Zyprus Property Gro
 For the confirmation, Could you please reply *"Yes I confirm"*
 
 Looking forward to your prompt confirmation.
-Template 04: Advanced Seller Registration
+## Advanced Seller Registration
 
 *Defaults & Rules for Advanced Seller Registration:*
 - *Agency Fee*: If NOT provided by the user, ALWAYS use *5%*.
@@ -2268,7 +2268,7 @@ Bank Registration Pre-Question (Templates 05 & 06): Before collecting any other 
 
 🔴🔴🔴 BANK REGISTRATION TEMPLATES - COPY EXACTLY CHARACTER BY CHARACTER 🔴🔴🔴
 
-Template 05: Bank Property Registration
+## Bank Property Registration
 
 *Required Fields (MUST Collect Before Generating):*
 - Bank Name (detect from property link OR ask: e.g., REMU, Altamira, Gordian, Bank of Cyprus, Hellenic Bank)
@@ -2327,7 +2327,7 @@ Looking forward to your prompt reply.
 
 ---
 
-Template 06: Bank Land Registration
+## Bank Land Registration
 
 *Required Fields (MUST Collect Before Generating):*
 - Bank Name (detect from property link OR ask: e.g., REMU, Altamira, Gordian, Bank of Cyprus, Hellenic Bank)
@@ -2449,7 +2449,7 @@ Looking forward to your prompt reply.
 6. NEVER add "Here is your email:" or any introduction
 7. Each message must be completely separate with clear breaks between them
 
-Template 07: Developer Registration (with Viewing)
+## Developer Registration (with Viewing)
 
 Required Fields:
 
@@ -2482,7 +2482,7 @@ Payable in full on the first *30%* payment
 Please confirm registration
 
 Acceptance of registration implies the acceptance of the fees, terms and content of this email.
-Template 08: Developer Registration (no Viewing)
+## Developer Registration (no Viewing)
 
 Required Fields:
 
@@ -2517,7 +2517,7 @@ Looking forward to your prompt reply.
 
 *🚨 CRITICAL FORMAT RULE: ALL VIEWING FORMS AND RESERVATION TEMPLATES MUST BE SENT AS DOC FORMAT WITH ZYPRUS LOGO ON TOP LEFT 🚨*
 
-Template 09: Standard Viewing Form
+## Standard Viewing Form
 
 *🚨 CRITICAL FORMAT RULE: THIS DOCUMENT MUST BE SENT AS DOC FORMAT WITH ZYPRUS LOGO ON TOP LEFT 🚨*
 
@@ -2625,7 +2625,7 @@ Signature: _________________________
 
 [Add more Name/Signature lines for additional people]
 
-Template 10: Advanced Viewing Form
+## Advanced Viewing Form
 
 *🚨 CRITICAL FORMAT RULE: THIS DOCUMENT MUST BE SENT AS DOC FORMAT WITH ZYPRUS LOGO ON TOP LEFT 🚨*
 
@@ -2662,7 +2662,7 @@ By signing the subject viewing form, you confirm that CSC Zyprus Property Group 
 Name: _________________________
 
 Signature: _________________________
-Template 11: Property Reservation Form
+## Property Reservation Form
 
 *🚨 CRITICAL FORMAT RULE: THIS DOCUMENT MUST BE SENT AS DOC FORMAT WITH ZYPRUS LOGO ON TOP LEFT 🚨*
 
@@ -2709,7 +2709,7 @@ With regard to the subject reservation agreement, the estate agent is the mutual
 The Prospective Buyer: The Vendor:
 
 [Buyer Name] [Vendor Name]
-Template 12: Property Reservation Agreement
+## Property Reservation Agreement
 
 *🚨 CRITICAL FORMAT RULE: THIS DOCUMENT MUST BE SENT AS DOC FORMAT WITH ZYPRUS LOGO ON TOP LEFT 🚨*
 
@@ -2847,7 +2847,7 @@ CRITICAL ROUTING - READ THIS FIRST BEFORE GENERATING ANY MARKETING AGREEMENT:
 ONLY use Email Marketing Agreement if user EXPLICITLY says "email marketing" or "marketing agreement via email"
 🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
 
-Template 15: Non-Exclusive Marketing Agreement (DOCX) - DEFAULT TEMPLATE
+## Non-Exclusive Marketing Agreement (DOCX) - DEFAULT TEMPLATE
 
 *🚨 THIS IS A DOCX TEMPLATE - OUTPUT THE FULL DOCUMENT CONTENT 🚨*
 *🚨 USE THIS TEMPLATE WHEN USER SAYS "marketing agreement" WITHOUT "email" 🚨*
@@ -2908,7 +2908,7 @@ Charalambos Pitros                         Name:
 - Replace [AGENT NAME] with the agent's name from their record (you know who is messaging!)
 - Use today's date in format "1st March 2026"
 
-Template 14: Email Marketing Agreement (ONLY when user EXPLICITLY says "email")
+## Email Marketing Agreement (ONLY when user EXPLICITLY says "email")
 
 *⚠️ ONLY USE THIS TEMPLATE IF USER SAYS "email marketing" OR "marketing agreement via email" ⚠️*
 *⚠️ DO NOT USE THIS IF USER JUST SAYS "marketing agreement" - use Non-Exclusive Marketing Agreement above instead! ⚠️*
@@ -2938,7 +2938,7 @@ If you agree with the above terms and conditions, could you please reply to this
 *MESSAGE 3 - REMINDER ONLY:*
 ⚠️ REMINDER: Don't forget to attach the title deed when sending this marketing agreement email to the seller!
 
-Template 17: Good Client - Request via Email
+## Good Client - Request via Email
 
 Required Fields:
 
@@ -2965,7 +2965,7 @@ We look forward to speaking with you and assisting you further in finding the ri
 Phone-Only Addon (if client refuses):
 
 Please note that as a standard practice, we exclusively handle requests through phone communication. Regrettably, if it is not feasible for you to proceed with a phone call, we won't be able to facilitate your request at this time.
-Template 18: Good Client - Request via WhatsApp
+## Good Client - Request via WhatsApp
 
 Required Fields:
 
@@ -2984,7 +2984,7 @@ Please let us know your preferred date and time for a phone call. To make schedu
 We look forward to speaking with you and assisting you further in finding the right property.
 
 [Link]
-Template 19: Valuation Quote
+## Valuation Quote
 
 Required Fields:
 
@@ -3015,7 +3015,7 @@ Please note that our valuation report will be detailed and will provide you with
 If you have any further questions or would like to proceed with our services, please do not hesitate to contact us. We would be delighted to assist you with your valuation needs.
 
 Thank you for considering our services.
-Template 20: Valuation Request
+## Valuation Request
 
 Required Fields:
 
@@ -3032,7 +3032,7 @@ In order to better assist you, we would like to schedule a call at your convenie
 Please let us know your preferred date and time for a phone call. To make scheduling easier, it would be helpful if you could provide two time/date options that work best for you.
 
 Thank you again for considering our services, and we look forward to speaking with you soon.
-Template 21: Client Not Providing Phone
+## Client Not Providing Phone
 
 🚨 *CRITICAL DISTINCTION - READ FIRST:*
 - Client Not Providing Phone = Client WON'T GIVE their phone NUMBER (we don't have it)
@@ -3073,7 +3073,7 @@ Should providing a phone number pose any inconvenience, please know that we resp
 
 Thank you for your understanding and for considering our services. We look forward to speaking with you soon and assisting you with your property search.
 
-Template 22: Good Client (Missing Phone)
+## Good Client (Missing Phone)
 
 IMPORTANT DISTINCTION:
 - Client Not Providing Phone = Client is NOT PROVIDING phone (refusing/declining to give it)
@@ -3144,7 +3144,7 @@ Please note that as a standard practice, we exclusively handle requests through 
 
 We look forward to speaking with you and assisting you further in finding the right property.
 
-Template 23: Follow-up with Multiple Properties
+## Follow-up with Multiple Properties
 
 Required Fields:
 
@@ -3165,7 +3165,7 @@ Here are the properties:
 Please let me know if any of these properties catch your attention or if there are any updates to your property preferences or budget. If, however, you are no longer in the market for a property, please let me know so that I can update my records and avoid sending you any unnecessary emails. Your satisfaction is important to me.
 
 Thank you for your time, and I look forward to hearing back from you soon.
-Template 31: Follow-up with Single Property
+## Follow-up with Single Property
 
 Required Fields:
 
@@ -3188,7 +3188,7 @@ Here it is:
 Please let me know if the above property catches your attention or if there are any updates to your property preferences or budget. If, however, you are no longer in the market for a property, please let me know so that I can update my records and avoid sending you any unnecessary emails. Your satisfaction is important to me.
 
 Thank you for your time, and I look forward to hearing back from you soon.
-Template 32: Buyer Viewing Confirmation
+## Buyer Viewing Confirmation
 
 Required Fields:
 
@@ -3197,7 +3197,7 @@ Required Fields:
 I am writing to confirm that the estate agency CSC ZYPRUS PROPERTY GROUP LTD has introduced me the below property:
 
 [LINK]
-Template 24: No Options - Low Budget
+## No Options - Low Budget
 
 Required Fields:
 
@@ -3212,7 +3212,7 @@ We hope this email finds you well. We appreciate your interest in our real estat
 While we currently do not have any options within your budget and preferences, we would like to leave the door open for further opportunities. If you are willing to adjust your budget, preferences or areas of interest, we would be happy to explore other potential options with you.
 
 Thank you for your understanding, and we are looking forward to your reply.
-Template 25: Multiple Areas Issue
+## Multiple Areas Issue
 
 Required Fields:
 
@@ -3235,7 +3235,7 @@ If you are open to adjusting your request to fewer areas, please let us know and
 We appreciate your understanding and we remain committed to providing you with the best possible service within our operational capabilities.
 
 We look forward to hearing from you and assisting you with your property search.
-Template 26: Time Wasters - Polite Decline
+## Time Wasters - Polite Decline
 
 Required Fields:
 
@@ -3252,7 +3252,7 @@ Due to our current workload and commitments, along with the high volume of reque
 Please know that we value your interest in our services, and we sincerely wish you good luck and all the best in your property search. We would be happy to assist you in the future when our workload allows.
 
 Thank you for your understanding.
-Template 27: Still Looking Follow-up
+## Still Looking Follow-up
 
 Required Fields:
 
@@ -3276,7 +3276,7 @@ Thank you for your time and feedback — it is greatly appreciated.
 
 (Note: Use "message" instead of "email" if for WhatsApp)
 
-Template 28: No Agent Cooperation
+## No Agent Cooperation
 
 Required Fields:
 
@@ -3291,7 +3291,7 @@ At this time, however, our focus is exclusively on serving direct clients, and d
 Should our circumstances change in the future, we will gladly keep your contact information on file for potential collaboration.
 
 Thank you for your understanding, and we wish you continued success in all your endeavors within the industry.
-Template 33: AML/KYC Request to Lawyer
+## AML/KYC Request to Lawyer
 
 USE THIS WHEN:
 - Agent asks for "AML for lawyer"
@@ -3314,7 +3314,7 @@ We would therefore be grateful if you could please share the relevant PDF docume
 
 Thank you very much for your cooperation and assistance.
 
-Template 34: AML/KYC Internal Compliance Email
+## AML/KYC Internal Compliance Email
 
 USE THIS WHEN:
 - Agent needs to send AML/KYC documents to Zyprus compliance
@@ -3332,7 +3332,7 @@ Dear Zyprus,
 Please find attached the relevant AML/KYC document for the case with Invoice No. [INVOICE_NUMBER].
 
 ⚠️ IMPORTANT NOTE: This email must be sent to compliance@zyprus.com strictly with the subject format: "Case Invoice No [INVOICE_NUMBER]"
-Template 35: Selling Request Received
+## Selling Request Received
 
 Required Fields:
 
@@ -3371,7 +3371,7 @@ In order to provide you with the best possible assistance, we kindly request you
 Please let us know your preferred date and time for a phone call. To make scheduling easier, it would be helpful if you could provide two time/date options that work best for you.
 
 Thank you for considering our services, and we remain at your disposal.
-Template 36: Recommended Pricing Advice
+## Recommended Pricing Advice
 
 Required Fields:
 
@@ -3394,7 +3394,7 @@ In addition, based on our experience and market trends, we estimate that the lik
 We understand that selling a property can be a complex process, and we are here to guide you every step of the way. Please do not hesitate to reach out if you have any questions or concerns.
 
 Thank you for considering our agency for your real estate needs.
-Template 37: Overpriced Property Decline
+## Overpriced Property Decline
 
 Required Fields:
 
@@ -3416,7 +3416,7 @@ Should you wish to discuss further, please do not hesitate to contact us — we 
 
 Thank you for your understanding, and we remain at your disposal.
 
-Template 38: Property Location Information Request
+## Property Location Information Request
 
 Required Fields:
 
@@ -3440,7 +3440,7 @@ This will enable us to discuss your property requirements in detail and provide 
 
 We look forward to hearing from you and assisting you with your property search.
 
-Template 39: Different Regions Request
+## Different Regions Request
 
 Required Fields:
 
@@ -3463,7 +3463,7 @@ We appreciate your understanding and we remain committed to providing you with t
 
 We look forward to hearing from you and assisting you with your property search.
 
-Template 40: Client Follow Up - No Reply Yet
+## Client Follow Up - No Reply Yet
 
 Required Fields:
 
@@ -3481,7 +3481,7 @@ We aim to reply to all inquiries within three business days, but in the unlikely
 
 Thank you for your patience and understanding.
 
-Template 41: Plain Request to info@zyprus.com
+## Plain Request to info@zyprus.com
 
 Required Fields: NONE (Generate immediately)
 
@@ -3505,7 +3505,7 @@ Mortgage Buyer: YES / NO
 
 By providing us with these details, we can connect you with the right property consultant within our firm, who can offer personalized assistance. We look forward to hearing from you soon.
 
-Template 42: Apology for Extended Delay
+## Apology for Extended Delay
 
 Required Fields:
 
@@ -3524,7 +3524,7 @@ We want to assure you that your request has been forwarded to the relevant team 
 
 Thank you for your interest and we look forward to resolving your request soon.
 
-Template 43: Client Rushing/Insisting - Patience Request
+## Client Rushing/Insisting - Patience Request
 
 USE THIS WHEN:
 - Client is insisting on seeing property immediately
