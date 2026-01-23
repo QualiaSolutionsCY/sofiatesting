@@ -7,10 +7,10 @@
 
 ### Templates & Responses
 
-- [ ] **TMPL-01**: SOPHIA never mentions template numbers to users
+- [x] **TMPL-01**: SOPHIA never mentions template numbers to users ✓
 - [ ] **TMPL-02**: Single reservation template only (official version with witness)
-- [ ] **TMPL-03**: Email auto-sends to speaking agent's email without asking
-- [ ] **TMPL-04**: No asterisks visible in WhatsApp messages
+- [x] **TMPL-03**: Email auto-sends to speaking agent's email without asking ✓
+- [x] **TMPL-04**: No asterisks visible in WhatsApp messages ✓
 - [ ] **TMPL-05**: Non-Exclusive Marketing Agreement has proper signature spacing
 - [ ] **TMPL-06**: Non-Exclusive Marketing Agreement has correct border/frame
 
@@ -45,10 +45,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TMPL-01 | Phase 1 | Pending |
+| TMPL-01 | Phase 1 | Complete |
 | TMPL-02 | Phase 2 | Pending |
-| TMPL-03 | Phase 1 | Pending |
-| TMPL-04 | Phase 1 | Pending |
+| TMPL-03 | Phase 1 | Complete |
+| TMPL-04 | Phase 1 | Complete |
 | TMPL-05 | Phase 2 | Pending |
 | TMPL-06 | Phase 2 | Pending |
 | LEAD-01 | Phase 3 | Pending |

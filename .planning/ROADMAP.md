@@ -7,7 +7,7 @@
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 1 | SOPHIA Response Fixes | TMPL-01, TMPL-03, TMPL-04 | Pending |
+| 1 | SOPHIA Response Fixes | TMPL-01, TMPL-03, TMPL-04 | ✓ Complete |
 | 2 | DOCX Template Fixes | TMPL-02, TMPL-05, TMPL-06 | Pending |
 | 3 | Telegram Lead Routing | LEAD-01, LEAD-02, LEAD-03 | Pending |
 | 4 | Listing Upload Fixes | LIST-01, LIST-02, LIST-03, LIST-04, LIST-05 | Pending |
@@ -192,4 +192,4 @@ Phase 3 ──┴──> Phase 4 ──> Phase 5
 ---
 
 *Roadmap created: 2026-01-23*
-*Last updated: 2026-01-23 after initial creation*
+*Last updated: 2026-01-23 — Phase 1 complete*
