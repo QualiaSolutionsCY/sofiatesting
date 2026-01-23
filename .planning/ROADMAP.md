@@ -18,21 +18,22 @@
 ## Phase 1: SOPHIA Response Fixes
 
 **Goal:** Clean up SOPHIA's response formatting and behavior
+**Plans:** 3 plans
 
 ### Requirements
 - **TMPL-01**: SOPHIA never mentions template numbers to users
 - **TMPL-03**: Email auto-sends to speaking agent's email without asking
 - **TMPL-04**: No asterisks visible in WhatsApp messages
 
-### Tasks
-1. Update prompts.ts to remove template number mentions from SOPHIA vocabulary
-2. Modify email tool to auto-detect agent from sender phone and use their email
-3. Fix WhatsApp formatting to properly escape/convert markdown bold markers
+### Plans
+- [ ] 01-01-PLAN.md — Remove template number mentions from prompts
+- [ ] 01-02-PLAN.md — Auto-detect agent email for sendEmail tool
+- [ ] 01-03-PLAN.md — Fix WhatsApp formatting (code blocks, bold)
 
 ### Key Files
 - `supabase/functions/sophia-bot/prompts.ts`
 - `supabase/functions/sophia-bot/tools/executor.ts` (sendEmail handler)
-- `supabase/functions/sophia-bot/services/whatsapp-formatter.ts`
+- `supabase/functions/sophia-bot/index.ts` (formatForWhatsApp)
 
 ### Success Criteria
 - SOPHIA responses never contain "Template 11", "Template 12", etc.
