@@ -366,7 +366,13 @@ function isConfirmationMessage(text: string): boolean {
 function formatForWhatsApp(text: string): string {
   let formatted = text;
 
-  // Step 0: FIX single-asterisk phone masking (AI mistake) - convert 99*1111 to 99**1111
+  // Step 0a: Strip code blocks (```...```) - show content as plain text
+  // Handle multiline code blocks with optional language specifier
+  formatted = formatted.replace(/```[\w]*\n?([\s\S]*?)```/g, '$1');
+  // Handle inline code blocks (moved here for logical grouping)
+  formatted = formatted.replace(/`([^`]+)`/g, '$1');
+
+  // Step 0b: FIX single-asterisk phone masking (AI mistake) - convert 99*1111 to 99**1111
   // Pattern: 2 digits + single asterisk + 4 digits (but NOT already double asterisk)
   formatted = formatted.replace(/(\d{2})\*(\d{4})(?!\*)/g, '$1**$2');
 
@@ -394,8 +400,6 @@ function formatForWhatsApp(text: string): string {
 
   // Remove header markers # Header -> Header
   formatted = formatted.replace(/^#{1,6}\s+/gm, '');
-  // Remove inline code markers `code` -> code
-  formatted = formatted.replace(/`([^`]+)`/g, '$1');
   // Clean up excessive whitespace but preserve single newlines
   formatted = formatted.replace(/[ \t]+/g, ' ');
   formatted = formatted.replace(/\n{3,}/g, '\n\n');
