@@ -265,14 +265,10 @@ export const TOOLS: ToolDefinition[] = [
     function: {
       name: "sendEmail",
       description:
-        "Send an email to a recipient. Use this when an agent asks to send/email a document, template, registration, marketing agreement, or any other content to a recipient. The email will be sent from sofia@zyprus.com.",
+        "Send an email to yourself. The email is automatically sent to your registered Zyprus email address. Use this when you want to send/email a document, template, registration, marketing agreement, or any content to yourself. The email will be sent from sofia@zyprus.com. No need to specify your email address - it's automatically detected.",
       parameters: {
         type: "object",
         properties: {
-          to: {
-            type: "string",
-            description: "Recipient's email address",
-          },
           subject: {
             type: "string",
             description: "Email subject line",
@@ -280,14 +276,6 @@ export const TOOLS: ToolDefinition[] = [
           body: {
             type: "string",
             description: "Email body content (plain text or HTML)",
-          },
-          recipientName: {
-            type: "string",
-            description: "Recipient's name for personalization (optional)",
-          },
-          replyTo: {
-            type: "string",
-            description: "Reply-to email address (optional, defaults to agent's email if known)",
           },
           attachmentUrl: {
             type: "string",
@@ -298,7 +286,7 @@ export const TOOLS: ToolDefinition[] = [
             description: "Filename for the attachment (optional, e.g., 'Marketing_Agreement.docx')",
           },
         },
-        required: ["to", "subject", "body"],
+        required: ["subject", "body"],
       },
     },
   },
