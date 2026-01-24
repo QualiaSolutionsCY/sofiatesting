@@ -8,11 +8,11 @@
 ### Templates & Responses
 
 - [x] **TMPL-01**: SOPHIA never mentions template numbers to users ✓
-- [ ] **TMPL-02**: Single reservation template only (official version with witness)
+- [x] **TMPL-02**: Single reservation template only (official version with witness) ✓
 - [x] **TMPL-03**: Email auto-sends to speaking agent's email without asking ✓
 - [x] **TMPL-04**: No asterisks visible in WhatsApp messages ✓
-- [ ] **TMPL-05**: Non-Exclusive Marketing Agreement has proper signature spacing
-- [ ] **TMPL-06**: Non-Exclusive Marketing Agreement has correct border/frame
+- [x] **TMPL-05**: Non-Exclusive Marketing Agreement has proper signature spacing ✓
+- [x] **TMPL-06**: Non-Exclusive Marketing Agreement has correct border/frame ✓
 
 ### Telegram Lead Routing
 
@@ -46,11 +46,11 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | TMPL-01 | Phase 1 | Complete |
-| TMPL-02 | Phase 2 | Pending |
+| TMPL-02 | Phase 2 | Complete |
 | TMPL-03 | Phase 1 | Complete |
 | TMPL-04 | Phase 1 | Complete |
-| TMPL-05 | Phase 2 | Pending |
-| TMPL-06 | Phase 2 | Pending |
+| TMPL-05 | Phase 2 | Complete |
+| TMPL-06 | Phase 2 | Complete |
 | LEAD-01 | Phase 3 | Pending |
 | LEAD-02 | Phase 3 | Pending |
 | LEAD-03 | Phase 3 | Pending |

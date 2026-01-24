@@ -60,10 +60,10 @@ export function createMarketingAgreement(
   // Use provided date or default to today
   const agreementDate = data.agreementDate || formatOrdinalDate();
 
-  // Border style for the document frame
+  // Border style for the document frame (size 6 = ~0.75pt visible border)
   const tableBorder = {
     style: BorderStyle.SINGLE,
-    size: 1,
+    size: 6,
     color: "000000",
   };
 
@@ -353,14 +353,18 @@ export function createMarketingAgreement(
           }),
         ],
       }),
-      // Row 2: Empty space for signatures
+      // Row 2: Empty space for signatures (increased height for hand signatures)
       new TableRow({
         children: [
           new TableCell({
             children: [
               new Paragraph({
                 children: [new TextRun({ text: "", size: FONTS.SIZES.BODY })],
-                spacing: { after: 400 },
+                spacing: { after: 800 },
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: "", size: FONTS.SIZES.BODY })],
+                spacing: { after: 200 },
               }),
             ],
             borders: {
@@ -374,7 +378,11 @@ export function createMarketingAgreement(
             children: [
               new Paragraph({
                 children: [new TextRun({ text: "", size: FONTS.SIZES.BODY })],
-                spacing: { after: 400 },
+                spacing: { after: 800 },
+              }),
+              new Paragraph({
+                children: [new TextRun({ text: "", size: FONTS.SIZES.BODY })],
+                spacing: { after: 200 },
               }),
             ],
             borders: {
@@ -394,7 +402,7 @@ export function createMarketingAgreement(
               new Paragraph({
                 children: [
                   new TextRun({
-                    text: "On behalf of company:",
+                    text: "On behalf of the Agent:",
                     size: FONTS.SIZES.BODY,
                     font: FONTS.PRIMARY,
                   }),

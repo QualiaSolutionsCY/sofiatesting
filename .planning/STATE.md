@@ -1,22 +1,22 @@
 # Project State: SOPHIA Production Hardening
 
-**Last Updated:** 2026-01-23
-**Current Phase:** Phase 1 Complete — Ready for Phase 2
+**Last Updated:** 2026-01-24
+**Current Phase:** Phase 2 Complete — Ready for Phase 3
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-01-23)
 
 **Core value:** Agents can trust SOPHIA to do the right thing every time
-**Current focus:** Phase 2 - DOCX Template Fixes
+**Current focus:** Phase 3 - Telegram Lead Routing
 
 ## Quick Status
 
 | Phase | Status | Progress |
 |-------|--------|----------|
 | Phase 1: SOPHIA Response Fixes | ✓ **Complete** | 100% |
-| Phase 2: DOCX Template Fixes | **Ready** | 0% |
-| Phase 3: Telegram Lead Routing | Pending | 0% |
+| Phase 2: DOCX Template Fixes | ✓ **Complete** | 100% |
+| Phase 3: Telegram Lead Routing | **Ready** | 0% |
 | Phase 4: Listing Upload Fixes | Pending | 0% |
 | Phase 5: WhatsApp Image Upload | Pending | 0% |
 
@@ -62,17 +62,37 @@ See: `.planning/PROJECT.md` (updated 2026-01-23)
 - [x] **Phase 1 executed** (3 plans, all verified)
 
 ### What's Next
-1. Run `/gsd:discuss-phase 2` to gather context for DOCX templates
-2. Run `/gsd:plan-phase 2` to create detailed task breakdown
-3. Run `/gsd:execute-phase 2` to fix templates
+1. Run `/gsd:discuss-phase 3` to gather context for Telegram lead routing
+2. Run `/gsd:plan-phase 3` to create detailed task breakdown
+3. Run `/gsd:execute-phase 3` to implement lead routing fixes
 
-## Key Files for Phase 2
+## Phase 2 Summary
+
+**Completed:** 2026-01-24
+**Deployment:** sophia-bot v361
+
+### What Was Built
+
+1. **TMPL-02: Reservation Template Verification**
+   - Verified reservation-agreement.ts already has official format with witness sections
+   - Buyer signature with WITNESSES column and Name/I.D. fields (lines 554-608)
+   - Vendor signature with WITNESSES column and Name/I.D. fields (lines 612-663)
+
+2. **TMPL-05: Marketing Agreement Signature Spacing**
+   - Increased signature row spacing from 400 to 800+200 twips (two paragraphs)
+   - Changed "On behalf of company:" to "On behalf of the Agent:"
+   - File: `docx/templates/marketing-agreement.ts`
+
+3. **TMPL-06: Marketing Agreement Border**
+   - Increased border size from 1 to 6 (~0.75pt visible frame)
+   - File: `docx/templates/marketing-agreement.ts`
+
+## Key Files for Phase 3
 
 | File | Purpose |
 |------|---------|
-| `supabase/functions/sophia-bot/docx/templates/reservation-fee.ts` | Replace with official version |
-| `supabase/functions/sophia-bot/docx/templates/marketing-agreement.ts` | Fix signature spacing and border |
-| `/home/qualia/Downloads/RESERVATION FEE_with witness...docx` | Source document |
+| `lib/telegram/lead-router.ts` | Lead routing logic |
+| `agents` table | Agent region assignments |
 
 ## Blockers
 
