@@ -1,7 +1,7 @@
 # Project State: SOPHIA Production Hardening
 
 **Last Updated:** 2026-01-25
-**Current Phase:** Phase 4 In Progress — Plan 04-01 Complete
+**Current Phase:** Phase 4 Complete — All Plans Executed
 
 ## Project Reference
 
@@ -17,7 +17,7 @@ See: `.planning/PROJECT.md` (updated 2026-01-23)
 | Phase 1: SOPHIA Response Fixes | ✓ **Complete** | 100% |
 | Phase 2: DOCX Template Fixes | ✓ **Complete** | 100% |
 | Phase 3: Telegram Lead Routing | ✓ **Complete** | 100% |
-| Phase 4: Listing Upload Fixes | **In Progress** | 50% (1/2 plans) |
+| Phase 4: Listing Upload Fixes | ✓ **Complete** | 100% (2/2 plans) |
 | Phase 5: WhatsApp Image Upload | Pending | 0% |
 
 ## Phase 1 Summary
@@ -104,11 +104,12 @@ See: `.planning/PROJECT.md` (updated 2026-01-23)
 
 ## Phase 4 Summary
 
-**Status:** IN PROGRESS (1/2 plans complete)
-**Plans:** 2 plans in 2 waves
-**Complexity:** Medium (primarily verification)
+**Status:** ✓ COMPLETE (2/2 plans complete)
+**Completed:** 2026-01-25
+**Plans executed:** 2/2
+**Verification:** All must-haves passed
 
-### Completed Plans
+### What Was Built
 
 1. **04-01: Reviewer/Owner Assignment** ✅ (2026-01-25)
    - Verified all 7 special listing owner email mappings correct
@@ -118,12 +119,12 @@ See: `.planning/PROJECT.md` (updated 2026-01-23)
    - Duration: 5 minutes
    - Commits: d887a16, f03a198, 2de6e4c
 
-### Remaining Plans
-
-2. **04-02-PLAN.md (Wave 2):** Verify and Fix My Notes + Map Offset
-   - Verify My Notes format (current exceeds spec)
-   - Verify privacy offset (~200m) is appropriate
-   - Confirm My Notes is populated in tool execution
+2. **04-02: My Notes + Map Offset** ✅ (2026-01-25)
+   - Verified My Notes format exceeds spec (includes reviewer tracking)
+   - Confirmed map privacy offset (~100-200m) appropriate for 2-3 streets
+   - Verified complete My Notes flow from args to API payload
+   - Duration: 1 minute
+   - Commits: 7d7d410 (verification only, no code changes needed)
 
 ### Key Files for Phase 4
 
@@ -159,6 +160,8 @@ None currently.
 | Fallback to rotation when region not detected | 2026-01-25 | Maintains current behavior, prevents lead loss |
 | Spec 03_AGENT_ACCOUNTS.md authoritative for Michelle rental reviewer2 | 2026-01-25 | Code must match spec - requestlimassol@ ensures regional backup |
 | USER_FALLBACKS map sufficient for missing UUIDs | 2026-01-25 | Most agents lack zyprus_user_id; fallback system robust |
+| Keep current My Notes format (exceeds spec) | 2026-01-25 | Spec is minimum; current format provides better reviewer experience |
+| Random map offset adequate (no POI needed) | 2026-01-25 | ±0.001° creates ~100-200m radius; POI lookup would be unnecessary complexity |
 
 ## Session Notes
 
@@ -210,4 +213,14 @@ None currently.
 - 4 verification scripts created for database queries
 - Ready to proceed to 04-02: My Notes + Map Offset
 
-*State snapshot: 2026-01-25 — Phase 4 plan 1 complete, ready for plan 2*
+### 2026-01-25 - Phase 4, Plan 2 Complete (PHASE 4 COMPLETE)
+- Executed 04-02: My Notes + Map Offset verification
+- Verified My Notes format includes all spec fields plus valuable extras (Email, Location, Reviewers)
+- Confirmed map privacy offset (±0.001°) creates ~100-200m radius - appropriate for 2-3 streets
+- Verified complete flow: args → generateMyNotes() → createDraftListing() → field_my_notes
+- No code changes needed - existing implementations exceed requirements
+- Duration: 1 minute
+- Requirements LIST-04, LIST-05 now complete
+- **Phase 4 Complete:** All 5 listing upload requirements verified
+
+*State snapshot: 2026-01-25 — Phase 4 complete, ready for Phase 5*

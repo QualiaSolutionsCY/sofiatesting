@@ -22,11 +22,11 @@
 
 ### Listing Uploads
 
-- [ ] **LIST-01**: Listing Reviewer 1 correct (Lauren for sales, agent for rentals)
-- [ ] **LIST-02**: Listing Reviewer 2 correct (regional manager for sales)
-- [ ] **LIST-03**: Listing Owner correct (special email mappings honored)
-- [ ] **LIST-04**: My Notes populated with owner details
-- [ ] **LIST-05**: Google Maps pin at neutral location (2-3 streets away)
+- [x] **LIST-01**: Listing Reviewer 1 correct (Lauren for sales, agent for rentals) ✓
+- [x] **LIST-02**: Listing Reviewer 2 correct (regional manager for sales) ✓
+- [x] **LIST-03**: Listing Owner correct (special email mappings honored) ✓
+- [x] **LIST-04**: My Notes populated with owner details ✓
+- [x] **LIST-05**: Google Maps pin at neutral location (2-3 streets away) ✓
 - [ ] **LIST-06**: WhatsApp gallery images uploadable (not just URLs)
 
 ## v2 Requirements
@@ -54,11 +54,11 @@
 | LEAD-01 | Phase 3 | Complete |
 | LEAD-02 | Phase 3 | Complete |
 | LEAD-03 | Phase 3 | Complete |
-| LIST-01 | Phase 4 | Pending |
-| LIST-02 | Phase 4 | Pending |
-| LIST-03 | Phase 4 | Pending |
-| LIST-04 | Phase 4 | Pending |
-| LIST-05 | Phase 4 | Pending |
+| LIST-01 | Phase 4 | Complete |
+| LIST-02 | Phase 4 | Complete |
+| LIST-03 | Phase 4 | Complete |
+| LIST-04 | Phase 4 | Complete |
+| LIST-05 | Phase 4 | Complete |
 | LIST-06 | Phase 5 | Pending |
 
 **Coverage:**
