@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { Document, Packer } from "https://esm.sh/docx@8.5.0";
-import { SYSTEM_PROMPT, ZYPRUS_LOGO_BASE64 } from "../_shared/prompts.ts";
+import { ZYPRUS_LOGO_BASE64 } from "../_shared/prompts.ts";
+import { loadSystemPrompt } from "./services/prompt-loader.ts";
 import { getHistory, addMessage, claimMessageForProcessing } from "../_shared/db.ts";
 import { createDocxFile, isDocxTemplate, wasDocxTemplateRequested } from "./docx-generator.ts";
 import { detectDocxTemplateType } from "./docx/detector.ts";
@@ -523,7 +524,7 @@ function isInformationalResponse(aiResponse: string, userMessage: string): boole
       'i can help with', 'i can generate', 'available templates',
       'here are the', 'categories i can', 'would you like me to list',
       'templates include', 'template categories', 'predefined templates',
-      'across four main categories', '25 predefined templates'
+      'across four main categories', '43 predefined templates'
     ];
 
     if (listingIndicators.some(ind => lowerResponse.includes(ind))) {
@@ -598,10 +599,7 @@ function detectTemplateType(userMessage: string): string | null {
   if (message.includes("advanced viewing") || message.includes("introduction form")) {
     return "Advanced Viewing/Introduction Form";
   }
-  if (message.includes("reservation form")) {
-    return "Property Reservation Form";
-  }
-  if (message.includes("reservation agreement")) {
+  if (message.includes("reservation form") || message.includes("reservation agreement") || message.includes("property reservation")) {
     return "Property Reservation Agreement";
   }
   // Marketing Agreement - distinguish between email and DOCX versions
@@ -1536,6 +1534,16 @@ async function processRequest(
       year: 'numeric'
     });
 
+    // Calculate tomorrow's date
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowDateShort = tomorrow.toLocaleDateString('en-GB', {
+      timeZone: 'Europe/Nicosia',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+
     // Inject current date context into system prompt
     const dateContext = `\n\n---\n## 📅 CURRENT DATE/TIME AWARENESS\n\n**IMPORTANT: You must be aware of the current date and time.**\n\n**Current Date/Time in Cyprus (Nicosia):** ${cyprusDate}\n**Today's Date (DD/MM/YYYY format):** ${cyprusDateShort}\n\n**When users say relative dates like:**\n- "today" → Use ${cyprusDateShort}\n- "tomorrow" → Add 1 day to today\n- "next week" → Add 7 days to today\n- "yesterday" → Subtract 1 day from today\n\n**ALWAYS calculate dates correctly based on today being ${cyprusDateShort}.**\n\n---\n`;
 
@@ -1575,7 +1583,19 @@ async function processRequest(
       console.log(`[Images] Added decryption failure context to AI`);
     }
 
-    const systemPromptWithDate = SYSTEM_PROMPT + dateContext + senderContext + imageContext + personalizationContext;
+    // Build agent context for dynamic prompt loading
+    const agentContext = {
+      agentName: identifiedAgent?.fullName || agentInfo?.name || "Agent",
+      agentPhone: phoneNumber,
+      currentDate: cyprusDateShort,
+      tomorrowDate: tomorrowDateShort,
+    };
+
+    // Load system prompt from database (cached for 5 minutes, falls back to hardcoded)
+    const baseSystemPrompt = await loadSystemPrompt(supabase, agentContext);
+    console.log(`[PromptLoader] Loaded system prompt (${baseSystemPrompt.length} chars)`);
+
+    const systemPromptWithDate = baseSystemPrompt + dateContext + senderContext + imageContext + personalizationContext;
 
     // Convert Gemini history format to OpenRouter format
     const openrouterMessages: Array<{role: string, content: string}> = [
@@ -2233,7 +2253,7 @@ async function processRequest(
               const reservationData = parseReservationAgreementData(aiResponse);
               if (reservationData) {
                 console.log("Creating reservation agreement document...");
-                docxDoc = createReservationAgreement(reservationData, logoData);
+                docxDoc = createReservationAgreement(reservationData); // No logo for reservation
                 filename = "Property_Reservation_Agreement.docx";
               } else {
                 console.log("Failed to parse reservation agreement data, falling back to generic");

@@ -112,7 +112,7 @@ Signature: _________________________
 
 ---
 
-### Template 11: Property Reservation Form
+### Template 11: Property Reservation Agreement
 
 **Required Fields:**
 - Date Reservation Fee Received
@@ -151,91 +151,4 @@ The Prospective Buyer:                    The Vendor:
 
 [Buyer Name]                              [Vendor Name]
 
----
-
-### Template 12: Property Reservation Agreement (Comprehensive)
-
-**Required Fields:**
-1. Prospective Buyer(s) - Full name, Country, Passport number (for each buyer)
-2. Vendor - Company name + registration OR individual's name
-3. Property Details - Type, Location, Building, Unit number, Registration number (MANDATORY)
-4. Reservation Fee - Amount in EUR
-5. Purchase Price - Amount in EUR
-
-**PRE-FILLED VALUES (DO NOT ASK):**
-- Agent: Charalambos Pitros
-- Company: CSC ZYPRUS PROPERTY GROUP LTD
-- CREA Reg. No.: 742
-- License No.: 378/E
-- Bank: CSC ZYPRUS PROPERTY GROUP LTD
-- Account No: 502-10-734364-01
-- IBAN: CY08 0050 0502 0005 0210 7343 6401
-- BIC: HEBACY2N
-- Reservation Period: 8 weeks (unless specified)
-- Contract Deadline: 40 days (unless specified)
-
-**Field Collection Example:**
-User: "I need a reservation agreement"
-Sophia: "I'll create a Property Reservation Agreement. Who is the prospective buyer? Please provide their *full name, country, and passport number*."
-
-User: "John Smith, UK passport 12345678"
-Sophia: "Are there any additional buyers, or is John Smith the only prospective buyer?"
-
-User: "Just him"
-Sophia: "Who is the vendor/seller? Please provide the *company name and registration number*."
-
-User: "ABC Development Ltd HE 123456"
-Sophia: "What property is being reserved? I need the *property type, location, building name, unit number, and registration number*."
-
-User: "Apartment in Limassol, Lordos Building unit 205, reg 0/12345"
-Sophia: "What is the *reservation fee* amount?"
-
-User: "€5,000"
-Sophia: "And what is the *purchase price*?"
-
-User: "€350,000"
-Sophia: [NOW generate the complete DOCX document]
-
-**Template Format:**
-
-PROPERTY RESERVATION AGREEMENT
-
-Date Reservation Fee Received: ……..……………………………………….
-
-Prospective Buyer: [PROSPECTIVE_BUYER]
-
-Vendor: [VENDOR]
-
-Property Details: [PROPERTY_DETAILS]
-
-Reservation Fee: €[RESERVATION_FEE_AMOUNT] (In words [RESERVATION_FEE_WORDS] only)
-
-Purchase Price: €[PURCHASE_PRICE_AMOUNT] (In words [PURCHASE_PRICE_WORDS] only)
-
-The prospective buyer agrees that the reservation fee to the amount €[RESERVATION_FEE_AMOUNT] will be held by the Estate Agent as the escrow agent and which will be held under its custody in order to guarantee that the above property is taken off the market, and be reserved exclusively for the Prospective buyer, for a period of 40 days from the date reservation fee received.
-
-[Full legal clauses for fault determination, VAT provisions, contract deadlines...]
-
-Details of the Estate Agent:
-Name: Charalambos Pitros
-On behalf of CSC ZYPRUS PROPERTY GROUP LTD
-CREA Reg. No. 742 & Lic. No. 378/E
-
-Bank details:
-Banking Details Name: CSC ZYPRUS PROPERTY GROUP LTD
-Account No: 502-10-734364-01
-IBAN: CY08 0050 0502 0005 0210 7343 6401
-BIC: HEBACY2N
-
-Dated on this [DAY] day of [MONTH], [YEAR]
-
-The Prospective Buyer:                    WITNESSES
-[Buyer Name]                              Name and I.D.:
-
-The Vendor:
-[Vendor Name]                             Name and I.D.:
-
-The Estate Agent:
-Charalambos Pitros
-For and on behalf of CSC ZYPRUS PROPERTY GROUP LTD
 `;

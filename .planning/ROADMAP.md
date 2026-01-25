@@ -104,6 +104,8 @@ Medium - Logic change with thorough testing required
 ## Phase 4: Listing Upload Fixes
 
 **Goal:** Fix reviewer/owner assignment and My Notes population
+**Status:** PLANNED
+**Plans:** 2 plans
 
 ### Requirements
 - **LIST-01**: Listing Reviewer 1 correct (Lauren for sales, agent for rentals)
@@ -112,27 +114,36 @@ Medium - Logic change with thorough testing required
 - **LIST-04**: My Notes populated with owner details
 - **LIST-05**: Google Maps pin at neutral location (2-3 streets away)
 
-### Tasks
-1. Verify reviewer assignment logic matches spec in `02_REVIEWER_ASSIGNMENTS.md`
-2. Implement special owner email mappings (Marios→azinas@, Michelle→michelle@)
-3. Populate `field_my_notes` with owner details format from `05_REQUIRED_FIELDS.md`
-4. Implement neutral location offset for Google Maps coordinates
+### Plans
+- [ ] 04-01-PLAN.md — Verify and fix reviewer/owner assignment (Wave 1)
+- [ ] 04-02-PLAN.md — Verify and fix My Notes + Map offset (Wave 2)
 
 ### Key Files
 - `supabase/functions/sophia-bot/rules/reviewer-assignment.ts`
-- `supabase/functions/sophia-bot/zyprus/client.ts`
 - `supabase/functions/sophia-bot/services/my-notes-generator.ts`
-- `supabase/functions/sophia-bot/services/location-handler.ts`
+- `supabase/functions/sophia-bot/zyprus/client.ts`
+- Supabase `agents` table (data verification)
+
+### Current State Analysis
+Most functionality already exists:
+- Reviewer logic in `reviewer-assignment.ts` matches spec
+- My Notes generator in `my-notes-generator.ts` exceeds spec requirements
+- Privacy offset in `client.ts:addPrivacyOffset()` applies ~200m offset
+- Agent mappings stored in `agents` table `listing_owner_email` column
+
+Primary work is **verification** rather than new implementation.
 
 ### Success Criteria
 - Sales listing: Reviewer 1 = Lauren, Reviewer 2 = regional manager
+- Famagusta sales: Only Reviewer 1 = requestfamagusta@
 - Rental listing: Reviewer 1 = uploading agent
 - Marios listings: Owner = azinas@zyprus.com
-- My Notes contains: Owner name, Tel, Agent, Region, Notes
-- Map pin is 2-3 streets away from actual property
+- Michelle listings: Owner = michelle@zyprus.com
+- My Notes contains: Owner name, Tel, Agent (minimum)
+- Map pin is ~200m from actual property
 
 ### Estimated Complexity
-High - Multiple components need verification and fixes
+Medium - Primarily verification with minor fixes if needed
 
 ---
 

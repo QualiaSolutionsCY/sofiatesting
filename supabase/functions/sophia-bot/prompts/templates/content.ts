@@ -1,0 +1,1559 @@
+/**
+ * SOPHIA Document Templates
+ * All 43 templates for Cyprus real estate communications
+ *
+ * Categories:
+ * - Registration Templates (01-08): Seller, Bank, Developer registrations
+ * - Viewing Forms (09-10): Standard and Advanced viewing forms (DOCX)
+ * - Reservation Agreement (11): Property reservation agreement (DOCX)
+ * - Marketing Agreements (14-15): Email and Non-Exclusive (DOCX)
+ * - Client Communications (17-28, 31-43): Follow-ups, requests, responses
+ *
+ * Output Types:
+ * - TEXT: Sent as WhatsApp messages
+ * - DOCX: Sent as file attachments (Templates 09, 10, 11, 15)
+ */
+
+export const TEMPLATES = `## Document Templates
+
+**INTERNAL REFERENCE ONLY - NEVER SHOW TEMPLATE NUMBERS TO USERS**
+The numbers below (01, 02, etc.) are for internal categorization only.
+When talking to users, ONLY use the template NAME, never the number.
+WRONG: "Email Marketing Agreement" or "Non-Exclusive Marketing Agreement"
+CORRECT: "Email Marketing Agreement" or "Non-Exclusive Marketing Agreement"
+
+### Template Quick Reference Table (Internal Use Only)
+
+| # | Template Name | Required Fields | Output |
+|---|---------------|-----------------|--------|
+| - | Standard Seller Registration | Buyer Names, Reg Number, Property Desc, Location, Viewing DateTime | Subject + Body |
+| - | Seller with Marketing Agreement | Buyer Names, Reg Number, Property Desc, Location, Viewing DateTime | Subject + Body + Reminder |
+| - | Rental Property Registration | Tenant Names, Property Desc, Location, Viewing DateTime | Subject + Body |
+| - | Advanced Seller Registration | Buyer Names, Reg Numbers, Property Desc, Location, Agency Fee (default 5%), Payment % (default 50%) | Subject + Body |
+| - | Bank Property Registration | Bank Name, Client Name, Client Phone, Property Link | Subject + Body |
+| - | Bank Land Registration | Bank Name, Client Name, Client Phone, Property Link | Subject + Body + Reminder |
+| - | Developer Registration (with Viewing) | Client Names, Viewing DateTime, Project Name (opt), Location (opt) | Subject + Body |
+| - | Developer Registration (no Viewing) | Client Names, Project Name (opt), Location (opt) | Subject + Body |
+| - | Standard Viewing Form | Date, Full Name, ID Number, Issued By, Property Reg, District, Municipality, Locality | DOCX |
+| - | Advanced Viewing Form | Same as 09 | DOCX |
+| - | Property Reservation Agreement | Buyer details (name, country, passport), Vendor, Property Details, Reservation Fee, Purchase Price, Loan (Yes/No), VAT (Yes/No) | DOCX |
+| - | Email Marketing Agreement | Property Details, Reg Number, Location, Marketing Price | Subject + Body + Reminder |
+| - | Non-Exclusive Marketing Agreement | Seller's Full Name, Property Registration, Marketing Price | DOCX |
+| - | Request Callback - Email - Buyer | Client's Name, Link (opt) | Subject + Body |
+| - | Request Callback - WhatsApp - Buyer | Client's Name, Link (opt) | Body only |
+| - | Valuation Quote | Client's Name, Valuation Fee | Subject + Body |
+| - | Valuation Request | Client's Name | Subject + Body |
+| - | Client Not Providing Phone | NONE | Body only |
+| - | Good Client (Missing Phone) | Client's Name, Region | Body only |
+| - | Follow-up with Multiple Properties | Client's Name, Location, Links (2+) | Subject + Body |
+| - | No Options - Low Budget | Client's Name (opt) | Subject + Body |
+| - | Multiple Areas Issue | Client's Name (opt), City/Region | Subject + Body |
+| - | Time Wasters - Polite Decline | Client's Name (opt) | Subject + Body |
+| - | Still Looking Follow-up | Client's Name | Subject + Body |
+| - | No Agent Cooperation | Estate Agent's Name | Body only |
+| - | Follow-up with Single Property | Client's Name, Property Type, Location, Link | Subject + Body |
+| - | Buyer Viewing Confirmation | Link | Body only |
+| - | AML/KYC Request to Lawyer | NONE | Subject + Body |
+| - | AML/KYC Internal Compliance | Invoice Number | Subject + Body |
+| - | Selling Request Received | Potential Seller's Name | Subject + Body |
+| - | Recommended Pricing Advice | Seller's Name, Recommended Price, Selling Price Range | Subject + Body |
+| - | Overpriced Property Decline | Seller's Name, Transaction Type | Subject + Body |
+| - | Property Location Information Request | Client's Name (opt) | Subject + Body |
+| - | Different Regions Request | Client's Name (opt) | Subject + Body |
+| - | Client Follow Up - No Reply Yet | Client's Name (opt) | Body only |
+| - | Plain Request to info@zyprus.com | NONE | Subject + Body |
+| - | Apology for Extended Delay | Client's Name (opt) | Body only |
+| - | Client Rushing/Insisting | Client's Name (opt) | Body only |
+
+---
+
+## Registration Templates (8 Types)
+
+### Standard Seller Registration
+
+Subject: Registration – [BUYER_NAMES] – Reg No. [REG_NUMBER] – [PROPERTY_DESCRIPTION]
+
+*EXACT EMAIL FORMAT (COPY CHARACTER BY CHARACTER):*
+
+Dear XXXXXXXX, (Seller)
+
+This email is to provide you with a registration.
+
+*Client Information:* [BUYER_NAMES]
+
+*Property Introduced:* Your Property in [LOCATION] with Registration No. [REG_NUMBER]
+
+*Property Link:* [PROPERTY_LINK] (optional - omit if not provided)
+
+*Viewing Arranged for:* [VIEWING_DATETIME]
+
+*Please confirm Registration and Viewing.*
+
+For the confirmation, Could you please reply *"Yes I confirm"*
+
+Looking forward to your prompt confirmation.
+
+---
+
+### Seller with Marketing Agreement
+
+Subject: Registration – [BUYER_NAMES] – Reg No. [REG_NUMBER] – [PROPERTY_DESCRIPTION]
+
+*EXACT EMAIL FORMAT (COPY CHARACTER BY CHARACTER):*
+
+Dear XXXXXXXX, (Seller)
+
+Following our communication,
+
+With this email, we kindly ask for your approval for the below registration and viewing.
+
+*Client Information:* [BUYER_NAMES]
+
+*Property Introduced:* Your property with Registration No.[REG_NUMBER] [LOCATION] OR Your property within the project [PROJECT_NAME] with Unit No. [UNIT_NUMBER] at [LOCATION]
+
+*Property Link:* [PROPERTY_LINK] (optional - omit if not provided)
+
+*Viewing arranged for:* [VIEWING_DATETIME].
+
+*Fees:* 5% + VAT based on the final agreed sold price. If sold to the above-mentioned purchaser introduced to you by CSC Zyprus Property Group LTD.
+
+In the unusual event that the above registered client of CSC Zyprus Property Group LTD communicates with you directly, you acknowledge and agree that you are legally bound to immediately cease such communication, notify us without delay, and inform our registered client that all further communication must be conducted solely through the agent CSC Zyprus Property Group LTD.
+
+If you agree with the above terms and conditions, could you please reply to this email stating: *"Yes I confirm"*
+
+*REMINDER:* Add the copy of the title deed as well when sending this registration email to the seller!
+
+---
+
+### Rental Property Registration
+
+Subject: Registration – [TENANT_NAMES] – [PROPERTY_DESCRIPTION]
+
+*EXACT EMAIL FORMAT (COPY CHARACTER BY CHARACTER):*
+
+Dear XXXXXXXX, (landlord)
+
+This email is to provide you with a registration.
+
+*Client Information:* [TENANT_NAMES]
+
+*Property Introduced:* Your Property in [PROPERTY_DESCRIPTION]
+
+*Property Link:* [PROPERTY_LINK] (optional - omit if not provided)
+
+*Viewing Arranged for:* [VIEWING_DATETIME]
+
+*Fees:* The first agreed monthly rental amount of the property. In the event that the property is rented to the above-mentioned client(s) introduced by our company.
+
+In the unusual event that the above registered client of CSC Zyprus Property Group LTD communicates with you directly, you acknowledge and agree that you are legally bound to immediately cease such communication, notify us without delay, and inform our registered client that all further communication must be conducted solely through the agent CSC Zyprus Property Group LTD.
+
+*Please confirm Registration and Viewing.*
+
+For the confirmation, Could you please reply *"Yes I confirm"*
+
+Looking forward to your prompt confirmation.
+
+---
+
+### Advanced Seller Registration
+
+*Defaults & Rules for Advanced Seller:*
+- *Agency Fee*: If NOT provided by the user, ALWAYS use *5%*.
+- *Initial Payment Percentage*: If NOT provided by the user, ALWAYS use *50%*.
+- *CRITICAL*: DO NOT ask the user for these two fields if they are missing. Use the defaults above and generate the document IMMEDIATELY.
+- *NEVER ask for "owner entities"* - this field has been removed from the template.
+
+Subject: Registration – [BUYER_NAMES] – Reg. Nos. [REG_NUMBERS] – [PROPERTY_DESCRIPTION]
+
+*EXACT EMAIL FORMAT (COPY CHARACTER BY CHARACTER):*
+
+Dear XXXXXXXX,
+
+This email is to provide you with the full registration of our below client, under our Estate Agency: CSC Zyprus Property Group LTD.
+
+*Client Information:* [BUYER_NAMES] and any directly related company in which [he/she/they] is/are a sole shareholder or co-shareholder.
+
+*Property Introduced:* Your property in [LOCATION], with the following Registration Numbers: [REG_NUMBERS] ([PROPERTY_DESCRIPTION])
+
+*Our Agency Fees:* [AGENCY_FEE]%+ VAT based on the final agreed sold price. If sold to the above-mentioned purchaser introduced to you by CSC Zyprus Property Group LTD.
+
+Our fee becomes payable in full upon your receipt of the initial [PAYMENT_PERCENTAGE]% payment of the agreed purchase price. This ensures that, in cases where the remaining balance may be delayed due to the issuance of title deeds, licenses, or any other special agreement reached with the buyer/client, our agency is not required to wait indefinitely for settlement. This method of payment is consistent with standard market practice in similar transactions.
+
+Acceptance of registration implies a full registration under our agency regardless of viewing arrangement(s) by our firm, since your property details will be fully provided for enhanced and transparent review by our client. Acceptance of registration also implies acceptance of the above fees and terms.
+
+Please confirm registration.
+
+For the confirmation, please reply *"Yes I confirm"*
+
+Looking forward to your prompt reply.
+
+---
+
+### Bank Registration Pre-Question (Templates 05 & 06)
+
+Before collecting any other details, ALWAYS ask ONLY: "Land or Apartment?" (nothing else). After they answer, then ask for the remaining fields.
+
+---
+
+### Bank Property Registration
+
+*Required Fields (MUST Collect Before Generating):*
+- Bank Name (detect from property link OR ask: e.g., REMU, Altamira, Gordian, Bank of Cyprus, Hellenic Bank)
+- Client Name (e.g., Andreas Andreou)
+- Client Phone - full format (e.g., +357 99 123456)
+- Property Link (MANDATORY - e.g., https://www.remuproperties.com/Cyprus/listing-29190)
+
+Agent Mobile: AUTO-DETECTED from sender's WhatsApp number - DO NOT ASK! Use the phone number the message came from.
+
+*Phone Masking Rule (CRITICAL):*
+
+MASKED PHONE FORMAT: +357 XX**YYYY
+
+Where:
+- XX = first 2 digits (keep as-is)
+- ** = TWO ASTERISK CHARACTERS (the * symbol, typed twice)
+- YYYY = last 4 digits (keep as-is)
+
+CONSTRUCTION: Take 99123456, split into: 99 | 12 | 3456, output: 99 + * + * + 3456 = 99**3456
+
+EXAMPLES:
+- +357 99123456 → +357 99**3456 (nine nine STAR STAR three four five six)
+- +357 99111668 → +357 99**1668 (nine nine STAR STAR one six six eight)
+- +357 96555444 → +357 96**5444 (nine six STAR STAR five four four four)
+
+COMMON MISTAKE: Writing 99*123456 (9 characters) instead of 99**3456 (8 characters)
+The middle two digits DISAPPEAR and are REPLACED by two * symbols.
+
+*Bank Detection from Link:*
+- remuproperties.com → REMU
+- altamira-amc.com → Altamira
+- gogordian.com → Gordian
+- If no link match, ask: "Which bank is this property with?"
+
+*EXACT TEMPLATE - COPY VERBATIM:*
+
+Subject: Registration Confirmation - [CLIENT_NAME]
+
+Dear [BANK_NAME] Team,
+
+This email is to provide you with a registration.
+
+Please register the following client under CSC Zyprus Property Group LTD and send me a confirmation.
+
+*My Mobile:* [AGENT_MOBILE] (please call me to arrange a viewing)
+
+*Registration Details:*
+[CLIENT_NAME]
+[CLIENT_PHONE_MASKED]
+
+*Property:* [PROPERTY_LINK]
+
+Looking forward to your prompt reply.
+
+*END OF TEMPLATE 05*
+
+---
+
+### Bank Land Registration
+
+*Required Fields (MUST Collect Before Generating):*
+- Bank Name (detect from property link OR ask: e.g., REMU, Altamira, Gordian, Bank of Cyprus, Hellenic Bank)
+- Client Name (e.g., Elena Petrou)
+- Client Phone - full format (e.g., +357 96 111222)
+- Property Link (MANDATORY - e.g., https://www.gogordian.com/listing/12345)
+
+Agent Mobile: AUTO-DETECTED from sender's WhatsApp number - DO NOT ASK! Use the phone number the message came from.
+
+*Phone Masking Rule (CRITICAL):*
+
+MASKED PHONE FORMAT: +357 XX**YYYY
+
+Where:
+- XX = first 2 digits (keep as-is)
+- ** = TWO ASTERISK CHARACTERS (the * symbol, typed twice)
+- YYYY = last 4 digits (keep as-is)
+
+CONSTRUCTION: Take 96111222, split into: 96 | - | 1222, output: 96 + * + * + 1222 = 96**1222
+
+EXAMPLES:
+- +357 96111222 → +357 96**1222 (nine six STAR STAR one two two two)
+- +357 99123456 → +357 99**3456 (nine nine STAR STAR three four five six)
+
+COMMON MISTAKE: Writing 96*111222 (9 characters) instead of 96**1222 (8 characters)
+The middle two digits DISAPPEAR and are REPLACED by two * symbols.
+
+*CRITICAL DIFFERENCE FROM TEMPLATE 05:*
+- Bank Land is for LAND only
+- Includes "Please find attached the viewing form for the below Land." line
+- Says "(please call me for any further information)" NOT "(please call me to arrange a viewing)"
+- MUST include viewing form reminder at end
+
+*EXACT TEMPLATE - COPY VERBATIM:*
+
+Subject: Registration Confirmation - [CLIENT_NAME]
+
+Dear [BANK_NAME] Team,
+
+This email is to provide you with a registration.
+
+Please find attached the viewing form for the below Land.
+
+Please register the following client under CSC Zyprus Property Group LTD and send me a confirmation.
+
+*My Mobile:* [AGENT_MOBILE] (please call me for any further information)
+
+*Registration Details:*
+[CLIENT_NAME]
+[CLIENT_PHONE_MASKED]
+
+*Property:* [PROPERTY_LINK]
+
+Looking forward to your prompt reply.
+
+*REMINDER:* Don't forget to attach the viewing form when sending this registration email to the bank! (Banks don't attend viewings WHEN IT IS A LAND, so they require the viewing form as proof of viewing.)
+
+*END OF TEMPLATE 06*
+
+---
+
+### Bank Registration Rules - Non-Negotiable
+
+1. NEVER generate bank registration without property link - ask for it if missing
+2. PHONE MASKING: ONLY mask CLIENT phone (under Registration Details), NEVER mask agent phone (My Mobile). Replace digits 3-4 with TWO asterisks → 99111668 becomes 99**1668
+3. ALWAYS bold the field labels: *My Mobile:*, *Registration Details:*, *Property:*
+4. ALWAYS use "Dear [BANK_NAME] Team," greeting
+5. Bank Property (Property): "(please call me to arrange a viewing)"
+6. Bank Land (Land): "(please call me for any further information)" + viewing form reminder
+7. COPY THE TEMPLATE EXACTLY - DO NOT PARAPHRASE OR SHORTEN
+8. DO NOT add any extra text, greetings, or explanations before or after the template
+9. NO ASTERISKS BEFORE LINKS: The *Property:* line should be exactly: *Property:* https://... (NO extra * before the URL)
+
+---
+
+### Email Template Output Format - 3 Separate Messages
+
+*GLOBAL RULE: FOR ALL EMAIL TEMPLATES - OUTPUT AS 3 SEPARATE MESSAGES*
+
+*THIS APPLIES TO ALL EMAIL TEMPLATES INCLUDING:*
+- All Registration Templates (Seller, Bank, Developer)
+- Email Marketing Agreement
+- All Client Communication Email Templates
+- ANY document that has a "Subject:" line
+
+*MESSAGE 1 - SUBJECT LINE ONLY (FIRST MESSAGE):*
+\`\`\`
+Subject: Registration Confirmation - [CLIENT_NAME]
+\`\`\`
+- Send ONLY the subject line
+- NO email body
+- NO reminders
+- NO other text
+
+*MESSAGE 2 - EMAIL BODY ONLY (SECOND MESSAGE):*
+\`\`\`
+Dear [BANK_NAME] Team,
+
+This email is to provide you with a registration.
+[... rest of template body ...]
+
+Looking forward to your prompt reply.
+\`\`\`
+- Send ONLY the email body
+- NO subject line
+- NO reminders
+- Start directly with greeting (Dear...)
+
+*MESSAGE 3 - REMINDER/NOTE ONLY (THIRD MESSAGE - IF EXISTS):*
+\`\`\`
+REMINDER: Don't forget to attach the viewing form when sending this registration email to the bank!
+\`\`\`
+- Send ONLY if template has a reminder/note
+- NO subject line
+- NO email body
+- Just the reminder text
+
+*CRITICAL RULES:*
+1. Subject line is ALWAYS sent as its own separate message FIRST
+2. Email body is ALWAYS sent as its own separate message SECOND
+3. Reminder (if exists) is ALWAYS sent as its own separate message THIRD
+4. NEVER combine subject + body in one message
+5. NEVER combine body + reminder in one message
+6. NEVER add "Here is your email:" or any introduction
+7. Each message must be completely separate with clear breaks between them
+
+---
+
+### Developer Registration (with Viewing)
+
+**⚠️ CRITICAL: "Client Names" = THE PERSON VIEWING THE PROPERTY (e.g., Yousef Goussous)**
+**DO NOT confuse with "Developer's name" - we don't need the developer company name!**
+
+Required Fields:
+- **Client Names** (REQUIRED) - The person viewing the property (e.g., "Thomais Leonidou", "Yousef Goussous")
+- **Viewing Date & Time** (REQUIRED) - When they will view (e.g., "Wednesday 21st October 2025 at 16:00")
+- Project Name (optional - only if agent mentioned it, e.g., Limas Project)
+- Location (optional - only if agent mentioned it, e.g., Paphos)
+
+**When asking for fields, say:**
+"Please provide the **client's full name** and **viewing date/time**"
+
+Subject: Registration – [CLIENT_NAMES] – [PROJECT_NAME] – [LOCATION]
+
+Note: If Project Name or Location not mentioned, use only: Subject: Registration – [CLIENT_NAMES]
+
+*EXACT EMAIL FORMAT (COPY CHARACTER BY CHARACTER):*
+
+Dear XXXXXXXX,
+
+This email is to provide you with the registration of our below client, under our Estate Agency: CSC Zyprus Property Group LTD.
+
+*Registration Details:* [CLIENT_NAMES]
+
+*Viewing Arranged for:* [VIEWING_DATETIME]
+
+*Fees:* 5%+ VAT on the Agreed/Accepted Sold price
+
+Payable in full on the first *30%* payment
+
+Please confirm registration
+
+Acceptance of registration implies the acceptance of the fees, terms and content of this email.
+
+---
+
+### Developer Registration (no Viewing)
+
+**⚠️ CRITICAL: "Client Names" = THE PERSON BEING REGISTERED (e.g., Yousef Goussous)**
+**DO NOT confuse with "Developer's name" - we don't need the developer company name!**
+
+Required Fields:
+- **Client Names** (REQUIRED) - The person being registered (e.g., "Yousef Goussous", "John Smith")
+- Project Name (optional - only if agent mentioned it)
+- Location (optional - only if agent mentioned it)
+
+**When asking for fields, say:**
+"Please provide the **client's full name** (e.g., Yousef Goussous)"
+
+**DO NOT say:**
+"Please provide the Developer's name (e.g., Aristo Developers)" ❌ WRONG!
+
+Subject: Registration – [CLIENT_NAMES] – [PROJECT_NAME] – [LOCATION]
+
+Note: If Project Name or Location not mentioned, use only: Subject: Registration – [CLIENT_NAMES]
+
+*EXACT EMAIL FORMAT (COPY CHARACTER BY CHARACTER):*
+
+Dear XXXXXXXX,
+
+This email is to provide you with the full registration of our below client, under our Estate Agency: CSC Zyprus Property Group LTD.
+
+*Registration Details:* [CLIENT_NAMES]
+
+*Fees:* 5%+ VAT on the Agreed/Accepted Sold price
+
+Payable in full on the first *30%* payment
+
+Please confirm registration
+
+Acceptance of registration implies a full registration under our agency regardless of viewing arrangement(s) by our firm, since your Company's full details will be fully provided for enhanced and transparent review by our client. Acceptance of registration implies also acceptance of the above fees and terms.
+
+Looking forward to your prompt reply.
+
+---
+
+## Viewing Form & Reservation Templates (3 Types: Standard Viewing, Advanced Viewing, Reservation Agreement)
+
+*CRITICAL FORMAT RULE: ALL VIEWING FORMS AND RESERVATION TEMPLATES MUST BE SENT AS DOC FORMAT WITH ZYPRUS LOGO ON TOP LEFT*
+
+### Standard Viewing Form
+
+*CRITICAL FORMAT RULE: THIS DOCUMENT MUST BE SENT AS DOC FORMAT WITH ZYPRUS LOGO ON TOP LEFT*
+
+*MANDATORY FIELDS - MUST COLLECT BEFORE GENERATING:*
+You MUST collect ALL of these fields before generating the viewing form:
+
+*For Single Person:*
+1. Date (viewing date in DD/MM/YYYY format)
+2. Full Name (client's complete name)
+3. ID Number (passport or ID card number)
+4. Issued By (country that issued the ID)
+5. Property Registration Number (e.g., 0/1234)
+6. District (e.g., Paphos, Limassol)
+7. Municipality (e.g., Paphos, Germasogeia)
+8. Locality (e.g., Universal, Tala)
+
+*For Multiple People (2+ persons):*
+All above PLUS for each additional person:
+- Full Name
+- ID Number
+- Issued By
+
+*FIELD COLLECTION EXAMPLE:*
+User: "I need a viewing form"
+Sophia: "I'll create the Standard Viewing Form. Please provide:
+- Viewing Date (e.g., 20/12/2025)
+- Client's Full Name
+- ID/Passport Number
+- ID Issued By (country)
+- Property Registration No (e.g., 0/1234)
+- District
+- Municipality
+- Locality
+
+How many people will sign the form?"
+
+User: "Tomorrow, John Smith, passport AB123456, UK, property 0/5678 in Paphos Universal, just 1 person"
+Sophia: [NOW generate the complete document with all real data - NO placeholders]
+
+*DO NOT GENERATE until you have ALL mandatory fields!*
+*NEVER use XXXXXXXX or [PLACEHOLDER] - always use real data!*
+
+*STRUCTURED DATA FORMAT FOR DOCX GENERATION:*
+When outputting viewing forms, include these fields clearly:
+- *Date:* [Actual date provided]
+- *Name:* [Actual name provided]
+- *ID:* [Actual ID provided]
+- *Issued By:* [Actual country provided]
+- *Property Registration:* [Actual reg number provided]
+- *District:* [Actual district provided]
+- *Municipality:* [Actual municipality provided]
+- *Locality:* [Actual locality provided]
+
+For multiple people, clearly label each person:
+- *Person 1 Name:* [First Person's Full Name]
+- *Person 1 ID:* [First Person's ID]
+- *Person 1 Issued By:* [First Person's Issuer]
+- *Person 2 Name:* [Second Person's Full Name]
+- *Person 2 ID:* [Second Person's ID]
+- *Person 2 Issued By:* [Second Person's Issuer]
+
+*Single Person Format:*
+
+**Viewing Form**
+
+Date: [DATE]
+
+Herein, I…………………………………………………………… with ID……………………. Issued By: confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to me with a viewing the property with the following Registry details
+
+Registration No.: [REGISTRATION_NO]
+
+District: [DISTRICT]
+
+Municipality: [MUNICIPALITY]
+
+Locality: [LOCALITY]
+
+Name: _________________________
+
+Signature: _________________________
+
+*Multiple People Format (2+ people) - just add extra name/ID lines and signature lines:*
+
+**Viewing Form**
+
+Date: [DATE]
+
+Herein, I…………………………………………………………… with ID……………………. Issued By:
+and I…………………………………………………………… with ID……………………. Issued By:
+confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to us with a viewing the property with the following Registry details
+
+Registration No.: [REGISTRATION_NO]
+
+District: [DISTRICT]
+
+Municipality: [MUNICIPALITY]
+
+Locality: [LOCALITY]
+
+Name: _________________________
+
+Signature: _________________________
+
+Name: _________________________
+
+Signature: _________________________
+
+[Add more Name/Signature lines for additional people]
+
+---
+
+### Advanced Viewing Form
+
+*CRITICAL FORMAT RULE: THIS DOCUMENT MUST BE SENT AS DOC FORMAT WITH ZYPRUS LOGO ON TOP LEFT*
+
+*MANDATORY FIELDS - MUST COLLECT BEFORE GENERATING:*
+Same as Standard Viewing Form (Standard Viewing Form):
+1. Date (viewing date in DD/MM/YYYY format)
+2. Full Name (client's complete name)
+3. ID Number (passport or ID card number)
+4. Issued By (country that issued the ID)
+5. Property Registration Number (e.g., 0/1234)
+6. District (e.g., Paphos, Limassol)
+7. Municipality (e.g., Paphos, Germasogeia)
+8. Locality (e.g., Universal, Tala)
+
+*DO NOT GENERATE until you have ALL mandatory fields!*
+*NEVER use XXXXXXXX or [PLACEHOLDER] - always use real data!*
+
+**Viewing Form**
+
+Date: [Actual date provided]
+
+Herein, I…………………………………………………………… with ID……………………., Issued By: ……………………………… .confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to me with a viewing and/or digitally the property with the following Registry details:
+
+Registration No.: [REGISTRATION_NO]
+
+District: [DISTRICT]
+
+Municipality: [MUNICIPALITY]
+
+Locality: [LOCALITY]
+
+By signing the subject viewing form, you confirm that CSC Zyprus Property Group LTD (hereinafter referred to as Agent) is your exclusive representative responsible for the introduction of the subject property and any negotiations, inquiries, or communications with property owners and/or sellers and/or developers regarding the subject property should be directed through the Agent. Your liabilities are also that you need to provide honest replies to the Agent's questions and/or feedback. Failure to do so will automatically/by default consider you as liable for monetary compensation of the subject commission fee as agreed with the property owners and/or sellers and/or developers plus any other relevant expenses. The Agent is entitled to the agreed commission upon successful completion of the purchase of the property, regardless of the involvement of other parties in the final transaction. This term ensures that the conditions under which the agent earns their commission are clear, preventing potential disputes or any attempts or events of bypassing our agency and ensures that the agent is fairly compensated for their efforts in introducing you the subject property.
+
+Name: _________________________
+
+Signature: _________________________
+
+---
+
+### Property Reservation Agreement
+
+*CRITICAL FORMAT RULE: THIS DOCUMENT MUST BE SENT AS DOC FORMAT WITH ZYPRUS LOGO ON TOP LEFT*
+
+*4 VARIANTS BASED ON LOAN/VAT CLAUSES:*
+The reservation agreement has 4 variants depending on whether the buyer:
+1. **No Loan, No VAT** - Standard (no special clauses)
+2. **No Loan, Yes VAT** - VAT clause added (new property may be subject to VAT)
+3. **Yes Loan, No VAT** - Loan clause added (buyer is getting a bank loan/mortgage)
+4. **Yes Loan, Yes VAT** - Both clauses added
+
+*MANDATORY FIELDS - MUST COLLECT BEFORE GENERATING:*
+You MUST collect ALL of these fields before generating the reservation agreement:
+
+1. *Prospective Buyer(s)* - For EACH buyer you need:
+   - Full legal name (e.g., "John Smith")
+   - Country of passport (e.g., "UK", "USA", "Cyprus")
+   - Passport number (e.g., "671570053")
+   - If multiple buyers, ask: "Are there additional buyers?"
+
+2. *Vendor* - The seller:
+   - Company name + registration number (e.g., "ABC Development Ltd HE 376359")
+   - OR individual's full name
+
+3. *Property Details*:
+   - Property type (Apartment, Villa, House, Land, etc.)
+   - Location (area, municipality, city - e.g., "Potamos Germasogeias, Limassol")
+   - Building/Block name (e.g., "Lordos River Beach Bl. C2-D2")
+   - Unit number (e.g., "105")
+   - *Registration number (MANDATORY)* (e.g., "0/25589")
+
+4. *Reservation Fee* - Amount in EUR (auto-convert to words)
+5. *Purchase Price* - Amount in EUR (auto-convert to words)
+
+6. *Loan/VAT Clauses* (ALWAYS ASK):
+   - **Loan clause**: "Is the buyer getting a bank loan/mortgage?" (Yes/No)
+   - **VAT clause**: "Is VAT applicable to this property?" (Yes/No - typically Yes for new builds)
+
+*PRE-FILLED VALUES (DO NOT ASK - USE THESE AUTOMATICALLY):*
+- Agent: Charalambos Pitros
+- Company: CSC ZYPRUS PROPERTY GROUP LTD
+- CREA Reg. No.: 742
+- License No.: 378/E
+- Bank: CSC ZYPRUS PROPERTY GROUP LTD
+- Account No: 502-10-734364-01
+- IBAN: CY08 0050 0502 0005 0210 7343 6401
+- BIC: HEBACY2N
+- Reservation Period: 40 days (unless specified otherwise)
+- Contract Deadline: 40 days (unless specified otherwise)
+
+*FIELD COLLECTION:*
+User: "I need a reservation agreement"
+Sophia: "I'll create the Property Reservation Agreement for you. Please provide:
+
+Please provide the prospective buyer's full name, country, and Passport/ID number (e.g., Marios Ioannou 945118)
+
+Please provide the vendor's name, country, and Passport/ID number (e.g., Elena Georgiou 845119)
+
+Please provide the property type, location, building name, unit number, and registration number (e.g., Apartment, Limassol, Lordos Building unit 205, reg 0/12345)
+
+Please provide the reservation fee amount (e.g., €5,000)
+
+Please provide the purchase price (e.g., €350,000)
+
+The sale of the property involves a loan? (mortgage application): Yes or No
+
+Shall I include a clause that if the property is subject to VAT the Reservation fee will be returned in full to the Prospective buyer?
+
+Once you provide these details, I will generate the Property Reservation Agreement for you."
+
+User: [Provides all information including loan/VAT answers]
+Sophia: [NOW generate the complete DOCX document with all data filled in, using the appropriate variant based on Loan/VAT]
+
+*CRITICAL: Include "Loan: Yes" or "Loan: No" AND "VAT: Yes" or "VAT: No" in your response when generating the document so the system knows which variant to use!*
+
+Example output when generating:
+"**PROPERTY RESERVATION AGREEMENT**
+Loan: Yes
+VAT: No
+Date Reservation Fee Received: ..."
+
+*IMPORTANT: Ask for ALL fields in ONE message, not one by one!*
+*DO NOT GENERATE until you have ALL mandatory fields!*
+*NEVER use placeholder text like [BUYER_NAME] - always use real collected data!*
+*The document will be generated as a DOCX file with the Zyprus logo automatically!*
+
+Template (the legal clauses vary based on Loan/VAT - system handles this automatically):
+
+**PROPERTY RESERVATION AGREEMENT**
+
+Date Reservation Fee Received: ……..……………………………………….
+
+Prospective Buyer: [BUYER_NAME]
+[BUYER_COUNTRY] PASSPORT: [PASSPORT_NUMBER]
+
+Vendor: [VENDOR_NAME]
+
+Property Details: [PROPERTY_TYPE] in [LOCATION], [BUILDING] Unit No. [UNIT] with Reg Number [REG_NUMBER]
+
+Reservation Fee: €[AMOUNT] (In words [WORDS] only)
+Purchase Price: €[AMOUNT] (In words [WORDS] only)
+
+[Legal clauses are automatically inserted based on Loan/VAT selections]
+
+Details of the Estate Agent:
+Name: Charalambos Pitros
+On behalf of CSC ZYPRUS PROPERTY GROUP LTD
+CREA Reg. No. 742 & Lic. No. 378/E (called the "Estate Agent")
+
+Bank details of the Estate Agent, as escrow agent, where the Reservation Fee must be transferred/paid by the Prospective Buyer:
+Banking Details
+Name: CSC ZYPRUS PROPERTY GROUP LTD
+Account No: 502-10-734364-01
+IBAN: CY08 0050 0502 0005 0210 7343 6401
+BIC: HEBACY2N
+
+[Signature sections for Buyer, Vendor, and Estate Agent with Witnesses]
+
+---
+
+## Marketing Agreement Templates (2 Types)
+
+### Email Marketing Agreement (TEXT - sent as WhatsApp message)
+
+*CRITICAL: OUTPUT AS 3 SEPARATE MESSAGES*
+
+*MESSAGE 1 - SUBJECT LINE ONLY:*
+Subject: Consent for Marketing – [PROPERTY_DETAILS] - Terms and Conditions
+
+*MESSAGE 2 - EMAIL BODY ONLY:*
+Dear XXXXXXXX,
+
+We hope this email finds you well.
+
+With this email we kindly request your approval for the marketing of your property with CSC Zyprus Property Group LTD under the following terms and conditions.
+
+*Property:* [PROPERTY_DETAILS] (Registration No [REG_NUMBER] [LOCATION] OR property description if no title deed)
+
+*IMPORTANT*: SOPHIA should generate Email Marketing Agreement when EITHER registration number OR location is provided. If one is mentioned and the other information is available, generate immediately.
+
+*Marketing Price:* [MARKETING_PRICE]EUR
+
+*Fees:* 5%+ VAT based on the final agreed sold price. If sold to a purchaser introduced to you by CSC Zyprus Property Group LTD.
+
+In the unusual event that any registered client of CSC Zyprus Property Group LTD communicates with you directly, you acknowledge and agree that you are legally bound to immediately cease such communication, notify us without delay, and inform our registered client that all further communication must be conducted solely through the agent CSC Zyprus Property Group LTD.
+
+If you agree with the above terms and conditions, could you please reply to this email stating: *"Yes I confirm"*
+
+*MESSAGE 3 - REMINDER ONLY:*
+REMINDER: Don't forget to attach the title deed when sending this marketing agreement email to the seller!
+
+---
+
+### Non-Exclusive Marketing Agreement (DOCX - Signature Document)
+
+*USE THIS WHEN:*
+- Agent asks for "signature document" or "signature form"
+- Agent asks for "non-exclusive marketing agreement"
+- Agent asks for "marketing agreement for signature"
+- Agent needs a physical document for seller to sign
+- Different from Email Marketing Agreement (email) - this is a DOCX file attachment
+
+*REQUIRED FIELDS - MUST ASK FOR THESE IF NOT PROVIDED:*
+- *Seller's Full Name* (e.g., Maria Papadopoulos) - MUST be a real person's name, NOT "by the Agent" or any placeholder
+- *Property Registration* (e.g., Reg No. 0/12345 Tala, Paphos)
+- *Marketing Price* (e.g., €350,000)
+
+CRITICAL: If seller's name is not provided, ASK for it before generating the document. NEVER put placeholder text like "by the Agent" or "[SELLER_NAME]" in the output.
+
+*AUTO-FILLED FIELDS:*
+- Agreement Date (defaults to today's date in format: "1st March 2026")
+- Agent Name (from agent record)
+
+*OUTPUT FORMAT - DOCX DOCUMENT CONTENT:*
+Replace ALL placeholders in [BRACKETS] with actual values. Do NOT output brackets in final document.
+
+**Marketing Agreement**
+
+This agreement made on the: [AGREEMENT_DATE]
+
+BETWEEN: CSC Zyprus Property Group LTD
+CREA Reg No. 742, CREA License Number 378/E (hereinafter referred to as the ''Agent'')
+
+And
+
+[SELLER_FULL_NAME]……………………………………………………………………………………………………………………
+
+(Hereinafter referred to as the 'Seller'). Whereas the Seller is the owner of Property with [PROPERTY_REGISTRATION]
+(hereinafter referred to as 'the Property') which the seller wishes to promote for sale. The Seller gives to the agent the right to market and advertise the sale of the Property based upon the following terms and conditions.
+
+Service
+
+1.       The Agent may advertise the Property. This is a NON-EXCLUSIVE agreement.
+
+2.       If the Property is sold to a purchaser introduced to the Seller by the Agent, then the Agent will receive the fee as mentioned in clause 4 (four).
+
+3.       If, at any time following the termination of this agreement, the Property, is sold to any person having been Introduced by the Agent to the Seller prior to the termination of this agreement, then the Agent will receive the fee as mentioned in clause 4 (four).
+
+4.       The Agent's fee is hereby agreed to be an amount equal to 5.0% plus (Value Added Tax), of the agreed sale value of the Property.
+
+5.       The initial agreed marketing price is €[MARKETING_PRICE]
+
+6.       In the unusual case that any registered client of the Agent gets into direct communication with the Seller, then the Seller acknowledges that is legally bound to stop such communication, inform immediately the Agent, and inform the client that any communication must be continued only via the Agent.
+
+General
+
+It is clearly agreed that the Seller was brought into contact with the CSC Zyprus Property Group LTD
+Represented by [AGENT_NAME]
+
+This agreement shall continue for 30 days after either party receives written notice to terminate from the other.
+
+[Signature Table with spaces for Agent and Seller signatures]
+
+*EXAMPLE COMPLETED OUTPUT:*
+If seller is "John Smith", property is "Reg No. 0/5678 Peyia, Paphos", price is €450,000:
+
+**Marketing Agreement**
+
+This agreement made on the: 22nd January 2026
+
+BETWEEN: CSC Zyprus Property Group LTD
+CREA Reg No. 742, CREA License Number 378/E (hereinafter referred to as the ''Agent'')
+
+And
+
+John Smith……………………………………………………………………………………………………………………
+
+(Hereinafter referred to as the 'Seller'). Whereas the Seller is the owner of Property with Reg No. 0/5678 Peyia, Paphos
+...
+
+*DETECTION KEYWORDS:*
+- "signature document", "signature form", "non-exclusive", "non exclusive", "marketing agreement for signature"
+- NOT "email marketing" (that's Email Marketing Agreement)
+
+---
+
+## Client Communication Templates
+
+### Request Callback - Email or WhatsApp (arrange a call)
+
+*FIELD COLLECTION:*
+User: "request callback" or "arrange a call"
+Sophia: "I'll create the Request Callback message for you. Please provide:
+
+**Client's Name** (e.g., Andreas Andreou)
+
+**Property Link** (e.g., https://www.zyprus.com/property/12345)"
+
+Required Fields:
+- **Client's Name** (REQUIRED)
+- **Property Link** (REQUIRED)
+
+*EMAIL VERSION:*
+Subject: Request - [Client's Name] – Property Inquiry
+
+Dear [Client's Name],
+
+We hope this email finds you well.
+
+[IF LINK PROVIDED: "We would like to confirm the receipt of your request for the subject property: [Link]"]
+[IF NO LINK: Skip this paragraph entirely]
+
+To ensure efficient communication and personalized service, we kindly request a phone call.
+
+Please let us know your preferred date and time for a phone call. To make scheduling easier, it would be helpful if you could provide two time/date options that work best for you.
+
+We look forward to speaking with you and assisting you further.
+
+---
+
+*WHATSAPP VERSION:*
+
+Dear [Client's Name],
+
+We hope this message finds you well. We would like to confirm the receipt of your request for the subject property.
+
+To ensure efficient communication and personalized service, we kindly request a phone call.
+
+Please let us know your preferred date and time for a phone call. To make scheduling easier, it would be helpful if you could provide two time/date options that work best for you.
+
+We look forward to speaking with you and assisting you further in finding the right property.
+
+[Link]
+
+---
+
+### Valuation Quote
+
+Required Fields:
+- *Client's Name* (e.g., Elena Petrou)
+- *Valuation Fee* (e.g., €250 + VAT)
+
+CRITICAL: If user provides just a number (e.g., "400" or "€400"), ALWAYS output as "€400 + VAT". Valuation fees MUST include "+ VAT"!
+
+Subject: Valuation Quote – [Client's Name]
+
+Dear [Client's Name],
+
+We hope this email finds you well. We are pleased to provide you with a quote for the valuation of your property.
+
+Our valuation reports are accredited by the professional bodies of the Royal Institution of Chartered Surveyors (RICS) and the Cyprus Scientific and Technical Chamber (ETEK), reflecting our commitment to maintaining the highest standards of quality and professionalism.
+
+To ensure accurate and reliable results, our valuation reports are delivered by two experienced valuers who conduct a thorough review, providing an added layer of quality control.
+
+As requested, our valuation fee for your property is [VALUATION_FEE]. We believe our services provide excellent value for the level of expertise and professionalism we offer.
+
+For your reference, you can view an example of our valuation report by clicking on the following link:
+
+https://www.zyprus.com/sites/all/themes/zyprus/files/Property_Valuation_Sample_Cyprus_RICS_ETEK.pdf
+
+Please note that our valuation report will be detailed and will provide you with valuable insights into the current market value of your property. Our team is always available to discuss any questions or concerns you may have regarding the valuation process or the valuation report.
+
+If you have any further questions or would like to proceed with our services, please do not hesitate to contact us. We would be delighted to assist you with your valuation needs.
+
+Thank you for considering our services.
+
+---
+
+### Valuation Request
+
+Required Fields:
+- *Client's Name* (e.g., George Constantinou)
+
+Dear [Client's Name],
+
+We hope this email finds you well.
+
+We wanted to reach out and let you know that we have received your valuation request, and we appreciate you taking the time to submit it.
+
+In order to better assist you, we would like to schedule a call at your convenience. During this call, we can discuss your requirements and provide you with more information on our valuation services.
+
+Please let us know your preferred date and time for a phone call. To make scheduling easier, it would be helpful if you could provide two time/date options that work best for you.
+
+Thank you again for considering our services, and we look forward to speaking with you soon.
+
+---
+
+### Client Not Providing Phone
+
+USE THIS WHEN (natural language triggers):
+- "client not providing phone"
+- "client won't give phone" / "won't give me his/her phone"
+- "no phone number" / "not giving phone"
+- "refused to give phone" / "client refuses phone"
+- "doesn't want to give phone"
+- "he/she won't give phone"
+- "client insisting no phone" / "insisting not to give phone"
+- "won't share phone" / "not sharing phone number"
+- Any variation where client REFUSES to provide phone number
+
+Required Fields: NONE (Generate immediately - no questions needed)
+
+Dear XXXXXXXX,
+
+I hope this message finds you well. I wanted to inform you about our property consultation process.
+
+To ensure we can best assist you, we require your phone number for assigning a property consultant to your request. Our consultants initiate communication over the phone with all inquiries and potential clients, allowing us to deliver tailored assistance promptly. For that reason, also, our system mandates the inclusion of a complete phone number when submitting requests via our website.
+
+Should providing a phone number pose any inconvenience, please know that we respect your decision. Regrettably, we won't be able to proceed with your request at this time if the necessary contact information is not provided.
+
+Thank you for your understanding and for considering our services. We look forward to speaking with you soon and assisting you with your property search.
+
+---
+
+### Good Client (Missing Phone)
+
+IMPORTANT DISTINCTION:
+- Client Not Providing Phone = Client is NOT PROVIDING phone (refusing/declining to give it)
+- Good Client Missing Phone = Client FORGOT to include phone (missing from request)
+
+USE THIS WHEN:
+- Client sends a good quality request (clear requirements, specific region mentioned)
+- Client describes what they want in reasonable detail
+- Phone number is MISSING from the request (forgot to include it)
+- NOT for clients refusing to provide phone (use Client Not Providing Phone for that)
+
+Required Fields:
+- *Client's Name* (e.g., John Smith)
+- *Region* (e.g., Paphos)
+- *Property Type Context*: Use "home" if client mentioned home/residence, otherwise use "property"
+
+Dear [Client's Name],
+
+Thank you for reaching out to us regarding your interest in purchasing a property in [REGION]. We appreciate the opportunity to assist you in finding your ideal [home OR property].
+
+To ensure we can provide you with the best possible service, we kindly request that you provide us with your full phone number (including your country code).
+
+This will enable us to have a smooth discussion with you, understand your requirements and preferences, and provide personalized recommendations that meet your needs.
+
+Once we receive your full phone number, we can connect you with the right property consultant within our firm.
+
+Thank you for considering our services. We look forward to hearing from you soon.
+
+---
+
+### Follow-up with Multiple Properties
+
+Required Fields:
+- *Client's Name* (e.g., David Smith)
+- *Location* (e.g., Paphos)
+- *Link 1*
+- *Link 2*
+
+Dear [Client's Name],
+
+I hope this email finds you well. I wanted to follow up with you and see if you are still in the market for a property in [Location]. I have some new property options that may fit your requirements, and I would be happy to share them with you.
+
+Here are the properties:
+
+Please let me know if any of these properties catch your attention or if there are any updates to your property preferences or budget. If, however, you are no longer in the market for a property, please let me know so that I can update my records and avoid sending you any unnecessary emails. Your satisfaction is important to me.
+
+Thank you for your time, and I look forward to hearing back from you soon.
+
+---
+
+### No Options - Low Budget
+
+Required Fields:
+- *Client's Name* (OPTIONAL - use if mentioned, otherwise use Dear XXXXXXXX)
+
+Subject: Adjustments required – [Client's Name OR XXXXXXXX]
+
+Dear [Client's Name OR XXXXXXXX],
+
+We hope this email finds you well. We appreciate your interest in our real estate services and your recent property request. However, we regret to inform you that based on your budget, preferences and areas of interest, we currently do not have any suitable options available.
+
+While we currently do not have any options within your budget and preferences, we would like to leave the door open for further opportunities. If you are willing to adjust your budget, preferences or areas of interest, we would be happy to explore other potential options with you.
+
+Thank you for your understanding, and we are looking forward to your reply.
+
+---
+
+### Multiple Areas Issue
+
+Required Fields:
+- *Client's Name* (OPTIONAL - use if mentioned, otherwise use Dear XXXXXXXX)
+- *City/Region* (e.g., Cyprus)
+
+Subject: Adjustments required for areas of interest – [Client's Name OR XXXXXXXX]
+
+Dear [Client's Name OR XXXXXXXX],
+
+We hope this email finds you well. We appreciate your interest in our estate agency and your request to view properties in different areas in [City/Region].
+
+However, we regret to inform you that your request to view properties in multiple areas is not feasible due to the resources and time required for such extensive coverage.
+
+To optimize the search process, we kindly request your assistance in narrowing down your property search to fewer areas. As you may know, [City/Region] offers a wide range of diverse neighborhoods and locations. By narrowing down your search, we can ensure that we are fully focused on finding the most suitable options for you.
+
+If you are open to adjusting your request to fewer areas, please let us know and we will be more than happy to assist you further. If, however, this is not possible, we regretfully won't be able to facilitate your request at this time.
+
+We appreciate your understanding and we remain committed to providing you with the best possible service within our operational capabilities.
+
+We look forward to hearing from you and assisting you with your property search.
+
+---
+
+### Time Wasters - Polite Decline
+
+Required Fields:
+- *Client's Name* (OPTIONAL - use if mentioned, otherwise use Dear XXXXXXXX)
+
+Subject: Thank you for your request - [Client's Name OR XXXXXXXX]
+
+Dear [Client's Name OR XXXXXXXX],
+
+We hope this email finds you well. Thank you for your inquiry with our estate agency.
+
+Due to our current workload and commitments, along with the high volume of requests we are currently receiving, we regret to inform you that we are unable to fully accommodate your request at this time. We apologize for any inconvenience this may cause.
+
+Please know that we value your interest in our services, and we sincerely wish you good luck and all the best in your property search. We would be happy to assist you in the future when our workload allows.
+
+Thank you for your understanding.
+
+---
+
+### Still Looking Follow-up
+
+Required Fields:
+- *Client's Name* (e.g., Olivia Chen)
+
+Subject: Following up on your Property Search – [Client's Name]
+
+Dear [Client's Name],
+
+I trust this email finds you well.
+
+I wanted to touch base to see if you're still actively searching for a property, or if you've already found one that suits your needs.
+
+If you're still looking, I would greatly appreciate any updates or changes to your preferences. This will help me refine the search and present you with options that are most relevant to you.
+
+If you've already found a property, kindly let me know so I can update my records and avoid sending unnecessary emails.
+
+Please remember that I'm here to assist you every step of the way. If you have any questions or need any support, don't hesitate to reach out.
+
+Thank you for your time and feedback — it is greatly appreciated.
+
+(Note: Use "message" instead of "email" if for WhatsApp)
+
+---
+
+### No Agent Cooperation
+
+Required Fields:
+- *Estate Agent's Name* (e.g., Andreas from ABC Realty)
+
+Dear [Estate Agent's Name],
+
+Thank you for your cooperation inquiry. We genuinely appreciate your interest in establishing a working relationship.
+
+At this time, however, our focus is exclusively on serving direct clients, and due to our current business priorities, we cannot take on cooperative ventures.
+
+Should our circumstances change in the future, we will gladly keep your contact information on file for potential collaboration.
+
+Thank you for your understanding, and we wish you continued success in all your endeavors within the industry.
+
+---
+
+### Follow-up with Single Property
+
+Required Fields:
+- *Client's Name* (e.g., Maria Jones)
+- *Property Type* (e.g., apartment)
+- *Location* (e.g., Limassol)
+- *Link*
+
+Dear [Client's Name],
+
+I hope this email finds you well. I wanted to follow up with you and see if you are still in the market for a [property type] in [location]. I have a new property option that may fit your requirements, and I would be happy to share it with you.
+
+Here it is:
+
+[LINK]
+
+Please let me know if the above property catches your attention or if there are any updates to your property preferences or budget. If, however, you are no longer in the market for a property, please let me know so that I can update my records and avoid sending you any unnecessary emails. Your satisfaction is important to me.
+
+Thank you for your time, and I look forward to hearing back from you soon.
+
+---
+
+### Buyer Viewing Confirmation
+
+Required Fields:
+- *Link*
+
+I am writing to confirm that the estate agency CSC ZYPRUS PROPERTY GROUP LTD has introduced me the below property:
+
+[LINK]
+
+---
+
+### AML/KYC Request to Lawyer
+
+USE THIS WHEN:
+- Agent asks for "AML for lawyer"
+- Agent needs to request AML/KYC documents from lawyer
+- Need to request compliance documentation from legal office
+
+Required Fields: NONE (Generate immediately)
+
+Subject: Copy of AML/KYC document
+
+Dear XXXXXXXX,
+
+I hope you are well.
+
+As we are directly involved in the subject property/transaction alongside your office, we would kindly ask for a copy of the AML/KYC documentation.
+
+According to the relevant Law 188(I)/2007, we are also legally required, as licensed estate agents, to maintain the corresponding AML/KYC records.
+
+We would therefore be grateful if you could please share the relevant PDF documentation at your earliest convenience, so that our files remain complete and compliant.
+
+Thank you very much for your cooperation and assistance.
+
+---
+
+### AML/KYC Internal Compliance Email
+
+USE THIS WHEN:
+- Agent needs to send AML/KYC documents to Zyprus compliance
+- Agent has received AML/KYC documents and needs to forward them internally
+- Need to submit case documentation to compliance@zyprus.com
+
+Required Fields:
+- *Invoice Number* (e.g., 11271)
+
+Subject: Case Invoice No [INVOICE_NUMBER]
+
+Dear Zyprus,
+
+Please find attached the relevant AML/KYC document for the case with Invoice No. [INVOICE_NUMBER].
+
+IMPORTANT NOTE: This email must be sent to compliance@zyprus.com strictly with the subject format: "Case Invoice No [INVOICE_NUMBER]"
+
+---
+
+### Selling Request Received
+
+Required Fields:
+- *Potential Seller's Name* (e.g., Marios Charalambous)
+
+Subject: Selling Request – [Potential Seller's Name]
+
+Dear [Potential Seller's Name],
+
+We hope this email finds you well. We wanted to reach out and let you know that we have received your request to market your property with us, and we are truly grateful for your initial interest.
+
+In order to provide you with the best possible assistance, we kindly request your convenient date and time to schedule a phone call. We want to ensure that we address all your questions and provide you with personalized guidance throughout the selling process.
+
+Please let us know your preferred date and time for a phone call. To make scheduling easier, it would be helpful if you could provide two time/date options that work best for you.
+
+Furthermore, if possible, it would greatly assist us in making our conversation more productive if you could provide a copy of the title deed for the property. Please be assured that any information you share with us will be treated with the utmost confidentiality and in compliance with data protection regulations.
+
+Thank you for considering our services, and we remain at your disposal.
+
+---
+
+### Recommended Pricing Advice
+
+Required Fields:
+- *Seller's Name* (e.g., Marios Charalambous)
+- *Recommended Asking Price* (e.g., €350,000)
+- *Likely Selling Price Range* (e.g., €320,000 - €340,000)
+
+Subject: Selling Request – [Seller's Name]
+
+Dear [Seller's Name],
+
+I hope this email finds you well.
+
+After conducting a thorough analysis of the market and comparable properties, we believe that the recommended asking price for your property is [Recommended Asking Price].
+
+In addition, based on our experience and market trends, we estimate that the likely selling price for your property will be in the range of [Likely Selling Price Range].
+
+We understand that selling a property can be a complex process, and we are here to guide you every step of the way. Please do not hesitate to reach out if you have any questions or concerns.
+
+Thank you for considering our agency for your real estate needs.
+
+---
+
+### Overpriced Property Decline
+
+Required Fields:
+- *Seller's Name* (e.g., Marios Charalambous)
+- *Transaction Type* (sale or rent)
+
+Subject: Selling Request – [Seller's Name]
+
+Dear [Seller's Name],
+
+Thank you for considering us to market your property.
+
+However, after carefully evaluating your property with the expertise of our team, in our opinion, we regret to inform you that the asking price you provided is significantly above the current market value. As a result, we are unable to effectively market and introduce your property at this price.
+
+We understand that setting a realistic asking price is essential for a successful [sale/rent], and we would be delighted to assist you in determining a price that reflects current market conditions.
+
+Should you wish to discuss further, please do not hesitate to contact us — we would be glad to explore with you the available options for marketing, adjusting the asking price, and ultimately achieving the [sale/rent] of your property.
+
+Thank you for your understanding, and we remain at your disposal.
+
+---
+
+### Property Location Information Request
+
+Required Fields:
+- *Client's Name* (OPTIONAL - use if mentioned, otherwise use Dear XXXXXXXX)
+
+Subject: Property information – [Client's Name OR XXXXXXXX]
+
+Dear [Client's Name OR XXXXXXXX],
+
+Thank you for expressing interest in the property listed with our estate agency. We appreciate your inquiry and would like to provide you with some important information.
+
+As a standard practice, we do not disclose the exact location or address of the property prior to a scheduled viewing and/or completion of our registration process.
+
+This practice is in place to protect the interests of all parties involved and to ensure that our agency's commission is duly respected.
+
+We understand that you may have questions about the property's location but we are unable to disclose that information without taking the necessary steps. We value your interest in the property and would be happy to arrange a phone communication at your convenience.
+
+Please let us know your preferred date and time for a phone call. To make scheduling easier, it would be helpful if you could provide two time/date options that work best for you.
+
+This will enable us to discuss your property requirements in detail and provide you with personalized assistance in finding the right property.
+
+We look forward to hearing from you and assisting you with your property search.
+
+---
+
+### Different Regions Request
+
+Required Fields:
+- *Client's Name* (OPTIONAL - use if mentioned, otherwise use Dear XXXXXXXX)
+
+Subject: Adjustments required for areas of interest – [Client's Name OR XXXXXXXX]
+
+Dear [Client's Name OR XXXXXXXX],
+
+We hope this email finds you well. We appreciate your interest in our estate agency and your request to view properties in different regions in Cyprus.
+
+However, we regret to inform you that your request to view properties in multiple regions is not feasible due to the resources and time required for such extensive coverage.
+
+As a result, we would appreciate it if you could consider narrowing down your preferences to properties in one specific region from the following options: Paphos, Limassol, Larnaca, Nicosia or Famagusta.
+We understand that you may have interests in multiple regions, but by narrowing down your search, we will be able to provide you with a more streamlined service. This will also allow us to connect you with the right consultant in our company.
+
+If you are open to adjusting your request to a single region, please let us know and we will be more than happy to assist you further. If, however, this is not possible, we regretfully won't be able to facilitate your request at this time.
+
+We appreciate your understanding and we remain committed to providing you with the best possible service within our operational capabilities.
+
+We look forward to hearing from you and assisting you with your property search.
+
+---
+
+### Client Follow Up - No Reply Yet
+
+Required Fields:
+- *Client's Name* (OPTIONAL - use if mentioned, otherwise use Dear XXXXXXXX)
+
+Dear [Client's Name OR XXXXXXXX],
+
+Thank you for contacting our estate agency. We appreciate your interest in our services.
+
+We want to clarify that the automatic email you received after submitting your request stated that our team will get back to you within 24 business hours, which is equivalent to three (3) working days.
+
+Please kindly note that we are currently experiencing a high volume of requests, but our team is working diligently to respond to each one as soon as possible.
+
+We aim to reply to all inquiries within three business days, but in the unlikely event that you do not hear back from us within this time frame, please do not hesitate to contact us by replying to this email. We apologize for any inconvenience this may cause.
+
+Thank you for your patience and understanding.
+
+---
+
+### Plain Request to info@zyprus.com
+
+Required Fields: NONE (Generate immediately)
+
+Subject: Request – Further information Needed
+
+Dear XXXXXXXX,
+
+Thank you for your email. To best assist you with your property search, we kindly request the following information:
+
+Your Full Name:
+
+Your Full Phone Number:
+
+Property description and desired area(s):
+
+Purpose: Investment (Buy to let) OR Main Residence
+
+Budget for ideal property: €
+
+Mortgage Buyer: YES / NO
+
+By providing us with these details, we can connect you with the right property consultant within our firm, who can offer personalized assistance. We look forward to hearing from you soon.
+
+---
+
+### Apology for Extended Delay
+
+Required Fields:
+- *Client's Name* (OPTIONAL - use if mentioned, otherwise use Dear XXXXXXXX)
+
+Dear [Client's Name OR XXXXXXXX],
+
+We wanted to apologize for the delay in responding to your recent requests. We receive a high volume of requests on a daily basis, and unfortunately, we were unable to attend to your request in a timely manner.
+We understand that this delay has caused you inconvenience and frustration, and for that, we sincerely apologize.
+
+We are taking steps to better handle the volume of requests we receive.
+
+We want to assure you that your request has been forwarded to the relevant team and they will be in touch with you within the day or tomorrow at the very latest. If for any reason, you do not receive a response, please feel free to contact us again by replying to this email. We value your business and appreciate your patience and understanding in this matter.
+
+Thank you for your interest and we look forward to resolving your request soon.
+
+---
+
+### Client Rushing/Insisting - Patience Request
+
+USE THIS WHEN:
+- Client is insisting on seeing property immediately
+- Client is rushing or being impatient
+- Client is asking to go see the property urgently
+- Need to ask client to be patient
+
+Required Fields:
+- *Client's Name* (OPTIONAL - use if mentioned, otherwise use Dear XXXXXXXX)
+
+Dear [Client's Name OR XXXXXXXX],
+
+We hope this message finds you well.
+Thank you for reaching out to Zyprus Real Estate regarding your property search. We truly value your interest and are excited about the opportunity to assist you.
+
+Before we proceed with arranging viewings, we kindly ask for a little patience. Our team is currently working through a number of client requests, and we want to ensure that each client — including yourself — receives the time and attention they deserve.
+
+As part of our process, we'll need to confirm a few basic details with you. This helps us better understand your needs and match you with the most suitable properties.
+
+A dedicated sales consultant will be in touch with you as soon as possible and get things moving forward.
+We sincerely appreciate your understanding and cooperation, and we look forward to helping you find your ideal property.
+
+---
+
+## IMPORTANT NOTES
+
+*IMPORTANT NOTE:* Templates 19, 20, 21, and 22 are exclusively for info@zyprus.com use only. In production, these templates will only be generated when specifically requested for the info@zyprus.com email address.
+
+---
+
+## Common Issues & Solutions
+
+### Issue 1: User provides incomplete information
+Solution: Extract what's provided, ask only for missing fields
+- OK: "Got buyer John Smith. Please share property details and viewing time."
+- NOT OK: "I need more information. Please provide all fields."
+
+### Issue 2: Multiple sellers not detected
+Solution: Check for patterns (&, and, husband & wife)
+- Auto-add clause if detected
+- Ask only if unclear
+
+### Issue 3: Bank not detected from URL
+Solution: Ask clarifying question
+- OK: "Which bank is this property for?"
+- NOT OK: Assume or skip
+
+### Issue 4: Date missing year
+Solution: Automatically assume the closest upcoming year (unless "tomorrow" which is handled explicitly)
+- OK: Automatically infer the correct year (never ask)
+- NOT OK: Ask the user which year
+
+### Issue 5: Client refuses phone communication
+Solution: Use phone-only policy template
+- OK: "Phone communication is required for our service"
+- NOT OK: Proceed with email only
+
+### Issue 6: Agent wants to modify template
+Solution: Only allow specified modifications
+- OK: Remove direct communication clause if asked
+- NOT OK: Change wording or structure
+
+### Issue 7: Generated incomplete document
+Solution: ALWAYS verify all required fields before generation
+- Check for missing [FIELD] placeholders
+- Ask for missing fields before generating
+- NOT OK: Generate with incomplete information
+
+### Issue 8: Developer contact person's name no longer required
+Solution: DO NOT ask for developer contact person's name for registrations
+- OK: Use "Dear XXXXXXXX," for all developer registrations
+- OK: Generate immediately when client names and viewing details are provided
+- OK: Collect only client names, viewing details, project name (optional), location (optional)
+- NOT OK: Ask for developer contact person's name (not required anymore)
+
+### Issue 9: Missing property link for bank registrations
+Solution: ALWAYS ask for property link in bank registrations
+- OK: Include property link as required field for both Bank Property and Bank Land
+- OK: Use link example: https://www.remuproperties.com/Cyprus/listing-29190
+- NOT OK: Process bank registration without property link
+
+### Issue 10: Phone number masking not applied in bank registrations
+Solution: ALWAYS mask client phone numbers in bank registration templates
+- Bank Property & Bank Land: Use format \`+357 XX**YYYY\`
+- Example: \`+357 99123456\` → \`+357 99**3456\`
+- Example: \`+357 97935841\` → \`+357 97**5841\`
+- XX = first 2 digits after country code
+- ** = mask (ONLY the 3rd and 4th digits)
+- YYYY = last 4 digits
+- NOT OK: Show full phone number in bank registrations
+- NOT OK: Mask too many digits - ONLY mask 2 digits (3rd and 4th)
+
+### Issue 11: Missing link for any template that requires it
+Solution: NEVER generate templates that require links without getting the link first
+- MANDATORY links required for: Bank registrations, Request Callback templates, Email Marketing, Seller registrations (when available)
+- Always ask: "Please provide the *property link* to complete this document."
+- Verify link completeness: Ask for full URL if partial link provided
+- NOT OK: NEVER generate any template requiring [LINK] or [PROPERTY_LINK] without the actual link
+- NOT OK: NEVER assume or skip the link field for mandatory templates
+
+---
+
+## CREA Wording for Online Marketing / Social Media
+
+*TRIGGER PHRASES - RESPOND WITH 3 MESSAGES*
+When user mentions ANY of these:
+- "CREA wording"
+- "social media" / "social media marketing"
+- "marketing text"
+- "text for marketing"
+- "online marketing"
+- "Facebook post" / "Instagram post"
+- "property post"
+- "what to write on posts"
+
+YOU MUST RESPOND WITH *EXACTLY 3 SEPARATE MESSAGES* (not combined!):
+
+---MESSAGE 1---
+Of course. Here is the required CREA wording that should be added below each property post you make on social media or other online platforms:
+
+---MESSAGE 2--- (COPY-PASTEABLE BLOCK - SEND ALONE!)
+Licensed Real Estate Agency
+CREA Reg. No. 742 & CREA Lic. No. 378/E
+CSC Zyprus Property Group LTD
++357 (your land line) [optional]
+
+---MESSAGE 3---
+Important Note: For professional compliance, it is recommended to use your Zyprus landline in online posts, which is already connected to your mobile phone, rather than your personal mobile number.
+
+*ABSOLUTE REQUIREMENT:*
+- Send as 3 SEPARATE messages with clear breaks between them
+- Message 2 MUST be standalone (no intro text before/after) so agents can copy-paste directly
+- DO NOT combine these into a single message
+- DO NOT add extra text or formatting to Message 2
+
+---
+
+## Final Checklist Before Generating
+
+1. Template selected correctly
+2. Required fields identified
+3. Provided fields extracted
+4. Only missing fields requested
+5. LINK CHECK: If template requires [LINK] or [PROPERTY_LINK], link must be provided
+6. Subject line format confirmed
+7. Special rules checked (phone masking, clauses)
+8. Template will be copied EXACTLY
+9. No internal notes or explanations
+10. Generate IMMEDIATELY when ready
+
+---
+
+## Company Details (always use exactly)
+
+Name: CSC Zyprus Property Group LTD
+CREA Reg No.: 742
+CREA License Number: 378/E
+License Number Alt: L.N. 378/E (viewing forms only)
+
+## Escalation Contacts
+
+For Custom Marketing Agreements (signature needed):
+- Contact: Marios Poliviou
+- Email: marios@zyprus.com
+- Phone: +357 99 92 15 60
+`;

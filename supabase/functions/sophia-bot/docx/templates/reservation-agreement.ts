@@ -1,20 +1,22 @@
 /**
  * Property Reservation Agreement - DOCX Generator
  *
- * Template 13: Generates a legally binding reservation agreement
- * with multiple buyer support, legal clauses, and signature sections.
+ * 4 Template Variants based on LOAN/VAT answers:
+ * - NO LOAN, NO VAT
+ * - YES LOAN, NO VAT
+ * - NO LOAN, YES VAT
+ * - YES LOAN, YES VAT
  */
 
 import {
   Document,
   Paragraph,
   TextRun,
-  ImageRun,
   AlignmentType,
   UnderlineType,
 } from "https://esm.sh/docx@8.5.0";
 
-import { FONTS, SPACING, createSignatureLine, formatDate } from "../styles.ts";
+import { FONTS, SPACING, createSignatureLine } from "../styles.ts";
 import { numberToWords } from "../../utils/number-to-words.ts";
 
 /**
@@ -64,9 +66,11 @@ export interface ReservationAgreementData {
   vendor: VendorInfo;
   property: PropertyInfo;
   financial: FinancialTerms;
-  reservationPeriodWeeks: number;
+  reservationPeriodDays: number;
   contractDeadlineDays: number;
   agreementDate: string;
+  hasLoanClause: boolean;
+  hasVatClause: boolean;
 }
 
 /**
@@ -88,113 +92,48 @@ export const ZYPRUS_DEFAULTS = {
 } as const;
 
 /**
- * Legal clauses for the reservation agreement
+ * Get the refund clause based on LOAN/VAT flags
+ * MUST match the original templates EXACTLY
  */
-const LEGAL_CLAUSES = {
-  reservationPeriod: (weeks: number, fee: string) =>
-    `The prospective buyer agrees that the reservation fee to the amount ${fee} will be held by the Estate Agent (as defined herein below into this Property Reservation Agreement) under its custody in order to guarantee that the above property is taken off the market, and be reserved exclusively for the Prospective buyer, for a period of ${weeks} weeks from the date reservation fee received (hereinafter referred to as the "Reservation Period"). The Reservation Fee must be released by the Estate Agent pursuant to the terms and provisions of this Property Reservation Agreement.`,
+function getRefundClause(hasLoanClause: boolean, hasVatClause: boolean): string {
+  const baseStart = `In the event that the purchase fails to materialize, due to the Vendor's fault, and/or the property does not have clean land registry search (i.e. mortgages etc.) and/or is not free of any encumbrances and/or legal charges whatsoever`;
 
-  refundConditions:
-    `In the event that the purchase fails to materialize, due to the Vendor's fault, and/or the property does not have clean land registry search (i.e. mortgages etc.) and/or is not free of any encumbrances and/or legal charges whatsoever, then the Reservation fee will be returned in full to the Prospective buyer within 4 (four) calendar days from the termination of the reservation.`,
+  // NO LOAN, NO VAT
+  if (!hasLoanClause && !hasVatClause) {
+    return `${baseStart}, the Reservation Fee shall be returned in full to the Prospective Buyer, free of any deductions whatsoever within 4 (four) calendar days from the termination of expiry of the reservation period and the Vendor and/or the Estate Agent shall not have any claim whatsoever against the Prospective Buyer in relation to this Agreement.`;
+  }
 
-  forfeitureConditions:
-    `If the purchase fails to materialize due to the Prospective buyer's fault, then the reservation fee is not refundable and it will be provided 50% to the Vendor and the remaining 50% will be held by the estate agent to cover the administration costs. Except if the mortgage has been refused and a relevant confirmation is provided from the Bank, then the deposit will be returned in full to the prospective buyer.`,
+  // YES LOAN, NO VAT
+  if (hasLoanClause && !hasVatClause) {
+    return `${baseStart}, and/or in the event of refusal or rejection of a mortgage application, subject to the provision of written confirmation by the Bank, the Reservation Fee shall be returned in full to the Prospective Buyer, free of any deductions whatsoever within 4 (four) calendar days from the termination of expiry of the reservation period and the Vendor and/or the Estate Agent shall not have any claim whatsoever against the Prospective Buyer in relation to this Agreement.`;
+  }
 
-  contractDeadline: (days: number) =>
-    `The amount of the reservation fee will be considered as part of the fixed purchase price and a legally binding Contract of Sale must be signed within ${days} days from the date of the reservation fee received, subject to the provisions hereof.`,
+  // NO LOAN, YES VAT (note: slightly different wording - "then", "will", "without")
+  if (!hasLoanClause && hasVatClause) {
+    return `${baseStart}, and/or the prospective sale of the property to the prospective buyer is subject to VAT following a decision of the competent authorities of the Republic of Cyprus and/or the Tax Commissioner, then the Reservation fee will be returned in full to the Prospective buyer without any deductions whatsoever within 4 (four) calendar days from the termination of expiry of the reservation period and the Vendor and/or the Estate Agent shall not have any claim whatsoever against the Prospective Buyer in relation to this Agreement.`;
+  }
 
-  estateAgentArbiter:
-    `With regard to the subject reservation agreement, the estate agent is the mutually agreed party responsible for determining who is at fault if the transaction does not proceed.`,
-
-  exclusiveNegotiation:
-    `For the entire duration of the Reservation Period, the Vendors and the Estate Agent shall not, accept any offers and/or otherwise from any third party in relation to the Property.`,
-};
-
-/**
- * Format buyers for display (with "and" between multiple)
- */
-function formatBuyers(buyers: BuyerInfo[]): Paragraph[] {
-  const paragraphs: Paragraph[] = [];
-
-  buyers.forEach((buyer, index) => {
-    if (index > 0) {
-      paragraphs.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: "and",
-              size: FONTS.SIZES.BODY,
-              font: FONTS.PRIMARY,
-            }),
-          ],
-          spacing: { before: 100, after: 100 },
-        })
-      );
-    }
-
-    paragraphs.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: buyer.fullName,
-            bold: true,
-            size: FONTS.SIZES.BODY,
-            font: FONTS.PRIMARY,
-          }),
-        ],
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: `${buyer.country} PASSPORT: ${buyer.passportNumber}`,
-            size: FONTS.SIZES.BODY,
-            font: FONTS.PRIMARY,
-          }),
-        ],
-        spacing: { after: 100 },
-      })
-    );
-  });
-
-  return paragraphs;
+  // YES LOAN, YES VAT (VAT first, then LOAN)
+  return `${baseStart}, and/or the prospective sale of the property to the prospective buyer is subject to VAT following a decision of the competent authorities of the Republic of Cyprus and/or the Tax Commissioner, and/or in the event of refusal or rejection of a mortgage application, subject to the provision of written confirmation by the Bank, the Reservation Fee shall be returned in full to the Prospective Buyer, free of any deductions whatsoever within 4 (four) calendar days from the termination of expiry of the reservation period and the Vendor and/or the Estate Agent shall not have any claim whatsoever against the Prospective Buyer in relation to this Agreement.`;
 }
 
 /**
  * Creates a Property Reservation Agreement document
+ * Matches the 4 template variants in docs/templates/ EXACTLY
  */
 export function createReservationAgreement(
   data: ReservationAgreementData,
-  logoData?: Uint8Array
+  _logoData?: Uint8Array // Unused - no logo on reservation agreements
 ): Document {
   const children: Paragraph[] = [];
   const { agent, bank } = ZYPRUS_DEFAULTS;
 
-  // Logo
-  if (logoData && logoData.length > 0) {
-    children.push(
-      new Paragraph({
-        children: [
-          new ImageRun({
-            data: logoData,
-            transformation: {
-              width: 180,
-              height: 92,
-            },
-            type: "png",
-          }),
-        ],
-        alignment: AlignmentType.LEFT,
-        spacing: { after: SPACING.TITLE_AFTER },
-      })
-    );
-  }
-
-  // Title: PROPERTY RESERVATION
+  // Title: PROPERTY RESERVATION AGREEMENT (bold, underlined, centered)
   children.push(
     new Paragraph({
       children: [
         new TextRun({
-          text: "PROPERTY RESERVATION",
+          text: "PROPERTY RESERVATION AGREEMENT",
           bold: true,
           size: FONTS.SIZES.TITLE,
           font: FONTS.PRIMARY,
@@ -212,12 +151,12 @@ export function createReservationAgreement(
       children: [
         new TextRun({
           text: "Date Reservation Fee Received: ",
+          bold: true,
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
         new TextRun({
-          text: data.dateReservationFeeReceived || createSignatureLine(30),
-          bold: !!data.dateReservationFeeReceived,
+          text: data.dateReservationFeeReceived || "……..……………………………………….".substring(0, 40),
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
@@ -226,88 +165,66 @@ export function createReservationAgreement(
     })
   );
 
-  // Prospective Buyer label
-  children.push(
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: "Prospective Buyer:",
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-      spacing: { after: 100 },
-    })
-  );
-
-  // Buyer(s) details
-  children.push(...formatBuyers(data.buyers));
-
-  // Vendor label and details
-  children.push(
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: "Vendor:",
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-      spacing: { before: 200, after: 100 },
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: data.vendor.name,
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        ...(data.vendor.registrationNumber ? [
+  // Prospective Buyer(s) - label bold, name not bold, same line
+  for (const buyer of data.buyers) {
+    children.push(
+      new Paragraph({
+        children: [
           new TextRun({
-            text: ` ${data.vendor.registrationNumber}`,
+            text: "Prospective Buyer: ",
+            bold: true,
             size: FONTS.SIZES.BODY,
             font: FONTS.PRIMARY,
           }),
-        ] : []),
-      ],
-      spacing: { after: 200 },
-    })
-  );
+          new TextRun({
+            text: buyer.fullName,
+            size: FONTS.SIZES.BODY,
+            font: FONTS.PRIMARY,
+          }),
+        ],
+        spacing: { after: 100 },
+      })
+    );
+  }
 
-  // Property Details label
+  // Vendor - label bold, name not bold, same line
   children.push(
     new Paragraph({
       children: [
         new TextRun({
-          text: "Property Details:",
+          text: "Vendor: ",
           bold: true,
+          size: FONTS.SIZES.BODY,
+          font: FONTS.PRIMARY,
+        }),
+        new TextRun({
+          text: data.vendor.name + (data.vendor.registrationNumber ? ` ${data.vendor.registrationNumber}` : ""),
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
       ],
       spacing: { after: 100 },
-    }),
+    })
+  );
+
+  // Property Details - label bold, details not bold, same line
+  const propertyDescription = `${data.property.type} with title deed registration number ${data.property.registrationNumber}, ${data.property.building} Unit No. ${data.property.unitNumber}, situated in ${data.property.location}`;
+  children.push(
     new Paragraph({
       children: [
         new TextRun({
-          text: `${data.property.type} in ${data.property.location}`,
+          text: "Property Details: ",
+          bold: true,
+          size: FONTS.SIZES.BODY,
+          font: FONTS.PRIMARY,
+        }),
+        new TextRun({
+          text: propertyDescription,
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
       ],
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: `${data.property.building} Unit No. ${data.property.unitNumber} with Reg Number ${data.property.registrationNumber}`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-      spacing: { after: 200 },
+      spacing: { after: 100 },
     })
   );
 
@@ -315,6 +232,7 @@ export function createReservationAgreement(
   const reservationFeeFormatted = `€${data.financial.reservationFee.toLocaleString()}`;
   const purchasePriceFormatted = `€${data.financial.purchasePrice.toLocaleString()}`;
 
+  // Reservation Fee
   children.push(
     new Paragraph({
       children: [
@@ -325,19 +243,17 @@ export function createReservationAgreement(
           font: FONTS.PRIMARY,
         }),
         new TextRun({
-          text: `${reservationFeeFormatted} `,
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: `(In words ${data.financial.reservationFeeWords} only)`,
+          text: `${reservationFeeFormatted} (In words ${data.financial.reservationFeeWords} only)`,
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
       ],
       spacing: { after: 100 },
-    }),
+    })
+  );
+
+  // Purchase Price
+  children.push(
     new Paragraph({
       children: [
         new TextRun({
@@ -347,13 +263,7 @@ export function createReservationAgreement(
           font: FONTS.PRIMARY,
         }),
         new TextRun({
-          text: `${purchasePriceFormatted} `,
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: `(In words ${data.financial.purchasePriceWords} only)`,
+          text: `${purchasePriceFormatted} (In words ${data.financial.purchasePriceWords} only)`,
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
@@ -362,52 +272,12 @@ export function createReservationAgreement(
     })
   );
 
-  // Legal clauses
+  // Paragraph 1: Reservation Period clause
   children.push(
     new Paragraph({
       children: [
         new TextRun({
-          text: LEGAL_CLAUSES.reservationPeriod(data.reservationPeriodWeeks, reservationFeeFormatted),
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-      spacing: { after: SPACING.PARAGRAPH_AFTER, line: SPACING.LINE_HEIGHT },
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: LEGAL_CLAUSES.refundConditions,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-      spacing: { after: SPACING.PARAGRAPH_AFTER, line: SPACING.LINE_HEIGHT },
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: LEGAL_CLAUSES.forfeitureConditions,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-      spacing: { after: SPACING.PARAGRAPH_AFTER, line: SPACING.LINE_HEIGHT },
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: LEGAL_CLAUSES.contractDeadline(data.contractDeadlineDays),
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-      spacing: { after: SPACING.PARAGRAPH_AFTER, line: SPACING.LINE_HEIGHT },
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: LEGAL_CLAUSES.estateAgentArbiter,
+          text: `The prospective buyer agrees that the reservation fee to the amount ${reservationFeeFormatted} will be held by the Estate Agent (as defined herein below into this Property Reservation Agreement) as the escrow agent and which will be held under its custody in order to guarantee that the above property is taken off the market, and be reserved exclusively for the Prospective buyer, for a period of ${data.reservationPeriodDays} days from the date reservation fee received (hereinafter referred to as the "Reservation Period"). The Reservation Fee must be released by the Escrow Agent pursuant to the terms and provisions of this Property Reservation Agreement.`,
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
@@ -416,7 +286,63 @@ export function createReservationAgreement(
     })
   );
 
-  // Estate Agent Details
+  // Paragraph 2: Refund clause (varies by LOAN/VAT)
+  children.push(
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: getRefundClause(data.hasLoanClause, data.hasVatClause),
+          size: FONTS.SIZES.BODY,
+          font: FONTS.PRIMARY,
+        }),
+      ],
+      spacing: { after: SPACING.PARAGRAPH_AFTER, line: SPACING.LINE_HEIGHT },
+    })
+  );
+
+  // Paragraph 3: Contract deadline clause
+  children.push(
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: `The amount of the reservation fee will be considered as part of the fixed purchase price and a legally binding Contract of Sale must be signed within ${data.contractDeadlineDays} days from the date of the reservation fee received, subject to the provisions hereof.`,
+          size: FONTS.SIZES.BODY,
+          font: FONTS.PRIMARY,
+        }),
+      ],
+      spacing: { after: SPACING.PARAGRAPH_AFTER, line: SPACING.LINE_HEIGHT },
+    })
+  );
+
+  // Paragraph 4: Forfeiture clause
+  children.push(
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: `If the purchase fails to materialize due to the Prospective buyer's exclusive fault, then the reservation fee is not refundable and it will be provided 50% to the Vendor and the remaining 50% will be held by the estate agent to cover the administration costs.`,
+          size: FONTS.SIZES.BODY,
+          font: FONTS.PRIMARY,
+        }),
+      ],
+      spacing: { after: SPACING.PARAGRAPH_AFTER, line: SPACING.LINE_HEIGHT },
+    })
+  );
+
+  // Paragraph 5: Arbiter clause
+  children.push(
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: `With regard to the subject reservation agreement, the estate agent is the mutually agreed party responsible for determining who is at fault if the transaction does not proceed.`,
+          size: FONTS.SIZES.BODY,
+          font: FONTS.PRIMARY,
+        }),
+      ],
+      spacing: { after: SPACING.PARAGRAPH_AFTER, line: SPACING.LINE_HEIGHT },
+    })
+  );
+
+  // Details of the Estate Agent
   children.push(
     new Paragraph({
       children: [
@@ -459,12 +385,12 @@ export function createReservationAgreement(
     })
   );
 
-  // Banking Details
+  // Bank details (includes "as escrow agent")
   children.push(
     new Paragraph({
       children: [
         new TextRun({
-          text: "Bank details of the Estate Agent, where the Reservation Fee must be transferred/paid by the Prospective Buyer:",
+          text: "Bank details of the Estate Agent, as escrow agent, where the Reservation Fee must be transferred/paid by the Prospective Buyer:",
           bold: true,
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
@@ -527,7 +453,7 @@ export function createReservationAgreement(
     new Paragraph({
       children: [
         new TextRun({
-          text: LEGAL_CLAUSES.exclusiveNegotiation,
+          text: `For the entire duration of the Reservation Period, the Vendor and the Estate Agent shall not, directly and/or indirectly, advertise, negotiate, solicit and/or accept any offers and/or otherwise from any third party in relation to the Property.`,
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
@@ -541,8 +467,7 @@ export function createReservationAgreement(
     new Paragraph({
       children: [
         new TextRun({
-          text: `Dated on this ${data.agreementDate}.`,
-          bold: true,
+          text: `Dated on this ${data.agreementDate}`,
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
@@ -551,13 +476,13 @@ export function createReservationAgreement(
     })
   );
 
-  // Signature sections - Prospective Buyer(s)
+  // Signature section: Prospective Buyer(s) with WITNESSES
   for (const buyer of data.buyers) {
     children.push(
       new Paragraph({
         children: [
           new TextRun({
-            text: "The Prospective Buyer:",
+            text: "The Pospective Buyer:",
             bold: true,
             size: FONTS.SIZES.BODY,
             font: FONTS.PRIMARY,
@@ -597,8 +522,12 @@ export function createReservationAgreement(
             size: FONTS.SIZES.BODY,
             font: FONTS.PRIMARY,
           }),
+        ],
+      }),
+      new Paragraph({
+        children: [
           new TextRun({
-            text: "                              Name and I.D.:",
+            text: "Name and I.D.:",
             size: FONTS.SIZES.BODY,
             font: FONTS.PRIMARY,
           }),
@@ -608,18 +537,12 @@ export function createReservationAgreement(
     );
   }
 
-  // Vendor signature
+  // Signature section: Vendor (NO WITNESSES)
   children.push(
     new Paragraph({
       children: [
         new TextRun({
           text: "The Vendor:",
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: "                         WITNESSES",
           bold: true,
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
@@ -634,16 +557,6 @@ export function createReservationAgreement(
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
-        new TextRun({
-          text: "                    ",
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: createSignatureLine(25),
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
       ],
     }),
     new Paragraph({
@@ -653,8 +566,12 @@ export function createReservationAgreement(
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
+      ],
+    }),
+    new Paragraph({
+      children: [
         new TextRun({
-          text: "                              Name and I.D.:",
+          text: "Name and I.D.:",
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
@@ -663,7 +580,7 @@ export function createReservationAgreement(
     })
   );
 
-  // Estate Agent signature
+  // Signature section: Estate Agent
   children.push(
     new Paragraph({
       children: [
@@ -723,7 +640,7 @@ export function parseReservationAgreementData(response: string): ReservationAgre
     // Extract date reservation fee received
     const dateMatch = cleanResponse.match(/Date\s+Reservation\s+Fee\s+Received[:\s]+([^\n]+)/i) ||
                       cleanResponse.match(/Date[:\s]+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i);
-    const dateReservationFeeReceived = dateMatch ? dateMatch[1].trim() : formatDate();
+    const dateReservationFeeReceived = dateMatch ? dateMatch[1].trim() : "";
 
     // Extract buyers (can be multiple)
     const buyers: BuyerInfo[] = [];
@@ -784,13 +701,13 @@ export function parseReservationAgreementData(response: string): ReservationAgre
     };
 
     // Extract property details
-    const propertyTypeMatch = cleanResponse.match(/(Apartment|Villa|House|Land|Office|Shop|Warehouse|Building)\s+(?:in|at)\s+/i);
-    const locationMatch = cleanResponse.match(/(?:in|at)\s+([A-Za-z\s,]+)(?:\n|$)/i);
-    const buildingMatch = cleanResponse.match(/([A-Za-z\s]+(?:Bl\.|Block|Building)[^\n]*Unit)/i) ||
+    const propertyTypeMatch = cleanResponse.match(/(Apartment|Villa|House|Land|Office|Shop|Warehouse|Building|Plot)\s+(?:in|at|with)\s+/i);
+    const locationMatch = cleanResponse.match(/(?:situated\s+in|in|at)\s+([A-Za-z\s,]+?)(?:\s*\n|$)/i);
+    const buildingMatch = cleanResponse.match(/([A-Za-z\s]+(?:Bl\.|Block|Building)[^\n]*)/i) ||
                           cleanResponse.match(/([A-Za-z0-9\s\-\.]+)\s+Unit\s+No/i);
     const unitMatch = cleanResponse.match(/Unit\s+(?:No\.?|Number)[:\s]+(\S+)/i);
     const regMatch = cleanResponse.match(/(?:Reg(?:istration)?\.?\s*(?:No\.?|Number)?)[:\s]+(\d+\/\d+)/i) ||
-                     cleanResponse.match(/with\s+Reg\s+Number\s+(\d+\/\d+)/i);
+                     cleanResponse.match(/registration\s+number\s+(\d+\/\d+)/i);
 
     if (!regMatch) {
       console.log("[ReservationAgreement] Could not extract property registration number");
@@ -824,15 +741,38 @@ export function parseReservationAgreementData(response: string): ReservationAgre
       purchasePriceWords: numberToWords(purchasePrice) + " euro",
     };
 
-    // Extract timeline (with defaults)
-    const periodMatch = cleanResponse.match(/(\d+)\s*weeks?\s+(?:reservation|period)/i);
+    // Extract timeline (defaults: 40 days)
+    const periodMatch = cleanResponse.match(/(\d+)\s*days?\s+(?:reservation|period)/i);
     const deadlineMatch = cleanResponse.match(/(\d+)\s*days?\s+(?:to\s+sign|deadline|contract)/i);
 
-    const reservationPeriodWeeks = periodMatch ? parseInt(periodMatch[1], 10) : 8;
+    const reservationPeriodDays = periodMatch ? parseInt(periodMatch[1], 10) : 40;
     const contractDeadlineDays = deadlineMatch ? parseInt(deadlineMatch[1], 10) : 40;
 
+    // Extract Loan/VAT clause flags
+    const lowerResponse = cleanResponse.toLowerCase();
+    const hasLoanClause =
+      lowerResponse.includes("with loan") ||
+      lowerResponse.includes("yes loan") ||
+      lowerResponse.includes("loan clause") ||
+      lowerResponse.includes("mortgage clause") ||
+      lowerResponse.includes("bank loan") ||
+      lowerResponse.includes("needs mortgage") ||
+      lowerResponse.includes("getting a loan") ||
+      lowerResponse.includes("applying for loan") ||
+      lowerResponse.includes("loan: yes") ||
+      /loan[:\s]+yes/i.test(cleanResponse);
+
+    const hasVatClause =
+      lowerResponse.includes("with vat") ||
+      lowerResponse.includes("yes vat") ||
+      lowerResponse.includes("vat clause") ||
+      lowerResponse.includes("vat applies") ||
+      lowerResponse.includes("subject to vat") ||
+      lowerResponse.includes("vat: yes") ||
+      /vat[:\s]+yes/i.test(cleanResponse);
+
     // Extract agreement date or use today
-    const agreementDateMatch = cleanResponse.match(/Dated\s+(?:on\s+)?(?:this\s+)?(\d{1,2}(?:st|nd|rd|th)?\s+(?:day\s+of\s+)?[A-Za-z]+\s+\d{4})/i);
+    const agreementDateMatch = cleanResponse.match(/Dated\s+(?:on\s+)?(?:this\s+)?(\d{1,2}(?:st|nd|rd|th)?\s+(?:day\s+of\s+)?[A-Za-z]+,?\s+\d{4})/i);
     const agreementDate = agreementDateMatch ? agreementDateMatch[1] : formatOrdinalDate(new Date());
 
     console.log("[ReservationAgreement] Successfully parsed data:", {
@@ -841,6 +781,8 @@ export function parseReservationAgreementData(response: string): ReservationAgre
       property: property.registrationNumber,
       reservationFee,
       purchasePrice,
+      hasLoanClause,
+      hasVatClause,
     });
 
     return {
@@ -849,9 +791,11 @@ export function parseReservationAgreementData(response: string): ReservationAgre
       vendor,
       property,
       financial,
-      reservationPeriodWeeks,
+      reservationPeriodDays,
       contractDeadlineDays,
       agreementDate,
+      hasLoanClause,
+      hasVatClause,
     };
   } catch (error) {
     console.error("[ReservationAgreement] Error parsing response:", error);
@@ -860,14 +804,14 @@ export function parseReservationAgreementData(response: string): ReservationAgre
 }
 
 /**
- * Format date as ordinal (e.g., "21st day of October 2022")
+ * Format date as ordinal (e.g., "28th day of July, 2025")
  */
 function formatOrdinalDate(date: Date): string {
   const day = date.getDate();
   const month = date.toLocaleString('en-US', { month: 'long' });
   const year = date.getFullYear();
   const suffix = getOrdinalSuffix(day);
-  return `${day}${suffix} day of ${month} ${year}`;
+  return `${day}${suffix} day of ${month}, ${year}`;
 }
 
 /**
@@ -878,4 +822,3 @@ function getOrdinalSuffix(n: number): string {
   const v = n % 100;
   return s[(v - 20) % 10] || s[v] || s[0];
 }
-

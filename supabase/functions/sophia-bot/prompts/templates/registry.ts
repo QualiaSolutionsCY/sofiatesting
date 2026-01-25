@@ -8,7 +8,7 @@
 
 /**
  * DOCX Templates - These are sent as file attachments
- * Only these 5 templates should generate DOCX files
+ * Only these 4 templates should generate DOCX files
  */
 export const DOCX_TEMPLATE_TITLES = [
   // Viewing Forms (Templates 09-10)
@@ -17,9 +17,10 @@ export const DOCX_TEMPLATE_TITLES = [
   "Advanced Viewing Form",
   "Advanced Viewing/Introduction Form",
 
-  // Reservation Forms (Templates 11-12)
-  "Property Reservation Form",
+  // Reservation Agreement (Template 11)
   "Property Reservation Agreement",
+  "Property Reservation",
+  "Reservation Agreement",
 
   // Marketing Agreement (Template 15)
   "Marketing Agreement",
@@ -43,10 +44,10 @@ export const TEMPLATE_CATEGORIES = {
     description: "Standard and Advanced viewing forms - sent as DOCX files",
   },
   RESERVATIONS: {
-    name: "Reservation Forms",
-    templates: ["11", "12"],
+    name: "Reservation Agreement",
+    templates: ["11"],
     outputType: "DOCX" as const,
-    description: "Property reservation forms and agreements - sent as DOCX files",
+    description: "Property Reservation Agreement - sent as DOCX file",
   },
   MARKETING_EMAIL: {
     name: "Email Marketing Agreement",
@@ -199,7 +200,6 @@ const MIN_DOCX_LENGTH = 400;
  * IMPORTANT: Only these templates should EVER be DOCX:
  * - Standard Viewing Form
  * - Advanced Viewing Form
- * - Property Reservation Form
  * - Property Reservation Agreement
  * - Non-Exclusive Marketing Agreement
  */
@@ -243,13 +243,14 @@ export function shouldSendAsDocx(response: string): boolean {
     return true;
   }
 
-  // Reservation Form detection - requires actual form content
+  // Reservation Agreement detection - requires actual form content
   if (
-    (firstPart.includes("property reservation form") ||
+    (firstPart.includes("property reservation agreement") ||
+      firstPart.includes("property reservation") ||
       firstPart.includes("reservation agreement")) &&
     (fullLower.includes("buyer") || fullLower.includes("vendor") || fullLower.includes("deposit"))
   ) {
-    console.log("[Registry] Reservation content detected -> DOCX");
+    console.log("[Registry] Reservation Agreement content detected -> DOCX");
     return true;
   }
 
@@ -275,8 +276,8 @@ export function shouldSendAsDocx(response: string): boolean {
 export function getTemplateOutputType(templateNumber: string): "TEXT" | "DOCX" {
   const num = templateNumber.padStart(2, "0");
 
-  // DOCX templates: 09, 10, 11, 12, 15
-  if (["09", "10", "11", "12", "15"].includes(num)) {
+  // DOCX templates: 09, 10, 11, 15
+  if (["09", "10", "11", "15"].includes(num)) {
     return "DOCX";
   }
 

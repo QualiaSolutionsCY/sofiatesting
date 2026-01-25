@@ -2,11 +2,10 @@
  * DOCX Generator
  *
  * Generates professional DOCX documents from AI responses.
- * Only 5 specific templates generate DOCX files:
+ * Only 4 specific templates generate DOCX files:
  * - Standard Viewing Form (Template 09)
  * - Advanced Viewing Form (Template 10)
- * - Property Reservation Form (Template 11)
- * - Property Reservation Agreement (Template 12)
+ * - Property Reservation Agreement (Template 11)
  * - Non-Exclusive Marketing Agreement (Template 15)
  */
 
@@ -22,8 +21,9 @@ const DOCX_TEMPLATE_TITLES = [
   "standard viewing form",
   "advanced viewing form",
   "advanced viewing/introduction form",
-  "property reservation form",
   "property reservation agreement",
+  "property reservation",
+  "reservation agreement",
   "marketing agreement",
   "non-exclusive marketing agreement",
 ];
@@ -125,54 +125,69 @@ function isDocxTemplateTitle(title: string): boolean {
 }
 
 /**
- * Check if response has document-like structure
- * This helps detect partial documents or documents with slightly different formatting
+ * Check if response is a clarification question (asking user for info)
+ * These should NEVER be sent as DOCX
  */
-function hasDocumentStructure(response: string): boolean {
-  const text = response.toLowerCase();
-  
-  // Count document structure indicators
-  let indicators = 0;
-  
-  // Bold headers (markdown format)
-  const boldHeaderCount = (response.match(/\*\*[A-Z][^*]+\*\*/g) || []).length;
-  if (boldHeaderCount >= 2) indicators++;
-  
-  // Field labels (Name:, Date:, Property:, etc.)
-  const fieldLabelCount = (response.match(/\b(Name|Date|Property|Phone|Email|ID|Address|Client|Agent|Passport|Price|Amount):/gi) || []).length;
-  if (fieldLabelCount >= 3) indicators++;
-  
-  // Document opening phrases
-  const openingPhrases = [
-    "herein, i",
-    "i, the undersigned",
-    "the undersigned",
-    "i confirm that",
-    "this agreement",
-    "between the parties",
-    "registration details",
-    "property details",
-    "client details",
-    "personal details",
+function isClarificationQuestion(response: string): boolean {
+  const lower = response.toLowerCase();
+
+  // Clarification patterns - AI asking for more info
+  const clarificationPatterns = [
+    "please provide",
+    "please specify",
+    "i'll create",
+    "i will create",
+    "i'll generate",
+    "i will generate",
+    "i'll prepare",
+    "i will prepare",
+    "could you provide",
+    "could you specify",
+    "can you provide",
+    "can you specify",
+    "i need the following",
+    "please share",
+    "what is the",
+    "what are the",
+    "which property",
+    "to proceed",
+    "to generate this",
+    "to create this",
+    "would you like",
+    "do you want",
+    "do you need",
+    "which one",
+    "which type",
+    "which would you",
+    "please choose",
+    "please select",
+    "let me know which",
+    "let me know if",
+    " or the ",
+    "standard or advanced",
+    "here are the options",
+    "here's what i can",
+    "here is what i can",
   ];
-  for (const phrase of openingPhrases) {
-    if (text.includes(phrase)) {
-      indicators++;
-      break;
+
+  // Check if response is short and contains clarification patterns
+  if (response.length < 1000) {
+    for (const pattern of clarificationPatterns) {
+      if (lower.includes(pattern)) {
+        console.log(`[DOCX] Clarification detected: "${pattern}"`);
+        return true;
+      }
     }
   }
-  
-  // Placeholder patterns (XXXXXXXX, [DATE], etc.)
-  const placeholderCount = (response.match(/XXXXXXXX|\[DATE\]|\[PROPERTY\]|\[NAME\]|\[AMOUNT\]|\[PHONE\]|\[EMAIL\]/gi) || []).length;
-  if (placeholderCount >= 2) indicators++;
-  
-  // Minimum length for document content
-  if (response.length >= 500) indicators++;
-  
-  console.log(`[DOCX] Document structure indicators: ${indicators} (bold headers: ${boldHeaderCount}, field labels: ${fieldLabelCount}, placeholders: ${placeholderCount})`);
-  
-  // Need at least 2 indicators to be considered a document
-  return indicators >= 2;
+
+  // Check for question marks in short responses
+  const questionCount = (response.match(/\?/g) || []).length;
+  if (questionCount >= 1 && response.length < 600) {
+    console.log(`[DOCX] Clarification detected: question mark in short response`);
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -191,14 +206,25 @@ export function isDocxTemplate(
 ): boolean {
   console.log(`[DOCX] Checking response (length: ${aiResponse.length})`);
 
-  // NEW: Check if this is a confirmation message (e.g., "I have sent...")
-  // These should ALWAYS be text, never DOCX
+  // STRICT CHECK 0: Short responses are NEVER DOCX
+  if (aiResponse.length < 400) {
+    console.log("[DOCX] Too short -> TEXT");
+    return false;
+  }
+
+  // STRICT CHECK 1: Clarification questions are NEVER DOCX
+  if (isClarificationQuestion(aiResponse)) {
+    console.log("[DOCX] Clarification question -> TEXT");
+    return false;
+  }
+
+  // STRICT CHECK 2: Confirmation messages are NEVER DOCX
   if (isConfirmationMessage(aiResponse)) {
     console.log("[DOCX] Response is a confirmation message -> TEXT");
     return false;
   }
 
-  // NEW: Check if AI is requesting information first
+  // STRICT CHECK 3: Check if AI is requesting information first
   if (isRequestingInformation(aiResponse)) {
     console.log("[DOCX] Response is requesting information -> TEXT");
     return false;
@@ -251,20 +277,20 @@ export function isDocxTemplate(
     return true;
   }
 
-  // Reservation Form detection - multiple patterns
+  // Reservation Agreement detection - multiple patterns
   const reservationPatterns = [
-    firstPart.includes("property reservation form"),
+    firstPart.includes("property reservation agreement"),
     firstPart.includes("reservation agreement"),
-    firstPart.includes("reservation form") && firstPart.includes("property"),
+    firstPart.includes("property reservation"),
     firstPart.includes("reserve") && firstPart.includes("property") && aiResponse.length > 500,
   ];
   if (reservationPatterns.some(p => p)) {
     // Check if it's actually requesting form information
     if (isRequestingInformation(aiResponse) || containsPlaceholders(aiResponse)) {
-      console.log("[DOCX] Reservation form pattern but requesting info/has placeholders -> TEXT");
+      console.log("[DOCX] Reservation agreement pattern but requesting info/has placeholders -> TEXT");
       return false;
     }
-    console.log("[DOCX] Reservation form pattern with complete data -> DOCX");
+    console.log("[DOCX] Reservation agreement pattern with complete data -> DOCX");
     return true;
   }
 
@@ -291,25 +317,8 @@ export function isDocxTemplate(
     return false;
   }
 
-  // Rule 4: Check for document structure (more lenient detection)
-  // Only if the response is substantial enough to be a document
-  if (aiResponse.length >= 500 && hasDocumentStructure(aiResponse)) {
-    // Additional check: make sure it looks like one of our DOCX templates
-    const lowerResponse = aiResponse.toLowerCase();
-    const isDocxRelated = ["viewing", "reservation", "form", "marketing agreement"].some((keyword) =>
-      lowerResponse.includes(keyword)
-    );
-
-    if (isDocxRelated) {
-      // Final check for placeholders or information requests
-      if (isRequestingInformation(aiResponse) || containsPlaceholders(aiResponse)) {
-        console.log("[DOCX] Has document structure but requesting info/has placeholders -> TEXT");
-        return false;
-      }
-      console.log("[DOCX] Has document structure + DOCX keywords + complete data -> DOCX");
-      return true;
-    }
-  }
+  // Rule 4: REMOVED - No more "document structure" guessing
+  // Only strict title/content matching above should trigger DOCX
 
   // Default: TEXT
   console.log("[DOCX] No match -> TEXT");
@@ -333,8 +342,8 @@ export function wasDocxTemplateRequested(
   
   const docxKeywords = [
     "viewing form",
-    "reservation form",
     "reservation agreement",
+    "property reservation",
     "marketing agreement",
     "non-exclusive",
     "signature document",
@@ -342,7 +351,6 @@ export function wasDocxTemplateRequested(
     "template 09",
     "template 10",
     "template 11",
-    "template 12",
     "template 15",
   ];
   
@@ -355,9 +363,14 @@ export function wasDocxTemplateRequested(
 export async function createDocxFile(content: string, _filename: string = "document.docx"): Promise<Uint8Array> {
   try {
     const paragraphs: Paragraph[] = [];
-    
-    // Add logo if available
-    if (DECODED_LOGO && DECODED_LOGO.length > 0) {
+
+    // Check if this is a Reservation Agreement - skip logo for this template
+    const isReservationAgreement = content.toLowerCase().includes("property reservation agreement") ||
+      content.toLowerCase().includes("reservation agreement") ||
+      (content.toLowerCase().includes("property reservation") && content.toLowerCase().includes("prospective buyer"));
+
+    // Add logo if available (but NOT for Reservation Agreement)
+    if (DECODED_LOGO && DECODED_LOGO.length > 0 && !isReservationAgreement) {
       try {
         paragraphs.push(
           new Paragraph({

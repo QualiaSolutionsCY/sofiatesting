@@ -41,43 +41,210 @@ supabase secrets set SOPHIA_TELEGRAM_ENABLED=false --project-ref vceeheaxcrhmpqu
 
 ---
 
-### How to Edit SOPHIA Templates/Prompts
+## SOPHIA Prompt System (CRITICAL - READ THIS)
 
-**SOPHIA's brain lives in the `sophia-bot` Edge Function, NOT in local files.**
+**SOPHIA's prompts come from TWO sources with PRIORITY ordering. Understanding this is essential to avoid bugs.**
 
-1. **Get current code via Supabase MCP:**
-   ```
-   mcp__plugin_supabase_supabase__get_edge_function(project_id="vceeheaxcrhmpqueudqx", function_slug="sophia-bot")
-   ```
+### Architecture Overview
 
-2. **Key file: `prompts.ts`** - Contains ALL SOPHIA instructions, templates, and behavior
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SOPHIA Prompt Loading                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   1. Database: sophia_prompts table (TAKES PRECEDENCE)          │
+│      ├── identity (priority 10)       ← Loaded first            │
+│      ├── safety_rules (priority 20)                             │
+│      ├── document_routing (priority 30)                         │
+│      ├── property_upload (priority 40)                          │
+│      ├── response_format (priority 50)                          │
+│      ├── calculators (priority 60)                              │
+│      └── cyprus_knowledge (priority 70)                         │
+│                                                                 │
+│   2. File Fallbacks (used if key NOT in DB):                    │
+│      └── templates (from prompts/templates/content.ts)          │
+│                                                                 │
+│   3. prompt-loader.ts merges DB + fallbacks                     │
+│      └── 5-minute cache (can cause delays!)                     │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-3. **Edit locally, then deploy:**
-   ```bash
-   # Files are extracted to /tmp/sophia-deploy/supabase/functions/sophia-bot/
-   # Edit prompts.ts or other files
-   cd /tmp/sophia-deploy && supabase functions deploy sophia-bot --no-verify-jwt
-   ```
+### Key Files
 
-4. **DO NOT edit these local files expecting changes to go live:**
-   - `lib/ai/instructions/` - NOT USED by live SOPHIA
-   - `docs/templates/` - Reference only, NOT USED by live SOPHIA
-   - `docs/knowledge/` - NOT USED by live SOPHIA
-   - `app/api/` - NOT USED (no Vercel deployment)
-
-**The ONLY way to update live SOPHIA is to deploy the `sophia-bot` Edge Function.**
+| File | Purpose |
+|------|---------|
+| `supabase/functions/sophia-bot/services/prompt-loader.ts` | Loads prompts from DB with fallback to files |
+| `supabase/functions/sophia-bot/prompts/core/identity.ts` | SOPHIA's identity (fallback) |
+| `supabase/functions/sophia-bot/prompts/core/safety-rules.ts` | Safety and behavioral rules (fallback) |
+| `supabase/functions/sophia-bot/prompts/behaviors/document-routing.ts` | DOCX vs TEXT routing, field collection (fallback) |
+| `supabase/functions/sophia-bot/prompts/behaviors/property-upload.ts` | Property upload rules (fallback) |
+| `supabase/functions/sophia-bot/prompts/behaviors/response-format.ts` | Response formatting rules (fallback) |
+| `supabase/functions/sophia-bot/prompts/knowledge/calculators.ts` | Calculator instructions (fallback) |
+| `supabase/functions/sophia-bot/prompts/knowledge/cyprus-real-estate.ts` | Cyprus RE knowledge (fallback) |
+| `supabase/functions/sophia-bot/prompts/templates/content.ts` | Template content (ONLY fallback - NOT in DB) |
 
 ---
 
-**DO NOT** suggest:
-- Vercel deployments
-- Next.js API routes
-- Editing local `lib/` or `docs/` files for SOPHIA changes
+### ⚡ QUICK CHECKLIST: Making SOPHIA Template/Behavior Changes
 
-**DO** use:
-- Supabase MCP to get/deploy edge functions
-- `supabase functions deploy sophia-bot --no-verify-jwt`
-- Project ID: `vceeheaxcrhmpqueudqx`
+Use this checklist EVERY TIME you modify how SOPHIA responds on WhatsApp.
+
+```
+□ Step 1: SEARCH ALL PROMPTS for the behavior you're changing
+    - Search DB: SELECT key, content FROM sophia_prompts WHERE content ILIKE '%keyword%'
+    - Search files: grep -r "keyword" supabase/functions/sophia-bot/prompts/
+
+□ Step 2: IDENTIFY CONFLICTS (lower priority number = AI follows this one)
+    - If same instruction in multiple prompts, AI uses lowest priority number
+    - Example: safety_rules (20) beats document_routing (30)
+
+□ Step 3: UPDATE THE RIGHT PLACE
+    - For template content → Edit prompts/templates/content.ts (file only, NOT in DB)
+    - For behaviors → Update DB prompt AND corresponding file to stay in sync
+
+□ Step 4: DISABLE CACHE for immediate testing
+    - Edit prompt-loader.ts: CACHE_TTL_MS = 0
+
+□ Step 5: DEPLOY
+    - supabase functions deploy sophia-bot --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
+
+□ Step 6: TEST ON WHATSAPP (not just theory)
+    - Send actual message to SOPHIA
+    - Verify response matches expected behavior
+
+□ Step 7: RE-ENABLE CACHE after confirmed working
+    - Edit prompt-loader.ts: CACHE_TTL_MS = 5 * 60 * 1000
+    - Deploy again
+```
+
+---
+
+### How to Make a Successful Prompt Change (Detailed)
+
+**Step 1: Identify which prompt section contains the behavior**
+
+```sql
+-- Check what's in the database
+SELECT key, priority, LENGTH(content) as content_length
+FROM sophia_prompts
+WHERE is_active = true
+ORDER BY priority;
+```
+
+**Step 2: Search ALL prompts for the keyword/feature you're changing**
+
+This is the most critical step. Use these searches:
+
+```sql
+-- Search DB for any mention of the feature (e.g., "callback")
+SELECT key, priority, LEFT(content, 500) as preview
+FROM sophia_prompts
+WHERE is_active = true AND content ILIKE '%callback%'
+ORDER BY priority;
+```
+
+```bash
+# Search files for the same keyword
+grep -rn "callback" supabase/functions/sophia-bot/prompts/
+```
+
+**Step 3: Check for conflicting instructions across prompts**
+
+⚠️ **CRITICAL PITFALL**: If the same behavior is defined in MULTIPLE prompts, AI follows the one with LOWER priority number (loaded first).
+
+**Real Example (Jan 2026):**
+```
+Problem: SOPHIA kept asking for callback fields one at a time instead of all at once
+
+Root cause discovered:
+- safety_rules (priority 20): "Ask for callback fields in 2 separate messages"
+- document_routing (priority 30): "Ask for ALL callback fields in ONE message"
+
+Result: AI followed safety_rules because priority 20 < 30
+
+Fix: Removed the conflicting instruction from safety_rules (the higher-priority prompt)
+```
+
+**Step 4: Update BOTH database AND files**
+
+```sql
+-- Update database prompt
+UPDATE sophia_prompts
+SET content = 'new content here', updated_at = NOW()
+WHERE key = 'document_routing';
+```
+
+Also update the corresponding file:
+```bash
+# Edit the file fallback to stay in sync
+vim supabase/functions/sophia-bot/prompts/behaviors/document-routing.ts
+```
+
+**Step 5: Bypass cache for immediate testing**
+
+```typescript
+// In prompt-loader.ts, temporarily set cache to 0
+const CACHE_TTL_MS = 0; // TEMP: Disabled for testing
+// Normal value: 5 * 60 * 1000 (5 minutes)
+```
+
+**Step 6: Deploy and test**
+
+```bash
+supabase functions deploy sophia-bot --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
+```
+
+**Step 7: Re-enable cache after confirming changes work**
+
+```typescript
+const CACHE_TTL_MS = 5 * 60 * 1000; // Restore 5-minute cache
+```
+
+Then deploy again.
+
+---
+
+### Why Changes Sometimes Don't Work
+
+| Symptom | Cause | Solution |
+|---------|-------|----------|
+| Changes don't take effect after deploy | 5-minute cache still serving old prompts | Set `CACHE_TTL_MS = 0` in prompt-loader.ts, deploy |
+| AI follows old instructions despite DB update | Conflicting rule in HIGHER priority prompt (lower number) | Search ALL prompts for the keyword, fix the lowest-numbered one |
+| Updated DB but local file shows old text | DB and file out of sync | Always update BOTH to prevent future confusion |
+| Template changes not working | `templates` content is in FILES not DB | Edit `prompts/templates/content.ts` directly |
+| Behavior only partially changed | Multiple prompts contain variations of the same rule | Search + grep ALL prompts, consolidate instructions in ONE place |
+
+### Checking Current Prompt State
+
+```typescript
+// Via Supabase MCP
+mcp__plugin_supabase_supabase__execute_sql({
+  project_id: "vceeheaxcrhmpqueudqx",
+  query: "SELECT key, priority, LEFT(content, 200) as preview FROM sophia_prompts WHERE is_active = true ORDER BY priority"
+})
+```
+
+### DO NOT
+
+- Edit local `lib/ai/instructions/` files - NOT USED by live SOPHIA
+- Edit `docs/templates/` files - Reference only
+- Edit `docs/knowledge/` files - NOT USED
+- Use `app/api/` routes - No Vercel deployment
+- Assume file changes go live - Must deploy Edge Function
+- Forget about the 5-minute cache when testing
+- Make changes without searching ALL prompts first
+
+### DO
+
+- ALWAYS search ALL prompts for the behavior before editing (DB + files)
+- Check DB first: `sophia_prompts` table
+- Search for conflicting instructions (lower priority number wins)
+- Update BOTH DB and files to stay in sync
+- Bypass cache when testing: `CACHE_TTL_MS = 0`
+- Deploy: `supabase functions deploy sophia-bot --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx`
+- Test on actual WhatsApp before declaring success
+- Re-enable cache after testing confirmed working
 
 ---
 

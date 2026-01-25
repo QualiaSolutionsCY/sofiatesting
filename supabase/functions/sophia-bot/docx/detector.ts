@@ -2,12 +2,11 @@
  * DOCX Template Detection
  *
  * Determines if an AI response should be sent as a DOCX file attachment
- * or as a text message. Only 5 specific templates are DOCX:
+ * or as a text message. Only 4 specific templates are DOCX:
  *
  * - Standard Viewing Form (Template 09)
  * - Advanced Viewing Form (Template 10)
- * - Property Reservation Form (Template 11)
- * - Property Reservation Agreement (Template 12)
+ * - Property Reservation Agreement (Template 11)
  * - Non-Exclusive Marketing Agreement (Template 15)
  *
  * All other templates are sent as TEXT messages.
@@ -117,8 +116,8 @@ export function wasDocxTemplateRequested(
     "viewing form",
     "standard viewing",
     "advanced viewing",
-    "reservation form",
     "reservation agreement",
+    "property reservation",
     "non-exclusive",
     "non exclusive",
     "marketing agreement",
@@ -126,7 +125,6 @@ export function wasDocxTemplateRequested(
     "template 09",
     "template 10",
     "template 11",
-    "template 12",
     "template 15",
   ];
   
@@ -141,7 +139,6 @@ export type DocxTemplateType =
   | "viewing-form-single"
   | "viewing-form-multiple"
   | "viewing-form-advanced"
-  | "reservation-form"
   | "reservation-agreement"
   | "marketing-non-exclusive"
   | "unknown";
@@ -171,11 +168,8 @@ export function detectDocxTemplateType(response: string): DocxTemplateType {
     return "viewing-form-single";
   }
   
-  // Reservation Forms
-  if (first500.includes("property reservation form")) {
-    return "reservation-form";
-  }
-  if (first500.includes("reservation agreement") || first500.includes("property reservation agreement")) {
+  // Reservation Agreement
+  if (first500.includes("reservation agreement") || first500.includes("property reservation agreement") || first500.includes("property reservation")) {
     return "reservation-agreement";
   }
 
