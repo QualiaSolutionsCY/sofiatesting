@@ -11,6 +11,8 @@ import { getTelegramClient } from "./client";
 import {
   AGENT_REQUEST_PATTERN,
   detectRussianLanguage,
+  extractRegionFromText,
+  getRegionalManagerForOthers,
   isLarnacaRegion,
   isLimassolRegion,
   isOthersGroup,
@@ -183,13 +185,14 @@ function detectRegionFromName(name: string | undefined): string | null {
  * Get the target agent(s) for lead forwarding based on region
  * Implements SOPHIA spec routing rules:
  * - Limassol: ONLY Michelle Longridge or Diana Kultaseva
- * - Others group: ONLY Lauren Ellingham or Charalambos Pitros
+ * - Others group: Regional manager based on property location, fallback to rotation
  * - Other regions: Standard regional routing
  */
 async function getTargetAgents(
   region: string | null,
   groupType: string | null,
-  _propertyId?: string | null
+  _propertyId?: string | null,
+  messageText?: string
 ): Promise<(typeof zyprusAgent.$inferSelect)[]> {
   try {
     // RULE 1: Limassol leads go ONLY to Michelle or Diana
@@ -223,10 +226,39 @@ async function getTargetAgents(
       return agents;
     }
 
-    // RULE 2: "Zyprus Others" group leads go to Lauren, Charalambos, or Lysandros
+    // RULE 2: "Zyprus Others" group leads go to regional manager based on property location
     // Per spec: "Forward to regional manager of that area"
     if (groupType && isOthersGroup(groupType)) {
-      console.log("Others group detected - routing to Lauren/Charalambos/Lysandros");
+      // Try to extract region from message text
+      const extractedRegion = extractRegionFromText(messageText || "");
+      const regionalManager = getRegionalManagerForOthers(extractedRegion);
+
+      if (regionalManager) {
+        console.log(
+          `Others group - extracted region: ${extractedRegion}, routing to: ${regionalManager}`
+        );
+        // Query for the specific regional manager
+        const agents = await db
+          .select()
+          .from(zyprusAgent)
+          .where(
+            and(
+              eq(zyprusAgent.fullName, regionalManager),
+              eq(zyprusAgent.isActive, true)
+            )
+          );
+
+        if (agents.length > 0) {
+          return agents;
+        }
+        // If manager not found, fall through to rotation
+        console.log(
+          `Regional manager ${regionalManager} not found, falling back to rotation`
+        );
+      }
+
+      // Fallback: no region detected or manager not found, use rotation
+      console.log("Others group - extracted region: none, routing to: rotation");
       const agents = await db
         .select()
         .from(zyprusAgent)
@@ -582,7 +614,8 @@ export async function handleGroupMessage(
   const targetAgents = await getTargetAgents(
     region,
     groupType,
-    primaryPropertyId
+    primaryPropertyId,
+    messageText
   );
 
   if (targetAgents.length === 0) {
