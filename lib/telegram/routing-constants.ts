@@ -116,3 +116,51 @@ export function isPriorityAgent(agentName: string | null): boolean {
     agentName.toLowerCase().includes(priority.toLowerCase())
   );
 }
+
+/**
+ * Map of region name variants to canonical names
+ */
+const REGION_VARIANTS: Record<string, string> = {
+  nicosia: "Nicosia",
+  lefkosia: "Nicosia",
+  famagusta: "Famagusta",
+  ammochostos: "Famagusta",
+  larnaca: "Larnaca",
+  larnaka: "Larnaca",
+  paphos: "Paphos",
+  pafos: "Paphos",
+  limassol: "Limassol",
+};
+
+/**
+ * Extract region name from message text
+ * Returns canonical region name (title case) or null if not found
+ */
+export function extractRegionFromText(text: string): string | null {
+  const regionPattern =
+    /\b(nicosia|famagusta|larnaca|larnaka|paphos|pafos|limassol|lefkosia|ammochostos)\b/i;
+  const match = text.match(regionPattern);
+
+  if (match) {
+    const matchedRegion = match[1].toLowerCase();
+    return REGION_VARIANTS[matchedRegion] || null;
+  }
+
+  return null;
+}
+
+/**
+ * Get regional manager for Others group based on property region
+ * Returns manager name from REGIONAL_MANAGERS if region exists, null otherwise
+ */
+export function getRegionalManagerForOthers(
+  region: string | null
+): string | null {
+  if (!region) return null;
+
+  // Normalize to title case for lookup
+  const normalizedRegion =
+    region.charAt(0).toUpperCase() + region.slice(1).toLowerCase();
+
+  return REGIONAL_MANAGERS[normalizedRegion] || null;
+}
