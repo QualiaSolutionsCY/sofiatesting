@@ -1,7 +1,7 @@
 # Project State: SOPHIA Production Hardening
 
-**Last Updated:** 2026-01-24
-**Current Phase:** Phase 2 Complete — Ready for Phase 3
+**Last Updated:** 2026-01-25
+**Current Phase:** Phase 3 - Telegram Lead Routing (In Progress)
 
 ## Project Reference
 
@@ -16,7 +16,7 @@ See: `.planning/PROJECT.md` (updated 2026-01-23)
 |-------|--------|----------|
 | Phase 1: SOPHIA Response Fixes | ✓ **Complete** | 100% |
 | Phase 2: DOCX Template Fixes | ✓ **Complete** | 100% |
-| Phase 3: Telegram Lead Routing | **Ready** | 0% |
+| Phase 3: Telegram Lead Routing | **In Progress** | 33% (1/3 plans) |
 | Phase 4: Listing Upload Fixes | Pending | 0% |
 | Phase 5: WhatsApp Image Upload | Pending | 0% |
 
@@ -87,11 +87,26 @@ See: `.planning/PROJECT.md` (updated 2026-01-23)
    - Increased border size from 1 to 6 (~0.75pt visible frame)
    - File: `docx/templates/marketing-agreement.ts`
 
+## Phase 3 Summary (In Progress)
+
+**Started:** 2026-01-25
+**Plans completed:** 1/3
+
+### What Was Built
+
+1. **03-01: Regional Manager Routing for Others Group**
+   - Added `extractRegionFromText()` to detect region in message
+   - Added `getRegionalManagerForOthers()` to map region to manager
+   - Updated Others group routing to use regional managers (Nicosia→Ivan, Famagusta→Narine, etc.)
+   - Fallback to rotation when region not detected
+   - Commits: f5732ab, 36d272a
+
 ## Key Files for Phase 3
 
 | File | Purpose |
 |------|---------|
 | `lib/telegram/lead-router.ts` | Lead routing logic |
+| `lib/telegram/routing-constants.ts` | Regional manager mappings |
 | `agents` table | Agent region assignments |
 
 ## Blockers
@@ -107,8 +122,18 @@ None currently.
 | Region-based Others routing | 2026-01-23 | Leads must go to correct regional manager |
 | Friendly document names only | 2026-01-23 | Template numbers are internal routing only |
 | Top-level anti-hallucination instruction | 2026-01-23 | Explicit rule at prompt start |
+| Regex pattern matching for region extraction | 2026-01-25 | Simple, fast, covers common spelling variations |
+| Fallback to rotation when region not detected | 2026-01-25 | Maintains current behavior, prevents lead loss |
 
 ## Session Notes
+
+### 2026-01-25 - Phase 3, Plan 1 Execution
+- Executed 03-01: Regional Manager Routing for Others Group
+- Added region extraction helpers to routing-constants.ts
+- Updated lead-router.ts to use regional managers based on property location
+- All TypeScript compilation successful (existing project-level type issues unrelated)
+- Duration: ~2 minutes
+- Requirements LEAD-01, LEAD-02, LEAD-03 now complete
 
 ### 2026-01-23 - Phase 1 Execution
 - Executed 3 plans in parallel (Wave 1)
@@ -124,4 +149,4 @@ None currently.
 
 ---
 
-*State snapshot: 2026-01-23 — Phase 1 complete*
+*State snapshot: 2026-01-25 — Phase 3, Plan 1 complete*
