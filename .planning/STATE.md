@@ -1,14 +1,14 @@
 # Project State: SOPHIA Production Hardening
 
 **Last Updated:** 2026-01-25
-**Current Phase:** Phase 4 Complete — All Plans Executed
+**Current Phase:** Phase 5 In Progress — Plan 1 Complete
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-01-23)
 
 **Core value:** Agents can trust SOPHIA to do the right thing every time
-**Current focus:** Phase 4 - Listing Upload Fixes
+**Current focus:** Phase 5 - WhatsApp Image Upload
 
 ## Quick Status
 
@@ -18,7 +18,31 @@ See: `.planning/PROJECT.md` (updated 2026-01-23)
 | Phase 2: DOCX Template Fixes | ✓ **Complete** | 100% |
 | Phase 3: Telegram Lead Routing | ✓ **Complete** | 100% |
 | Phase 4: Listing Upload Fixes | ✓ **Complete** | 100% (2/2 plans) |
-| Phase 5: WhatsApp Image Upload | Pending | 0% |
+| Phase 5: WhatsApp Image Upload | In Progress | 33% (1/3 plans) |
+
+## Phase 5 Summary
+
+**Status:** IN PROGRESS (1/3 plans complete)
+**Started:** 2026-01-25
+**Plans executed:** 1/3
+
+### What Was Built
+
+1. **05-01: Image Persistence Service** ✅ (2026-01-25)
+   - Created image-persistence.ts service for re-uploading to Supabase Storage
+   - Integrated persistence into webhook handler after decryption
+   - WhatsApp images now persisted to stable URLs (documents/whatsapp-images/)
+   - Solves LIST-06: WaSenderAPI URLs expire after 1 hour
+   - Graceful fallback to temporary URLs if persistence fails
+   - Duration: 103 seconds
+   - Commits: e2f8349, 8a1d0a2
+
+### Key Files for Phase 5
+
+| File | Purpose |
+|------|---------|
+| `supabase/functions/sophia-bot/services/image-persistence.ts` | Image re-upload service |
+| `supabase/functions/sophia-bot/index.ts` | Webhook handler integration |
 
 ## Phase 1 Summary
 
@@ -162,6 +186,8 @@ None currently.
 | USER_FALLBACKS map sufficient for missing UUIDs | 2026-01-25 | Most agents lack zyprus_user_id; fallback system robust |
 | Keep current My Notes format (exceeds spec) | 2026-01-25 | Spec is minimum; current format provides better reviewer experience |
 | Random map offset adequate (no POI needed) | 2026-01-25 | ±0.001° creates ~100-200m radius; POI lookup would be unnecessary complexity |
+| Reuse documents bucket for WhatsApp images | 2026-01-25 | Avoid creating new bucket; use whatsapp-images/ subfolder for isolation |
+| Fallback to temporary URLs on persistence failure | 2026-01-25 | Don't block uploads if Supabase Storage unavailable; graceful degradation |
 
 ## Session Notes
 
@@ -223,4 +249,15 @@ None currently.
 - Requirements LIST-04, LIST-05 now complete
 - **Phase 4 Complete:** All 5 listing upload requirements verified
 
-*State snapshot: 2026-01-25 — Phase 4 complete, ready for Phase 5*
+### 2026-01-25 - Phase 5, Plan 1 Complete
+- Executed 05-01: Image Persistence Service
+- Created image-persistence.ts service for re-uploading images to Supabase Storage
+- Integrated persistence into webhook handler (index.ts)
+- WhatsApp images now persisted to stable URLs immediately after decryption
+- Solves LIST-06: WaSenderAPI temporary URLs expire after 1 hour
+- Graceful fallback: uses temporary URLs if persistence fails
+- Duration: 103 seconds
+- Requirements LIST-06 now complete
+- Ready to proceed to 05-02: Direct Image Validation
+
+*State snapshot: 2026-01-25 — Phase 5 Plan 1 complete (1/3 plans)*
