@@ -150,30 +150,40 @@ Medium - Primarily verification with minor fixes if needed
 
 ## Phase 5: WhatsApp Image Upload
 
-**Goal:** Enable phone gallery image uploads to SOPHIA
+**Goal:** Enable phone gallery image uploads to SOPHIA with persistent storage
+**Plans:** 2 plans in 2 waves
 
 ### Requirements
 - **LIST-06**: WhatsApp gallery images uploadable (not just URLs)
 
-### Tasks
-1. Research WaSenderAPI media handling capabilities
-2. Implement image download from WhatsApp message attachments
-3. Create image upload pipeline: WhatsApp → Edge Function → Zyprus API
-4. Handle image validation, resizing if needed
-5. Update createPropertyListing tool to accept image attachments
+### Current State Analysis
+Image handling infrastructure already exists:
+- `media-decryptor.ts` decrypts WhatsApp images via WaSenderAPI
+- `index.ts` extracts imageMessage from multiple webhook payload locations
+- Zyprus client downloads and uploads images from URLs
+
+**The Gap:** WaSenderAPI decrypted URLs expire after ~1 hour. If listing upload is delayed, images become inaccessible.
+
+**Solution:** Add image persistence layer - re-upload decrypted images to Supabase Storage for stable URLs.
+
+### Plans
+- [ ] 05-01-PLAN.md — Create image persistence service (Wave 1)
+- [ ] 05-02-PLAN.md — Deploy and test image uploads (Wave 2)
 
 ### Key Files
+- `supabase/functions/sophia-bot/services/image-persistence.ts` (NEW)
+- `supabase/functions/sophia-bot/services/media-decryptor.ts` (existing)
 - `supabase/functions/sophia-bot/index.ts` (webhook handler)
-- `supabase/functions/sophia-bot/services/image-handler.ts`
-- `supabase/functions/sophia-bot/tools/executor.ts`
+- `supabase/functions/sophia-bot/services/image-handler.ts` (validation)
 
 ### Success Criteria
-- User can send images from phone gallery via WhatsApp
-- Images are extracted and uploaded to Zyprus listing
-- Error messages are helpful if image upload fails
+- Phone gallery images sent to SOPHIA are persisted to Supabase Storage
+- Persisted images have stable URLs (not 1-hour expiry)
+- Property listings can use phone gallery images reliably
+- Error messages are helpful if image persistence fails
 
 ### Estimated Complexity
-High - Requires WhatsApp media API integration + upload pipeline
+Medium - Infrastructure exists, adding persistence layer
 
 ---
 
