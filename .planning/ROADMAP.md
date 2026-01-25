@@ -10,7 +10,7 @@
 | 1 | SOPHIA Response Fixes | TMPL-01, TMPL-03, TMPL-04 | ✓ Complete |
 | 2 | DOCX Template Fixes | TMPL-02, TMPL-05, TMPL-06 | Pending |
 | 3 | Telegram Lead Routing | LEAD-01, LEAD-02, LEAD-03 | ✓ Complete |
-| 4 | Listing Upload Fixes | LIST-01, LIST-02, LIST-03, LIST-04, LIST-05 | Pending |
+| 4 | Listing Upload Fixes | LIST-01, LIST-02, LIST-03, LIST-04, LIST-05 | ✓ Complete |
 | 5 | WhatsApp Image Upload | LIST-06 | Pending |
 
 ---
@@ -104,8 +104,9 @@ Medium - Logic change with thorough testing required
 ## Phase 4: Listing Upload Fixes
 
 **Goal:** Fix reviewer/owner assignment and My Notes population
-**Status:** PLANNED
-**Plans:** 2 plans
+**Status:** ✓ COMPLETE
+**Completed:** 2026-01-25
+**Plans:** 2 plans (2/2 executed)
 
 ### Requirements
 - **LIST-01**: Listing Reviewer 1 correct (Lauren for sales, agent for rentals)
