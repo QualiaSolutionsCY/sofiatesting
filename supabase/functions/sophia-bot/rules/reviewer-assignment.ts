@@ -60,13 +60,14 @@ export function assignReviewers(
 
   // SPECIAL CASE: Michelle rentals → Demetra
   // Michelle's communication email is limassol@zyprus.com
+  // Spec 03_AGENT_ACCOUNTS.md line 154: Reviewer 2 = requestlimassol@zyprus.com
   if (
     agent.communicationEmail === "limassol@zyprus.com" &&
     propertyType === "rent"
   ) {
     return {
       reviewer1: "demetra@zyprus.com",
-      reviewer2: null,
+      reviewer2: "requestlimassol@zyprus.com",
       listingOwner: "demetra@zyprus.com",
       listingInstructor: "michelle@zyprus.com",
     };
