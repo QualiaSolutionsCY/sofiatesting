@@ -77,17 +77,15 @@ Medium - DOCX template work requires careful formatting
 ## Phase 3: Telegram Lead Routing
 
 **Goal:** Fix "Others" group routing to use regional managers
+**Plans:** 1 plan
 
 ### Requirements
 - **LEAD-01**: "Others" group routes based on property region
 - **LEAD-02**: Nicosia leads go to Ivan (regional manager)
 - **LEAD-03**: Famagusta leads go to Narine (regional manager)
 
-### Tasks
-1. Modify `isOthersGroup()` routing to extract property region
-2. Implement `getRegionalManager(region)` lookup function
-3. Route leads to `REGIONAL_MANAGERS[region]` instead of fixed `OTHERS_GROUP_AGENTS`
-4. Test with sample messages for each region
+### Plans
+- [ ] 03-01-PLAN.md — Region-based routing for Others group
 
 ### Key Files
 - `lib/telegram/lead-router.ts`
