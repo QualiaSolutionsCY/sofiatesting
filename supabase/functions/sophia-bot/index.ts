@@ -48,6 +48,7 @@ import {
   needsDecryption,
   isPublicUrl,
 } from "./services/media-decryptor.ts";
+import { persistImages } from "./services/image-persistence.ts";
 
 // Memory and personalization (RAG)
 import {
@@ -1324,9 +1325,18 @@ async function extractMessage(payload: any): Promise<{
     }
   }
 
-  // Log extracted image URLs
+  // Persist images to Supabase Storage for stable URLs
+  // WaSenderAPI decrypted URLs expire after ~1 hour
+  let persistedImageUrls = imageUrls;
   if (imageUrls.length > 0) {
-    console.log(`Successfully extracted ${imageUrls.length} usable image URL(s)`);
+    console.log(`[IMAGE] Extracted ${imageUrls.length} image URL(s), persisting to storage...`);
+    persistedImageUrls = await persistImages(imageUrls);
+    if (persistedImageUrls.length > 0) {
+      console.log(`[IMAGE] Persisted ${persistedImageUrls.length} images to Supabase Storage`);
+    } else if (imageUrls.length > 0) {
+      console.warn(`[IMAGE] Failed to persist any images, falling back to temporary URLs`);
+      persistedImageUrls = imageUrls; // Fall back to temporary URLs if persistence fails
+    }
   }
 
   if (!userMessage || userMessage.trim() === "") {
@@ -1344,7 +1354,7 @@ async function extractMessage(payload: any): Promise<{
     }
   }
 
-  return { message, remoteJid, userMessage, imageUrls };
+  return { message, remoteJid, userMessage, imageUrls: persistedImageUrls };
 }
 
 /**
