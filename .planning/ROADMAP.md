@@ -9,7 +9,7 @@
 |-------|------|--------------|--------|
 | 1 | SOPHIA Response Fixes | TMPL-01, TMPL-03, TMPL-04 | ✓ Complete |
 | 2 | DOCX Template Fixes | TMPL-02, TMPL-05, TMPL-06 | Pending |
-| 3 | Telegram Lead Routing | LEAD-01, LEAD-02, LEAD-03 | Pending |
+| 3 | Telegram Lead Routing | LEAD-01, LEAD-02, LEAD-03 | ✓ Complete |
 | 4 | Listing Upload Fixes | LIST-01, LIST-02, LIST-03, LIST-04, LIST-05 | Pending |
 | 5 | WhatsApp Image Upload | LIST-06 | Pending |
 

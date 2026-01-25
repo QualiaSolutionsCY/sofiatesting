@@ -16,9 +16,9 @@
 
 ### Telegram Lead Routing
 
-- [ ] **LEAD-01**: "Others" group routes based on property region
-- [ ] **LEAD-02**: Nicosia leads go to Ivan (regional manager)
-- [ ] **LEAD-03**: Famagusta leads go to Narine (regional manager)
+- [x] **LEAD-01**: "Others" group routes based on property region ✓
+- [x] **LEAD-02**: Nicosia leads go to Ivan (regional manager) ✓
+- [x] **LEAD-03**: Famagusta leads go to Narine (regional manager) ✓
 
 ### Listing Uploads
 
@@ -51,9 +51,9 @@
 | TMPL-04 | Phase 1 | Complete |
 | TMPL-05 | Phase 2 | Complete |
 | TMPL-06 | Phase 2 | Complete |
-| LEAD-01 | Phase 3 | Pending |
-| LEAD-02 | Phase 3 | Pending |
-| LEAD-03 | Phase 3 | Pending |
+| LEAD-01 | Phase 3 | Complete |
+| LEAD-02 | Phase 3 | Complete |
+| LEAD-03 | Phase 3 | Complete |
 | LIST-01 | Phase 4 | Pending |
 | LIST-02 | Phase 4 | Pending |
 | LIST-03 | Phase 4 | Pending |
