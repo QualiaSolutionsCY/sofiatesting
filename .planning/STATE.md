@@ -1,7 +1,7 @@
 # Project State: SOPHIA Production Hardening
 
 **Last Updated:** 2026-01-25
-**Current Phase:** Phase 3 Complete — Ready for Phase 4
+**Current Phase:** Phase 4 In Progress — Plan 04-01 Complete
 
 ## Project Reference
 
@@ -17,7 +17,7 @@ See: `.planning/PROJECT.md` (updated 2026-01-23)
 | Phase 1: SOPHIA Response Fixes | ✓ **Complete** | 100% |
 | Phase 2: DOCX Template Fixes | ✓ **Complete** | 100% |
 | Phase 3: Telegram Lead Routing | ✓ **Complete** | 100% |
-| Phase 4: Listing Upload Fixes | Pending | 0% |
+| Phase 4: Listing Upload Fixes | **In Progress** | 50% (1/2 plans) |
 | Phase 5: WhatsApp Image Upload | Pending | 0% |
 
 ## Phase 1 Summary
@@ -62,9 +62,9 @@ See: `.planning/PROJECT.md` (updated 2026-01-23)
 - [x] **Phase 1 executed** (3 plans, all verified)
 
 ### What's Next
-1. Run `/gsd:discuss-phase 4` to gather context for listing upload fixes
-2. Run `/gsd:plan-phase 4` to create detailed task breakdown
-3. Run `/gsd:execute-phase 4` to implement listing upload fixes
+1. Run `/gsd:execute-phase 4` to execute the 2 planned tasks
+2. Tasks are verification-focused (existing code mostly matches spec)
+3. May need database updates to `agents` table if mappings are incorrect
 
 ## Phase 2 Summary
 
@@ -102,7 +102,39 @@ See: `.planning/PROJECT.md` (updated 2026-01-23)
    - Fallback to rotation when region not detected
    - Commits: f5732ab, 36d272a
 
-## Key Files for Phase 3
+## Phase 4 Summary
+
+**Status:** IN PROGRESS (1/2 plans complete)
+**Plans:** 2 plans in 2 waves
+**Complexity:** Medium (primarily verification)
+
+### Completed Plans
+
+1. **04-01: Reviewer/Owner Assignment** ✅ (2026-01-25)
+   - Verified all 7 special listing owner email mappings correct
+   - Confirmed UUID resolution fallback system working
+   - Fixed Michelle rental reviewer2 to include requestlimassol@zyprus.com
+   - All reviewer assignment rules now match spec
+   - Duration: 5 minutes
+   - Commits: d887a16, f03a198, 2de6e4c
+
+### Remaining Plans
+
+2. **04-02-PLAN.md (Wave 2):** Verify and Fix My Notes + Map Offset
+   - Verify My Notes format (current exceeds spec)
+   - Verify privacy offset (~200m) is appropriate
+   - Confirm My Notes is populated in tool execution
+
+### Key Files for Phase 4
+
+| File | Purpose |
+|------|---------|
+| `supabase/functions/sophia-bot/rules/reviewer-assignment.ts` | Reviewer logic |
+| `supabase/functions/sophia-bot/services/my-notes-generator.ts` | My Notes format |
+| `supabase/functions/sophia-bot/zyprus/client.ts` | API payload + privacy offset |
+| `agents` table | Agent listing owner email mappings |
+
+### Key Files for Phase 3
 
 | File | Purpose |
 |------|---------|
@@ -125,8 +157,20 @@ None currently.
 | Top-level anti-hallucination instruction | 2026-01-23 | Explicit rule at prompt start |
 | Regex pattern matching for region extraction | 2026-01-25 | Simple, fast, covers common spelling variations |
 | Fallback to rotation when region not detected | 2026-01-25 | Maintains current behavior, prevents lead loss |
+| Spec 03_AGENT_ACCOUNTS.md authoritative for Michelle rental reviewer2 | 2026-01-25 | Code must match spec - requestlimassol@ ensures regional backup |
+| USER_FALLBACKS map sufficient for missing UUIDs | 2026-01-25 | Most agents lack zyprus_user_id; fallback system robust |
 
 ## Session Notes
+
+### 2026-01-25 - Phase 4, Plan 1 Execution
+- Executed 04-01: Reviewer/Owner Assignment Verification
+- Verified all 7 agent listing owner email mappings in database
+- Verified UUID resolution fallback system (24/29 agents missing UUIDs, USER_FALLBACKS handles this)
+- Fixed Michelle rental reviewer2: null → requestlimassol@zyprus.com per spec
+- All reviewer assignment rules now match spec exactly
+- Created 4 verification scripts for future database checks
+- Duration: 5 minutes
+- Requirements LIST-01, LIST-02, LIST-03 now complete
 
 ### 2026-01-25 - Phase 3, Plan 1 Execution
 - Executed 03-01: Regional Manager Routing for Others Group
@@ -150,4 +194,20 @@ None currently.
 
 ---
 
-*State snapshot: 2026-01-25 — Phase 3 complete*
+### 2026-01-25 - Phase 4 Planning
+- Analyzed codebase for LIST-01 through LIST-05 requirements
+- Found most functionality already exists:
+  - reviewer-assignment.ts has correct logic
+  - my-notes-generator.ts exceeds spec requirements
+  - addPrivacyOffset() applies ~200m offset
+- Created 2 plans focused on verification
+- Primary work: Database verification, minor fixes if needed
+
+### 2026-01-25 - Phase 4, Plan 1 Complete
+- Completed 04-01: Reviewer/Owner Assignment verification and fixes
+- All agent mappings verified correct in database
+- Michelle rental reviewer2 fixed to match spec
+- 4 verification scripts created for database queries
+- Ready to proceed to 04-02: My Notes + Map Offset
+
+*State snapshot: 2026-01-25 — Phase 4 plan 1 complete, ready for plan 2*
