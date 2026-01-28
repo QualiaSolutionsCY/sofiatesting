@@ -323,6 +323,14 @@ async function handleCreatePropertyListing(
 
   if (agentPhone) {
     const pendingImages = await getPendingImages(agentPhone);
+    logger.info("Retrieved pending images", {
+      category: LogCategory.IMAGE,
+      count: pendingImages.length,
+    });
+
+    // Merge pending images with any direct URLs from tool arguments
+    const directUrls = (args.imageUrls as string[]) || [];
+
     if (pendingImages.length > 0) {
       logger.info("Using images from pending_images table", {
         category: LogCategory.IMAGE,
@@ -333,9 +341,8 @@ async function handleCreatePropertyListing(
       imageUrls = pendingImages;
     } else {
       // Fallback to AI-provided URLs only if no pending images found
-      const aiProvidedUrls = (args.imageUrls as string[]) || [];
       // Filter out obviously fake URLs (hallucinated by AI)
-      imageUrls = aiProvidedUrls.filter(url => {
+      imageUrls = directUrls.filter(url => {
         const isFake = url.includes("images.zyprus.com") ||
                        (url.includes("ibb.co") && !url.includes("i.ibb.co")) ||
                        url.includes("placeholder") ||
@@ -356,6 +363,14 @@ async function handleCreatePropertyListing(
         source: "ai",
       });
     }
+
+    // Log total image count for debugging
+    logger.info("Total images for upload", {
+      category: LogCategory.IMAGE,
+      pending: pendingImages.length,
+      direct: directUrls.length,
+      total: imageUrls.length,
+    });
   } else {
     imageUrls = (args.imageUrls as string[]) || [];
     logger.info("No agent phone - using AI-provided URLs", {
@@ -589,9 +604,8 @@ async function handleCreatePropertyListing(
     // CRITICAL: Clear pending images after successful upload
     // This prevents the same images from being used in the next listing
     await clearPendingImages(agent.mobile);
-    logger.info("Cleared pending images", {
+    logger.info("Cleared pending images after successful upload", {
       category: LogCategory.IMAGE,
-      operation: "createPropertyListing",
     });
   } catch (createError) {
     const err = createError instanceof Error ? createError : new Error(String(createError));

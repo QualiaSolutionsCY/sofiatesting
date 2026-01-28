@@ -1425,8 +1425,15 @@ async function extractMessage(payload: any): Promise<{
       // This allows SOPHIA to track images across multiple webhook calls
       const phoneNumber = remoteJid?.split("@")[0]?.replace(/\D/g, "") || "";
       if (phoneNumber) {
+        logger.info("Storing images to pending queue", {
+          category: LogCategory.IMAGE,
+          count: persistedImageUrls.length,
+        });
         await addPendingImages(phoneNumber, persistedImageUrls);
-        logger.info(`Image: Added ${persistedImageUrls.length} images to pending_images for ${phoneNumber}`, { category: LogCategory.IMAGE });
+        logger.info("Images queued for property upload", {
+          category: LogCategory.IMAGE,
+          count: persistedImageUrls.length,
+        });
       }
     } else if (imageUrls.length > 0) {
       logger.warn(`Image warning: Failed to persist any images, falling back to temporary URLs`, { category: LogCategory.IMAGE });
