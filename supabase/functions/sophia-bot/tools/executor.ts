@@ -14,6 +14,7 @@ import { processImages, validateImages, generateImageWarnings, hasEnoughImages }
 import { createDraftListing, getZyprusConfig, getAccessToken } from "../zyprus/client.ts";
 import { loadTaxonomy, findLocationUuid, findPropertyTypeUuid, getLocationsByRegion } from "../zyprus/taxonomy-cache.ts";
 import { clearPendingImages, getPendingImages } from "../services/pending-images.ts";
+import { logger, LogCategory } from "../utils/logger.ts";
 
 // In-memory upload lock to prevent parallel uploads from same user
 // Key: phone number, Value: timestamp of last upload attempt
@@ -70,7 +71,11 @@ export async function executeTool(
   supabaseUrl: string,
   supabaseKey: string
 ): Promise<ToolResult> {
-  console.log(`[ToolExecutor] Executing: ${tool.name}`);
+  logger.info("Tool execution started", {
+    category: LogCategory.TOOL,
+    toolName: tool.name,
+    agentName: agent?.fullName,
+  });
 
   try {
     switch (tool.name) {
@@ -93,6 +98,10 @@ export async function executeTool(
         return await handleSendEmail(tool.arguments, agent);
 
       default:
+        logger.warn("Unknown tool requested", {
+          category: LogCategory.TOOL,
+          toolName: tool.name,
+        });
         return { error: `Unknown tool: ${tool.name}` };
     }
   } catch (error) {
@@ -100,15 +109,13 @@ export async function executeTool(
       return { error: error.message };
     }
     // Enhanced error logging for debugging
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    console.error(`[ToolExecutor] Error in ${tool.name}:`, {
-      message: errorMessage,
-      stack: errorStack,
-      error,
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    logger.error("Tool execution failed", errorObj, {
+      category: LogCategory.TOOL,
+      toolName: tool.name,
     });
     // Include more detail in the returned error for debugging
-    return { error: `Tool execution failed: ${errorMessage}` };
+    return { error: `Tool execution failed: ${errorObj.message}` };
   }
 }
 
@@ -121,20 +128,37 @@ async function handleCreatePropertyListing(
   supabaseUrl: string,
   supabaseKey: string
 ): Promise<ToolResult> {
-  console.log("[ToolExecutor] handleCreatePropertyListing called with args:", JSON.stringify(args).substring(0, 500));
+  logger.info("Create property listing started", {
+    category: LogCategory.TOOL,
+    operation: "createPropertyListing",
+    argsPreview: JSON.stringify(args).substring(0, 500),
+  });
 
   // 1. Check if agent is identified
   if (!agent) {
-    console.log("[ToolExecutor] No agent identified");
+    logger.warn("Listing creation blocked - no agent identified", {
+      category: LogCategory.TOOL,
+      operation: "createPropertyListing",
+    });
     return handleUnknownSender();
   }
 
-  console.log("[ToolExecutor] Agent identified:", agent.fullName, agent.region);
+  logger.info("Agent identified for listing creation", {
+    category: LogCategory.TOOL,
+    operation: "createPropertyListing",
+    agentName: agent.fullName,
+    agentRegion: agent.region,
+  });
 
   // 1.5 CRITICAL: Check upload lock to prevent parallel uploads (e.g., when user sends multiple photos)
   const lockCheck = checkUploadLock(agent.mobile || agent.fullName);
   if (lockCheck.locked) {
-    console.log(`[ToolExecutor] Upload blocked by lock - another upload in progress for ${agent.fullName}`);
+    logger.warn("Upload blocked by lock - parallel upload in progress", {
+      category: LogCategory.TOOL,
+      operation: "createPropertyListing",
+      agentName: agent.fullName,
+      remainingSeconds: lockCheck.remainingSeconds,
+    });
     return {
       needsInput: true,
       question: `I'm already processing an upload for this property. Please wait ${lockCheck.remainingSeconds} seconds before trying again, or if you'd like to upload a different property, please let me know.`,
@@ -300,7 +324,12 @@ async function handleCreatePropertyListing(
   if (agentPhone) {
     const pendingImages = await getPendingImages(agentPhone);
     if (pendingImages.length > 0) {
-      console.log(`[ToolExecutor] Using ${pendingImages.length} images from pending_images table (ignoring AI-provided URLs)`);
+      logger.info("Using images from pending_images table", {
+        category: LogCategory.IMAGE,
+        operation: "createPropertyListing",
+        imageCount: pendingImages.length,
+        source: "pending_images",
+      });
       imageUrls = pendingImages;
     } else {
       // Fallback to AI-provided URLs only if no pending images found
@@ -312,15 +341,29 @@ async function handleCreatePropertyListing(
                        url.includes("placeholder") ||
                        url.includes("example.com");
         if (isFake) {
-          console.warn(`[ToolExecutor] Filtering out fake/hallucinated URL: ${url}`);
+          logger.warn("Filtered out fake/hallucinated URL", {
+            category: LogCategory.IMAGE,
+            operation: "createPropertyListing",
+            urlPreview: url.substring(0, 100),
+          });
         }
         return !isFake;
       });
-      console.log(`[ToolExecutor] No pending images found, using ${imageUrls.length} AI-provided URLs`);
+      logger.info("No pending images - using AI-provided URLs", {
+        category: LogCategory.IMAGE,
+        operation: "createPropertyListing",
+        imageCount: imageUrls.length,
+        source: "ai",
+      });
     }
   } else {
     imageUrls = (args.imageUrls as string[]) || [];
-    console.log(`[ToolExecutor] No agent phone, using ${imageUrls.length} AI-provided URLs`);
+    logger.info("No agent phone - using AI-provided URLs", {
+      category: LogCategory.IMAGE,
+      operation: "createPropertyListing",
+      imageCount: imageUrls.length,
+      source: "ai",
+    });
   }
 
   const processedImages = await processImages(imageUrls);
@@ -335,16 +378,26 @@ async function handleCreatePropertyListing(
   }
 
   // 8. Get token once, then run operations in PARALLEL for performance
-  console.log("[ToolExecutor] Getting Zyprus config and token...");
+  logger.info("Getting Zyprus config and token", {
+    category: LogCategory.ZYPRUS,
+    operation: "createPropertyListing",
+  });
   let config;
   let token;
   try {
     config = getZyprusConfig();
     token = await getAccessToken(config);
-    console.log("[ToolExecutor] Got access token successfully");
+    logger.info("Got Zyprus access token successfully", {
+      category: LogCategory.ZYPRUS,
+      operation: "createPropertyListing",
+    });
   } catch (tokenError) {
-    console.error("[ToolExecutor] Failed to get Zyprus token:", tokenError);
-    return { error: `Failed to authenticate with Zyprus API: ${String(tokenError)}` };
+    const err = tokenError instanceof Error ? tokenError : new Error(String(tokenError));
+    logger.error("Failed to get Zyprus token", err, {
+      category: LogCategory.ZYPRUS,
+      operation: "createPropertyListing",
+    });
+    return { error: `Failed to authenticate with Zyprus API: ${err.message}` };
   }
 
   const [
@@ -368,7 +421,11 @@ async function handleCreatePropertyListing(
 
   const { valid: validImages, invalid: invalidImages } = imageValidation;
   if (invalidImages.length > 0) {
-    console.log(`[ToolExecutor] ${invalidImages.length} images failed validation`);
+    logger.warn("Images failed validation", {
+      category: LogCategory.IMAGE,
+      operation: "createPropertyListing",
+      invalidCount: invalidImages.length,
+    });
   }
 
   // 9a. Resolve coordinates for Google Maps link in My Notes
@@ -389,7 +446,13 @@ async function handleCreatePropertyListing(
       }
 
       if (bestMatch) {
-        console.log(`[ToolExecutor] Using default coordinates for "${bestMatch.key}": ${bestMatch.coords.lat}, ${bestMatch.coords.lon}`);
+        logger.info("Using default coordinates for location", {
+          category: LogCategory.TOOL,
+          operation: "createPropertyListing",
+          locationKey: bestMatch.key,
+          lat: bestMatch.coords.lat,
+          lon: bestMatch.coords.lon,
+        });
         return bestMatch.coords;
       }
       return undefined;
@@ -401,7 +464,11 @@ async function handleCreatePropertyListing(
     const invalidDetails = invalidImages.length > 0
       ? invalidImages.map((img) => `• ${img.url.substring(0, 50)}... - ${img.error}`).join('\n')
       : "• No images were provided";
-    console.error("[ToolExecutor] No valid images after validation:", invalidImages);
+    logger.error("No valid images after validation", undefined, {
+      category: LogCategory.IMAGE,
+      operation: "createPropertyListing",
+      invalidCount: invalidImages.length,
+    });
     return {
       error: `None of the provided images could be uploaded. The Zyprus API requires at least 1 valid image.\n\n**Image issues:**\n${invalidDetails}\n\n**Tips:**\n• Send photos directly from your phone gallery\n• Use direct image URLs (ending in .jpg, .png, etc.)\n• Avoid webpage links like ibb.co sharing pages (use i.ibb.co direct links instead)`,
     };
@@ -445,10 +512,12 @@ async function handleCreatePropertyListing(
   );
 
   // DEBUG: Log My Notes to verify no "SOPHIA AI"
-  console.log("[ToolExecutor] === MY NOTES CONTENT ===");
-  console.log(myNotes);
-  console.log("[ToolExecutor] === END MY NOTES ===");
-  console.log("[ToolExecutor] My Notes contains 'SOPHIA AI':", myNotes.toLowerCase().includes("sophia ai"));
+  logger.debug("My Notes generated", {
+    category: LogCategory.TOOL,
+    operation: "createPropertyListing",
+    notesPreview: myNotes.substring(0, 200),
+    containsSophiaAI: myNotes.toLowerCase().includes("sophia ai"),
+  });
 
   // 12. Generate AI Notes
   const aiNotes = generateAIAssistantNotes(
@@ -459,7 +528,14 @@ async function handleCreatePropertyListing(
   );
 
   // 13. Create the listing
-  console.log("[ToolExecutor] Creating draft listing...");
+  logger.info("Creating draft listing", {
+    category: LogCategory.ZYPRUS,
+    operation: "createPropertyListing",
+    propertyType: args.propertyType as string,
+    location,
+    price: args.price as number,
+    imageCount: validImages.length,
+  });
   let result;
   try {
     // Build aiMessage: include duplicate warning OR user's special notes
@@ -503,16 +579,27 @@ async function handleCreatePropertyListing(
     registrationNumber: args.registrationNumber as string | undefined,
     coordinates: resolvedCoordinates,
     });
-    console.log("[ToolExecutor] Draft listing created successfully:", result.listingId);
+    logger.info("Draft listing created successfully", {
+      category: LogCategory.ZYPRUS,
+      operation: "createPropertyListing",
+      listingId: result.listingId,
+      listingUrl: result.listingUrl,
+    });
 
     // CRITICAL: Clear pending images after successful upload
     // This prevents the same images from being used in the next listing
     await clearPendingImages(agent.mobile);
-    console.log("[ToolExecutor] Cleared pending images for:", agent.mobile);
+    logger.info("Cleared pending images", {
+      category: LogCategory.IMAGE,
+      operation: "createPropertyListing",
+    });
   } catch (createError) {
-    console.error("[ToolExecutor] Failed to create draft listing:", createError);
-    const errorMsg = createError instanceof Error ? createError.message : String(createError);
-    return { error: `Failed to create listing on Zyprus: ${errorMsg}` };
+    const err = createError instanceof Error ? createError : new Error(String(createError));
+    logger.error("Failed to create draft listing", err, {
+      category: LogCategory.ZYPRUS,
+      operation: "createPropertyListing",
+    });
+    return { error: `Failed to create listing on Zyprus: ${err.message}` };
   }
 
   // 14. Build success message
@@ -598,10 +685,20 @@ async function handleGetZyprusData(
         };
 
       default:
+        logger.warn("Unknown data type requested", {
+          category: LogCategory.ZYPRUS,
+          operation: "getZyprusData",
+          dataType,
+        });
         return { error: `Unknown data type: ${dataType}` };
     }
   } catch (error) {
-    console.error("[ToolExecutor] getZyprusData error:", error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error("Failed to retrieve Zyprus data", err, {
+      category: LogCategory.ZYPRUS,
+      operation: "getZyprusData",
+      dataType,
+    });
     return { error: "Failed to retrieve Zyprus data" };
   }
 }
@@ -796,7 +893,10 @@ async function handleSendEmail(
 ): Promise<ToolResult> {
   // ALWAYS use agent's communicationEmail - ignore any 'to' parameter
   if (!agent?.communicationEmail) {
-    console.error("[sendEmail] No agent communicationEmail available");
+    logger.error("No agent communicationEmail available", undefined, {
+      category: LogCategory.TOOL,
+      operation: "sendEmail",
+    });
     return { error: "Unable to send email - agent email not found. Please contact support." };
   }
 
@@ -809,18 +909,29 @@ async function handleSendEmail(
   // Validate email (defensive check, should always be valid from DB)
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(to)) {
-    console.error(`[sendEmail] Invalid agent email: ${to}`);
+    logger.error("Invalid agent email format", undefined, {
+      category: LogCategory.TOOL,
+      operation: "sendEmail",
+    });
     return { error: "Invalid agent email format. Please contact support." };
   }
 
   // Get Resend API key from environment
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
   if (!resendApiKey) {
-    console.error("[sendEmail] RESEND_API_KEY not set in environment");
+    logger.error("RESEND_API_KEY not set in environment", undefined, {
+      category: LogCategory.TOOL,
+      operation: "sendEmail",
+    });
     return { error: "Email service not configured. Please contact admin." };
   }
 
-  console.log(`[sendEmail] Sending email with subject: ${subject}`);
+  logger.info("Sending email via Resend", {
+    category: LogCategory.TOOL,
+    operation: "sendEmail",
+    subject,
+    hasAttachment: !!attachmentUrl,
+  });
 
   // Build email payload
   const emailPayload: {
@@ -841,10 +952,18 @@ async function handleSendEmail(
   // Handle attachment if provided
   if (attachmentUrl) {
     try {
-      console.log(`[sendEmail] Fetching attachment from: ${attachmentUrl}`);
+      logger.info("Fetching email attachment", {
+        category: LogCategory.TOOL,
+        operation: "sendEmail",
+        attachmentName: attachmentName || "attachment.docx",
+      });
       const attachmentResponse = await fetch(attachmentUrl);
       if (!attachmentResponse.ok) {
-        console.error(`[sendEmail] Failed to fetch attachment: ${attachmentResponse.status}`);
+        logger.error("Failed to fetch email attachment", undefined, {
+          category: LogCategory.TOOL,
+          operation: "sendEmail",
+          status: attachmentResponse.status,
+        });
         return { error: `Failed to fetch attachment from URL: ${attachmentResponse.status}` };
       }
       const attachmentBuffer = await attachmentResponse.arrayBuffer();
@@ -856,16 +975,27 @@ async function handleSendEmail(
         filename: attachmentName || "attachment.docx",
         content: attachmentBase64,
       }];
-      console.log(`[sendEmail] Attachment prepared: ${attachmentName || "attachment.docx"}`);
+      logger.info("Attachment prepared for email", {
+        category: LogCategory.TOOL,
+        operation: "sendEmail",
+        filename: attachmentName || "attachment.docx",
+      });
     } catch (attachError) {
-      console.error("[sendEmail] Error fetching attachment:", attachError);
-      return { error: `Failed to process attachment: ${String(attachError)}` };
+      const err = attachError instanceof Error ? attachError : new Error(String(attachError));
+      logger.error("Error fetching email attachment", err, {
+        category: LogCategory.TOOL,
+        operation: "sendEmail",
+      });
+      return { error: `Failed to process attachment: ${err.message}` };
     }
   }
 
   // Send via Resend API
   try {
-    console.log("[sendEmail] Calling Resend API...");
+    logger.info("Calling Resend API", {
+      category: LogCategory.TOOL,
+      operation: "sendEmail",
+    });
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -876,8 +1006,11 @@ async function handleSendEmail(
     });
 
     const responseText = await response.text();
-    console.log(`[sendEmail] Resend response status: ${response.status}`);
-    console.log(`[sendEmail] Resend response body: ${responseText}`);
+    logger.info("Resend API response received", {
+      category: LogCategory.TOOL,
+      operation: "sendEmail",
+      status: response.status,
+    });
 
     if (!response.ok) {
       let errorDetail = responseText;
@@ -887,12 +1020,21 @@ async function handleSendEmail(
       } catch {
         // Use raw text
       }
-      console.error(`[sendEmail] Resend API error: ${response.status} - ${errorDetail}`);
+      logger.error("Resend API error", undefined, {
+        category: LogCategory.TOOL,
+        operation: "sendEmail",
+        status: response.status,
+        errorDetail: errorDetail.substring(0, 200),
+      });
       return { error: `Failed to send email: ${errorDetail}` };
     }
 
     const result = JSON.parse(responseText);
-    console.log(`[sendEmail] Email sent successfully to ${to}, ID: ${result.id}`);
+    logger.info("Email sent successfully", {
+      category: LogCategory.TOOL,
+      operation: "sendEmail",
+      emailId: result.id,
+    });
 
     return {
       success: true,
@@ -901,9 +1043,12 @@ async function handleSendEmail(
       data: { emailId: result.id, subject },
     };
   } catch (error) {
-    console.error("[sendEmail] Error sending email:", error);
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    return { error: `Failed to send email: ${errorMsg}` };
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error("Error sending email", err, {
+      category: LogCategory.TOOL,
+      operation: "sendEmail",
+    });
+    return { error: `Failed to send email: ${err.message}` };
   }
 }
 
