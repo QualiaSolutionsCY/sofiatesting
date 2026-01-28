@@ -9,6 +9,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { logger, LogCategory } from "../utils/logger.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -26,7 +27,12 @@ export async function persistImage(url: string, index: number): Promise<string |
     // Fetch from temporary URL
     const response = await fetch(url);
     if (!response.ok) {
-      console.error(`[ImagePersist] Failed to fetch image ${index}: ${response.status}`);
+      logger.error("Failed to fetch image from temporary URL", undefined, {
+        category: LogCategory.IMAGE,
+        operation: "persistImage",
+        imageIndex: index,
+        status: response.status,
+      });
       return null;
     }
 
@@ -50,7 +56,12 @@ export async function persistImage(url: string, index: number): Promise<string |
       });
 
     if (error) {
-      console.error(`[ImagePersist] Upload failed for image ${index}:`, error);
+      logger.error("Failed to upload image to Supabase Storage", error, {
+        category: LogCategory.IMAGE,
+        operation: "persistImage",
+        imageIndex: index,
+        filename,
+      });
       return null;
     }
 
@@ -59,10 +70,20 @@ export async function persistImage(url: string, index: number): Promise<string |
       .from("documents")
       .getPublicUrl(filename);
 
-    console.log(`[ImagePersist] Persisted image ${index} to: ${urlData.publicUrl}`);
+    logger.info("Image persisted to Supabase Storage", {
+      category: LogCategory.IMAGE,
+      operation: "persistImage",
+      imageIndex: index,
+      publicUrl: urlData.publicUrl,
+    });
     return urlData.publicUrl;
   } catch (err) {
-    console.error(`[ImagePersist] Error for image ${index}:`, err);
+    const error = err instanceof Error ? err : new Error(String(err));
+    logger.error("Error persisting image", error, {
+      category: LogCategory.IMAGE,
+      operation: "persistImage",
+      imageIndex: index,
+    });
     return null;
   }
 }
@@ -76,7 +97,11 @@ export async function persistImage(url: string, index: number): Promise<string |
 export async function persistImages(urls: string[]): Promise<string[]> {
   if (urls.length === 0) return [];
 
-  console.log(`[ImagePersist] Persisting ${urls.length} images to Supabase Storage...`);
+  logger.info("Persisting images to Supabase Storage", {
+    category: LogCategory.IMAGE,
+    operation: "persistImages",
+    imageCount: urls.length,
+  });
 
   const results = await Promise.all(
     urls.map((url, index) => persistImage(url, index))
@@ -85,6 +110,11 @@ export async function persistImages(urls: string[]): Promise<string[]> {
   // Filter out failures
   const persisted = results.filter((url): url is string => url !== null);
 
-  console.log(`[ImagePersist] Successfully persisted ${persisted.length}/${urls.length} images`);
+  logger.info("Image persistence completed", {
+    category: LogCategory.IMAGE,
+    operation: "persistImages",
+    successCount: persisted.length,
+    totalCount: urls.length,
+  });
   return persisted;
 }

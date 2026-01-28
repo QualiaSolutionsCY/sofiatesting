@@ -9,6 +9,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { logger, LogCategory } from "../utils/logger.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -23,7 +24,11 @@ const EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 export async function addPendingImages(phoneNumber: string, imageUrls: string[]): Promise<void> {
   if (!imageUrls || imageUrls.length === 0) return;
 
-  console.log(`[PendingImages] Adding ${imageUrls.length} images for ${phoneNumber}`);
+  logger.info("Adding images to pending queue", {
+    category: LogCategory.IMAGE,
+    operation: "addPendingImages",
+    imageCount: imageUrls.length,
+  });
 
   const records = imageUrls.map(url => ({
     phone_number: phoneNumber,
@@ -35,9 +40,17 @@ export async function addPendingImages(phoneNumber: string, imageUrls: string[])
     .insert(records);
 
   if (error) {
-    console.error(`[PendingImages] Error adding images:`, error);
+    logger.error("Failed to add pending images", error, {
+      category: LogCategory.IMAGE,
+      operation: "addPendingImages",
+      imageCount: imageUrls.length,
+    });
   } else {
-    console.log(`[PendingImages] Successfully added ${imageUrls.length} images`);
+    logger.info("Successfully added pending images", {
+      category: LogCategory.IMAGE,
+      operation: "addPendingImages",
+      imageCount: imageUrls.length,
+    });
   }
 }
 
@@ -62,12 +75,19 @@ export async function getPendingImages(phoneNumber: string): Promise<string[]> {
     .order("created_at", { ascending: true });
 
   if (error) {
-    console.error(`[PendingImages] Error getting images:`, error);
+    logger.error("Failed to get pending images", error, {
+      category: LogCategory.IMAGE,
+      operation: "getPendingImages",
+    });
     return [];
   }
 
   const urls = data?.map(row => row.image_url) || [];
-  console.log(`[PendingImages] Found ${urls.length} accumulated images for ${phoneNumber}`);
+  logger.info("Retrieved pending images", {
+    category: LogCategory.IMAGE,
+    operation: "getPendingImages",
+    imageCount: urls.length,
+  });
 
   return urls;
 }
@@ -82,7 +102,10 @@ export async function getPendingImageCount(phoneNumber: string): Promise<number>
     .eq("phone_number", phoneNumber);
 
   if (error) {
-    console.error(`[PendingImages] Error counting images:`, error);
+    logger.error("Failed to count pending images", error, {
+      category: LogCategory.IMAGE,
+      operation: "getPendingImageCount",
+    });
     return 0;
   }
 
@@ -93,7 +116,10 @@ export async function getPendingImageCount(phoneNumber: string): Promise<number>
  * Clear all pending images for a user (call after successful upload)
  */
 export async function clearPendingImages(phoneNumber: string): Promise<void> {
-  console.log(`[PendingImages] Clearing all images for ${phoneNumber}`);
+  logger.info("Clearing pending images", {
+    category: LogCategory.IMAGE,
+    operation: "clearPendingImages",
+  });
 
   const { error } = await supabase
     .from("pending_images")
@@ -101,8 +127,14 @@ export async function clearPendingImages(phoneNumber: string): Promise<void> {
     .eq("phone_number", phoneNumber);
 
   if (error) {
-    console.error(`[PendingImages] Error clearing images:`, error);
+    logger.error("Failed to clear pending images", error, {
+      category: LogCategory.IMAGE,
+      operation: "clearPendingImages",
+    });
   } else {
-    console.log(`[PendingImages] Successfully cleared images`);
+    logger.info("Successfully cleared pending images", {
+      category: LogCategory.IMAGE,
+      operation: "clearPendingImages",
+    });
   }
 }
