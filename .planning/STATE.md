@@ -16,7 +16,7 @@ Plan: 4 of 4 complete (06-01, 06-02, 06-03, 06-04 done)
 Status: Phase complete
 Last activity: 2026-01-28 — Completed 06-04-PLAN.md (pending images flow integration)
 
-Progress: [███████░░░] 66% (v1.0 complete + 4 v1.1 plans)
+Progress: [███████░░░] 70% (v1.0 complete + Phase 6 complete)
 
 ## Performance Metrics
 
@@ -69,7 +69,7 @@ None yet.
 Last session: 2026-01-28 21:36
 Stopped at: Completed 06-04-PLAN.md (Phase 6 complete)
 Resume file: None
-Next action: /gsd:verify-work 6 (verify Phase 6 deliverables)
+Next action: /gsd:discuss-phase 7 or /gsd:plan-phase 7
 
 ---
 

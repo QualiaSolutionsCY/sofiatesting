@@ -7,15 +7,15 @@
 
 ### Carried from v1.0
 
-- [ ] **LIST-06**: WhatsApp phone gallery images can be uploaded (not just URLs)
+- [x] **LIST-06**: WhatsApp phone gallery images can be uploaded (not just URLs)
 
 ### Observability (Logging Foundation)
 
-- [ ] **LOG-01**: All requests have correlation ID that flows through entire pipeline
-- [ ] **LOG-02**: Structured logging with error categorization (info/warn/error/fatal)
-- [ ] **LOG-03**: Console.log calls migrated to structured logger (563 identified)
-- [ ] **LOG-04**: Error rate tracking visible in logs (count errors per hour/day)
-- [ ] **LOG-05**: PII redaction applied to all log output
+- [x] **LOG-01**: All requests have correlation ID that flows through entire pipeline
+- [x] **LOG-02**: Structured logging with error categorization (info/warn/error/fatal)
+- [x] **LOG-03**: Console.log calls migrated to structured logger (563 identified)
+- [x] **LOG-04**: Error rate tracking visible in logs (count errors per hour/day)
+- [x] **LOG-05**: PII redaction applied to all log output
 
 ### Cache Management
 
@@ -81,12 +81,12 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LIST-06 | Phase 6 | Pending |
-| LOG-01 | Phase 6 | Pending |
-| LOG-02 | Phase 6 | Pending |
-| LOG-03 | Phase 6 | Pending |
-| LOG-04 | Phase 6 | Pending |
-| LOG-05 | Phase 6 | Pending |
+| LIST-06 | Phase 6 | Complete |
+| LOG-01 | Phase 6 | Complete |
+| LOG-02 | Phase 6 | Complete |
+| LOG-03 | Phase 6 | Complete |
+| LOG-04 | Phase 6 | Complete |
+| LOG-05 | Phase 6 | Complete |
 | CACHE-01 | Phase 7 | Pending |
 | CACHE-02 | Phase 7 | Pending |
 | CACHE-03 | Phase 7 | Pending |
@@ -112,4 +112,4 @@
 
 ---
 *Requirements defined: 2026-01-28*
-*Last updated: 2026-01-28 after roadmap creation*
+*Last updated: 2026-01-28 — Phase 6 requirements complete*
