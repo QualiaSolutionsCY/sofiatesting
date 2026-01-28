@@ -79,13 +79,19 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Check critical environment variables
 if (!OPENROUTER_API_KEY) {
-  console.error("CRITICAL: OPENROUTER_API_KEY is not set");
+  logger.error("CRITICAL: OPENROUTER_API_KEY is not set", undefined, {
+    category: LogCategory.GENERAL,
+  });
 }
 if (!WASEND_API_KEY) {
-  console.error("CRITICAL: WASEND_API_KEY is not set");
+  logger.error("CRITICAL: WASEND_API_KEY is not set", undefined, {
+    category: LogCategory.GENERAL,
+  });
 }
 if (!RESEND_API_KEY) {
-  console.warn("WARNING: RESEND_API_KEY is not set - email sending will be disabled");
+  logger.warn("WARNING: RESEND_API_KEY is not set - email sending will be disabled", {
+    category: LogCategory.GENERAL,
+  });
 }
 
 // =====================================================
@@ -112,10 +118,10 @@ function detectEmailSendingIntent(
   conversationHistory: Array<{role: string, parts: Array<{text: string}>}>,
   agentEmail?: string
 ): EmailSendingIntent | null {
-  console.log("[Email Detection] Starting email detection...");
-  console.log("[Email Detection] Response length:", aiResponse.length);
-  console.log("[Email Detection] First 500 chars:", aiResponse.substring(0, 500));
-  console.log("[Email Detection] Agent email available:", agentEmail || "none");
+  logger.debug("Email detection: Starting email detection...", { category: LogCategory.WEBHOOK });
+  logger.debug("Email detection: Response length:" + String(aiResponse.length), { category: LogCategory.WEBHOOK });
+  logger.debug("Email detection: First 500 chars: " + aiResponse.substring(0, 500), { category: LogCategory.WEBHOOK });
+  logger.debug("Email detection: Agent email available:" + String(agentEmail || "none"), { category: LogCategory.WEBHOOK });
 
   // FIRST: Check for patterns without explicit email ("to your email", "to my email")
   // These require agentEmail to be available
@@ -133,7 +139,7 @@ function detectEmailSendingIntent(
       const pattern = genericEmailPatterns[i];
       const match = aiResponse.match(pattern);
       if (match) {
-        console.log(`[Email Detection] Generic pattern ${i + 1} matched! Using agent email: ${agentEmail}`);
+        logger.debug(`Email detection: Generic pattern ${i + 1} matched! Using agent email: ${agentEmail}`, { category: LogCategory.WEBHOOK });
         const documentType = match[1]?.trim() || "Document";
 
         // Look for document content and URL
@@ -153,7 +159,8 @@ function detectEmailSendingIntent(
         }
 
         let subject = documentType;
-        const subjectMatch = documentContent.match(/Subject:\s*(.+?)(?:\n|$)/i);
+        const subjectMatch = documentContent.match(/Subject:\s*(.+?)(?:
+|$)/i);
         if (subjectMatch) subject = subjectMatch[1].trim();
 
         return {
@@ -177,15 +184,15 @@ function detectEmailSendingIntent(
 
   for (let i = 0; i < sentPatterns.length; i++) {
     const pattern = sentPatterns[i];
-    console.log(`[Email Detection] Testing explicit pattern ${i + 1}...`);
+    logger.debug(`Email detection: Testing explicit pattern ${i + 1}...`, { category: LogCategory.WEBHOOK });
     const match = aiResponse.match(pattern);
-    console.log(`[Email Detection] Pattern ${i + 1} match:`, match ? "YES" : "NO");
+    logger.debug(`Email detection: Pattern ${i + 1} match:` + String(match ? "YES" : "NO"), { category: LogCategory.WEBHOOK });
     if (match) {
-      console.log(`[Email Detection] Match groups:`, match);
+      logger.debug(`Email detection: Match groups:` + String(match), { category: LogCategory.WEBHOOK });
       const documentType = match[1]?.trim() || "Document";
       const email = match[2];
 
-      console.log(`[Email Detection] Detected email intent: ${documentType} to ${email}`);
+      logger.debug(`Email detection: Detected email intent: ${documentType} to ${email}`, { category: LogCategory.WEBHOOK });
 
       // Look for the actual document content in previous messages
       let documentContent = "";
@@ -213,7 +220,8 @@ function detectEmailSendingIntent(
 
       // Extract or generate subject
       let subject = `${documentType}`;
-      const subjectMatch = documentContent.match(/Subject:\s*(.+?)(?:\n|$)/i);
+      const subjectMatch = documentContent.match(/Subject:\s*(.+?)(?:
+|$)/i);
       if (subjectMatch) {
         subject = subjectMatch[1].trim();
       }
@@ -237,13 +245,13 @@ async function sendEmailViaResend(
   intent: EmailSendingIntent
 ): Promise<{ success: boolean; error?: string }> {
   if (!RESEND_API_KEY) {
-    console.error("[Email] RESEND_API_KEY is not configured");
+    logger.error("Email error: RESEND_API_KEY is not configured", { category: LogCategory.WEBHOOK });
     return { success: false, error: "Email service not configured" };
   }
 
-  console.log(`[Email] Sending email to ${intent.recipientEmail}`);
-  console.log(`[Email] Subject: ${intent.subject}`);
-  console.log(`[Email] Document URL: ${intent.documentUrl || "none"}`);
+  logger.info(`Email: Sending email to ${intent.recipientEmail}`, { category: LogCategory.WEBHOOK });
+  logger.info(`Email: Subject: ${intent.subject}`, { category: LogCategory.WEBHOOK });
+  logger.info(`Email: Document URL: ${intent.documentUrl || "none"}`, { category: LogCategory.WEBHOOK });
 
   try {
     // Prepare attachments if document URL provided
@@ -254,13 +262,13 @@ async function sendEmailViaResend(
         // P0 SECURITY: Validate URL before fetching (SSRF prevention)
         const urlValidation = validateExternalUrl(intent.documentUrl);
         if (!urlValidation.valid) {
-          console.error(`[Email] SSRF blocked: ${urlValidation.error}`, {
+          logger.error(`Email error: SSRF blocked: ${urlValidation.error}`, {
             url: intent.documentUrl.substring(0, 100),
           });
           // Don't fail the entire email - just skip the attachment
-          console.warn("[Email] Skipping document attachment due to invalid URL");
+          logger.warn("Email warning: Skipping document attachment due to invalid URL", { category: LogCategory.WEBHOOK });
         } else {
-          console.log(`[Email] Fetching document from: ${intent.documentUrl}`);
+          logger.info(`Email: Fetching document from: ${intent.documentUrl}`, { category: LogCategory.WEBHOOK });
           const docResponse = await safeFetch(intent.documentUrl);
           if (docResponse.ok) {
             const docBuffer = await docResponse.arrayBuffer();
@@ -271,13 +279,13 @@ async function sendEmailViaResend(
               filename: "document.docx",
               content: base64Content,
             });
-            console.log(`[Email] Document attached, size: ${docBuffer.byteLength} bytes`);
+            logger.info(`Email: Document attached, size: ${docBuffer.byteLength} bytes`, { category: LogCategory.WEBHOOK });
           } else {
-            console.warn(`[Email] Failed to fetch document: ${docResponse.status}`);
+            logger.warn(`Email warning: Failed to fetch document: ${docResponse.status}`, { category: LogCategory.WEBHOOK });
           }
         }
       } catch (fetchError) {
-        console.error("[Email] Error fetching document:", fetchError);
+        logger.error("Email error: Error fetching document: " + String(fetchError), { category: LogCategory.WEBHOOK });
       }
     }
 
@@ -285,7 +293,7 @@ async function sendEmailViaResend(
     const htmlBody = formatEmailBodyAsHtml(intent.body);
 
     const senderEmail = "SOPHIA <sofia@zyprus.com>";
-    console.log("[Email] Using sender:", senderEmail);
+    logger.info("Email: Using sender:" + String(senderEmail), { category: LogCategory.WEBHOOK });
 
     const emailPayload: Record<string, unknown> = {
       from: senderEmail,
@@ -310,18 +318,18 @@ async function sendEmailViaResend(
     const responseData = await response.json();
 
     if (!response.ok) {
-      console.error("[Email] Resend API error:", responseData);
+      logger.error("Email error: Resend API error: " + String(responseData), { category: LogCategory.WEBHOOK });
       return {
         success: false,
         error: responseData.message || `Failed to send email: ${response.status}`
       };
     }
 
-    console.log("[Email] Email sent successfully:", responseData);
+    logger.info("Email: Email sent successfully:" + String(responseData), { category: LogCategory.WEBHOOK });
     return { success: true };
 
   } catch (error) {
-    console.error("[Email] Error sending email:", error);
+    logger.error("Email error: Error sending email: " + String(error), { category: LogCategory.WEBHOOK });
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error"
@@ -339,8 +347,11 @@ function formatEmailBodyAsHtml(body: string): string {
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/__(.+?)__/g, "<strong>$1</strong>")
     // Line breaks
-    .replace(/\n\n/g, "</p><p>")
-    .replace(/\n/g, "<br/>")
+    .replace(/
+
+/g, "</p><p>")
+    .replace(/
+/g, "<br/>")
     // Lists (simple conversion)
     .replace(/^- (.+)$/gm, "<li>$1</li>");
 
@@ -384,7 +395,7 @@ function isConfirmationMessage(text: string): boolean {
       lower.includes("uploaded as a draft") ||
       lower.includes("draft listing") ||
       (lower.includes("uploaded") && lower.includes("property"))) {
-    console.log("[Confirmation] Detected listing upload confirmation");
+    logger.info("[Confirmation] Detected listing upload confirmation", { category: LogCategory.ZYPRUS });
     return true;
   }
 
@@ -428,7 +439,8 @@ function formatForWhatsApp(text: string): string {
 
   // Step 0a: Strip code blocks (```...```) - show content as plain text
   // Handle multiline code blocks with optional language specifier
-  formatted = formatted.replace(/```[\w]*\n?([\s\S]*?)```/g, '$1');
+  formatted = formatted.replace(/```[\w]*
+?([\s\S]*?)```/g, '$1');
   // Handle inline code blocks (moved here for logical grouping)
   formatted = formatted.replace(/`([^`]+)`/g, '$1');
 
@@ -462,7 +474,10 @@ function formatForWhatsApp(text: string): string {
   formatted = formatted.replace(/^#{1,6}\s+/gm, '');
   // Clean up excessive whitespace but preserve single newlines
   formatted = formatted.replace(/[ \t]+/g, ' ');
-  formatted = formatted.replace(/\n{3,}/g, '\n\n');
+  formatted = formatted.replace(/
+{3,}/g, '
+
+');
   return formatted.trim();
 }
 
@@ -511,26 +526,27 @@ function isClarificationResponse(aiResponse: string): boolean {
 
   // If multiple clarification patterns are found, it's likely a clarification
   if (patternMatches >= 2) {
-    console.log(`[CLARIFICATION] Multiple patterns detected: ${patternMatches} patterns`);
+    logger.info(`[CLARIFICATION] Multiple patterns detected: ${patternMatches} patterns`, { category: LogCategory.GENERAL });
     return true;
   }
 
   // Single pattern match with reasonable length (not a full document)
   if (patternMatches === 1 && aiResponse.length < 1000) {
-    console.log(`[CLARIFICATION] Single pattern in short response`);
+    logger.info(`[CLARIFICATION] Single pattern in short response`, { category: LogCategory.GENERAL });
     return true;
   }
 
   // Check for bullet points requesting information
   const bulletPatterns = [
-    /•\s*[\w\s]+:(?:\s*$|\s*\n)/gm,  // Bullet point ending with colon
+    /•\s*[\w\s]+:(?:\s*$|\s*
+)/gm,  // Bullet point ending with colon
     /[•\-\*]\s*[\w\s]+(name|number|date|address|price|location)(?:\s*$|\s*:)/gmi,
   ];
 
   for (const pattern of bulletPatterns) {
     const matches = aiResponse.match(pattern) || [];
     if (matches.length >= 2) {
-      console.log(`[CLARIFICATION] Multiple bullet points requesting info: ${matches.length}`);
+      logger.info(`[CLARIFICATION] Multiple bullet points requesting info: ${matches.length}`, { category: LogCategory.GENERAL });
       return true;
     }
   }
@@ -538,13 +554,13 @@ function isClarificationResponse(aiResponse: string): boolean {
   // Check if it's a question-heavy response (multiple question marks)
   const questionMarkCount = (aiResponse.match(/\?/g) || []).length;
   if (questionMarkCount >= 2) {
-    console.log(`[CLARIFICATION] Multiple questions detected: ${questionMarkCount} question marks`);
+    logger.info(`[CLARIFICATION] Multiple questions detected: ${questionMarkCount} question marks`, { category: LogCategory.GENERAL });
     return true;
   }
 
   // Check for "Please provide:" followed by a list
   if (response.includes("please provide") && response.includes("•")) {
-    console.log(`[CLARIFICATION] 'Please provide' with bullet points detected`);
+    logger.info(`[CLARIFICATION] 'Please provide' with bullet points detected`, { category: LogCategory.GENERAL });
     return true;
   }
 
@@ -552,7 +568,7 @@ function isClarificationResponse(aiResponse: string): boolean {
   const numberedListPattern = /\d+\.\s*([\w\s]+:|\?)/g;
   const numberedMatches = aiResponse.match(numberedListPattern) || [];
   if (numberedMatches.length >= 2) {
-    console.log(`[CLARIFICATION] Numbered list requesting information`);
+    logger.info(`[CLARIFICATION] Numbered list requesting information`, { category: LogCategory.GENERAL });
     return true;
   }
 
@@ -587,7 +603,7 @@ function isInformationalResponse(aiResponse: string, userMessage: string): boole
     ];
 
     if (listingIndicators.some(ind => lowerResponse.includes(ind))) {
-      console.log(`[INFORMATIONAL] Detected template listing response for query: "${userMessage}"`);
+      logger.info(`[INFORMATIONAL] Detected template listing response for query: "${userMessage}"`, { category: LogCategory.ZYPRUS });
       return true;
     }
   }
@@ -626,8 +642,8 @@ function shouldForceMarketingDocx(userMessage: string, aiResponse: string): bool
     (lowerResponse.includes("seller") && lowerResponse.includes("agent"));
 
   // 🔍 DEBUG LOGGING
-  console.log("=== shouldForceMarketingDocx DEBUG ===");
-  console.log(JSON.stringify({
+  logger.info("=== shouldForceMarketingDocx DEBUG ===", { category: LogCategory.GENERAL });
+  logger.info(JSON.stringify({
     wantsMarketingAgreement,
     wantsEmail,
     aiGeneratedEmail,
@@ -635,14 +651,14 @@ function shouldForceMarketingDocx(userMessage: string, aiResponse: string): bool
     messagePreview: lowerMessage.substring(0, 100),
     responseHasSubject: aiResponse.includes("Subject:"),
   }, null, 2));
-  console.log("=====================================");
+  logger.info("=====================================", { category: LogCategory.GENERAL });
 
   if (wantsMarketingAgreement && !wantsEmail && aiGeneratedEmail && hasMarketingContent) {
-    console.log("[MARKETING OVERRIDE] User wants DOCX but AI generated email - FORCING DOCX");
+    logger.info("[MARKETING OVERRIDE] User wants DOCX but AI generated email - FORCING DOCX", { category: LogCategory.GENERAL });
     return true;
   }
 
-  console.log("[MARKETING OVERRIDE] Conditions not met - NOT forcing DOCX");
+  logger.info("[MARKETING OVERRIDE] Conditions not met - NOT forcing DOCX", { category: LogCategory.GENERAL });
   return false;
 }
 
@@ -735,7 +751,7 @@ CSC Zyprus Property Group LTD
   const noteText = "Important Note: For professional compliance, it is recommended to use your Zyprus landline in online posts, which is already connected to your mobile phone, rather than your personal mobile number.";
   messages.push(noteText);
 
-  console.log("[CREA] Split into 3 messages for social media wording");
+  logger.info("[CREA] Split into 3 messages for social media wording", { category: LogCategory.GENERAL });
   return messages;
 }
 
@@ -762,7 +778,8 @@ function parseTemplateResponse(text: string): string[] {
   }
 
   // Split by lines for easier processing
-  const lines = text.split('\n');
+  const lines = text.split('
+');
 
   let subjectLine = "";
   let bodyLines: string[] = [];
@@ -807,13 +824,15 @@ function parseTemplateResponse(text: string): string[] {
   }
 
   // Add Body as second message (includes confirmation text, looking forward, etc.)
-  const bodyText = bodyLines.join('\n').trim();
+  const bodyText = bodyLines.join('
+').trim();
   if (bodyText) {
     messages.push(formatForWhatsApp(bodyText));
   }
 
   // Add Notes as third message ONLY if there's an actual Note/Reminder section
-  const noteText = noteLines.join('\n').trim();
+  const noteText = noteLines.join('
+').trim();
   if (noteText) {
     messages.push(formatForWhatsApp(noteText));
   }
@@ -823,7 +842,7 @@ function parseTemplateResponse(text: string): string[] {
     return [formatForWhatsApp(text)];
   }
 
-  console.log(`Parsed template into ${messages.length} parts: Subject="${subjectLine.substring(0, 50)}...", Body=${bodyText.length} chars, Notes=${noteText.length} chars`);
+  logger.info(`Parsed template into ${messages.length} parts: Subject="${subjectLine.substring(0, 50)}...", Body=${bodyText.length} chars, Notes=${noteText.length} chars`, { category: LogCategory.GENERAL });
 
   return messages;
 }
@@ -879,7 +898,7 @@ async function uploadDocxToStorage(
       });
 
     if (error) {
-      console.error("Error uploading to Supabase Storage:", error);
+      logger.error("Error uploading to Supabase Storage: " + String(error), { category: LogCategory.ZYPRUS });
       return null;
     }
 
@@ -888,10 +907,10 @@ async function uploadDocxToStorage(
       .from('documents')
       .getPublicUrl(`docx/${filename}`);
 
-    console.log("Uploaded DOCX to Supabase Storage:", urlData.publicUrl);
+    logger.info("Uploaded DOCX to Supabase Storage:" + String(urlData.publicUrl), { category: LogCategory.DATABASE });
     return urlData.publicUrl;
   } catch (error) {
-    console.error("Exception uploading to Supabase Storage:", error);
+    logger.error("Exception uploading to Supabase Storage: " + String(error), { category: LogCategory.ZYPRUS });
     return null;
   }
 }
@@ -914,12 +933,12 @@ async function sendDocxFile(
   const documentUrl = await uploadDocxToStorage(docxContent, filename);
 
   if (!documentUrl) {
-    console.error("Failed to upload DOCX to storage, cannot send document");
+    logger.error("Failed to upload DOCX to storage, cannot send document", { category: LogCategory.ZYPRUS });
     // Return a fake error response
     return new Response(JSON.stringify({ error: "Failed to upload document" }), { status: 500 });
   }
 
-  console.log("Sending document via WaSend with URL:", documentUrl);
+  logger.info("Sending document via WaSend with URL:" + String(documentUrl), { category: LogCategory.GENERAL });
 
   // Step 1.5: Save document URL for later email attachment
   if (userId) {
@@ -945,8 +964,8 @@ async function sendDocxFile(
     });
 
     const responseText = await sendRes.text();
-    console.log("WaSend document send response status:", sendRes.status);
-    console.log("WaSend document send response body:", responseText);
+    logger.info("WaSend document send response status:" + String(sendRes.status), { category: LogCategory.GENERAL });
+    logger.info("WaSend document send response body:" + String(responseText), { category: LogCategory.GENERAL });
 
     // Handle rate limiting (429 status)
     if (sendRes.status === 429 && retries > 0) {
@@ -961,7 +980,7 @@ async function sendDocxFile(
         // If parsing fails, use default
       }
 
-      console.log(
+      logger.info(
         `WaSendAPI Rate Limit hit. Retrying in ${retryAfter / 1000} seconds...`,
       );
       await new Promise((resolve) => setTimeout(resolve, retryAfter));
@@ -974,7 +993,7 @@ async function sendDocxFile(
       headers: sendRes.headers
     });
   } catch (error) {
-    console.error("Error sending DOCX file via WaSend:", error);
+    logger.error("Error sending DOCX file via WaSend: " + String(error), { category: LogCategory.GENERAL });
     return new Response(JSON.stringify({ error: String(error) }), { status: 500 });
   }
 }
@@ -1024,7 +1043,7 @@ async function uploadLogoToStorage(): Promise<string | null> {
       });
 
     if (error && !error.message.includes('already exists')) {
-      console.error("Error uploading logo to Supabase Storage:", error);
+      logger.error("Error uploading logo to Supabase Storage: " + String(error), { category: LogCategory.ZYPRUS });
       return null;
     }
 
@@ -1033,10 +1052,10 @@ async function uploadLogoToStorage(): Promise<string | null> {
       .from('documents')
       .getPublicUrl(`logos/${filename}`);
 
-    console.log("Logo URL:", urlData.publicUrl);
+    logger.info("Logo URL:" + String(urlData.publicUrl), { category: LogCategory.GENERAL });
     return urlData.publicUrl;
   } catch (error) {
-    console.error("Exception uploading logo to Supabase Storage:", error);
+    logger.error("Exception uploading logo to Supabase Storage: " + String(error), { category: LogCategory.ZYPRUS });
     return null;
   }
 }
@@ -1051,11 +1070,11 @@ async function sendLogoImage(phoneNumber: string): Promise<Response> {
   const logoUrl = await uploadLogoToStorage();
 
   if (!logoUrl) {
-    console.error("Failed to get logo URL");
+    logger.error("Failed to get logo URL", { category: LogCategory.GENERAL });
     return new Response(JSON.stringify({ error: "Failed to get logo" }), { status: 500 });
   }
 
-  console.log("Sending logo via WaSend with URL:", logoUrl);
+  logger.info("Sending logo via WaSend with URL:" + String(logoUrl), { category: LogCategory.GENERAL });
 
   try {
     const sendRes = await fetch(sendUrl, {
@@ -1072,10 +1091,10 @@ async function sendLogoImage(phoneNumber: string): Promise<Response> {
     });
 
     const responseText = await sendRes.text();
-    console.log("WaSend image response:", responseText);
+    logger.info("WaSend image response:" + String(responseText), { category: LogCategory.GENERAL });
 
     if (!sendRes.ok) {
-      console.error("WaSend image send failed:", responseText);
+      logger.error("WaSend image send failed: " + String(responseText), { category: LogCategory.GENERAL });
     }
 
     return new Response(responseText, {
@@ -1083,7 +1102,7 @@ async function sendLogoImage(phoneNumber: string): Promise<Response> {
       headers: sendRes.headers
     });
   } catch (error) {
-    console.error("Error sending logo via WaSend:", error);
+    logger.error("Error sending logo via WaSend: " + String(error), { category: LogCategory.GENERAL });
     return new Response(JSON.stringify({ error: String(error) }), { status: 500 });
   }
 }
@@ -1106,7 +1125,7 @@ function formatPhoneNumber(remoteJid: string | null): string | null {
   // If it's a LID (starts with numbers but isn't a phone number format)
   // LIDs are internal WhatsApp identifiers, not usable for sending
   if (number.includes("@") || number.length < 8) {
-    console.log("Invalid phone format (possibly LID):", number);
+    logger.info("Invalid phone format (possibly LID):" + String(number), { category: LogCategory.GENERAL });
     return null;
   }
 
@@ -1121,13 +1140,13 @@ function formatPhoneNumber(remoteJid: string | null): string | null {
       if (digits && digits.length >= 8) {
         number = "+" + digits;
       } else {
-        console.log("Could not extract valid phone number from:", remoteJid);
+        logger.info("Could not extract valid phone number from:" + String(remoteJid), { category: LogCategory.GENERAL });
         return null;
       }
     }
   }
 
-  console.log("Formatted phone number:", number);
+  logger.info("Formatted phone number:" + String(number), { category: LogCategory.GENERAL });
   return number;
 }
 
@@ -1144,10 +1163,10 @@ async function extractMessage(payload: any): Promise<{
   userMessage: string;
   imageUrls: string[];
 } | null> {
-  console.log("Extracting message from payload...");
+  logger.info("Extracting message from payload...", { category: LogCategory.GENERAL });
   // DEBUG: Log full payload structure to diagnose image handling
-  console.log("[DEBUG] Full payload keys:", Object.keys(payload));
-  console.log("[DEBUG] Payload preview:", JSON.stringify(payload).substring(0, 500));
+  logger.debug("Full payload keys: " + String(Object.keys(payload)), { category: LogCategory.GENERAL });
+  logger.debug("Payload preview: " + JSON.stringify(payload).substring(0, 500), { category: LogCategory.GENERAL });
 
   let message = null;
   let remoteJid: string | null = null;
@@ -1160,7 +1179,7 @@ async function extractMessage(payload: any): Promise<{
     const event = payload.event;
     const data = payload.data;
 
-    console.log("Event type:", event);
+    logger.info("Event type:" + String(event), { category: LogCategory.GENERAL });
 
     if (
       event === "messages.upsert" || event === "messages.received" ||
@@ -1175,7 +1194,7 @@ async function extractMessage(payload: any): Promise<{
         message = data;
       }
     } else {
-      console.log("Unhandled event type:", event);
+      logger.info("Unhandled event type:" + String(event), { category: LogCategory.GENERAL });
       return null;
     }
   }
@@ -1191,18 +1210,18 @@ async function extractMessage(payload: any): Promise<{
   }
 
   if (!message) {
-    console.log("No message object found");
+    logger.info("No message object found", { category: LogCategory.GENERAL });
     return null;
   }
 
   // DEBUG: Comprehensive logging to diagnose image handling
-  console.log("[DEBUG] === MESSAGE STRUCTURE ANALYSIS ===");
-  console.log("[DEBUG] Message keys:", Object.keys(message));
-  console.log("[DEBUG] Full message:", JSON.stringify(message).substring(0, 2000));
+  logger.debug(" === MESSAGE STRUCTURE ANALYSIS ===", { category: LogCategory.GENERAL });
+  logger.debug("Message keys: " + String(Object.keys(message)), { category: LogCategory.GENERAL });
+  logger.debug("Full message: " + JSON.stringify(message).substring(0, 2000), { category: LogCategory.GENERAL });
 
   if (message.message) {
-    console.log("[DEBUG] message.message keys:", Object.keys(message.message));
-    console.log("[DEBUG] message.message:", JSON.stringify(message.message).substring(0, 1000));
+    logger.debug("message.message keys: " + String(Object.keys(message.message)), { category: LogCategory.GENERAL });
+    logger.debug("message.message: " + JSON.stringify(message.message).substring(0, 1000), { category: LogCategory.GENERAL });
   }
 
   // Check specific fields that indicate image presence
@@ -1215,25 +1234,25 @@ async function extractMessage(payload: any): Promise<{
     "message.messageType": message.messageType,
     "message.type": message.type,
   };
-  console.log("[DEBUG] Image indicators:", JSON.stringify(hasImageIndicators));
+  logger.debug("Image indicators: " + JSON.stringify(hasImageIndicators), { category: LogCategory.GENERAL });
 
   // Deep search for "imageMessage" keyword in the entire payload
   const payloadStr = JSON.stringify(message);
   if (payloadStr.includes("imageMessage")) {
-    console.log("[DEBUG] *** Found 'imageMessage' somewhere in payload! ***");
+    logger.debug(" *** Found 'imageMessage' somewhere in payload! ***", { category: LogCategory.GENERAL });
     const imgIdx = payloadStr.indexOf("imageMessage");
-    console.log("[DEBUG] Context around imageMessage:", payloadStr.substring(Math.max(0, imgIdx - 50), imgIdx + 200));
+    logger.debug("Context around imageMessage: " + payloadStr.substring(Math.max(0, imgIdx - 50), imgIdx + 200), { category: LogCategory.GENERAL });
   }
   if (payloadStr.includes("mediaKey")) {
-    console.log("[DEBUG] *** Found 'mediaKey' - this is likely an image message ***");
+    logger.debug(" *** Found 'mediaKey' - this is likely an image message ***", { category: LogCategory.GENERAL });
   }
   if (payloadStr.includes("mmg.whatsapp.net")) {
-    console.log("[DEBUG] *** Found encrypted WhatsApp media URL ***");
+    logger.debug(" *** Found encrypted WhatsApp media URL ***", { category: LogCategory.GENERAL });
   }
 
   // Check if message is from me (outgoing) - ignore it
   if (message.key?.fromMe || message.fromMe) {
-    console.log("Ignoring outgoing message (fromMe=true)");
+    logger.info("Ignoring outgoing message (fromMe=true)", { category: LogCategory.GENERAL });
     return null;
   }
 
@@ -1253,7 +1272,7 @@ async function extractMessage(payload: any): Promise<{
     if (!jid.includes(":") && !jid.includes("@lid")) {
       remoteJid = jid;
     } else {
-      console.log("Skipping LID format remoteJid:", jid);
+      logger.info("Skipping LID format remoteJid:" + String(jid), { category: LogCategory.GENERAL });
     }
   }
 
@@ -1262,7 +1281,7 @@ async function extractMessage(payload: any): Promise<{
     remoteJid = message.remoteJid || message.from || message.to || message.phone;
   }
 
-  console.log("Extracted remoteJid:", remoteJid);
+  logger.info("Extracted remoteJid:" + String(remoteJid), { category: LogCategory.GENERAL });
 
   // Extract text content - PRIORITY ORDER per WaSend docs:
   // 1. messageBody (WaSend unified field for all message types including captions)
@@ -1278,7 +1297,7 @@ async function extractMessage(payload: any): Promise<{
     message.content ||
     "";
 
-  console.log("Extracted userMessage:", userMessage.substring(0, 100));
+  logger.info("Extracted userMessage: " + userMessage.substring(0, 100), { category: LogCategory.GENERAL });
 
   // Get message ID for decryption
   const messageId = message.key?.id || message.id || `msg_${Date.now()}`;
@@ -1290,13 +1309,13 @@ async function extractMessage(payload: any): Promise<{
   // Helper to process an imageMessage object
   const processImageMessage = async (imgMsg: any, source: string) => {
     const rawUrl = imgMsg.url;
-    console.log(`[IMAGE] Found in ${source}, URL: ${rawUrl?.substring(0, 80) || "none"}`);
-    console.log(`[IMAGE] Has mediaKey: ${!!imgMsg.mediaKey}, mimetype: ${imgMsg.mimetype || "unknown"}`);
+    logger.info(`Image: Found in ${source}, URL: ${rawUrl?.substring(0, 80) || "none"}`, { category: LogCategory.IMAGE });
+    logger.info(`Image: Has mediaKey: ${!!imgMsg.mediaKey}, mimetype: ${imgMsg.mimetype || "unknown"}`, { category: LogCategory.IMAGE });
 
     if (rawUrl) {
       // Check if this is an encrypted WhatsApp URL that needs decryption
       if (needsDecryption(rawUrl) && imgMsg.mediaKey) {
-        console.log(`[IMAGE] Decrypting via WaSend API...`);
+        logger.info(`Image: Decrypting via WaSend API...`, { category: LogCategory.IMAGE });
         const decryptedUrl = await decryptWhatsAppImage(messageId, {
           url: rawUrl,
           mimetype: imgMsg.mimetype || "image/jpeg",
@@ -1305,17 +1324,17 @@ async function extractMessage(payload: any): Promise<{
           fileLength: imgMsg.fileLength?.toString(),
         });
         if (decryptedUrl) {
-          console.log(`[IMAGE] Decryption successful! Public URL: ${decryptedUrl.substring(0, 80)}`);
+          logger.info(`Image: Decryption successful! Public URL: ${decryptedUrl.substring(0, 80)}`, { category: LogCategory.IMAGE });
           imageUrls.push(decryptedUrl);
         } else {
-          console.log(`[IMAGE] Decryption failed - marking imageDetectedButFailed`);
+          logger.info(`Image: Decryption failed - marking imageDetectedButFailed`, { category: LogCategory.IMAGE });
           imageDetectedButFailed = true;
         }
       } else if (isPublicUrl(rawUrl)) {
-        console.log(`[IMAGE] Already public URL`);
+        logger.info(`Image: Already public URL`, { category: LogCategory.IMAGE });
         imageUrls.push(rawUrl);
       } else {
-        console.log(`[IMAGE] Encrypted but missing mediaKey - marking imageDetectedButFailed`);
+        logger.info(`Image: Encrypted but missing mediaKey - marking imageDetectedButFailed`, { category: LogCategory.IMAGE });
         imageDetectedButFailed = true;
       }
     }
@@ -1339,7 +1358,7 @@ async function extractMessage(payload: any): Promise<{
   // Location 4: Check if WaSend provides decryptedMediaUrl directly
   if (message.decryptedMediaUrl || message.message?.decryptedMediaUrl) {
     const url = message.decryptedMediaUrl || message.message?.decryptedMediaUrl;
-    console.log(`[IMAGE] Found decryptedMediaUrl: ${url?.substring(0, 80)}`);
+    logger.info(`Image: Found decryptedMediaUrl: ${url?.substring(0, 80)}`, { category: LogCategory.IMAGE });
     if (url && isPublicUrl(url)) {
       imageUrls.push(url);
     }
@@ -1347,7 +1366,7 @@ async function extractMessage(payload: any): Promise<{
 
   // Location 5: Check mediaUrl field (some webhook formats)
   if (message.mediaUrl && !imageUrls.includes(message.mediaUrl)) {
-    console.log(`[IMAGE] Found mediaUrl: ${message.mediaUrl.substring(0, 80)}`);
+    logger.info(`Image: Found mediaUrl: ${message.mediaUrl.substring(0, 80)}`, { category: LogCategory.IMAGE });
     if (isPublicUrl(message.mediaUrl)) {
       imageUrls.push(message.mediaUrl);
     }
@@ -1358,11 +1377,11 @@ async function extractMessage(payload: any): Promise<{
       message.message?.documentMessage?.mimetype?.startsWith("image/")) {
     const docMsg = message.message.documentMessage;
     const rawUrl = docMsg.url;
-    console.log("Found image in documentMessage, URL:", rawUrl?.substring(0, 80) || "none");
+    logger.info("Found image in documentMessage, URL: " + (rawUrl?.substring(0, 80)  || "none"), { category: LogCategory.GENERAL });
 
     if (rawUrl) {
       if (needsDecryption(rawUrl) && docMsg.mediaKey) {
-        console.log("Decrypting document image via WaSend API...");
+        logger.info("Decrypting document image via WaSend API...", { category: LogCategory.GENERAL });
         const decryptedUrl = await decryptWhatsAppImage(messageId + "_doc", {
           url: rawUrl,
           mimetype: docMsg.mimetype,
@@ -1372,7 +1391,7 @@ async function extractMessage(payload: any): Promise<{
           fileName: docMsg.fileName,
         });
         if (decryptedUrl) {
-          console.log("Document image decryption successful!");
+          logger.info("Document image decryption successful!", { category: LogCategory.GENERAL });
           imageUrls.push(decryptedUrl);
         }
       } else if (isPublicUrl(rawUrl)) {
@@ -1387,7 +1406,7 @@ async function extractMessage(payload: any): Promise<{
   if (message.media && Array.isArray(message.media)) {
     for (const mediaUrl of message.media) {
       if (typeof mediaUrl === "string" && mediaUrl.startsWith("http")) {
-        console.log("Found image URL in media array:", mediaUrl.substring(0, 100));
+        logger.info("Found image URL in media array: " + mediaUrl.substring(0, 100), { category: LogCategory.GENERAL });
         imageUrls.push(mediaUrl);
       }
     }
@@ -1397,20 +1416,20 @@ async function extractMessage(payload: any): Promise<{
   // WaSenderAPI decrypted URLs expire after ~1 hour
   let persistedImageUrls = imageUrls;
   if (imageUrls.length > 0) {
-    console.log(`[IMAGE] Extracted ${imageUrls.length} image URL(s), persisting to storage...`);
+    logger.info(`Image: Extracted ${imageUrls.length} image URL(s), persisting to storage...`, { category: LogCategory.IMAGE });
     persistedImageUrls = await persistImages(imageUrls);
     if (persistedImageUrls.length > 0) {
-      console.log(`[IMAGE] Persisted ${persistedImageUrls.length} images to Supabase Storage`);
+      logger.info(`Image: Persisted ${persistedImageUrls.length} images to Supabase Storage`, { category: LogCategory.IMAGE });
 
       // CRITICAL: Store images in pending_images table for accumulation
       // This allows SOPHIA to track images across multiple webhook calls
       const phoneNumber = remoteJid?.split("@")[0]?.replace(/\D/g, "") || "";
       if (phoneNumber) {
         await addPendingImages(phoneNumber, persistedImageUrls);
-        console.log(`[IMAGE] Added ${persistedImageUrls.length} images to pending_images for ${phoneNumber}`);
+        logger.info(`Image: Added ${persistedImageUrls.length} images to pending_images for ${phoneNumber}`, { category: LogCategory.IMAGE });
       }
     } else if (imageUrls.length > 0) {
-      console.warn(`[IMAGE] Failed to persist any images, falling back to temporary URLs`);
+      logger.warn(`Image warning: Failed to persist any images, falling back to temporary URLs`, { category: LogCategory.IMAGE });
       persistedImageUrls = imageUrls; // Fall back to temporary URLs if persistence fails
     }
   }
@@ -1418,14 +1437,14 @@ async function extractMessage(payload: any): Promise<{
   if (!userMessage || userMessage.trim() === "") {
     // Allow messages with only images if they have a URL
     if (imageUrls.length > 0) {
-      console.log("No text content but found images, using placeholder message");
+      logger.info("No text content but found images, using placeholder message", { category: LogCategory.GENERAL });
       userMessage = "[User sent image(s)]";
     } else if (imageDetectedButFailed) {
       // Images were detected but decryption failed - don't drop the message!
-      console.log("No text content, images detected but decryption failed - using failure placeholder");
+      logger.info("No text content, images detected but decryption failed - using failure placeholder", { category: LogCategory.GENERAL });
       userMessage = "[User sent image(s) but decryption failed]";
     } else {
-      console.log("No text content found in message");
+      logger.info("No text content found in message", { category: LogCategory.GENERAL });
       return null;
     }
   }
@@ -1442,9 +1461,9 @@ async function sendTextMessage(
 ): Promise<Response> {
   const sendUrl = "https://www.wasenderapi.com/api/send-message";
 
-  console.log(`=== WASEND API CALL ===`);
-  console.log(`Sending text message to ${phoneNumber}, text length: ${text.length}`);
-  console.log(`WASEND_API_KEY set: ${!!WASEND_API_KEY}, length: ${WASEND_API_KEY?.length || 0}`);
+  logger.info(`=== WASEND API CALL ===`, { category: LogCategory.GENERAL });
+  logger.info(`Sending text message to ${phoneNumber}, text length: ${text.length}`, { category: LogCategory.GENERAL });
+  logger.info(`WASEND_API_KEY set: ${!!WASEND_API_KEY}, length: ${WASEND_API_KEY?.length || 0}`, { category: LogCategory.GENERAL });
 
   try {
     let sendRes = await fetch(sendUrl, {
@@ -1460,9 +1479,9 @@ async function sendTextMessage(
     });
 
     const responseText = await sendRes.text();
-    console.log(`WaSend text send response status: ${sendRes.status}`);
-    console.log(`WaSend text send response body: ${responseText}`);
-    console.log(`=== WASEND API CALL COMPLETE ===`);
+    logger.info(`WaSend text send response status: ${sendRes.status}`, { category: LogCategory.GENERAL });
+    logger.info(`WaSend text send response body: ${responseText}`, { category: LogCategory.GENERAL });
+    logger.info(`=== WASEND API CALL COMPLETE ===`, { category: LogCategory.GENERAL });
 
     // Handle rate limiting (429 status)
     if (sendRes.status === 429) {
@@ -1477,7 +1496,7 @@ async function sendTextMessage(
         // If parsing fails, use default
       }
 
-      console.log(
+      logger.info(
         `WaSendAPI Rate Limit hit. Retrying in ${retryAfter / 1000} seconds...`,
       );
       await new Promise((resolve) => setTimeout(resolve, retryAfter));
@@ -1494,8 +1513,8 @@ async function sendTextMessage(
       });
 
       const retryResponseText = await sendRes.text();
-      console.log(`WaSend retry response status: ${sendRes.status}`);
-      console.log(`WaSend retry response body: ${retryResponseText}`);
+      logger.info(`WaSend retry response status: ${sendRes.status}`, { category: LogCategory.GENERAL });
+      logger.info(`WaSend retry response body: ${retryResponseText}`, { category: LogCategory.GENERAL });
 
       // Return a new Response since we consumed the body
       return new Response(retryResponseText, {
@@ -1510,7 +1529,7 @@ async function sendTextMessage(
       headers: sendRes.headers
     });
   } catch (error) {
-    console.error("Error sending text message via WaSend:", error);
+    logger.error("Error sending text message via WaSend: " + String(error), { category: LogCategory.GENERAL });
     return new Response(JSON.stringify({ error: String(error) }), { status: 500 });
   }
 }
@@ -1527,14 +1546,14 @@ async function getAgentByPhone(phoneNumber: string): Promise<{ name: string; ema
       .single();
 
     if (error || !data) {
-      console.log(`No agent found for phone: ${phoneNumber}`);
+      logger.info(`No agent found for phone: ${phoneNumber}`, { category: LogCategory.GENERAL });
       return null;
     }
 
-    console.log(`Found agent: ${data.name} for phone: ${phoneNumber}`);
+    logger.info(`Found agent: ${data.name} for phone: ${phoneNumber}`, { category: LogCategory.GENERAL });
     return data;
   } catch (err) {
-    console.error("Error looking up agent:", err);
+    logger.error("Error looking up agent: " + String(err), { category: LogCategory.GENERAL });
     return null;
   }
 }
@@ -1551,7 +1570,7 @@ async function processRequest(
   try {
     // Check if critical API keys are set
     if (!OPENROUTER_API_KEY || !WASEND_API_KEY) {
-      console.error("CRITICAL: Missing API keys - OPENROUTER_API_KEY or WASEND_API_KEY not set");
+      logger.error("CRITICAL: Missing API keys - OPENROUTER_API_KEY or WASEND_API_KEY not set", { category: LogCategory.GENERAL });
       const errorMsg = "Service configuration error. Please contact support.";
 
       // Try to send error if WaSend key exists
@@ -1563,7 +1582,7 @@ async function processRequest(
 
     // Check for logo request first (handle before AI processing)
     if (isLogoRequest(userMessage)) {
-      console.log("[Logo] Logo request detected, sending logo image");
+      logger.info("[Logo] Logo request detected, sending logo image", { category: LogCategory.GENERAL });
       await sendLogoImage(phoneNumber);
       // Also add to history so we remember it
       await addMessage(userId, "user", userMessage);
@@ -1581,8 +1600,8 @@ async function processRequest(
       userContext = await buildUserContext(phoneNumber, userMessage);
       if (userContext) {
         personalizationContext = formatContextForPrompt(userContext);
-        console.log(`[Memory] Built context for user: ${userContext.profile.name || phoneNumber}`);
-        console.log(`[Memory] Found ${userContext.recentMemories.length} relevant memories, ${userContext.relevantKnowledge.length} knowledge entries`);
+        logger.debug(`Memory: Built context for user: ${userContext.profile.name || phoneNumber}`, { category: LogCategory.GENERAL });
+        logger.debug(`Memory: Found ${userContext.recentMemories.length} relevant memories, ${userContext.relevantKnowledge.length} knowledge entries`, { category: LogCategory.GENERAL });
 
         // Store user message to memory (fire-and-forget)
         const topics = extractTopics(userMessage);
@@ -1590,10 +1609,10 @@ async function processRequest(
         storeMemory(userContext.profile.id, "user", userMessage, {
           importance,
           topics,
-        }).catch(err => console.error("[Memory] Async store failed for user message:", err));
+        }).catch(err => logger.error("Memory error: Async store failed for user message:", err), { category: LogCategory.GENERAL });
       }
     } catch (memErr) {
-      console.error("[Memory] Error building user context:", memErr);
+      logger.error("Memory error: Error building user context: " + String(memErr), { category: LogCategory.GENERAL });
       // Continue without personalization - non-blocking
     }
 
@@ -1631,7 +1650,26 @@ async function processRequest(
     });
 
     // Inject current date context into system prompt
-    const dateContext = `\n\n---\n## 📅 CURRENT DATE/TIME AWARENESS\n\n**IMPORTANT: You must be aware of the current date and time.**\n\n**Current Date/Time in Cyprus (Nicosia):** ${cyprusDate}\n**Today's Date (DD/MM/YYYY format):** ${cyprusDateShort}\n\n**When users say relative dates like:**\n- "today" → Use ${cyprusDateShort}\n- "tomorrow" → Add 1 day to today\n- "next week" → Add 7 days to today\n- "yesterday" → Subtract 1 day from today\n\n**ALWAYS calculate dates correctly based on today being ${cyprusDateShort}.**\n\n---\n`;
+    const dateContext = `
+
+---
+## 📅 CURRENT DATE/TIME AWARENESS
+
+**IMPORTANT: You must be aware of the current date and time.**
+
+**Current Date/Time in Cyprus (Nicosia):** ${cyprusDate}
+**Today's Date (DD/MM/YYYY format):** ${cyprusDateShort}
+
+**When users say relative dates like:**
+- "today" → Use ${cyprusDateShort}
+- "tomorrow" → Add 1 day to today
+- "next week" → Add 7 days to today
+- "yesterday" → Subtract 1 day from today
+
+**ALWAYS calculate dates correctly based on today being ${cyprusDateShort}.**
+
+---
+`;
 
     // Look up agent info from database (old method - for document generation)
     const agentInfo = await getAgentByPhone(phoneNumber);
@@ -1641,21 +1679,62 @@ async function processRequest(
     try {
       identifiedAgent = await identifyAgentByPhone(phoneNumber, supabaseUrl, supabaseKey);
       if (identifiedAgent) {
-        console.log(`[Agent] Identified: ${identifiedAgent.fullName} (${identifiedAgent.region})`);
+        logger.info(`[Agent] Identified: ${identifiedAgent.fullName} (${identifiedAgent.region})`, { category: LogCategory.GENERAL });
       }
     } catch (err) {
-      console.error("[Agent] Error identifying agent:", err);
+      logger.error("[Agent] Error identifying agent: " + String(err), { category: LogCategory.GENERAL });
     }
 
     // Inject sender info with agent details if known
     let senderContext: string;
     if (identifiedAgent) {
       // Use the new agent identification for property uploads
-      senderContext = `\n\n---\n## 📱 CURRENT SENDER - KNOWN AGENT\n\n**IMPORTANT: You are talking to a KNOWN AGENT who can upload property listings.**\n\n**Agent Name:** ${identifiedAgent.fullName}\n**Phone Number:** ${phoneNumber}\n**Email:** ${identifiedAgent.communicationEmail}\n**Region:** ${identifiedAgent.region}\n**Role:** ${identifiedAgent.role}\n**Can Upload Listings:** ${identifiedAgent.canUpload ? 'Yes' : 'No'}\n\n**When this agent wants to upload a property listing, use the createPropertyListing or createLandListing tools. DO NOT ask for their name - use their info directly.**\n\n---\n`;
+      senderContext = `
+
+---
+## 📱 CURRENT SENDER - KNOWN AGENT
+
+**IMPORTANT: You are talking to a KNOWN AGENT who can upload property listings.**
+
+**Agent Name:** ${identifiedAgent.fullName}
+**Phone Number:** ${phoneNumber}
+**Email:** ${identifiedAgent.communicationEmail}
+**Region:** ${identifiedAgent.region}
+**Role:** ${identifiedAgent.role}
+**Can Upload Listings:** ${identifiedAgent.canUpload ? 'Yes' : 'No'}
+
+**When this agent wants to upload a property listing, use the createPropertyListing or createLandListing tools. DO NOT ask for their name - use their info directly.**
+
+---
+`;
     } else if (agentInfo) {
-      senderContext = `\n\n---\n## 📱 CURRENT SENDER - KNOWN AGENT\n\n**IMPORTANT: You are talking to a KNOWN AGENT. Use their info directly - DO NOT ask for their name or phone number.**\n\n**Agent Name:** ${agentInfo.name}\n**Phone Number:** ${phoneNumber}\n${agentInfo.email ? `**Email:** ${agentInfo.email}\n` : ''}\n**When generating documents for this agent, automatically use their name and phone number. DO NOT ask them to provide this information.**\n\n---\n`;
+      senderContext = `
+
+---
+## 📱 CURRENT SENDER - KNOWN AGENT
+
+**IMPORTANT: You are talking to a KNOWN AGENT. Use their info directly - DO NOT ask for their name or phone number.**
+
+**Agent Name:** ${agentInfo.name}
+**Phone Number:** ${phoneNumber}
+${agentInfo.email ? `**Email:** ${agentInfo.email}
+` : ''}
+**When generating documents for this agent, automatically use their name and phone number. DO NOT ask them to provide this information.**
+
+---
+`;
     } else {
-      senderContext = `\n\n---\n## 📱 CURRENT SENDER IDENTIFICATION\n\n**Message sent from phone number:** ${phoneNumber}\n\n**This is an unknown sender. You may need to ask for their name if generating documents. If they want to upload a property, ask them to confirm who they are first.**\n\n---\n`;
+      senderContext = `
+
+---
+## 📱 CURRENT SENDER IDENTIFICATION
+
+**Message sent from phone number:** ${phoneNumber}
+
+**This is an unknown sender. You may need to ask for their name if generating documents. If they want to upload a property, ask them to confirm who they are first.**
+
+---
+`;
     }
 
     // Add image context - retrieve ALL accumulated images from pending_images table
@@ -1666,12 +1745,44 @@ async function processRequest(
 
     if (totalImageCount > 0) {
       // Use accumulated images (includes current + previous photos)
-      imageContext = `\n\n---\n## 📷 ACCUMULATED PROPERTY PHOTOS\n\n**IMPORTANT: You have received a total of ${totalImageCount} photo(s) for the property listing.**\n\n**All Image URLs (use ALL of these for property listings):**\n${accumulatedImages.map((url, i) => `${i + 1}. ${url}`).join('\n')}\n\n**When the user is ready to create a property listing, use ALL of these image URLs in the \`imageUrls\` parameter of the createPropertyListing or createLandListing tool. INCLUDE EVERY IMAGE - do not leave any out.**\n\n**REMEMBER: Ask the user to confirm all photos have been sent before uploading!**\n\n---\n`;
-      console.log(`[Images] Added ${totalImageCount} ACCUMULATED image URL(s) to AI context`);
+      imageContext = `
+
+---
+## 📷 ACCUMULATED PROPERTY PHOTOS
+
+**IMPORTANT: You have received a total of ${totalImageCount} photo(s) for the property listing.**
+
+**All Image URLs (use ALL of these for property listings):**
+${accumulatedImages.map((url, i) => `${i + 1}. ${url}`).join('
+')}
+
+**When the user is ready to create a property listing, use ALL of these image URLs in the \`imageUrls\` parameter of the createPropertyListing or createLandListing tool. INCLUDE EVERY IMAGE - do not leave any out.**
+
+**REMEMBER: Ask the user to confirm all photos have been sent before uploading!**
+
+---
+`;
+      logger.info(`[Images] Added ${totalImageCount} ACCUMULATED image URL(s) to AI context`, { category: LogCategory.GENERAL });
     } else if (userMessage.includes("[User sent image(s) but decryption failed]")) {
       // Special context when images were detected but could not be decrypted
-      imageContext = `\n\n---\n## ⚠️ IMAGE PROCESSING ISSUE\n\n**The user sent image(s) but our system could not process them.**\n\nPlease respond with something like:\n"I received your images, but I wasn't able to process them. This sometimes happens with WhatsApp's image encryption. Could you please try sending the photos again? If the problem persists, you can also try:\n1. Sending the images one at a time\n2. Taking fresh photos instead of selecting from gallery\n3. Sending the images as documents instead of photos"\n\n**DO NOT proceed with any property listing until you have successfully received the images.**\n\n---\n`;
-      console.log(`[Images] Added decryption failure context to AI`);
+      imageContext = `
+
+---
+## ⚠️ IMAGE PROCESSING ISSUE
+
+**The user sent image(s) but our system could not process them.**
+
+Please respond with something like:
+"I received your images, but I wasn't able to process them. This sometimes happens with WhatsApp's image encryption. Could you please try sending the photos again? If the problem persists, you can also try:
+1. Sending the images one at a time
+2. Taking fresh photos instead of selecting from gallery
+3. Sending the images as documents instead of photos"
+
+**DO NOT proceed with any property listing until you have successfully received the images.**
+
+---
+`;
+      logger.info(`[Images] Added decryption failure context to AI`, { category: LogCategory.GENERAL });
     }
 
     // Check for recently generated documents that can be attached to emails
@@ -1679,8 +1790,23 @@ async function processRequest(
     const lastDocument = await getLastDocument(userId);
     if (lastDocument) {
       const docTypeDisplay = lastDocument.document_type?.replace(/_/g, ' ') || 'document';
-      documentContext = `\n\n---\n## 📎 AVAILABLE DOCUMENT FOR EMAIL ATTACHMENT\n\n**You have a recently generated document available:**\n- **Document:** ${lastDocument.document_name}\n- **Type:** ${docTypeDisplay}\n- **URL:** ${lastDocument.document_url}\n\n**If the user asks to email this document (e.g., "send it to my email", "email me the document"):**\n→ Use the sendEmail tool with the \`attachmentUrl\` parameter set to the URL above.\n→ Keep the email subject and body simple (e.g., "Find attached the ${docTypeDisplay}")\n\n---\n`;
-      console.log(`[DocContext] Found available document for attachment: ${lastDocument.document_name}`);
+      documentContext = `
+
+---
+## 📎 AVAILABLE DOCUMENT FOR EMAIL ATTACHMENT
+
+**You have a recently generated document available:**
+- **Document:** ${lastDocument.document_name}
+- **Type:** ${docTypeDisplay}
+- **URL:** ${lastDocument.document_url}
+
+**If the user asks to email this document (e.g., "send it to my email", "email me the document"):**
+→ Use the sendEmail tool with the \`attachmentUrl\` parameter set to the URL above.
+→ Keep the email subject and body simple (e.g., "Find attached the ${docTypeDisplay}")
+
+---
+`;
+      logger.info(`[DocContext] Found available document for attachment: ${lastDocument.document_name}`, { category: LogCategory.GENERAL });
     }
 
     // Build agent context for dynamic prompt loading
@@ -1693,7 +1819,7 @@ async function processRequest(
 
     // Load system prompt from database (cached for 5 minutes, falls back to hardcoded)
     const baseSystemPrompt = await loadSystemPrompt(supabase, agentContext);
-    console.log(`[PromptLoader] Loaded system prompt (${baseSystemPrompt.length} chars)`);
+    logger.info(`[PromptLoader] Loaded system prompt (${baseSystemPrompt.length} chars)`, { category: LogCategory.GENERAL });
 
     const systemPromptWithDate = baseSystemPrompt + dateContext + senderContext + imageContext + documentContext + personalizationContext;
 
@@ -1709,11 +1835,11 @@ async function processRequest(
       openrouterMessages.push({ role, content });
     }
 
-    console.log(`[OpenRouter] Calling with ${openrouterMessages.length} messages`);
+    logger.info(`[OpenRouter] Calling with ${openrouterMessages.length} messages`, { category: LogCategory.GENERAL });
 
     // Get tool definitions for property listing uploads
     const tools = getToolDefinitions();
-    console.log(`[OpenRouter] Including ${tools.length} tools for function calling`);
+    logger.info(`[OpenRouter] Including ${tools.length} tools for function calling`, { category: LogCategory.GENERAL });
 
     // Detect if user wants to upload a property - force tool usage in this case
     const lowerMessage = userMessage.toLowerCase();
@@ -1726,7 +1852,7 @@ async function processRequest(
       (imageUrls.length > 0 && (lowerMessage.includes("property") || lowerMessage.includes("listing") || lowerMessage.includes("bedroom") || lowerMessage.includes("apartment") || lowerMessage.includes("villa") || lowerMessage.includes("house")));
 
     if (isPropertyUploadIntent) {
-      console.log(`[OpenRouter] Property upload intent detected - will force tool usage`);
+      logger.info(`[OpenRouter] Property upload intent detected - will force tool usage`, { category: LogCategory.ZYPRUS });
     }
 
     // Tool calling loop - handle multiple tool calls if needed
@@ -1772,14 +1898,14 @@ async function processRequest(
 
         if (aiRes.status === 429 && retries < maxRetries) {
           const delay = baseDelay * Math.pow(2, retries);
-          console.log(`OpenRouter rate limited (429). Retrying in ${delay}ms... (attempt ${retries + 1}/${maxRetries})`);
+          logger.info(`OpenRouter rate limited (429). Retrying in ${delay}ms... (attempt ${retries + 1}/${maxRetries})`, { category: LogCategory.GENERAL });
           await new Promise((resolve) => setTimeout(resolve, delay));
           retries++;
           continue;
         }
 
-        console.error("OpenRouter Error:", JSON.stringify(errorData, null, 2));
-        console.error("Status:", aiRes.status);
+        logger.error("OpenRouter Error:", JSON.stringify(errorData, null, 2), { category: LogCategory.GENERAL });
+        logger.error("Status: " + String(aiRes.status), { category: LogCategory.GENERAL });
 
         const errorMessage = "I'm experiencing technical difficulties right now. Please try again in a few moments.";
         await sendTextMessage(phoneNumber, errorMessage);
@@ -1787,7 +1913,7 @@ async function processRequest(
       }
 
       if (!aiRes || !aiRes.ok) {
-        console.error("OpenRouter API call failed after retries");
+        logger.error("OpenRouter API call failed after retries", { category: LogCategory.GENERAL });
         const errorMessage = "I'm having trouble processing your request. Please try again shortly.";
         await sendTextMessage(phoneNumber, errorMessage);
         return;
@@ -1799,7 +1925,7 @@ async function processRequest(
       // Check for tool calls
       if (message?.tool_calls && message.tool_calls.length > 0) {
         toolCallCount++;
-        console.log(`[OpenRouter] Tool call ${toolCallCount}: ${message.tool_calls.length} tools requested`);
+        logger.info(`[OpenRouter] Tool call ${toolCallCount}: ${message.tool_calls.length} tools requested`, { category: LogCategory.GENERAL });
 
         // Add assistant message with tool calls to history
         currentMessages.push({
@@ -1816,12 +1942,12 @@ async function processRequest(
           try {
             toolArgs = JSON.parse(toolCall.function.arguments || "{}");
           } catch (e) {
-            console.error(`[Tool] Failed to parse arguments for ${toolName}:`, e);
+            logger.error(`Tool error: Failed to parse arguments for ${toolName}:`, e, { category: LogCategory.TOOL });
             toolArgs = {};
           }
 
-          console.log(`[Tool] Executing: ${toolName}`);
-          console.log(`[Tool] Arguments:`, JSON.stringify(toolArgs).substring(0, 200));
+          logger.info(`Tool: Executing: ${toolName}`, { category: LogCategory.TOOL });
+          logger.info(`Tool: Arguments:`, JSON.stringify(toolArgs).substring(0, 200), { category: LogCategory.TOOL });
 
           // Execute the tool
           const toolResult = await executeTool(
@@ -1831,7 +1957,7 @@ async function processRequest(
             supabaseKey
           );
 
-          console.log(`[Tool] Result:`, JSON.stringify(toolResult).substring(0, 200));
+          logger.info(`Tool: Result:`, JSON.stringify(toolResult).substring(0, 200), { category: LogCategory.TOOL });
 
           // Add tool result to history
           currentMessages.push({
@@ -1851,7 +1977,7 @@ async function processRequest(
           // If tool succeeded with a message, use it directly (don't ask AI to respond again)
           // This prevents the AI from generating DOCX when we just want a text confirmation
           if (toolResult.success && toolResult.message) {
-            console.log(`[Tool] Success with message, using tool response directly`);
+            logger.info(`Tool: Success with message, using tool response directly`, { category: LogCategory.TOOL });
             aiResponse = toolResult.message;
             await addMessage(userId, "model", aiResponse);
             break;
@@ -1859,7 +1985,7 @@ async function processRequest(
 
           // If tool returned an error, return it directly (for debugging)
           if (toolResult.error) {
-            console.log(`[Tool] Error result: ${toolResult.error}`);
+            logger.info(`Tool: Error result: ${toolResult.error}`, { category: LogCategory.TOOL });
             // For createPropertyListing errors, show the actual error instead of generic message
             if (toolName === "createPropertyListing" || toolName === "createLandListing") {
               aiResponse = `I encountered an error while creating the listing: ${toolResult.error}`;
@@ -1883,7 +2009,7 @@ async function processRequest(
 
       // ANTI-HALLUCINATION FIX: If upload intent detected but no tool called, force retry with tool_choice: "required"
       if (isPropertyUploadIntent && toolCallCount === 0 && imageUrls.length > 0) {
-        console.log("[FORCE TOOL] Upload intent with images but no tool call - forcing retry with required tool_choice");
+        logger.info("[FORCE TOOL] Upload intent with images but no tool call - forcing retry with required tool_choice", { category: LogCategory.GENERAL });
 
         // Retry the call with tool_choice: "required"
         const retryRes = await fetch(OPENROUTER_URL, {
@@ -1909,7 +2035,7 @@ async function processRequest(
           const retryMessage = retryData.choices?.[0]?.message;
 
           if (retryMessage?.tool_calls && retryMessage.tool_calls.length > 0) {
-            console.log("[FORCE TOOL] Retry successful - got tool calls");
+            logger.info("[FORCE TOOL] Retry successful - got tool calls", { category: LogCategory.GENERAL });
             // Process the tool calls
             for (const toolCall of retryMessage.tool_calls) {
               const toolName = toolCall.function.name;
@@ -1919,7 +2045,7 @@ async function processRequest(
               } catch (e) {
                 toolArgs = {};
               }
-              console.log(`[FORCE TOOL] Executing: ${toolName}`);
+              logger.info(`[FORCE TOOL] Executing: ${toolName}`, { category: LogCategory.GENERAL });
               const toolResult = await executeTool(
                 { name: toolName, arguments: toolArgs },
                 identifiedAgent,
@@ -1945,7 +2071,7 @@ async function processRequest(
     }
 
     if (!aiResponse) {
-      console.error("Empty response from OpenRouter");
+      logger.error("Empty response from OpenRouter", { category: LogCategory.GENERAL });
 
       // Send error message to user
       const errorMessage = "I couldn't generate a response. Please rephrase your request and try again.";
@@ -1953,8 +2079,8 @@ async function processRequest(
       return;
     }
 
-    console.log("AI Response received (first 500 chars):", aiResponse.substring(0, 500));
-    console.log("AI Response length:", aiResponse.length);
+    logger.info("AI Response received (first 500 chars):", aiResponse.substring(0, 500), { category: LogCategory.GENERAL });
+    logger.info("AI Response length:" + String(aiResponse.length), { category: LogCategory.GENERAL });
 
     // 4. Add AI response to database
     await addMessage(userId, "model", aiResponse);
@@ -1966,13 +2092,13 @@ async function processRequest(
         importance: 0.5, // AI responses have standard importance
         topics: responseTopics,
       })
-        .then(() => console.log(`[Memory] Stored AI response with ${responseTopics.length} topics`))
-        .catch(err => console.error("[Memory] Async store failed for AI response:", err));
+        .then(() => logger.debug(`Memory: Stored AI response with ${responseTopics.length} topics`), { category: LogCategory.GENERAL })
+        .catch(err => logger.error("Memory error: Async store failed for AI response:", err), { category: LogCategory.GENERAL });
     }
 
     // 4.5 Check if AI claims to have sent an email - actually send it!
-    console.log("[Email Check] Checking AI response for email intent...");
-    console.log("[Email Check] AI Response preview:", aiResponse.substring(0, 300));
+    logger.info("[Email Check] Checking AI response for email intent...", { category: LogCategory.GENERAL });
+    logger.info("[Email Check] AI Response preview:", aiResponse.substring(0, 300), { category: LogCategory.GENERAL });
 
     const updatedHistoryForEmail = await getHistory(userId);
     const emailIntent = detectEmailSendingIntent(
@@ -1981,34 +2107,36 @@ async function processRequest(
       identifiedAgent?.communicationEmail || undefined
     );
 
-    console.log("[Email Check] Email intent detected:", emailIntent ? "YES" : "NO");
+    logger.info("[Email Check] Email intent detected:" + String(emailIntent ? "YES" : "NO"), { category: LogCategory.GENERAL });
     if (emailIntent) {
-      console.log("[Email] Recipient:", emailIntent.recipientEmail);
-      console.log("[Email] Subject:", emailIntent.subject);
-      console.log("[Email] Body length:", emailIntent.body.length);
-      console.log("[Email] Document URL:", emailIntent.documentUrl || "none");
-      console.log("[Email] RESEND_API_KEY set:", !!RESEND_API_KEY);
+      logger.info("Email: Recipient:" + String(emailIntent.recipientEmail), { category: LogCategory.WEBHOOK });
+      logger.info("Email: Subject:" + String(emailIntent.subject), { category: LogCategory.WEBHOOK });
+      logger.info("Email: Body length:" + String(emailIntent.body.length), { category: LogCategory.WEBHOOK });
+      logger.info("Email: Document URL:" + String(emailIntent.documentUrl || "none"), { category: LogCategory.WEBHOOK });
+      logger.info("Email: RESEND_API_KEY set:" + String(!!RESEND_API_KEY), { category: LogCategory.WEBHOOK });
 
       const emailResult = await sendEmailViaResend(emailIntent);
 
       if (emailResult.success) {
-        console.log("[Email] Email actually sent successfully via Resend!");
+        logger.info("Email: Email actually sent successfully via Resend!", { category: LogCategory.WEBHOOK });
         // The AI's response already says "I have sent...", so just send it as text
       } else {
-        console.error("[Email] Failed to send email:", emailResult.error);
+        logger.error("Email error: Failed to send email: " + String(emailResult.error), { category: LogCategory.WEBHOOK });
         // Modify the AI response to indicate failure
-        const failureNote = `\n\n(Note: There was an issue sending the email: ${emailResult.error}. Please try again or send it manually.)`;
+        const failureNote = `
+
+(Note: There was an issue sending the email: ${emailResult.error}. Please try again or send it manually.)`;
         // We'll still send the AI response but add a note
         await sendTextMessage(phoneNumber, aiResponse + failureNote);
         return;
       }
     } else {
-      console.log("[Email Check] No email intent detected in AI response");
+      logger.info("[Email Check] No email intent detected in AI response", { category: LogCategory.GENERAL });
     }
 
     // 4.6 Check if this is a confirmation message - always send as text
     if (isConfirmationMessage(aiResponse)) {
-      console.log("[Confirmation] Detected confirmation message → sending as TEXT");
+      logger.info("[Confirmation] Detected confirmation message → sending as TEXT", { category: LogCategory.GENERAL });
       await sendTextMessage(phoneNumber, aiResponse);
       return;
     }
@@ -2018,7 +2146,7 @@ async function processRequest(
     const isInformational = isInformationalResponse(aiResponse, userMessage);
 
     if (isInformational) {
-      console.log("[DOCX Router] Informational response detected → sending as TEXT");
+      logger.info("[DOCX Router] Informational response detected → sending as TEXT", { category: LogCategory.GENERAL });
 
       // Parse and send as text message(s)
       const messages = parseTemplateResponse(aiResponse);
@@ -2042,16 +2170,16 @@ async function processRequest(
     // 🚨 CRITICAL OVERRIDE: Force DOCX when user wants marketing agreement but AI generated email
     const forceMarketingDocx = shouldForceMarketingDocx(userMessage, aiResponse);
     if (forceMarketingDocx) {
-      console.log("=== MARKETING AGREEMENT OVERRIDE ===");
-      console.log("User asked for marketing agreement DOCX but AI generated email");
-      console.log("FORCING DOCX generation using specialized template");
+      logger.info("=== MARKETING AGREEMENT OVERRIDE ===", { category: LogCategory.GENERAL });
+      logger.info("User asked for marketing agreement DOCX but AI generated email", { category: LogCategory.GENERAL });
+      logger.info("FORCING DOCX generation using specialized template", { category: LogCategory.GENERAL });
 
       // Get agent name for the marketing agreement
       const agentName = identifiedAgent?.fullName || "Agent";
       const marketingData = parseMarketingAgreementData(aiResponse, agentName);
 
       if (marketingData) {
-        console.log("Successfully parsed marketing data from email response:", marketingData);
+        logger.info("Successfully parsed marketing data from email response:" + String(marketingData), { category: LogCategory.GENERAL });
 
         // Force DOCX generation
         shouldSendAsDocx = true;
@@ -2059,10 +2187,10 @@ async function processRequest(
         // Add flag to use specialized marketing template
         // We'll handle this in the DOCX generation section below
       } else {
-        console.log("Could not parse marketing data from email - will ask user for info");
+        logger.info("Could not parse marketing data from email - will ask user for info", { category: LogCategory.GENERAL });
         // Don't force DOCX, let it send as text (which will ask for missing info)
       }
-      console.log("=== END MARKETING OVERRIDE ===");
+      logger.info("=== END MARKETING OVERRIDE ===", { category: LogCategory.GENERAL });
     }
 
     // For simple greetings, don't consider DOCX requested regardless of history
@@ -2073,20 +2201,20 @@ async function processRequest(
     // Additional field validation check - if AI is collecting information, don't send as DOCX
     // SKIP this check if forceMarketingDocx is true (we already validated marketing data)
     if (shouldSendAsDocx && !forceMarketingDocx && isCollectingInformation(aiResponse)) {
-      console.log("[Field Validator] Response is collecting information, overriding DOCX → TEXT");
+      logger.info("[Field Validator] Response is collecting information, overriding DOCX → TEXT", { category: LogCategory.GENERAL });
       shouldSendAsDocx = false;
     }
 
     // Check if all required fields are present for DOCX generation
     // SKIP this check if forceMarketingDocx is true (marketing data was already parsed successfully)
     if (shouldSendAsDocx && !forceMarketingDocx && !hasAllRequiredFields(aiResponse, detectedTemplateType || undefined)) {
-      console.log("[Field Validator] Missing required fields, overriding DOCX → TEXT");
+      logger.info("[Field Validator] Missing required fields, overriding DOCX → TEXT", { category: LogCategory.GENERAL });
       shouldSendAsDocx = false;
     }
 
     // Enhanced diagnostic logging
-    console.log("=== DOCX ROUTING DIAGNOSTICS ===");
-    console.log(JSON.stringify({
+    logger.info("=== DOCX ROUTING DIAGNOSTICS ===", { category: LogCategory.GENERAL });
+    logger.info(JSON.stringify({
       event: "docx_routing_check",
       shouldSendAsDocx,
       forceMarketingDocx,  // 🚨 NEW: Track forced marketing override
@@ -2094,13 +2222,14 @@ async function processRequest(
       hasEmailFormat,
       detectedTemplateType: detectedTemplateType || "none",
       responseLength: aiResponse.length,
-      responsePreview: aiResponse.substring(0, 200).replace(/\n/g, " "),
+      responsePreview: aiResponse.substring(0, 200).replace(/
+/g, " "),
       hasSubjectLine: aiResponse.includes("Subject:"),
       containsPlaceholders: /XXXXXXXX|\[DATE\]|\[PROPERTY\]/i.test(aiResponse),
       isCollectingInfo: isCollectingInformation(aiResponse),
       hasRequiredFields: hasAllRequiredFields(aiResponse, detectedTemplateType || undefined),
     }, null, 2));
-    console.log("================================");
+    logger.info("================================", { category: LogCategory.GENERAL });
 
     // Check if response is just a placeholder (should never be sent)
     // Only block actual placeholder text, NOT short legitimate responses
@@ -2108,8 +2237,8 @@ async function processRequest(
                           aiResponse.toLowerCase().includes("i can only generate documents");
 
     if (isPlaceholder) {
-      console.error("ERROR: AI returned placeholder response, not sending.");
-      console.error("AI Response:", aiResponse);
+      logger.error("ERROR: AI returned placeholder response, not sending.", { category: LogCategory.GENERAL });
+      logger.error("AI Response: " + String(aiResponse), { category: LogCategory.GENERAL });
       return;
     }
 
@@ -2120,24 +2249,25 @@ async function processRequest(
     const currentMessageRequestedDocx = detectTemplateType(userMessage) !== null;
 
     if (wasDocxRequested && !shouldSendAsDocx && !isSimpleGreeting && !isShortInformationalResponse && currentMessageRequestedDocx) {
-      console.log("=== DOCX GENERATION FAILURE - ATTEMPTING RECOVERY ===");
-      console.log(JSON.stringify({
+      logger.info("=== DOCX GENERATION FAILURE - ATTEMPTING RECOVERY ===", { category: LogCategory.GENERAL });
+      logger.info(JSON.stringify({
         event: "docx_generation_failure",
         reason: "ai_response_not_recognized_as_docx",
         wasDocxRequested: true,
         shouldSendAsDocx: false,
         detectedTemplateType: detectedTemplateType || "unknown",
         responseLength: aiResponse.length,
-        responsePreview: aiResponse.substring(0, 300).replace(/\n/g, " "),
+        responsePreview: aiResponse.substring(0, 300).replace(/
+/g, " "),
       }, null, 2));
 
       // Check if this is a clarification response that we can retry
       if (isClarificationResponse(aiResponse)) {
-        console.log("Detected clarification response - attempting retry with explicit document generation instruction");
+        logger.info("Detected clarification response - attempting retry with explicit document generation instruction", { category: LogCategory.GENERAL });
         
         // Detect the template type from the user's original message
         const templateType = detectTemplateType(userMessage);
-        console.log("Detected template type:", templateType || "unknown");
+        logger.info("Detected template type:" + String(templateType || "unknown"), { category: LogCategory.GENERAL });
         
         // Create a retry prompt that explicitly instructs document generation
         const retryInstruction = templateType 
@@ -2163,7 +2293,7 @@ async function processRequest(
         };
         
         try {
-          console.log("Making retry OpenRouter API call...");
+          logger.info("Making retry OpenRouter API call...", { category: LogCategory.GENERAL });
           const retryRes = await fetch(
             "https://openrouter.ai/api/v1/chat/completions",
             {
@@ -2183,12 +2313,12 @@ async function processRequest(
             const retryResponse = retryData.choices?.[0]?.message?.content;
             
             if (retryResponse && retryResponse.length > 500) {
-              console.log("Retry successful! Response length:", retryResponse.length);
-              console.log("Retry response preview:", retryResponse.substring(0, 300));
+              logger.info("Retry successful! Response length:" + String(retryResponse.length), { category: LogCategory.GENERAL });
+              logger.info("Retry response preview:", retryResponse.substring(0, 300), { category: LogCategory.GENERAL });
               
               // Check if retry response is proper document content
               const retryIsDocx = isDocxTemplate(retryResponse, history);
-              console.log("Retry response isDocxTemplate:", retryIsDocx);
+              logger.info("Retry response isDocxTemplate:" + String(retryIsDocx), { category: LogCategory.GENERAL });
               
               if (retryIsDocx) {
                 // Add retry response to database  
@@ -2196,35 +2326,35 @@ async function processRequest(
                 
                 // Send as DOCX
                 const filename = `document_${Date.now()}.docx`;
-                console.log("Creating DOCX file from retry response:", filename);
+                logger.info("Creating DOCX file from retry response:" + String(filename), { category: LogCategory.GENERAL });
                 
                 const docxContent = await createDocxFile(retryResponse, filename);
-                console.log("DOCX content created, size:", docxContent.length, "bytes");
+                logger.info("DOCX content created, size:" + String(docxContent.length, "bytes"), { category: LogCategory.GENERAL });
                 
                 const sendResult = await sendDocxFile(phoneNumber, docxContent, filename, 1, userId);
                 const sendResultText = await sendResult.text();
-                console.log("DOCX send result status:", sendResult.status);
-                console.log("DOCX send result body:", sendResultText);
+                logger.info("DOCX send result status:" + String(sendResult.status), { category: LogCategory.GENERAL });
+                logger.info("DOCX send result body:" + String(sendResultText), { category: LogCategory.GENERAL });
 
                 if (!sendResult.ok) {
-                  console.error("Failed to send DOCX file from retry! Falling back to text.");
+                  logger.error("Failed to send DOCX file from retry! Falling back to text.", { category: LogCategory.GENERAL });
                   await sendTextMessage(phoneNumber, retryResponse);
                 }
                 return; // Successfully sent from retry
               }
             }
           }
-          console.error("Retry failed or didn't produce valid document content");
+          logger.error("Retry failed or didn't produce valid document content", { category: LogCategory.GENERAL });
         } catch (retryError) {
-          console.error("Error during retry OpenRouter call:", retryError);
+          logger.error("Error during retry OpenRouter call: " + String(retryError), { category: LogCategory.GENERAL });
         }
       }
       
       // If we get here, both original and retry failed
       // BUT if the original response was a clarification, send it as text
       if (isClarificationResponse(aiResponse) || isCollectingInformation(aiResponse)) {
-        console.log("=== SENDING CLARIFICATION AS TEXT AFTER DOCX GENERATION FAILURE ===");
-        console.log("Original response was a clarification request, sending as text to user");
+        logger.info("=== SENDING CLARIFICATION AS TEXT AFTER DOCX GENERATION FAILURE ===", { category: LogCategory.GENERAL });
+        logger.info("Original response was a clarification request, sending as text to user", { category: LogCategory.GENERAL });
 
         // Parse and send as text message(s)
         const messages = parseTemplateResponse(aiResponse);
@@ -2234,69 +2364,69 @@ async function processRequest(
         return;
       }
 
-      console.log("=== DOCX GENERATION FINAL FAILURE ===");
-      console.log(JSON.stringify({
+      logger.info("=== DOCX GENERATION FINAL FAILURE ===", { category: LogCategory.GENERAL });
+      logger.info(JSON.stringify({
         event: "docx_generation_final_failure",
         outcome: "no_message_sent",
         reason: "could_not_generate_valid_docx_content",
         detectedTemplateType: detectedTemplateType || "unknown",
         originalResponseLength: aiResponse.length,
       }, null, 2));
-      console.error("ERROR: DOCX template was requested but couldn't generate proper content.");
-      console.error("Not sending placeholder message to user.");
+      logger.error("ERROR: DOCX template was requested but couldn't generate proper content.", { category: LogCategory.GENERAL });
+      logger.error("Not sending placeholder message to user.", { category: LogCategory.GENERAL });
       return;
     }
 
     if (shouldSendAsDocx) {
       // Send as DOCX file
-      console.log("Detected DOCX template - generating and sending as file attachment");
-      console.log("AI Response length:", aiResponse.length);
-      console.log("AI Response preview:", aiResponse.substring(0, 200));
+      logger.info("Detected DOCX template - generating and sending as file attachment", { category: LogCategory.GENERAL });
+      logger.info("AI Response length:" + String(aiResponse.length), { category: LogCategory.GENERAL });
+      logger.info("AI Response preview:", aiResponse.substring(0, 200), { category: LogCategory.GENERAL });
 
       let filename = `document_${Date.now()}.docx`;
-      console.log("Creating DOCX file:", filename);
+      logger.info("Creating DOCX file:" + String(filename), { category: LogCategory.GENERAL });
 
       // 🚨 FORCED MARKETING AGREEMENT: Handle the case where user asked for marketing agreement
       // but AI generated email (with Subject: line). Use specialized generator directly.
       if (forceMarketingDocx) {
-        console.log("=== FORCED MARKETING AGREEMENT DOCX GENERATION ===");
+        logger.info("=== FORCED MARKETING AGREEMENT DOCX GENERATION ===", { category: LogCategory.GENERAL });
         const agentName = identifiedAgent?.fullName || "Agent";
         const marketingData = parseMarketingAgreementData(aiResponse, agentName);
 
         if (marketingData) {
-          console.log("Marketing data for DOCX:", marketingData);
+          logger.info("Marketing data for DOCX:" + String(marketingData), { category: LogCategory.GENERAL });
           const docxDoc = createMarketingAgreement(marketingData);
           const buffer = await Packer.toBuffer(docxDoc);
           const docxContent = new Uint8Array(buffer);
           filename = "Non_Exclusive_Marketing_Agreement.docx";
-          console.log("Marketing Agreement DOCX created, size:", docxContent.length, "bytes");
+          logger.info("Marketing Agreement DOCX created, size:" + String(docxContent.length, "bytes"), { category: LogCategory.GENERAL });
 
           const sendResult = await sendDocxFile(phoneNumber, docxContent, filename, 1, userId);
           const sendResultText = await sendResult.text();
-          console.log("Marketing DOCX send result status:", sendResult.status);
-          console.log("Marketing DOCX send result body:", sendResultText);
+          logger.info("Marketing DOCX send result status:" + String(sendResult.status), { category: LogCategory.GENERAL });
+          logger.info("Marketing DOCX send result body:" + String(sendResultText), { category: LogCategory.GENERAL });
 
           if (!sendResult.ok) {
-            console.error("Failed to send Marketing DOCX! Falling back to text.");
+            logger.error("Failed to send Marketing DOCX! Falling back to text.", { category: LogCategory.GENERAL });
             await sendTextMessage(phoneNumber, aiResponse);
           }
-          console.log("=== MARKETING AGREEMENT SENT AS DOCX ===");
+          logger.info("=== MARKETING AGREEMENT SENT AS DOCX ===", { category: LogCategory.GENERAL });
           return; // Exit early - we've handled the forced marketing case
         } else {
-          console.error("Could not parse marketing data - falling back to normal flow");
+          logger.error("Could not parse marketing data - falling back to normal flow", { category: LogCategory.GENERAL });
           // Fall through to normal processing
         }
       }
 
       // Check if this is a viewing form that should use specialized generators
       const templateType = detectDocxTemplateType(aiResponse);
-      console.log("Detected template type:", templateType);
+      logger.info("Detected template type:" + String(templateType), { category: LogCategory.GENERAL });
 
       let docxContent: Uint8Array;
 
       if (templateType.startsWith('viewing-form-') || templateType === 'reservation-agreement' || templateType === 'marketing-non-exclusive') {
         // Use specialized DOCX generators
-        console.log("Using specialized DOCX generator for type:", templateType);
+        logger.info("Using specialized DOCX generator for type:" + String(templateType), { category: LogCategory.GENERAL });
 
         try {
           // Convert base64 logo to Uint8Array for viewing forms
@@ -2309,9 +2439,9 @@ async function processRequest(
                 array[i] = binaryString.charCodeAt(i);
               }
               logoData = array;
-              console.log("Logo decoded successfully for viewing form");
+              logger.info("Logo decoded successfully for viewing form", { category: LogCategory.GENERAL });
             } catch (e) {
-              console.error("Failed to decode logo:", e);
+              logger.error("Failed to decode logo: " + String(e), { category: LogCategory.GENERAL });
               logoData = undefined;
             }
           }
@@ -2320,61 +2450,61 @@ async function processRequest(
 
           switch(templateType) {
             case 'viewing-form-single': {
-              console.log("Parsing single person viewing form data...");
+              logger.info("Parsing single person viewing form data...", { category: LogCategory.GENERAL });
               const singleData = parseViewingFormSingleData(aiResponse);
               if (singleData) {
-                console.log("Creating single person viewing form document...");
+                logger.info("Creating single person viewing form document...", { category: LogCategory.GENERAL });
                 docxDoc = createViewingFormSingle(singleData, logoData);
               } else {
-                console.log("Failed to parse single person data, falling back to generic");
+                logger.info("Failed to parse single person data, falling back to generic", { category: LogCategory.GENERAL });
               }
               break;
             }
             case 'viewing-form-multiple': {
-              console.log("Parsing multiple person viewing form data...");
+              logger.info("Parsing multiple person viewing form data...", { category: LogCategory.GENERAL });
               const multipleData = parseViewingFormMultipleData(aiResponse);
               if (multipleData) {
-                console.log("Creating multiple person viewing form document...");
+                logger.info("Creating multiple person viewing form document...", { category: LogCategory.GENERAL });
                 docxDoc = createViewingFormMultiple(multipleData, logoData);
               } else {
-                console.log("Failed to parse multiple person data, falling back to generic");
+                logger.info("Failed to parse multiple person data, falling back to generic", { category: LogCategory.GENERAL });
               }
               break;
             }
             case 'viewing-form-advanced': {
-              console.log("Parsing advanced viewing form data...");
+              logger.info("Parsing advanced viewing form data...", { category: LogCategory.GENERAL });
               const advancedData = parseViewingFormAdvancedData(aiResponse);
               if (advancedData) {
-                console.log("Creating advanced viewing form document...");
+                logger.info("Creating advanced viewing form document...", { category: LogCategory.GENERAL });
                 docxDoc = createViewingFormAdvanced(advancedData, logoData);
               } else {
-                console.log("Failed to parse advanced form data, falling back to generic");
+                logger.info("Failed to parse advanced form data, falling back to generic", { category: LogCategory.GENERAL });
               }
               break;
             }
             case 'reservation-agreement': {
-              console.log("Parsing reservation agreement data...");
+              logger.info("Parsing reservation agreement data...", { category: LogCategory.GENERAL });
               const reservationData = parseReservationAgreementData(aiResponse);
               if (reservationData) {
-                console.log("Creating reservation agreement document...");
+                logger.info("Creating reservation agreement document...", { category: LogCategory.GENERAL });
                 docxDoc = createReservationAgreement(reservationData); // No logo for reservation
                 filename = "Property_Reservation_Agreement.docx";
               } else {
-                console.log("Failed to parse reservation agreement data, falling back to generic");
+                logger.info("Failed to parse reservation agreement data, falling back to generic", { category: LogCategory.GENERAL });
               }
               break;
             }
             case 'marketing-non-exclusive': {
-              console.log("Parsing non-exclusive marketing agreement data...");
+              logger.info("Parsing non-exclusive marketing agreement data...", { category: LogCategory.GENERAL });
               // Get agent name from identified agent (SOPHIA knows who is messaging)
               const agentName = identifiedAgent?.fullName || "Agent";
               const marketingData = parseMarketingAgreementData(aiResponse, agentName);
               if (marketingData) {
-                console.log("Creating non-exclusive marketing agreement document...");
+                logger.info("Creating non-exclusive marketing agreement document...", { category: LogCategory.GENERAL });
                 docxDoc = createMarketingAgreement(marketingData);
                 filename = "Non_Exclusive_Marketing_Agreement.docx";
               } else {
-                console.log("Failed to parse marketing agreement data, falling back to generic");
+                logger.info("Failed to parse marketing agreement data, falling back to generic", { category: LogCategory.GENERAL });
               }
               break;
             }
@@ -2382,78 +2512,78 @@ async function processRequest(
 
           if (docxDoc) {
             // Successfully created structured document
-            console.log("Converting structured document to buffer...");
+            logger.info("Converting structured document to buffer...", { category: LogCategory.GENERAL });
             const buffer = await Packer.toBuffer(docxDoc);
             docxContent = new Uint8Array(buffer);
-            console.log("Structured DOCX created, size:", docxContent.length, "bytes");
+            logger.info("Structured DOCX created, size:" + String(docxContent.length, "bytes"), { category: LogCategory.GENERAL });
           } else {
             // Fallback to generic DOCX creation
-            console.log("Using generic DOCX creation as fallback");
+            logger.info("Using generic DOCX creation as fallback", { category: LogCategory.GENERAL });
             docxContent = await createDocxFile(aiResponse, filename);
           }
         } catch (error) {
-          console.error("Error creating structured viewing form:", error);
-          console.log("Falling back to generic DOCX creation");
+          logger.error("Error creating structured viewing form: " + String(error), { category: LogCategory.GENERAL });
+          logger.info("Falling back to generic DOCX creation", { category: LogCategory.GENERAL });
           docxContent = await createDocxFile(aiResponse, filename);
         }
       } else {
         // Use generic DOCX creation for other templates
-        console.log("Using generic DOCX creation for non-viewing form template");
+        logger.info("Using generic DOCX creation for non-viewing form template", { category: LogCategory.GENERAL });
         docxContent = await createDocxFile(aiResponse, filename);
       }
 
-      console.log("DOCX content created, size:", docxContent.length, "bytes");
+      logger.info("DOCX content created, size:" + String(docxContent.length, "bytes"), { category: LogCategory.GENERAL });
 
       const sendResult = await sendDocxFile(phoneNumber, docxContent, filename, 1, userId);
       const sendResultText = await sendResult.text();
-      console.log("DOCX send result status:", sendResult.status);
-      console.log("DOCX send result body:", sendResultText);
+      logger.info("DOCX send result status:" + String(sendResult.status), { category: LogCategory.GENERAL });
+      logger.info("DOCX send result body:" + String(sendResultText), { category: LogCategory.GENERAL });
 
       if (!sendResult.ok) {
-        console.error("Failed to send DOCX file! Status:", sendResult.status);
-        console.error("Error response:", sendResultText);
+        logger.error("Failed to send DOCX file! Status: " + String(sendResult.status), { category: LogCategory.GENERAL });
+        logger.error("Error response: " + String(sendResultText), { category: LogCategory.GENERAL });
         // Fallback: send as text message
-        console.log("Falling back to text message...");
+        logger.info("Falling back to text message...", { category: LogCategory.GENERAL });
         await sendTextMessage(phoneNumber, aiResponse);
       }
     } else {
       // Send as text message(s)
-      console.log("=== SENDING TEXT MESSAGE (not DOCX) ===");
-      console.log(`Phone number: ${phoneNumber}`);
-      console.log(`AI Response length: ${aiResponse.length}`);
-      console.log(`AI Response preview: ${aiResponse.substring(0, 200)}`);
+      logger.info("=== SENDING TEXT MESSAGE (not DOCX) ===", { category: LogCategory.GENERAL });
+      logger.info(`Phone number: ${phoneNumber}`, { category: LogCategory.GENERAL });
+      logger.info(`AI Response length: ${aiResponse.length}`, { category: LogCategory.GENERAL });
+      logger.info(`AI Response preview: ${aiResponse.substring(0, 200)}`, { category: LogCategory.GENERAL });
 
       // Parse response into separate parts (Subject, Body, Notes)
       const messageParts = parseTemplateResponse(aiResponse);
 
-      console.log(`Sending ${messageParts.length} message(s)`);
+      logger.info(`Sending ${messageParts.length} message(s)`, { category: LogCategory.GENERAL });
 
       // Debug: Log each part
       messageParts.forEach((part, idx) => {
-        console.log(`Part ${idx + 1} preview (first 100 chars): ${part.substring(0, 100)}`);
+        logger.info(`Part ${idx + 1} preview (first 100 chars): ${part.substring(0, 100)}`, { category: LogCategory.GENERAL });
       });
 
       // Send each part as a separate message with a small delay between them
       for (let i = 0; i < messageParts.length; i++) {
         const part = messageParts[i];
-        console.log(`Sending message part ${i + 1}/${messageParts.length}`);
+        logger.info(`Sending message part ${i + 1}/${messageParts.length}`, { category: LogCategory.GENERAL });
 
-        console.log(`[DEBUG] About to call sendTextMessage for part ${i + 1}`);
+        logger.debug(` About to call sendTextMessage for part ${i + 1}`, { category: LogCategory.GENERAL });
         const sendResult = await sendTextMessage(phoneNumber, part);
         const sendBody = await sendResult.clone().text();
-        console.log(`Send result for part ${i + 1}: status=${sendResult.status}, body=${sendBody}`);
+        logger.info(`Send result for part ${i + 1}: status=${sendResult.status}, body=${sendBody}`, { category: LogCategory.GENERAL });
 
         // Add a small delay between messages to ensure order (except for the last one)
         if (i < messageParts.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
-      console.log("=== ALL TEXT MESSAGES SENT SUCCESSFULLY ===");
+      logger.info("=== ALL TEXT MESSAGES SENT SUCCESSFULLY ===", { category: LogCategory.GENERAL });
     }
-    console.log("=== PROCESS REQUEST COMPLETED ===");
+    logger.info("=== PROCESS REQUEST COMPLETED ===", { category: LogCategory.GENERAL });
   } catch (error) {
-    console.error("=== PROCESS REQUEST ERROR ===");
-    console.error("Error details:", error);
+    logger.error("=== PROCESS REQUEST ERROR ===", { category: LogCategory.GENERAL });
+    logger.error("Error details: " + String(error), { category: LogCategory.GENERAL });
     logger.error("Error in processRequest", error as Error, {
       operation: "process_request",
     });
@@ -2488,7 +2618,7 @@ serve(async (req) => {
           ? '[REDACTED]'
           : value.substring(0, 100);
       });
-      console.log("Incoming webhook headers:", JSON.stringify(headerEntries));
+      logger.info("Incoming webhook headers:", JSON.stringify(headerEntries), { category: LogCategory.GENERAL });
 
       // SECURITY: Verify webhook signature (if secret is configured)
       // NOTE: WaSend may not support webhook signatures - check their documentation
@@ -2511,18 +2641,18 @@ serve(async (req) => {
             });
             // return new Response("Unauthorized", { status: 401 });
           } else {
-            logger.debug("Webhook signature verified successfully");
+            logger.debug("Webhook signature verified successfully", { category: LogCategory.GENERAL });
           }
         } else {
           // WaSend likely doesn't send signatures - log and continue
           logger.info("No webhook signature header received - WaSend may not support signatures", {
             operation: "webhook_auth",
-          });
+          }));
         }
       } else {
         logger.warn("WASEND_WEBHOOK_SECRET not configured", {
           operation: "webhook_auth",
-        });
+        }));
       }
 
       // Parse the payload after signature verification
@@ -2530,7 +2660,7 @@ serve(async (req) => {
       try {
         payload = JSON.parse(rawBody);
       } catch {
-        logger.error("Invalid JSON payload");
+        logger.error("Invalid JSON payload", { category: LogCategory.GENERAL });
         return new Response("Bad Request", { status: 400 });
       }
 
@@ -2559,9 +2689,9 @@ serve(async (req) => {
             raw_payload: payload,
             image_detected: hasImageInPayload,
           });
-          console.log(`[DEBUG] Saved payload to webhook_debug_logs (image: ${hasImageInPayload})`);
+          logger.debug(` Saved payload to webhook_debug_logs (image: ${hasImageInPayload})`, { category: LogCategory.GENERAL });
         } catch (e) {
-          console.log(`[DEBUG] Failed to save debug log: ${e}`);
+          logger.debug(` Failed to save debug log: ${e}`, { category: LogCategory.GENERAL });
         }
       }
 
@@ -2569,11 +2699,11 @@ serve(async (req) => {
       if (!validateWebhookPayload(payload)) {
         logger.warn("Invalid webhook payload structure", {
           operation: "validation",
-        });
+        }));
         return new Response("OK", { status: 200 });
       }
 
-      logger.debug("Received webhook payload", { operation: "webhook_receive" });
+      logger.debug("Received webhook payload", { operation: "webhook_receive" }), { category: LogCategory.GENERAL });
 
       // Extract message from payload (async due to image decryption)
       const extracted = await extractMessage(payload);
@@ -2596,34 +2726,34 @@ serve(async (req) => {
             .eq("phone_number", debugPhone)
             .order("created_at", { ascending: false })
             .limit(1);
-          console.log(`[DEBUG] Updated extraction result: ${JSON.stringify(extractionResult)}`);
+          logger.debug(` Updated extraction result: ${JSON.stringify(extractionResult)}`, { category: LogCategory.GENERAL });
         } catch (e) {
-          console.log(`[DEBUG] Failed to update extraction result: ${e}`);
+          logger.debug(` Failed to update extraction result: ${e}`, { category: LogCategory.GENERAL });
         }
       }
 
       if (!extracted) {
-        logger.info("Could not extract valid message from payload");
+        logger.info("Could not extract valid message from payload", { category: LogCategory.GENERAL });
         return new Response("OK", { status: 200 });
       }
 
       const { message, remoteJid, userMessage, imageUrls } = extracted;
 
       if (!remoteJid) {
-        logger.error("No remoteJid found in message");
+        logger.error("No remoteJid found in message", { category: LogCategory.GENERAL });
         return new Response("OK", { status: 200 });
       }
 
       // Format phone number
       const phoneNumber = formatPhoneNumber(remoteJid);
       if (!phoneNumber) {
-        logger.error("Could not format phone number");
+        logger.error("Could not format phone number", { category: LogCategory.GENERAL });
         return new Response("OK", { status: 200 });
       }
 
       // SECURITY: Validate phone number format
       if (!validatePhoneNumber(phoneNumber)) {
-        logger.warn("Invalid phone number format", { operation: "validation" });
+        logger.warn("Invalid phone number format", { operation: "validation" }), { category: LogCategory.GENERAL });
         return new Response("OK", { status: 200 });
       }
 
@@ -2632,7 +2762,7 @@ serve(async (req) => {
       if (!withinRateLimit) {
         logger.warn("Rate limit exceeded", {
           operation: "rate_limit",
-        });
+        }));
         // Return 200 OK but don't process - prevents webhook retries
         return new Response("OK", { status: 200 });
       }
@@ -2659,7 +2789,7 @@ serve(async (req) => {
           // Another request already claimed this message - it's a duplicate
           logger.info("Duplicate webhook detected, skipping", {
             operation: "deduplication",
-          });
+          }));
           return new Response("OK", { status: 200 });
         }
       }
@@ -2667,15 +2797,15 @@ serve(async (req) => {
       logger.info("Processing incoming message", {
         operation: "process_start",
         messageLength: sanitizedMessage.length,
-      });
+      }));
 
       // Process the request and WAIT for completion
       // (Fire-and-forget caused Deno runtime to terminate before WaSend call)
       try {
         await processRequest(remoteJid, sanitizedMessage, phoneNumber, imageUrls);
-        console.log("processRequest completed successfully");
+        logger.info("processRequest completed successfully", { category: LogCategory.GENERAL });
       } catch (err) {
-        console.error("processRequest failed:", err);
+        logger.error("processRequest failed: " + String(err), { category: LogCategory.GENERAL });
         logger.error("Processing error", err as Error, {
           operation: "process_request",
         });
