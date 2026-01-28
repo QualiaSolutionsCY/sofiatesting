@@ -17,8 +17,8 @@
 | 3 | Telegram Lead Routing | LEAD-01, LEAD-02, LEAD-03 | ✓ Complete |
 | 4 | Listing Upload Fixes | LIST-01 to LIST-05 | ✓ Complete |
 | 5 | WhatsApp Image Upload | LIST-06 | Carried to v1.1 |
-| 6 | Logging Foundation | LOG-01 to LOG-05, LIST-06 | Not started |
-| 7 | Cache Restoration | CACHE-01 to CACHE-05 | Not started |
+| 6 | Logging Foundation | LOG-01 to LOG-05, LIST-06 | ✓ Complete |
+| 7 | Cache Restoration | CACHE-01 to CACHE-05 | Planning |
 | 8 | Prompt Consolidation | PRMT-01 to PRMT-05 | Not started |
 | 9 | Validation & Error Handling | ERR-01 to ERR-04, IMG-01 to IMG-03 | Not started |
 
@@ -168,16 +168,20 @@ Medium — Logger infrastructure exists, needs enhancement and migration
 **Goal:** Restore production-safe caching with version-based invalidation and admin controls
 **Depends on:** Phase 6 (needs logging for debugging cache issues)
 **Requirements:** CACHE-01, CACHE-02, CACHE-03, CACHE-04, CACHE-05
-**Plans:** TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — Version checking using MAX(updated_at), migrate to structured logger
+- [ ] 07-02-PLAN.md — Admin endpoints (/admin/prompts/invalidate, /admin/cache/status)
+- [ ] 07-03-PLAN.md — Restore 5-minute TTL with comprehensive hit/miss logging
 
 ### Key Files
 - `supabase/functions/sophia-bot/services/prompt-loader.ts` (restore TTL, add version check)
-- `sophia_prompts` table (add `version` column)
 - `supabase/functions/sophia-bot/index.ts` (add admin endpoints)
 
 ### Success Criteria
 1. Prompt cache TTL restored to 5 minutes (currently 0)
-2. Cache checks version column before serving cached content
+2. Cache checks MAX(updated_at) before serving cached content (no DB migration needed)
 3. Admin can invalidate cache via POST to `/admin/prompts/invalidate`
 4. Cache hits and misses are logged with correlation ID
 5. Cache status visible via GET to `/admin/cache/status`
