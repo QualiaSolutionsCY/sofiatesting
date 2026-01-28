@@ -15,6 +15,7 @@ import {
   findOutdoorFeatureUuids,
   findPropertyViewUuids,
 } from "./taxonomy-cache.ts";
+import { logger, LogCategory } from "../utils/logger.ts";
 
 export interface TokenCache {
   token: string;
@@ -94,7 +95,10 @@ export async function getAccessToken(config: ZyprusConfig): Promise<string> {
     return cachedToken.token;
   }
 
-  console.log("[Zyprus] Fetching new access token...");
+  logger.info("Fetching new Zyprus access token", {
+    category: LogCategory.ZYPRUS,
+    operation: "getAccessToken",
+  });
 
   const response = await fetch(`${config.apiUrl}/oauth/token`, {
     method: "POST",
@@ -111,7 +115,12 @@ export async function getAccessToken(config: ZyprusConfig): Promise<string> {
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("[Zyprus] Token error:", errorText);
+    logger.error("Failed to get Zyprus access token", undefined, {
+      category: LogCategory.ZYPRUS,
+      operation: "getAccessToken",
+      status: response.status,
+      errorPreview: errorText.substring(0, 200),
+    });
     throw new Error(`Failed to get access token: ${response.status}`);
   }
 
@@ -122,7 +131,11 @@ export async function getAccessToken(config: ZyprusConfig): Promise<string> {
     expiresAt: Date.now() + data.expires_in * 1000,
   };
 
-  console.log("[Zyprus] Access token obtained successfully");
+  logger.info("Zyprus access token obtained successfully", {
+    category: LogCategory.ZYPRUS,
+    operation: "getAccessToken",
+    expiresIn: data.expires_in,
+  });
   return data.access_token;
 }
 
@@ -375,8 +388,12 @@ async function uploadSingleImage(
     // P0 SECURITY: Validate image URL before fetching (SSRF prevention)
     const urlValidation = validateImageUrl(url);
     if (!urlValidation.valid) {
-      console.error(`[Zyprus] SSRF blocked for image ${index}: ${urlValidation.error}`, {
-        url: url.substring(0, 100),
+      logger.warn("SSRF blocked - invalid image URL", {
+        category: LogCategory.ZYPRUS,
+        operation: "uploadSingleImage",
+        imageIndex: index,
+        urlPreview: url.substring(0, 100),
+        validationError: urlValidation.error,
       });
       return null;
     }
@@ -384,7 +401,13 @@ async function uploadSingleImage(
     // Download image
     const imageResponse = await fetch(url);
     if (!imageResponse.ok) {
-      console.error(`[Zyprus] Failed to download image ${index}: ${url}`);
+      logger.error("Failed to download image for Zyprus upload", undefined, {
+        category: LogCategory.ZYPRUS,
+        operation: "uploadSingleImage",
+        imageIndex: index,
+        status: imageResponse.status,
+        urlPreview: url.substring(0, 100),
+      });
       return null;
     }
 
@@ -414,18 +437,34 @@ async function uploadSingleImage(
     );
 
     if (!uploadResponse.ok) {
-      console.error(`[Zyprus] Failed to upload image ${index}: ${uploadResponse.status}`);
+      logger.error("Failed to upload image to Zyprus", undefined, {
+        category: LogCategory.ZYPRUS,
+        operation: "uploadSingleImage",
+        imageIndex: index,
+        status: uploadResponse.status,
+      });
       return null;
     }
 
     const uploadResult = await uploadResponse.json();
     if (uploadResult.data?.id) {
-      console.log(`[Zyprus] Uploaded image ${index + 1}`);
+      logger.info("Image uploaded to Zyprus successfully", {
+        category: LogCategory.ZYPRUS,
+        operation: "uploadSingleImage",
+        imageIndex: index + 1,
+        fileId: uploadResult.data.id,
+      });
       return uploadResult.data.id;
     }
     return null;
   } catch (error) {
-    console.error(`[Zyprus] Image upload error for ${url}:`, error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error("Image upload error", err, {
+      category: LogCategory.ZYPRUS,
+      operation: "uploadSingleImage",
+      imageIndex: index,
+      urlPreview: url.substring(0, 100),
+    });
     return null;
   }
 }
@@ -438,7 +477,11 @@ async function uploadImages(
   token: string,
   config: ZyprusConfig
 ): Promise<string[]> {
-  console.log(`[Zyprus] Uploading ${imageUrls.length} images in parallel...`);
+  logger.info("Uploading images to Zyprus in parallel", {
+    category: LogCategory.ZYPRUS,
+    operation: "uploadImages",
+    imageCount: imageUrls.length,
+  });
 
   // Upload all images in parallel
   const results = await Promise.all(
@@ -448,7 +491,12 @@ async function uploadImages(
   // Filter out failed uploads (nulls)
   const fileIds = results.filter((id): id is string => id !== null);
 
-  console.log(`[Zyprus] Successfully uploaded ${fileIds.length}/${imageUrls.length} images`);
+  logger.info("Image upload to Zyprus completed", {
+    category: LogCategory.ZYPRUS,
+    operation: "uploadImages",
+    successCount: fileIds.length,
+    totalCount: imageUrls.length,
+  });
   return fileIds;
 }
 
@@ -461,7 +509,13 @@ export async function createDraftListing(
   const config = getZyprusConfig();
   const token = await getAccessToken(config);
 
-  console.log("[Zyprus] Creating draft listing...");
+  logger.info("Creating draft listing on Zyprus", {
+    category: LogCategory.ZYPRUS,
+    operation: "createDraftListing",
+    listingType: listing.listingType,
+    propertyType: listing.propertyType,
+    location: listing.location,
+  });
 
   // Collect all reviewer emails for UUID resolution
   const reviewerEmails: string[] = [];
@@ -495,22 +549,29 @@ export async function createDraftListing(
 
   // Note: All taxonomy/user functions now have hardcoded fallbacks, so they cannot fail
 
-  console.log(`[Zyprus] Resolved UUIDs:`, {
-    listingType: listingTypeUuid,
-    propertyType: propertyTypeUuid,
-    priceModifier: priceModifierUuid,
-    titleDeed: titleDeedUuid,
-    instructor: instructorUuid,
-    reviewers: reviewerUuids,
-    listingOwner: listingOwnerUuid,
-    indoorFeatures: indoorFeatureUuids.length,
-    outdoorFeatures: outdoorFeatureUuids.length,
-    views: viewUuids.length,
+  logger.info("Resolved Zyprus UUIDs for listing", {
+    category: LogCategory.ZYPRUS,
+    operation: "createDraftListing",
+    listingTypeUuid,
+    propertyTypeUuid,
+    priceModifierUuid,
+    titleDeedUuid,
+    instructorUuid,
+    reviewerCount: reviewerUuids.length,
+    listingOwnerUuid,
+    indoorFeatureCount: indoorFeatureUuids.length,
+    outdoorFeatureCount: outdoorFeatureUuids.length,
+    viewCount: viewUuids.length,
   });
 
   // Upload images first
   const imageFileIds = await uploadImages(listing.images, token, config);
-  console.log(`[Zyprus] Uploaded ${imageFileIds.length} images`);
+  logger.info("Images uploaded for listing", {
+    category: LogCategory.ZYPRUS,
+    operation: "createDraftListing",
+    uploadedCount: imageFileIds.length,
+    totalCount: listing.images.length,
+  });
 
   // Build and send listing payload
   const payload = buildJsonApiPayload(
@@ -541,7 +602,6 @@ export async function createDraftListing(
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("[Zyprus] Create listing error:", errorText);
     // Include error details in the exception for debugging
     let errorDetail = "";
     try {
@@ -552,13 +612,23 @@ export async function createDraftListing(
     } catch {
       errorDetail = errorText.substring(0, 200);
     }
+    logger.error("Failed to create Zyprus listing", undefined, {
+      category: LogCategory.ZYPRUS,
+      operation: "createDraftListing",
+      status: response.status,
+      errorDetail,
+    });
     throw new Error(`Failed to create listing (${response.status}): ${errorDetail || "Unknown error"}`);
   }
 
   const result = await response.json();
   const listingId = result.data.id;
 
-  console.log(`[Zyprus] Created listing: ${listingId}`);
+  logger.info("Zyprus listing created successfully", {
+    category: LogCategory.ZYPRUS,
+    operation: "createDraftListing",
+    listingId,
+  });
 
   return {
     listingId,
@@ -597,7 +667,12 @@ export async function searchProperties(
   });
 
   if (!response.ok) {
-    console.error("[Zyprus] Search error:", response.status);
+    logger.error("Zyprus property search failed", undefined, {
+      category: LogCategory.ZYPRUS,
+      operation: "searchProperties",
+      status: response.status,
+      query,
+    });
     return [];
   }
 
