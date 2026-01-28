@@ -159,8 +159,7 @@ function detectEmailSendingIntent(
         }
 
         let subject = documentType;
-        const subjectMatch = documentContent.match(/Subject:\s*(.+?)(?:
-|$)/i);
+        const subjectMatch = documentContent.match(/Subject:\s*(.+?)(?:\n|$)/i);
         if (subjectMatch) subject = subjectMatch[1].trim();
 
         return {
@@ -220,8 +219,7 @@ function detectEmailSendingIntent(
 
       // Extract or generate subject
       let subject = `${documentType}`;
-      const subjectMatch = documentContent.match(/Subject:\s*(.+?)(?:
-|$)/i);
+      const subjectMatch = documentContent.match(/Subject:\s*(.+?)(?:\n|$)/i);
       if (subjectMatch) {
         subject = subjectMatch[1].trim();
       }
@@ -347,11 +345,8 @@ function formatEmailBodyAsHtml(body: string): string {
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/__(.+?)__/g, "<strong>$1</strong>")
     // Line breaks
-    .replace(/
-
-/g, "</p><p>")
-    .replace(/
-/g, "<br/>")
+    .replace(/\n\n/g, "</p><p>")
+    .replace(/\n/g, "<br/>")
     // Lists (simple conversion)
     .replace(/^- (.+)$/gm, "<li>$1</li>");
 
@@ -439,8 +434,7 @@ function formatForWhatsApp(text: string): string {
 
   // Step 0a: Strip code blocks (```...```) - show content as plain text
   // Handle multiline code blocks with optional language specifier
-  formatted = formatted.replace(/```[\w]*
-?([\s\S]*?)```/g, '$1');
+  formatted = formatted.replace(/```[\w]*\n?([\s\S]*?)```/g, '$1');
   // Handle inline code blocks (moved here for logical grouping)
   formatted = formatted.replace(/`([^`]+)`/g, '$1');
 
@@ -474,10 +468,7 @@ function formatForWhatsApp(text: string): string {
   formatted = formatted.replace(/^#{1,6}\s+/gm, '');
   // Clean up excessive whitespace but preserve single newlines
   formatted = formatted.replace(/[ \t]+/g, ' ');
-  formatted = formatted.replace(/
-{3,}/g, '
-
-');
+  formatted = formatted.replace(/\n{3,}/g, '\n\n');
   return formatted.trim();
 }
 
@@ -538,8 +529,7 @@ function isClarificationResponse(aiResponse: string): boolean {
 
   // Check for bullet points requesting information
   const bulletPatterns = [
-    /•\s*[\w\s]+:(?:\s*$|\s*
-)/gm,  // Bullet point ending with colon
+    /•\s*[\w\s]+:(?:\s*$|\s*\n)/gm,  // Bullet point ending with colon
     /[•\-\*]\s*[\w\s]+(name|number|date|address|price|location)(?:\s*$|\s*:)/gmi,
   ];
 
@@ -778,8 +768,7 @@ function parseTemplateResponse(text: string): string[] {
   }
 
   // Split by lines for easier processing
-  const lines = text.split('
-');
+  const lines = text.split('\n');
 
   let subjectLine = "";
   let bodyLines: string[] = [];
@@ -824,15 +813,13 @@ function parseTemplateResponse(text: string): string[] {
   }
 
   // Add Body as second message (includes confirmation text, looking forward, etc.)
-  const bodyText = bodyLines.join('
-').trim();
+  const bodyText = bodyLines.join('\n').trim();
   if (bodyText) {
     messages.push(formatForWhatsApp(bodyText));
   }
 
   // Add Notes as third message ONLY if there's an actual Note/Reminder section
-  const noteText = noteLines.join('
-').trim();
+  const noteText = noteLines.join('\n').trim();
   if (noteText) {
     messages.push(formatForWhatsApp(noteText));
   }
@@ -1616,7 +1603,7 @@ async function processRequest(
         storeMemory(userContext.profile.id, "user", userMessage, {
           importance,
           topics,
-        }).catch(err => logger.error("Memory error: Async store failed for user message:", err), { category: LogCategory.GENERAL });
+        }).catch(err => logger.error("Memory error: Async store failed for user message", err, { category: LogCategory.GENERAL }));
       }
     } catch (memErr) {
       logger.error("Memory error: Error building user context: " + String(memErr), { category: LogCategory.GENERAL });
@@ -1760,8 +1747,7 @@ ${agentInfo.email ? `**Email:** ${agentInfo.email}
 **IMPORTANT: You have received a total of ${totalImageCount} photo(s) for the property listing.**
 
 **All Image URLs (use ALL of these for property listings):**
-${accumulatedImages.map((url, i) => `${i + 1}. ${url}`).join('
-')}
+${accumulatedImages.map((url, i) => `${i + 1}. ${url}`).join('\n')}
 
 **When the user is ready to create a property listing, use ALL of these image URLs in the \`imageUrls\` parameter of the createPropertyListing or createLandListing tool. INCLUDE EVERY IMAGE - do not leave any out.**
 
@@ -2099,8 +2085,8 @@ Please respond with something like:
         importance: 0.5, // AI responses have standard importance
         topics: responseTopics,
       })
-        .then(() => logger.debug(`Memory: Stored AI response with ${responseTopics.length} topics`), { category: LogCategory.GENERAL })
-        .catch(err => logger.error("Memory error: Async store failed for AI response:", err), { category: LogCategory.GENERAL });
+        .then(() => logger.debug(`Memory: Stored AI response with ${responseTopics.length} topics`, { category: LogCategory.GENERAL }))
+        .catch(err => logger.error("Memory error: Async store failed for AI response", err, { category: LogCategory.GENERAL }));
     }
 
     // 4.5 Check if AI claims to have sent an email - actually send it!
@@ -2229,8 +2215,7 @@ Please respond with something like:
       hasEmailFormat,
       detectedTemplateType: detectedTemplateType || "none",
       responseLength: aiResponse.length,
-      responsePreview: aiResponse.substring(0, 200).replace(/
-/g, " "),
+      responsePreview: aiResponse.substring(0, 200).replace(/\n/g, " "),
       hasSubjectLine: aiResponse.includes("Subject:"),
       containsPlaceholders: /XXXXXXXX|\[DATE\]|\[PROPERTY\]/i.test(aiResponse),
       isCollectingInfo: isCollectingInformation(aiResponse),
@@ -2264,8 +2249,7 @@ Please respond with something like:
         shouldSendAsDocx: false,
         detectedTemplateType: detectedTemplateType || "unknown",
         responseLength: aiResponse.length,
-        responsePreview: aiResponse.substring(0, 300).replace(/
-/g, " "),
+        responsePreview: aiResponse.substring(0, 300).replace(/\n/g, " "),
       }, null, 2));
 
       // Check if this is a clarification response that we can retry
@@ -2654,12 +2638,12 @@ serve(async (req) => {
           // WaSend likely doesn't send signatures - log and continue
           logger.info("No webhook signature header received - WaSend may not support signatures", {
             operation: "webhook_auth",
-          }));
+          });
         }
       } else {
         logger.warn("WASEND_WEBHOOK_SECRET not configured", {
           operation: "webhook_auth",
-        }));
+        });
       }
 
       // Parse the payload after signature verification
@@ -2706,11 +2690,11 @@ serve(async (req) => {
       if (!validateWebhookPayload(payload)) {
         logger.warn("Invalid webhook payload structure", {
           operation: "validation",
-        }));
+        });
         return new Response("OK", { status: 200 });
       }
 
-      logger.debug("Received webhook payload", { operation: "webhook_receive" }), { category: LogCategory.GENERAL });
+      logger.debug("Received webhook payload", { operation: "webhook_receive", category: LogCategory.GENERAL });
 
       // Extract message from payload (async due to image decryption)
       const extracted = await extractMessage(payload);
@@ -2760,7 +2744,7 @@ serve(async (req) => {
 
       // SECURITY: Validate phone number format
       if (!validatePhoneNumber(phoneNumber)) {
-        logger.warn("Invalid phone number format", { operation: "validation" }), { category: LogCategory.GENERAL });
+        logger.warn("Invalid phone number format", { operation: "validation", category: LogCategory.GENERAL });
         return new Response("OK", { status: 200 });
       }
 
@@ -2769,7 +2753,7 @@ serve(async (req) => {
       if (!withinRateLimit) {
         logger.warn("Rate limit exceeded", {
           operation: "rate_limit",
-        }));
+        });
         // Return 200 OK but don't process - prevents webhook retries
         return new Response("OK", { status: 200 });
       }
@@ -2796,7 +2780,7 @@ serve(async (req) => {
           // Another request already claimed this message - it's a duplicate
           logger.info("Duplicate webhook detected, skipping", {
             operation: "deduplication",
-          }));
+          });
           return new Response("OK", { status: 200 });
         }
       }
@@ -2804,7 +2788,7 @@ serve(async (req) => {
       logger.info("Processing incoming message", {
         operation: "process_start",
         messageLength: sanitizedMessage.length,
-      }));
+      });
 
       // Process the request and WAIT for completion
       // (Fire-and-forget caused Deno runtime to terminate before WaSend call)
