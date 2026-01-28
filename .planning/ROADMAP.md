@@ -134,14 +134,21 @@ Carried to Phase 6 (v1.1) — integration and testing
 **Goal:** Establish structured logging with correlation IDs to enable debugging of all subsequent phases
 **Depends on:** Nothing (first phase of v1.1)
 **Requirements:** LOG-01, LOG-02, LOG-03, LOG-04, LOG-05, LIST-06
-**Plans:** TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — Logger enhancement with correlationId, category, context propagation
+- [ ] 06-02-PLAN.md — Migrate index.ts console.log (258 calls) to structured logger
+- [ ] 06-03-PLAN.md — Migrate secondary files (executor, client, image services)
+- [ ] 06-04-PLAN.md — Complete LIST-06 pending images integration
 
 ### Key Files
 - `supabase/functions/sophia-bot/utils/logger.ts` (structured logger, needs enhancement)
+- `supabase/functions/sophia-bot/utils/context.ts` (NEW: request context propagation)
 - `supabase/functions/sophia-bot/index.ts` (add correlation ID at request entry)
 - `supabase/functions/sophia-bot/services/image-persistence.ts` (complete LIST-06 integration)
 - `supabase/functions/sophia-bot/tools/executor.ts` (tool logging)
-- All files with console.log (563 identified)
+- All files with console.log (563 identified, prioritizing 328 in high-traffic paths)
 
 ### Success Criteria
 1. Every request has a unique correlation ID visible in logs
@@ -275,7 +282,7 @@ v1.1 (In Progress)
 | 3. Telegram Lead Routing | v1.0 | 1/1 | Complete | 2026-01-24 |
 | 4. Listing Upload Fixes | v1.0 | 2/2 | Complete | 2026-01-25 |
 | 5. WhatsApp Image Upload | v1.0 | 1/3 | Carried | - |
-| 6. Logging Foundation | v1.1 | 0/TBD | Not started | - |
+| 6. Logging Foundation | v1.1 | 0/4 | Planned | - |
 | 7. Cache Restoration | v1.1 | 0/TBD | Not started | - |
 | 8. Prompt Consolidation | v1.1 | 0/TBD | Not started | - |
 | 9. Validation & Error Handling | v1.1 | 0/TBD | Not started | - |
