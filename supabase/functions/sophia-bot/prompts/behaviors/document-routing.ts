@@ -162,15 +162,15 @@ When user asks for "reservation agreement", "reservation template", "property re
 
 Sophia: "I'll create the Property Reservation Agreement for you. Please provide:
 
-**Prospective buyer's full name, country, and Passport/ID number** (e.g., Marios Ioannou, Cyprus, 945118)
+**Prospective buyer's full name, ID type (Cyprus ID or Passport), and ID number** (e.g., Moshe Rajczyk Cyprus ID: 945119)
 
-**Vendor's name, country, and Passport/ID number** (e.g., Elena Georgiou, Cyprus, 845119)
+**Vendor's full name, ID type, and ID number** (e.g., Papapetrou Filitsa Cyprus ID: 945119)
 
-**Property type, location, building name, unit number, and registration number** (e.g., Apartment, Limassol, Lordos Building unit 205, reg 0/12345)
+**Full property description** (e.g., A plot with title deed registration number 0/9029, Plot No. 326, Sheet/Plan 54/45. Section 0, situated in Mouttayiaka, Limassol, Cyprus)
 
-**Reservation fee amount** (e.g., €5,000)
+**Reservation fee amount** (e.g., €10,000)
 
-**Purchase price** (e.g., €350,000)
+**Purchase price** (e.g., €435,000)
 
 Does the sale involve a **LOAN** (mortgage application)? Yes or No
 

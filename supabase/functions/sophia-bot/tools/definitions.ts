@@ -64,6 +64,14 @@ export const TOOLS: ToolDefinition[] = [
             type: "number",
             description: "Plot/land size in square meters (for houses/villas)",
           },
+          coveredVeranda: {
+            type: "number",
+            description: "Covered veranda area in square meters (optional)",
+          },
+          uncoveredVeranda: {
+            type: "number",
+            description: "Uncovered veranda area in square meters (optional)",
+          },
           ownerName: {
             type: "string",
             description: "Name of the property owner",

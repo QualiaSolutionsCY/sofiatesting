@@ -181,3 +181,84 @@ export const markMessageProcessed = async (
     console.error("Exception marking message as processed:", error);
   }
 };
+
+// =====================================================
+// Document Tracking for Email Attachments
+// =====================================================
+
+export interface LastDocument {
+  document_url: string;
+  document_name: string;
+  document_type: string | null;
+  created_at: string;
+}
+
+/**
+ * Save a generated document URL for later email attachment
+ */
+export const saveLastDocument = async (
+  userId: string,
+  documentUrl: string,
+  documentName: string,
+  documentType?: string
+): Promise<void> => {
+  const supabase = getSupabaseAdmin();
+
+  // Delete old documents for this user (keep only recent ones)
+  await supabase
+    .from("last_documents")
+    .delete()
+    .eq("user_id", userId)
+    .lt("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()); // Older than 24h
+
+  // Insert new document
+  const { error } = await supabase.from("last_documents").insert([
+    {
+      user_id: userId,
+      document_url: documentUrl,
+      document_name: documentName,
+      document_type: documentType || null,
+    },
+  ]);
+
+  if (error) {
+    console.error("Error saving last document:", error);
+  } else {
+    console.log(`[DocTracker] Saved document for user ${userId}: ${documentName}`);
+  }
+};
+
+/**
+ * Get the most recent document for a user (for email attachment)
+ */
+export const getLastDocument = async (userId: string): Promise<LastDocument | null> => {
+  const supabase = getSupabaseAdmin();
+
+  const { data, error } = await supabase
+    .from("last_documents")
+    .select("document_url, document_name, document_type, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data as LastDocument;
+};
+
+/**
+ * Clear document after successful email send
+ */
+export const clearLastDocument = async (userId: string): Promise<void> => {
+  const supabase = getSupabaseAdmin();
+
+  await supabase
+    .from("last_documents")
+    .delete()
+    .eq("user_id", userId);
+
+  console.log(`[DocTracker] Cleared documents for user ${userId}`);
+};

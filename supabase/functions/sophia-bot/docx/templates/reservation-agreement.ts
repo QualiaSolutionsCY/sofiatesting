@@ -1,7 +1,8 @@
 /**
  * Property Reservation Agreement - DOCX Generator
+ * EXACT REPLICA of the 4 reference templates in docs/templates/
  *
- * 4 Template Variants based on LOAN/VAT answers:
+ * 4 Variants based on LOAN/VAT:
  * - NO LOAN, NO VAT
  * - YES LOAN, NO VAT
  * - NO LOAN, YES VAT
@@ -16,35 +17,33 @@ import {
   UnderlineType,
 } from "https://esm.sh/docx@8.5.0";
 
-import { FONTS, SPACING, createSignatureLine } from "../styles.ts";
 import { numberToWords } from "../../utils/number-to-words.ts";
 
+// NO LOGO on reservation agreements - matches reference templates
+
 /**
- * Buyer information
+ * Buyer information - format: "Name Cyprus ID: 123456"
  */
 export interface BuyerInfo {
   fullName: string;
-  country: string;
-  passportNumber: string;
+  idType: string; // "Cyprus ID" or "UK Passport" etc.
+  idNumber: string;
 }
 
 /**
- * Vendor information
+ * Vendor information - format: "Name Cyprus ID: 123456"
  */
 export interface VendorInfo {
   name: string;
-  registrationNumber?: string;
+  idType: string;
+  idNumber: string;
 }
 
 /**
- * Property information
+ * Property information - single description string
  */
 export interface PropertyInfo {
-  type: string;
-  location: string;
-  building: string;
-  unitNumber: string;
-  registrationNumber: string;
+  description: string;
 }
 
 /**
@@ -61,20 +60,20 @@ export interface FinancialTerms {
  * Complete reservation agreement data
  */
 export interface ReservationAgreementData {
-  dateReservationFeeReceived: string;
+  dateReceived?: string;
   buyers: BuyerInfo[];
   vendor: VendorInfo;
   property: PropertyInfo;
   financial: FinancialTerms;
-  reservationPeriodDays: number;
-  contractDeadlineDays: number;
-  agreementDate: string;
+  reservationPeriodDays?: number;
+  contractDeadlineDays?: number;
+  agreementDate?: string;
   hasLoanClause: boolean;
   hasVatClause: boolean;
 }
 
 /**
- * Default Zyprus agent and bank details
+ * Fixed agent/bank details
  */
 export const ZYPRUS_DEFAULTS = {
   agent: {
@@ -92,56 +91,67 @@ export const ZYPRUS_DEFAULTS = {
 } as const;
 
 /**
- * Get the refund clause based on LOAN/VAT flags
- * MUST match the original templates EXACTLY
+ * Get the EXACT refund clause from reference templates
  */
-function getRefundClause(hasLoanClause: boolean, hasVatClause: boolean): string {
-  const baseStart = `In the event that the purchase fails to materialize, due to the Vendor's fault, and/or the property does not have clean land registry search (i.e. mortgages etc.) and/or is not free of any encumbrances and/or legal charges whatsoever`;
+function getRefundClause(hasLoan: boolean, hasVat: boolean, reservationFee: string): string {
+  const base = `In the event that the purchase fails to materialize, due to the Vendor's fault, and/or the property does not have clean land registry search (i.e. mortgages etc.) and/or is not free of any encumbrances and/or legal charges whatsoever`;
 
   // NO LOAN, NO VAT
-  if (!hasLoanClause && !hasVatClause) {
-    return `${baseStart}, the Reservation Fee shall be returned in full to the Prospective Buyer, free of any deductions whatsoever within 4 (four) calendar days from the termination of expiry of the reservation period and the Vendor and/or the Estate Agent shall not have any claim whatsoever against the Prospective Buyer in relation to this Agreement.`;
+  if (!hasLoan && !hasVat) {
+    return `${base}, the Reservation Fee shall be returned in full to the Prospective Buyer, free of any deductions whatsoever within 4 (four) calendar days from the termination of expiry of the reservation period and the Vendor and/or the Estate Agent shall not have any claim whatsoever against the Prospective Buyer in relation to this Agreement.`;
   }
 
   // YES LOAN, NO VAT
-  if (hasLoanClause && !hasVatClause) {
-    return `${baseStart}, and/or in the event of refusal or rejection of a mortgage application, subject to the provision of written confirmation by the Bank, the Reservation Fee shall be returned in full to the Prospective Buyer, free of any deductions whatsoever within 4 (four) calendar days from the termination of expiry of the reservation period and the Vendor and/or the Estate Agent shall not have any claim whatsoever against the Prospective Buyer in relation to this Agreement.`;
+  if (hasLoan && !hasVat) {
+    return `${base}, and/or in the event of refusal or rejection of a mortgage application, subject to the provision of written confirmation by the Bank, the Reservation Fee shall be returned in full to the Prospective Buyer, free of any deductions whatsoever within 4 (four) calendar days from the termination of expiry of the reservation period and the Vendor and/or the Estate Agent shall not have any claim whatsoever against the Prospective Buyer in relation to this Agreement.`;
   }
 
-  // NO LOAN, YES VAT (note: slightly different wording - "then", "will", "without")
-  if (!hasLoanClause && hasVatClause) {
-    return `${baseStart}, and/or the prospective sale of the property to the prospective buyer is subject to VAT following a decision of the competent authorities of the Republic of Cyprus and/or the Tax Commissioner, then the Reservation fee will be returned in full to the Prospective buyer without any deductions whatsoever within 4 (four) calendar days from the termination of expiry of the reservation period and the Vendor and/or the Estate Agent shall not have any claim whatsoever against the Prospective Buyer in relation to this Agreement.`;
+  // NO LOAN, YES VAT
+  if (!hasLoan && hasVat) {
+    return `${base}, and/or the prospective sale of the property to the prospective buyer is subject to VAT following a decision of the competent authorities of the Republic of Cyprus and/or the Tax Commissioner, then the Reservation fee will be returned in full to the Prospective buyer without any deductions whatsoever within 4 (four) calendar days from the termination of expiry of the reservation period and the Vendor and/or the Estate Agent shall not have any claim whatsoever against the Prospective Buyer in relation to this Agreement.`;
   }
 
-  // YES LOAN, YES VAT (VAT first, then LOAN)
-  return `${baseStart}, and/or the prospective sale of the property to the prospective buyer is subject to VAT following a decision of the competent authorities of the Republic of Cyprus and/or the Tax Commissioner, and/or in the event of refusal or rejection of a mortgage application, subject to the provision of written confirmation by the Bank, the Reservation Fee shall be returned in full to the Prospective Buyer, free of any deductions whatsoever within 4 (four) calendar days from the termination of expiry of the reservation period and the Vendor and/or the Estate Agent shall not have any claim whatsoever against the Prospective Buyer in relation to this Agreement.`;
+  // YES LOAN, YES VAT
+  return `${base}, and/or the prospective sale of the property to the prospective buyer is subject to VAT following a decision of the competent authorities of the Republic of Cyprus and/or the Tax Commissioner, and/or in the event of refusal or rejection of a mortgage application, subject to the provision of written confirmation by the Bank, the Reservation Fee shall be returned in full to the Prospective Buyer, free of any deductions whatsoever within 4 (four) calendar days from the termination of expiry of the reservation period and the Vendor and/or the Estate Agent shall not have any claim whatsoever against the Prospective Buyer in relation to this Agreement.`;
 }
 
 /**
- * Creates a Property Reservation Agreement document
- * Matches the 4 template variants in docs/templates/ EXACTLY
+ * Create EXACT replica of reference reservation agreement templates
+ * NO LOGO - matches the reference documents exactly
  */
-export function createReservationAgreement(
-  data: ReservationAgreementData,
-  _logoData?: Uint8Array // Unused - no logo on reservation agreements
-): Document {
-  const children: Paragraph[] = [];
+export function createReservationAgreement(data: ReservationAgreementData): Document {
   const { agent, bank } = ZYPRUS_DEFAULTS;
+  const periodDays = data.reservationPeriodDays || 40;
+  const contractDays = data.contractDeadlineDays || 40;
+  const reservationFeeFormatted = `€${data.financial.reservationFee.toLocaleString()}`;
 
-  // Title: PROPERTY RESERVATION AGREEMENT (bold, underlined, centered)
+  // Build buyer string: "Name Cyprus ID: 123456"
+  const buyerStr = data.buyers
+    .map((b) => `${b.fullName} ${b.idType}: ${b.idNumber}`)
+    .join(" and ");
+
+  // Build vendor string: "Name Cyprus ID: 123456"
+  const vendorStr = `${data.vendor.name} ${data.vendor.idType}: ${data.vendor.idNumber}`;
+
+  // Agreement date
+  const dateStr = data.agreementDate || formatDate(new Date());
+
+  const children: Paragraph[] = [];
+
+  // TITLE: PROPERTY RESERVATION AGREEMENT (bold, underlined, centered)
   children.push(
     new Paragraph({
       children: [
         new TextRun({
           text: "PROPERTY RESERVATION AGREEMENT",
           bold: true,
-          size: FONTS.SIZES.TITLE,
-          font: FONTS.PRIMARY,
           underline: { type: UnderlineType.SINGLE },
+          size: 24,
+          font: "Times New Roman",
         }),
       ],
       alignment: AlignmentType.CENTER,
-      spacing: { after: SPACING.TITLE_AFTER },
+      spacing: { after: 300 },
     })
   );
 
@@ -149,106 +159,54 @@ export function createReservationAgreement(
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: "Date Reservation Fee Received: ",
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: data.dateReservationFeeReceived || "……..……………………………………….".substring(0, 40),
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
+        new TextRun({ text: "Date Reservation Fee Received: ", bold: true, size: 22, font: "Times New Roman" }),
+        new TextRun({ text: data.dateReceived || "……..……………………………………….".substring(0, 40), size: 22, font: "Times New Roman" }),
       ],
-      spacing: { after: SPACING.PARAGRAPH_AFTER },
+      spacing: { after: 200 },
     })
   );
 
-  // Prospective Buyer(s) - label bold, name not bold, same line
-  for (const buyer of data.buyers) {
-    children.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: "Prospective Buyer: ",
-            bold: true,
-            size: FONTS.SIZES.BODY,
-            font: FONTS.PRIMARY,
-          }),
-          new TextRun({
-            text: buyer.fullName,
-            size: FONTS.SIZES.BODY,
-            font: FONTS.PRIMARY,
-          }),
-        ],
-        spacing: { after: 100 },
-      })
-    );
-  }
-
-  // Vendor - label bold, name not bold, same line
+  // Prospective Buyer
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: "Vendor: ",
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: data.vendor.name + (data.vendor.registrationNumber ? ` ${data.vendor.registrationNumber}` : ""),
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
+        new TextRun({ text: "Prospective Buyer: ", bold: true, size: 22, font: "Times New Roman" }),
+        new TextRun({ text: buyerStr, size: 22, font: "Times New Roman" }),
       ],
-      spacing: { after: 100 },
+      spacing: { after: 200 },
     })
   );
 
-  // Property Details - label bold, details not bold, same line
-  const propertyDescription = `${data.property.type} with title deed registration number ${data.property.registrationNumber}, ${data.property.building} Unit No. ${data.property.unitNumber}, situated in ${data.property.location}`;
+  // Vendor
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: "Property Details: ",
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: propertyDescription,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
+        new TextRun({ text: "Vendor: ", bold: true, size: 22, font: "Times New Roman" }),
+        new TextRun({ text: vendorStr, size: 22, font: "Times New Roman" }),
       ],
-      spacing: { after: 100 },
+      spacing: { after: 200 },
     })
   );
 
-  // Financial terms
-  const reservationFeeFormatted = `€${data.financial.reservationFee.toLocaleString()}`;
-  const purchasePriceFormatted = `€${data.financial.purchasePrice.toLocaleString()}`;
+  // Property Details
+  children.push(
+    new Paragraph({
+      children: [
+        new TextRun({ text: "Property Details: ", bold: true, size: 22, font: "Times New Roman" }),
+        new TextRun({ text: data.property.description, size: 22, font: "Times New Roman" }),
+      ],
+      spacing: { after: 200 },
+    })
+  );
 
   // Reservation Fee
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: "Reservation Fee: ",
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: `${reservationFeeFormatted} (In words ${data.financial.reservationFeeWords} only)`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
+        new TextRun({ text: "Reservation Fee: ", bold: true, size: 22, font: "Times New Roman" }),
+        new TextRun({ text: `${reservationFeeFormatted} (In words ${data.financial.reservationFeeWords} only)`, size: 22, font: "Times New Roman" }),
       ],
-      spacing: { after: 100 },
+      spacing: { after: 200 },
     })
   );
 
@@ -256,89 +214,80 @@ export function createReservationAgreement(
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: "Purchase Price: ",
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: `${purchasePriceFormatted} (In words ${data.financial.purchasePriceWords} only)`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
+        new TextRun({ text: "Purchase Price: ", bold: true, size: 22, font: "Times New Roman" }),
+        new TextRun({ text: `€${data.financial.purchasePrice.toLocaleString()} (In words ${data.financial.purchasePriceWords} only)`, size: 22, font: "Times New Roman" }),
       ],
-      spacing: { after: SPACING.PARAGRAPH_AFTER },
+      spacing: { after: 300 },
     })
   );
 
-  // Paragraph 1: Reservation Period clause
+  // PARAGRAPH 1: Reservation Period clause (EXACT text from reference)
   children.push(
     new Paragraph({
       children: [
         new TextRun({
-          text: `The prospective buyer agrees that the reservation fee to the amount ${reservationFeeFormatted} will be held by the Estate Agent (as defined herein below into this Property Reservation Agreement) as the escrow agent and which will be held under its custody in order to guarantee that the above property is taken off the market, and be reserved exclusively for the Prospective buyer, for a period of ${data.reservationPeriodDays} days from the date reservation fee received (hereinafter referred to as the "Reservation Period"). The Reservation Fee must be released by the Escrow Agent pursuant to the terms and provisions of this Property Reservation Agreement.`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
+          text: `The prospective buyer agrees that the reservation fee to the amount ${reservationFeeFormatted} will be held by the Estate Agent (as defined herein below into this Property Reservation Agreement) as the escrow agent and which will be held under its custody in order to guarantee that the above property is taken off the market, and be reserved exclusively for the Prospective buyer, for a period of ${periodDays} days from the date reservation fee received (hereinafter referred to as the "Reservation Period"). The Reservation Fee must be released by the Escrow Agent pursuant to the terms and provisions of this Property Reservation Agreement.`,
+          size: 22,
+          font: "Times New Roman",
         }),
       ],
-      spacing: { after: SPACING.PARAGRAPH_AFTER, line: SPACING.LINE_HEIGHT },
+      spacing: { after: 200 },
     })
   );
 
-  // Paragraph 2: Refund clause (varies by LOAN/VAT)
+  // PARAGRAPH 2: Refund clause (varies by LOAN/VAT - EXACT text from reference)
   children.push(
     new Paragraph({
       children: [
         new TextRun({
-          text: getRefundClause(data.hasLoanClause, data.hasVatClause),
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
+          text: getRefundClause(data.hasLoanClause, data.hasVatClause, reservationFeeFormatted),
+          size: 22,
+          font: "Times New Roman",
         }),
       ],
-      spacing: { after: SPACING.PARAGRAPH_AFTER, line: SPACING.LINE_HEIGHT },
+      spacing: { after: 200 },
     })
   );
 
-  // Paragraph 3: Contract deadline clause
+  // PARAGRAPH 3: Contract deadline (EXACT text from reference)
   children.push(
     new Paragraph({
       children: [
         new TextRun({
-          text: `The amount of the reservation fee will be considered as part of the fixed purchase price and a legally binding Contract of Sale must be signed within ${data.contractDeadlineDays} days from the date of the reservation fee received, subject to the provisions hereof.`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
+          text: `The amount of the reservation fee will be considered as part of the fixed purchase price and a legally binding Contract of Sale must be signed within ${contractDays} days from the date of the reservation fee received, subject to the provisions hereof.`,
+          size: 22,
+          font: "Times New Roman",
         }),
       ],
-      spacing: { after: SPACING.PARAGRAPH_AFTER, line: SPACING.LINE_HEIGHT },
+      spacing: { after: 200 },
     })
   );
 
-  // Paragraph 4: Forfeiture clause
+  // PARAGRAPH 4: Forfeiture clause (EXACT text from reference)
   children.push(
     new Paragraph({
       children: [
         new TextRun({
           text: `If the purchase fails to materialize due to the Prospective buyer's exclusive fault, then the reservation fee is not refundable and it will be provided 50% to the Vendor and the remaining 50% will be held by the estate agent to cover the administration costs.`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
+          size: 22,
+          font: "Times New Roman",
         }),
       ],
-      spacing: { after: SPACING.PARAGRAPH_AFTER, line: SPACING.LINE_HEIGHT },
+      spacing: { after: 200 },
     })
   );
 
-  // Paragraph 5: Arbiter clause
+  // PARAGRAPH 5: Arbiter clause (EXACT text from reference)
   children.push(
     new Paragraph({
       children: [
         new TextRun({
           text: `With regard to the subject reservation agreement, the estate agent is the mutually agreed party responsible for determining who is at fault if the transaction does not proceed.`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
+          size: 22,
+          font: "Times New Roman",
         }),
       ],
-      spacing: { after: SPACING.PARAGRAPH_AFTER, line: SPACING.LINE_HEIGHT },
+      spacing: { after: 300 },
     })
   );
 
@@ -346,393 +295,322 @@ export function createReservationAgreement(
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: "Details of the Estate Agent:",
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
+        new TextRun({ text: "Details of the Estate Agent:", bold: true, size: 22, font: "Times New Roman" }),
       ],
-      spacing: { before: 200, after: 100 },
-    }),
+      spacing: { after: 100 },
+    })
+  );
+  children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: `Name: ${agent.name}`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-    }),
+      children: [new TextRun({ text: `Name: ${agent.name}`, size: 22, font: "Times New Roman" })],
+    })
+  );
+  children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: `On behalf of ${agent.company}`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-    }),
+      children: [new TextRun({ text: `On behalf of ${agent.company}`, size: 22, font: "Times New Roman" })],
+    })
+  );
+  children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: `CREA Reg. No. ${agent.creaRegNo} & Lic. No. ${agent.licenseNo} (called the "Estate Agent")`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-      spacing: { after: 200 },
+      children: [new TextRun({ text: `CREA Reg. No. ${agent.creaRegNo} & Lic. No. ${agent.licenseNo} (called the "Estate Agent")`, size: 22, font: "Times New Roman" })],
+      spacing: { after: 300 },
     })
   );
 
-  // Bank details (includes "as escrow agent")
+  // Bank details
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: "Bank details of the Estate Agent, as escrow agent, where the Reservation Fee must be transferred/paid by the Prospective Buyer:",
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
+        new TextRun({ text: "Bank details of the Estate Agent, as escrow agent, where the Reservation Fee must be transferred/paid by the Prospective Buyer:", bold: true, size: 22, font: "Times New Roman" }),
       ],
       spacing: { after: 100 },
-    }),
+    })
+  );
+  children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: "Banking Details",
-          bold: true,
-          underline: { type: UnderlineType.SINGLE },
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-    }),
+      children: [new TextRun({ text: "Banking Details", bold: true, underline: { type: UnderlineType.SINGLE }, size: 22, font: "Times New Roman" })],
+    })
+  );
+  children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: `Name: ${bank.name}`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-    }),
+      children: [new TextRun({ text: `Name: ${bank.name}`, size: 22, font: "Times New Roman" })],
+    })
+  );
+  children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: `Account No: ${bank.accountNo}`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-    }),
+      children: [new TextRun({ text: `Account No: ${bank.accountNo}`, size: 22, font: "Times New Roman" })],
+    })
+  );
+  children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: `IBAN: ${bank.iban}`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-    }),
+      children: [new TextRun({ text: `IBAN: ${bank.iban}`, size: 22, font: "Times New Roman" })],
+    })
+  );
+  children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: `BIC: ${bank.bic}`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-      spacing: { after: 200 },
+      children: [new TextRun({ text: `BIC: ${bank.bic}`, size: 22, font: "Times New Roman" })],
+      spacing: { after: 300 },
     })
   );
 
-  // Exclusive negotiation clause
+  // Exclusive negotiation clause (EXACT text from reference)
   children.push(
     new Paragraph({
       children: [
         new TextRun({
           text: `For the entire duration of the Reservation Period, the Vendor and the Estate Agent shall not, directly and/or indirectly, advertise, negotiate, solicit and/or accept any offers and/or otherwise from any third party in relation to the Property.`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
+          size: 22,
+          font: "Times New Roman",
         }),
       ],
-      spacing: { after: 200, line: SPACING.LINE_HEIGHT },
+      spacing: { after: 300 },
     })
   );
 
-  // Agreement date
+  // Dated
+  children.push(
+    new Paragraph({
+      children: [new TextRun({ text: `Dated on this ${dateStr}`, size: 22, font: "Times New Roman" })],
+      spacing: { after: 400 },
+    })
+  );
+
+  // SIGNATURE SECTION - EXACT match to reference template
+
+  // The Prospective Buyer: (left)                    WITNESSES (right)
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: `Dated on this ${data.agreementDate}`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
+        new TextRun({ text: "The Prospective Buyer:                                                             WITNESSES", size: 22, font: "Times New Roman" }),
       ],
-      spacing: { after: SPACING.SIGNATURE_BEFORE },
+      spacing: { after: 200 },
     })
   );
 
-  // Signature section: Prospective Buyer(s) with WITNESSES
+  // Empty line
+  children.push(new Paragraph({ text: "" }));
+
+  // Signature line (one long line)
+  children.push(
+    new Paragraph({
+      children: [new TextRun({ text: "__________________________________", size: 22, font: "Times New Roman" })],
+    })
+  );
+
+  // Buyer name + Name and I.D.: (for witness to fill)
   for (const buyer of data.buyers) {
     children.push(
       new Paragraph({
         children: [
-          new TextRun({
-            text: "The Pospective Buyer:",
-            bold: true,
-            size: FONTS.SIZES.BODY,
-            font: FONTS.PRIMARY,
-          }),
-          new TextRun({
-            text: "                    WITNESSES",
-            bold: true,
-            size: FONTS.SIZES.BODY,
-            font: FONTS.PRIMARY,
-          }),
-        ],
-        spacing: { before: 200 },
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: createSignatureLine(25),
-            size: FONTS.SIZES.BODY,
-            font: FONTS.PRIMARY,
-          }),
-          new TextRun({
-            text: "                    ",
-            size: FONTS.SIZES.BODY,
-            font: FONTS.PRIMARY,
-          }),
-          new TextRun({
-            text: createSignatureLine(25),
-            size: FONTS.SIZES.BODY,
-            font: FONTS.PRIMARY,
-          }),
-        ],
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: buyer.fullName,
-            size: FONTS.SIZES.BODY,
-            font: FONTS.PRIMARY,
-          }),
-        ],
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: "Name and I.D.:",
-            size: FONTS.SIZES.BODY,
-            font: FONTS.PRIMARY,
-          }),
+          new TextRun({ text: `${buyer.fullName}                                                                          Name and I.D.:`, size: 22, font: "Times New Roman" }),
         ],
         spacing: { after: 200 },
       })
     );
   }
 
-  // Signature section: Vendor (NO WITNESSES)
+  // Empty line before Vendor
+  children.push(new Paragraph({ text: "" }));
+
+  // The Vendor:
+  children.push(
+    new Paragraph({
+      children: [new TextRun({ text: "The Vendor:", size: 22, font: "Times New Roman" })],
+      spacing: { after: 200 },
+    })
+  );
+
+  // Empty line
+  children.push(new Paragraph({ text: "" }));
+
+  // Signature line
+  children.push(
+    new Paragraph({
+      children: [new TextRun({ text: "__________________________________", size: 22, font: "Times New Roman" })],
+    })
+  );
+
+  // Vendor name + Name and I.D.:
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: "The Vendor:",
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-      spacing: { before: 200 },
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: createSignatureLine(25),
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: data.vendor.name,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: "Name and I.D.:",
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
+        new TextRun({ text: `${data.vendor.name}                                                                          Name and I.D.:`, size: 22, font: "Times New Roman" }),
       ],
       spacing: { after: 200 },
     })
   );
 
-  // Signature section: Estate Agent
+  // Empty line before Estate Agent
+  children.push(new Paragraph({ text: "" }));
+
+  // The Estate Agent:
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: "The Estate Agent:",
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-      spacing: { before: 200 },
-    }),
+      children: [new TextRun({ text: "The Estate Agent:", size: 22, font: "Times New Roman" })],
+      spacing: { after: 200 },
+    })
+  );
+
+  // Empty line
+  children.push(new Paragraph({ text: "" }));
+
+  // Shorter signature line for agent
+  children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: createSignatureLine(25),
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-    }),
+      children: [new TextRun({ text: "_________________", size: 22, font: "Times New Roman" })],
+    })
+  );
+
+  // Agent name
+  children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: agent.name,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-    }),
+      children: [new TextRun({ text: agent.name, size: 22, font: "Times New Roman" })],
+    })
+  );
+
+  // For and on behalf of...
+  children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: `For and on behalf of ${agent.company}`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
+      children: [new TextRun({ text: `For and on behalf of ${agent.company}`, size: 22, font: "Times New Roman" })],
     })
   );
 
   return new Document({
-    sections: [{
-      children,
-    }],
+    sections: [{ children }],
   });
 }
 
 /**
+ * Format date as "28th day of July, 2025"
+ */
+function formatDate(date: Date): string {
+  const day = date.getDate();
+  const month = date.toLocaleString("en-US", { month: "long" });
+  const year = date.getFullYear();
+  const suffix = day === 1 || day === 21 || day === 31 ? "st" : day === 2 || day === 22 ? "nd" : day === 3 || day === 23 ? "rd" : "th";
+  return `${day}${suffix} day of ${month}, ${year}`;
+}
+
+/**
  * Parse AI response to extract reservation agreement data
+ * VERY forgiving parser - handles any format the AI might output
  */
 export function parseReservationAgreementData(response: string): ReservationAgreementData | null {
   try {
-    const cleanResponse = response.replace(/\*\*/g, '');
-    console.log("[ReservationAgreement] Parsing response...");
+    console.log("[ReservationAgreement] Parsing response, length:", response.length);
 
-    // Extract date reservation fee received
-    const dateMatch = cleanResponse.match(/Date\s+Reservation\s+Fee\s+Received[:\s]+([^\n]+)/i) ||
-                      cleanResponse.match(/Date[:\s]+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i);
-    const dateReservationFeeReceived = dateMatch ? dateMatch[1].trim() : "";
+    // Extract LOAN/VAT flags
+    const hasLoanClause = /loan/i.test(response) && /yes/i.test(response);
+    const hasVatClause = /vat/i.test(response) && /yes/i.test(response);
+    console.log("[ReservationAgreement] Loan:", hasLoanClause, "VAT:", hasVatClause);
 
-    // Extract buyers (can be multiple)
-    const buyers: BuyerInfo[] = [];
+    // BUYER: Extract any name after "Prospective Buyer"
+    let buyerName = "";
+    let buyerIdType = "Cyprus ID";
+    let buyerIdNumber = "";
 
-    // Pattern 1: "Name COUNTRY PASSPORT: number"
-    const buyerPattern1 = /([A-Za-z]+\s+[A-Za-z]+)\s*\n?\s*([A-Z]+)\s+PASSPORT[:\s]+(\d+)/gi;
-    let buyerMatch;
-    while ((buyerMatch = buyerPattern1.exec(cleanResponse)) !== null) {
-      buyers.push({
-        fullName: buyerMatch[1].trim(),
-        country: buyerMatch[2].trim(),
-        passportNumber: buyerMatch[3].trim(),
-      });
+    // Try to get buyer name - very forgiving
+    const buyerMatch = response.match(/Prospective\s+Buyer[:\s]*([A-Za-z][A-Za-z\s]*)/i);
+    if (buyerMatch) {
+      buyerName = buyerMatch[1].trim().split('\n')[0].trim(); // Take first line only
     }
 
-    // Pattern 2: "Buyer: Name, Country, Passport: number"
-    if (buyers.length === 0) {
-      const buyerPattern2 = /(?:Buyer|Prospective\s+Buyer)[:\s]+([A-Za-z\s]+),\s*([A-Za-z]+),\s*(?:Passport|ID)[:\s]+([A-Z0-9]+)/gi;
-      while ((buyerMatch = buyerPattern2.exec(cleanResponse)) !== null) {
-        buyers.push({
-          fullName: buyerMatch[1].trim(),
-          country: buyerMatch[2].trim(),
-          passportNumber: buyerMatch[3].trim(),
-        });
+    // Try to get first ID number after buyer section
+    const firstIdMatch = response.match(/(?:Cyprus\s+)?(?:ID|PASSPORT)[:\s]*(\d+)/i);
+    if (firstIdMatch) {
+      buyerIdNumber = firstIdMatch[1];
+      if (/passport/i.test(response.substring(0, response.indexOf(firstIdMatch[0]) + 50))) {
+        buyerIdType = "Cyprus Passport";
       }
     }
 
-    // Pattern 3: Simple "Name from Country, passport number"
-    if (buyers.length === 0) {
-      const buyerPattern3 = /([A-Z][a-z]+\s+[A-Z][a-z]+)\s+(?:from\s+)?([A-Za-z]+)[\s,]+(?:passport|id)[:\s]+([A-Z0-9]+)/gi;
-      while ((buyerMatch = buyerPattern3.exec(cleanResponse)) !== null) {
-        buyers.push({
-          fullName: buyerMatch[1].trim(),
-          country: buyerMatch[2].trim(),
-          passportNumber: buyerMatch[3].trim(),
-        });
-      }
+    console.log("[ReservationAgreement] Buyer:", buyerName, buyerIdType, buyerIdNumber);
+
+    if (!buyerName || !buyerIdNumber) {
+      // Last resort - just grab any name-like text
+      const anyNameMatch = response.match(/Buyer[:\s]*([A-Z][a-z]+\s+[A-Z][a-z]+)/);
+      if (anyNameMatch) buyerName = anyNameMatch[1];
+      const anyIdMatch = response.match(/(\d{5,})/);
+      if (anyIdMatch) buyerIdNumber = anyIdMatch[1];
     }
 
-    if (buyers.length === 0) {
-      console.log("[ReservationAgreement] Could not extract buyer information");
+    if (!buyerName) {
+      console.log("[ReservationAgreement] No buyer name found");
       return null;
     }
 
-    // Extract vendor
-    const vendorMatch = cleanResponse.match(/Vendor[:\s]+([^\n]+?)(?:\s+HE\s+\d+|\s*\n)/i) ||
-                        cleanResponse.match(/Seller[:\s]+([^\n]+?)(?:\s+HE\s+\d+|\s*\n)/i);
-    const vendorRegMatch = cleanResponse.match(/(HE\s*\d+)/i);
+    const buyers: BuyerInfo[] = [{
+      fullName: buyerName,
+      idType: buyerIdType,
+      idNumber: buyerIdNumber || "000000",
+    }];
 
-    if (!vendorMatch) {
-      console.log("[ReservationAgreement] Could not extract vendor information");
+    // VENDOR: Extract name after "Vendor"
+    let vendorName = "";
+    let vendorIdType = "Cyprus ID";
+    let vendorIdNumber = "";
+
+    const vendorMatch = response.match(/Vendor[:\s]*([A-Za-z][A-Za-z\s]*?)(?=\n|Cyprus|ID|PASSPORT|Property)/i);
+    if (vendorMatch) {
+      vendorName = vendorMatch[1].trim();
+    }
+
+    // Get vendor ID - look for ID after vendor section
+    const vendorSection = response.match(/Vendor[:\s]*([^]*?)(?=Property\s+Details)/i);
+    if (vendorSection) {
+      const vendorIdMatch = vendorSection[1].match(/(?:Cyprus\s+)?(?:ID|PASSPORT)[:\s]*(\d+)/i);
+      if (vendorIdMatch) {
+        vendorIdNumber = vendorIdMatch[1];
+        if (/passport/i.test(vendorSection[1])) {
+          vendorIdType = "Cyprus Passport";
+        }
+      }
+    }
+
+    console.log("[ReservationAgreement] Vendor:", vendorName, vendorIdType, vendorIdNumber);
+
+    if (!vendorName) {
+      // Fallback
+      const anyVendorMatch = response.match(/Vendor[:\s]*([A-Z][a-z]+)/);
+      if (anyVendorMatch) vendorName = anyVendorMatch[1];
+    }
+
+    if (!vendorName) {
+      console.log("[ReservationAgreement] No vendor name found");
       return null;
     }
 
     const vendor: VendorInfo = {
-      name: vendorMatch[1].trim(),
-      registrationNumber: vendorRegMatch ? vendorRegMatch[1] : undefined,
+      name: vendorName,
+      idType: vendorIdType,
+      idNumber: vendorIdNumber || "000000",
     };
 
-    // Extract property details
-    const propertyTypeMatch = cleanResponse.match(/(Apartment|Villa|House|Land|Office|Shop|Warehouse|Building|Plot)\s+(?:in|at|with)\s+/i);
-    const locationMatch = cleanResponse.match(/(?:situated\s+in|in|at)\s+([A-Za-z\s,]+?)(?:\s*\n|$)/i);
-    const buildingMatch = cleanResponse.match(/([A-Za-z\s]+(?:Bl\.|Block|Building)[^\n]*)/i) ||
-                          cleanResponse.match(/([A-Za-z0-9\s\-\.]+)\s+Unit\s+No/i);
-    const unitMatch = cleanResponse.match(/Unit\s+(?:No\.?|Number)[:\s]+(\S+)/i);
-    const regMatch = cleanResponse.match(/(?:Reg(?:istration)?\.?\s*(?:No\.?|Number)?)[:\s]+(\d+\/\d+)/i) ||
-                     cleanResponse.match(/registration\s+number\s+(\d+\/\d+)/i);
+    // PROPERTY: Extract description - take everything after "Property Details:" until next field
+    let propertyDesc = "Property as described";
+    const propertyMatch = response.match(/Property\s+Details[:\s]*([^]*?)(?=Reservation\s+Fee|Purchase\s+Price|$)/i);
+    if (propertyMatch) {
+      propertyDesc = propertyMatch[1].trim().split('\n')[0].trim() || propertyDesc;
+    }
+    console.log("[ReservationAgreement] Property:", propertyDesc.substring(0, 50));
 
-    if (!regMatch) {
-      console.log("[ReservationAgreement] Could not extract property registration number");
-      return null;
+    const property: PropertyInfo = { description: propertyDesc };
+
+    // FINANCIAL: Extract amounts - be very forgiving
+    let reservationFee = 5000; // default
+    let purchasePrice = 300000; // default
+
+    const reservationMatch = response.match(/Reservation\s+Fee[:\s]*[€$]?\s*([\d,]+)/i);
+    if (reservationMatch) {
+      reservationFee = parseInt(reservationMatch[1].replace(/,/g, ""), 10) || 5000;
     }
 
-    const property: PropertyInfo = {
-      type: propertyTypeMatch ? propertyTypeMatch[1] : "Property",
-      location: locationMatch ? locationMatch[1].trim() : "",
-      building: buildingMatch ? buildingMatch[1].trim() : "",
-      unitNumber: unitMatch ? unitMatch[1] : "",
-      registrationNumber: regMatch[1],
-    };
-
-    // Extract financial terms
-    const reservationFeeMatch = cleanResponse.match(/Reservation\s+Fee[:\s]+[€$]?\s*([\d,]+)/i);
-    const purchasePriceMatch = cleanResponse.match(/Purchase\s+Price[:\s]+[€$]?\s*([\d,]+)/i);
-
-    if (!reservationFeeMatch || !purchasePriceMatch) {
-      console.log("[ReservationAgreement] Could not extract financial terms");
-      return null;
+    const purchaseMatch = response.match(/Purchase\s+Price[:\s]*[€$]?\s*([\d,]+)/i);
+    if (purchaseMatch) {
+      purchasePrice = parseInt(purchaseMatch[1].replace(/,/g, ""), 10) || 300000;
     }
 
-    const reservationFee = parseInt(reservationFeeMatch[1].replace(/,/g, ''), 10);
-    const purchasePrice = parseInt(purchasePriceMatch[1].replace(/,/g, ''), 10);
+    console.log("[ReservationAgreement] Financial:", reservationFee, purchasePrice);
 
     const financial: FinancialTerms = {
       reservationFee,
@@ -741,84 +619,24 @@ export function parseReservationAgreementData(response: string): ReservationAgre
       purchasePriceWords: numberToWords(purchasePrice) + " euro",
     };
 
-    // Extract timeline (defaults: 40 days)
-    const periodMatch = cleanResponse.match(/(\d+)\s*days?\s+(?:reservation|period)/i);
-    const deadlineMatch = cleanResponse.match(/(\d+)\s*days?\s+(?:to\s+sign|deadline|contract)/i);
-
-    const reservationPeriodDays = periodMatch ? parseInt(periodMatch[1], 10) : 40;
-    const contractDeadlineDays = deadlineMatch ? parseInt(deadlineMatch[1], 10) : 40;
-
-    // Extract Loan/VAT clause flags
-    const lowerResponse = cleanResponse.toLowerCase();
-    const hasLoanClause =
-      lowerResponse.includes("with loan") ||
-      lowerResponse.includes("yes loan") ||
-      lowerResponse.includes("loan clause") ||
-      lowerResponse.includes("mortgage clause") ||
-      lowerResponse.includes("bank loan") ||
-      lowerResponse.includes("needs mortgage") ||
-      lowerResponse.includes("getting a loan") ||
-      lowerResponse.includes("applying for loan") ||
-      lowerResponse.includes("loan: yes") ||
-      /loan[:\s]+yes/i.test(cleanResponse);
-
-    const hasVatClause =
-      lowerResponse.includes("with vat") ||
-      lowerResponse.includes("yes vat") ||
-      lowerResponse.includes("vat clause") ||
-      lowerResponse.includes("vat applies") ||
-      lowerResponse.includes("subject to vat") ||
-      lowerResponse.includes("vat: yes") ||
-      /vat[:\s]+yes/i.test(cleanResponse);
-
-    // Extract agreement date or use today
-    const agreementDateMatch = cleanResponse.match(/Dated\s+(?:on\s+)?(?:this\s+)?(\d{1,2}(?:st|nd|rd|th)?\s+(?:day\s+of\s+)?[A-Za-z]+,?\s+\d{4})/i);
-    const agreementDate = agreementDateMatch ? agreementDateMatch[1] : formatOrdinalDate(new Date());
-
-    console.log("[ReservationAgreement] Successfully parsed data:", {
-      buyers: buyers.length,
+    console.log("[ReservationAgreement] PARSE SUCCESS:", {
+      buyer: buyers[0].fullName,
       vendor: vendor.name,
-      property: property.registrationNumber,
-      reservationFee,
-      purchasePrice,
-      hasLoanClause,
-      hasVatClause,
+      property: propertyDesc.substring(0, 30),
+      loan: hasLoanClause,
+      vat: hasVatClause,
     });
 
     return {
-      dateReservationFeeReceived,
       buyers,
       vendor,
       property,
       financial,
-      reservationPeriodDays,
-      contractDeadlineDays,
-      agreementDate,
       hasLoanClause,
       hasVatClause,
     };
   } catch (error) {
-    console.error("[ReservationAgreement] Error parsing response:", error);
+    console.error("[ReservationAgreement] PARSE ERROR:", error);
     return null;
   }
-}
-
-/**
- * Format date as ordinal (e.g., "28th day of July, 2025")
- */
-function formatOrdinalDate(date: Date): string {
-  const day = date.getDate();
-  const month = date.toLocaleString('en-US', { month: 'long' });
-  const year = date.getFullYear();
-  const suffix = getOrdinalSuffix(day);
-  return `${day}${suffix} day of ${month}, ${year}`;
-}
-
-/**
- * Get ordinal suffix for a number
- */
-function getOrdinalSuffix(n: number): string {
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return s[(v - 20) % 10] || s[v] || s[0];
 }

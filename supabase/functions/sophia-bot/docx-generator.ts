@@ -12,6 +12,10 @@
 import { Document, Packer, Paragraph, ImageRun, TextRun, AlignmentType } from "https://esm.sh/docx@8.5.0";
 import { ZYPRUS_LOGO_BASE64 } from "./prompts.ts";
 import { isRequestingInformation, containsPlaceholders } from "./utils/field-validator.ts";
+import {
+  createReservationAgreement,
+  parseReservationAgreementData,
+} from "./docx/templates/index.ts";
 
 /**
  * DOCX Template Titles - Only these generate DOCX files
@@ -362,15 +366,29 @@ export function wasDocxTemplateRequested(
  */
 export async function createDocxFile(content: string, _filename: string = "document.docx"): Promise<Uint8Array> {
   try {
-    const paragraphs: Paragraph[] = [];
-
-    // Check if this is a Reservation Agreement - skip logo for this template
+    // Check if this is a Reservation Agreement - use specialized template
     const isReservationAgreement = content.toLowerCase().includes("property reservation agreement") ||
       content.toLowerCase().includes("reservation agreement") ||
       (content.toLowerCase().includes("property reservation") && content.toLowerCase().includes("prospective buyer"));
 
-    // Add logo if available (but NOT for Reservation Agreement)
-    if (DECODED_LOGO && DECODED_LOGO.length > 0 && !isReservationAgreement) {
+    // Use specialized Reservation Agreement template
+    if (isReservationAgreement) {
+      console.log("[DOCX] Detected Reservation Agreement - using specialized template");
+      const parsedData = parseReservationAgreementData(content);
+      if (parsedData) {
+        console.log("[DOCX] Successfully parsed reservation agreement data");
+        const doc = createReservationAgreement(parsedData);
+        const buffer = await Packer.toBuffer(doc);
+        return new Uint8Array(buffer);
+      } else {
+        console.warn("[DOCX] Failed to parse reservation agreement data - falling back to generic DOCX");
+      }
+    }
+
+    const paragraphs: Paragraph[] = [];
+
+    // Add logo if available (Reservation Agreement already handled above with specialized template)
+    if (DECODED_LOGO && DECODED_LOGO.length > 0) {
       try {
         paragraphs.push(
           new Paragraph({

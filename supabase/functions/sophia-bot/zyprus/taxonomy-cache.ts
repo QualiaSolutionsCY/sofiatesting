@@ -948,14 +948,20 @@ export async function findUserUuid(email: string): Promise<string> {
 
 /**
  * Find multiple user UUIDs for reviewers
+ * IMPORTANT: Excludes SOPHIA_AI_UUID from results to prevent "Sophia AI ()" showing as reviewer
+ * Only returns UUIDs for emails that can be resolved to actual users
  */
 export async function findUserUuids(emails: string[]): Promise<string[]> {
   const uuids: string[] = [];
   for (const email of emails) {
     if (email) {
       const uuid = await findUserUuid(email);
-      if (!uuids.includes(uuid)) {
+      // Skip SOPHIA_AI_UUID - we don't want "Sophia AI" showing as a reviewer
+      // The regional request emails (requestlimassol@zyprus.com, etc.) don't have real user accounts
+      if (uuid !== SOPHIA_AI_UUID && !uuids.includes(uuid)) {
         uuids.push(uuid);
+      } else if (uuid === SOPHIA_AI_UUID) {
+        console.log(`[Taxonomy] Skipping SOPHIA_AI_UUID for reviewer email: ${email}`);
       }
     }
   }
@@ -974,6 +980,7 @@ const INDOOR_FEATURE_FALLBACKS: Record<string, string> = {
   "basement": "a1b2c3d4-basement-uuid-placeholder",  // TODO: Get from API
   "cctv system": "a1b2c3d4-cctv-uuid-placeholder",   // TODO: Get from API
   "central heating": "4f2523f7-9fde-4390-b532-c0da52644632",
+  "underfloor heating": "a1b2c3d4-ufh-uuid-placeholder",  // TODO: Get real UUID from API - using placeholder to skip
   "conference room": "a1b2c3d4-conf-uuid-placeholder", // TODO: Get from API
   "covered parking": "432ac572-ed64-4107-a818-19a8a22c5371",
   "electrical appliances": "a1b2c3d4-elec-uuid-placeholder", // TODO: Get from API
@@ -1055,7 +1062,8 @@ const OUTDOOR_FEATURE_ALIASES: Record<string, string[]> = {
 
 const INDOOR_FEATURE_ALIASES: Record<string, string[]> = {
   "air conditioning": ["ac", "a/c", "aircon", "air con"],
-  "central heating": ["heating", "central heat"],
+  "central heating": ["central heat"],
+  "underfloor heating": ["under floor heating", "floor heating", "radiant floor", "heated floors", "ufh"],
   "fitted kitchen": ["built-in kitchen", "modern kitchen"],
   "covered parking": ["indoor parking", "garage parking"],
   "guest toilet": ["guest wc", "powder room", "guest bathroom", "second bathroom", "2nd bathroom"],

@@ -11,7 +11,9 @@
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 // Cache configuration
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+// TEMP: Disabled cache for testing image batching fix (Jan 26, 2026)
+// Restore to 5 * 60 * 1000 after confirming fix works
+const CACHE_TTL_MS = 0; // 5 * 60 * 1000; // 5 minutes
 
 // In-memory cache
 let cachedPromptSections: Map<string, string> | null = null;

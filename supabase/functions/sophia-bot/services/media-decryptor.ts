@@ -6,7 +6,7 @@
  * to get a public URL that can be used in property listings.
  */
 
-const WASEND_API_KEY = Deno.env.get("WASENDER_API_KEY") || "";
+const WASEND_API_KEY = Deno.env.get("WASEND_API_KEY") || "";
 const DECRYPT_ENDPOINT = "https://www.wasenderapi.com/api/decrypt-media";
 
 interface ImageMessageData {
@@ -36,7 +36,7 @@ export async function decryptWhatsAppImage(
   imageData: ImageMessageData
 ): Promise<string | null> {
   if (!WASEND_API_KEY) {
-    console.error("[MediaDecryptor] WASENDER_API_KEY not set");
+    console.error("[MediaDecryptor] WASEND_API_KEY not set");
     return null;
   }
 

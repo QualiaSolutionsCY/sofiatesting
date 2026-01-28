@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { Document, Packer } from "https://esm.sh/docx@8.5.0";
 import { ZYPRUS_LOGO_BASE64 } from "../_shared/prompts.ts";
 import { loadSystemPrompt } from "./services/prompt-loader.ts";
-import { getHistory, addMessage, claimMessageForProcessing } from "../_shared/db.ts";
+import { getHistory, addMessage, claimMessageForProcessing, saveLastDocument, getLastDocument } from "../_shared/db.ts";
 import { createDocxFile, isDocxTemplate, wasDocxTemplateRequested } from "./docx-generator.ts";
 import { detectDocxTemplateType } from "./docx/detector.ts";
 import {
@@ -49,6 +49,12 @@ import {
   isPublicUrl,
 } from "./services/media-decryptor.ts";
 import { persistImages } from "./services/image-persistence.ts";
+import {
+  addPendingImages,
+  getPendingImages,
+  getPendingImageCount,
+  clearPendingImages,
+} from "./services/pending-images.ts";
 
 // Memory and personalization (RAG)
 import {
@@ -95,18 +101,71 @@ interface EmailSendingIntent {
 /**
  * Detects if AI response indicates it "sent" an email (hallucination)
  * Returns the extracted email details if detected
+ *
+ * @param aiResponse - The AI's response text
+ * @param conversationHistory - Previous messages for context
+ * @param agentEmail - Optional agent email to use when AI says "to your email" without explicit address
  */
 function detectEmailSendingIntent(
   aiResponse: string,
-  conversationHistory: Array<{role: string, parts: Array<{text: string}>}>
+  conversationHistory: Array<{role: string, parts: Array<{text: string}>}>,
+  agentEmail?: string
 ): EmailSendingIntent | null {
   console.log("[Email Detection] Starting email detection...");
   console.log("[Email Detection] Response length:", aiResponse.length);
   console.log("[Email Detection] First 500 chars:", aiResponse.substring(0, 500));
+  console.log("[Email Detection] Agent email available:", agentEmail || "none");
 
-  // Check if AI claims to have sent an email
-  // More flexible patterns that match "I have sent the X to email@example.com"
-  // Note: \*? handles optional asterisks around emails (WhatsApp bold formatting)
+  // FIRST: Check for patterns without explicit email ("to your email", "to my email")
+  // These require agentEmail to be available
+  if (agentEmail) {
+    const genericEmailPatterns = [
+      /i have sent (?:the )?(.+?) to (?:your|my) email/i,
+      /i['']ve sent (?:the )?(.+?) to (?:your|my) email/i,
+      /sent (?:the )?(.+?) to (?:your|my) email/i,
+      /email(?:ed)? (?:the )?(.+?) to (?:your|my) email/i,
+      /sending (?:the )?(.+?) to (?:your|my) email/i,
+      /(?:the )?(.+?) (?:has been|was) sent to (?:your|my) email/i,
+    ];
+
+    for (let i = 0; i < genericEmailPatterns.length; i++) {
+      const pattern = genericEmailPatterns[i];
+      const match = aiResponse.match(pattern);
+      if (match) {
+        console.log(`[Email Detection] Generic pattern ${i + 1} matched! Using agent email: ${agentEmail}`);
+        const documentType = match[1]?.trim() || "Document";
+
+        // Look for document content and URL
+        let documentContent = "";
+        let documentUrl = "";
+        for (let j = conversationHistory.length - 1; j >= 0; j--) {
+          const msg = conversationHistory[j];
+          if (msg.role === "model") {
+            const text = msg.parts.map(p => p.text).join("");
+            const urlMatch = text.match(/https:\/\/[^\s]+\.docx/i);
+            if (urlMatch) documentUrl = urlMatch[0];
+            if (text.includes("Subject:") || text.includes("Dear ") || text.length > 500) {
+              documentContent = text;
+              break;
+            }
+          }
+        }
+
+        let subject = documentType;
+        const subjectMatch = documentContent.match(/Subject:\s*(.+?)(?:\n|$)/i);
+        if (subjectMatch) subject = subjectMatch[1].trim();
+
+        return {
+          recipientEmail: agentEmail,
+          subject: subject,
+          body: documentContent || `Please see the attached ${documentType}.`,
+          documentUrl: documentUrl || undefined,
+        };
+      }
+    }
+  }
+
+  // SECOND: Check for patterns WITH explicit email address
   const sentPatterns = [
     /i have sent (?:the )?(.+?) to \*?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\*?/i,
     /i['']ve sent (?:the )?(.+?) to \*?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\*?/i,
@@ -117,7 +176,7 @@ function detectEmailSendingIntent(
 
   for (let i = 0; i < sentPatterns.length; i++) {
     const pattern = sentPatterns[i];
-    console.log(`[Email Detection] Testing pattern ${i + 1}...`);
+    console.log(`[Email Detection] Testing explicit pattern ${i + 1}...`);
     const match = aiResponse.match(pattern);
     console.log(`[Email Detection] Pattern ${i + 1} match:`, match ? "YES" : "NO");
     if (match) {
@@ -224,9 +283,7 @@ async function sendEmailViaResend(
     // Format the email body as HTML
     const htmlBody = formatEmailBodyAsHtml(intent.body);
 
-    // Try verified domain first, fallback to Resend test domain if needed
-    // NOTE: zyprus.com domain verification is PENDING - using Resend test domain for now
-    const senderEmail = "SOFIA <onboarding@resend.dev>";
+    const senderEmail = "SOPHIA <sofia@zyprus.com>";
     console.log("[Email] Using sender:", senderEmail);
 
     const emailPayload: Record<string, unknown> = {
@@ -841,12 +898,14 @@ async function uploadDocxToStorage(
 /**
  * Sends a DOCX file via WaSend API using documentUrl
  * WaSend requires a public URL to the document, not direct file upload
+ * Also saves the document URL for later email attachment
  */
 async function sendDocxFile(
   phoneNumber: string,
   docxContent: Uint8Array,
   filename: string,
-  retries: number = 1
+  retries: number = 1,
+  userId?: string
 ): Promise<Response> {
   const sendUrl = "https://www.wasenderapi.com/api/send-message";
 
@@ -860,6 +919,14 @@ async function sendDocxFile(
   }
 
   console.log("Sending document via WaSend with URL:", documentUrl);
+
+  // Step 1.5: Save document URL for later email attachment
+  if (userId) {
+    const docType = filename.toLowerCase().includes("viewing") ? "viewing_form" :
+                    filename.toLowerCase().includes("marketing") ? "marketing_agreement" :
+                    filename.toLowerCase().includes("reservation") ? "reservation_agreement" : "document";
+    await saveLastDocument(userId, documentUrl, filename, docType);
+  }
 
   try {
     let sendRes = await fetch(sendUrl, {
@@ -1333,6 +1400,14 @@ async function extractMessage(payload: any): Promise<{
     persistedImageUrls = await persistImages(imageUrls);
     if (persistedImageUrls.length > 0) {
       console.log(`[IMAGE] Persisted ${persistedImageUrls.length} images to Supabase Storage`);
+
+      // CRITICAL: Store images in pending_images table for accumulation
+      // This allows SOPHIA to track images across multiple webhook calls
+      const phoneNumber = remoteJid?.split("@")[0]?.replace(/\D/g, "") || "";
+      if (phoneNumber) {
+        await addPendingImages(phoneNumber, persistedImageUrls);
+        console.log(`[IMAGE] Added ${persistedImageUrls.length} images to pending_images for ${phoneNumber}`);
+      }
     } else if (imageUrls.length > 0) {
       console.warn(`[IMAGE] Failed to persist any images, falling back to temporary URLs`);
       persistedImageUrls = imageUrls; // Fall back to temporary URLs if persistence fails
@@ -1582,15 +1657,29 @@ async function processRequest(
       senderContext = `\n\n---\n## 📱 CURRENT SENDER IDENTIFICATION\n\n**Message sent from phone number:** ${phoneNumber}\n\n**This is an unknown sender. You may need to ask for their name if generating documents. If they want to upload a property, ask them to confirm who they are first.**\n\n---\n`;
     }
 
-    // Add image context if images were attached
+    // Add image context - retrieve ALL accumulated images from pending_images table
+    // This ensures SOPHIA sees all photos sent across multiple webhook calls
     let imageContext = "";
-    if (imageUrls.length > 0) {
-      imageContext = `\n\n---\n## 📷 ATTACHED IMAGES\n\n**IMPORTANT: The user has attached ${imageUrls.length} image(s) with this message.**\n\n**Image URLs (use these for property listings):**\n${imageUrls.map((url, i) => `${i + 1}. ${url}`).join('\n')}\n\n**When the user is creating a property listing, use these image URLs in the \`imageUrls\` parameter of the createPropertyListing or createLandListing tool. DO NOT ask the user for image URLs - they have already provided them.**\n\n---\n`;
-      console.log(`[Images] Added ${imageUrls.length} image URL(s) to AI context`);
+    const accumulatedImages = await getPendingImages(phoneNumber);
+    const totalImageCount = accumulatedImages.length;
+
+    if (totalImageCount > 0) {
+      // Use accumulated images (includes current + previous photos)
+      imageContext = `\n\n---\n## 📷 ACCUMULATED PROPERTY PHOTOS\n\n**IMPORTANT: You have received a total of ${totalImageCount} photo(s) for the property listing.**\n\n**All Image URLs (use ALL of these for property listings):**\n${accumulatedImages.map((url, i) => `${i + 1}. ${url}`).join('\n')}\n\n**When the user is ready to create a property listing, use ALL of these image URLs in the \`imageUrls\` parameter of the createPropertyListing or createLandListing tool. INCLUDE EVERY IMAGE - do not leave any out.**\n\n**REMEMBER: Ask the user to confirm all photos have been sent before uploading!**\n\n---\n`;
+      console.log(`[Images] Added ${totalImageCount} ACCUMULATED image URL(s) to AI context`);
     } else if (userMessage.includes("[User sent image(s) but decryption failed]")) {
       // Special context when images were detected but could not be decrypted
       imageContext = `\n\n---\n## ⚠️ IMAGE PROCESSING ISSUE\n\n**The user sent image(s) but our system could not process them.**\n\nPlease respond with something like:\n"I received your images, but I wasn't able to process them. This sometimes happens with WhatsApp's image encryption. Could you please try sending the photos again? If the problem persists, you can also try:\n1. Sending the images one at a time\n2. Taking fresh photos instead of selecting from gallery\n3. Sending the images as documents instead of photos"\n\n**DO NOT proceed with any property listing until you have successfully received the images.**\n\n---\n`;
       console.log(`[Images] Added decryption failure context to AI`);
+    }
+
+    // Check for recently generated documents that can be attached to emails
+    let documentContext = "";
+    const lastDocument = await getLastDocument(userId);
+    if (lastDocument) {
+      const docTypeDisplay = lastDocument.document_type?.replace(/_/g, ' ') || 'document';
+      documentContext = `\n\n---\n## 📎 AVAILABLE DOCUMENT FOR EMAIL ATTACHMENT\n\n**You have a recently generated document available:**\n- **Document:** ${lastDocument.document_name}\n- **Type:** ${docTypeDisplay}\n- **URL:** ${lastDocument.document_url}\n\n**If the user asks to email this document (e.g., "send it to my email", "email me the document"):**\n→ Use the sendEmail tool with the \`attachmentUrl\` parameter set to the URL above.\n→ Keep the email subject and body simple (e.g., "Find attached the ${docTypeDisplay}")\n\n---\n`;
+      console.log(`[DocContext] Found available document for attachment: ${lastDocument.document_name}`);
     }
 
     // Build agent context for dynamic prompt loading
@@ -1605,7 +1694,7 @@ async function processRequest(
     const baseSystemPrompt = await loadSystemPrompt(supabase, agentContext);
     console.log(`[PromptLoader] Loaded system prompt (${baseSystemPrompt.length} chars)`);
 
-    const systemPromptWithDate = baseSystemPrompt + dateContext + senderContext + imageContext + personalizationContext;
+    const systemPromptWithDate = baseSystemPrompt + dateContext + senderContext + imageContext + documentContext + personalizationContext;
 
     // Convert Gemini history format to OpenRouter format
     const openrouterMessages: Array<{role: string, content: string}> = [
@@ -1885,7 +1974,11 @@ async function processRequest(
     console.log("[Email Check] AI Response preview:", aiResponse.substring(0, 300));
 
     const updatedHistoryForEmail = await getHistory(userId);
-    const emailIntent = detectEmailSendingIntent(aiResponse, updatedHistoryForEmail);
+    const emailIntent = detectEmailSendingIntent(
+      aiResponse,
+      updatedHistoryForEmail,
+      identifiedAgent?.communicationEmail || undefined
+    );
 
     console.log("[Email Check] Email intent detected:", emailIntent ? "YES" : "NO");
     if (emailIntent) {
@@ -2107,11 +2200,11 @@ async function processRequest(
                 const docxContent = await createDocxFile(retryResponse, filename);
                 console.log("DOCX content created, size:", docxContent.length, "bytes");
                 
-                const sendResult = await sendDocxFile(phoneNumber, docxContent, filename);
+                const sendResult = await sendDocxFile(phoneNumber, docxContent, filename, 1, userId);
                 const sendResultText = await sendResult.text();
                 console.log("DOCX send result status:", sendResult.status);
                 console.log("DOCX send result body:", sendResultText);
-                
+
                 if (!sendResult.ok) {
                   console.error("Failed to send DOCX file from retry! Falling back to text.");
                   await sendTextMessage(phoneNumber, retryResponse);
@@ -2177,7 +2270,7 @@ async function processRequest(
           filename = "Non_Exclusive_Marketing_Agreement.docx";
           console.log("Marketing Agreement DOCX created, size:", docxContent.length, "bytes");
 
-          const sendResult = await sendDocxFile(phoneNumber, docxContent, filename);
+          const sendResult = await sendDocxFile(phoneNumber, docxContent, filename, 1, userId);
           const sendResultText = await sendResult.text();
           console.log("Marketing DOCX send result status:", sendResult.status);
           console.log("Marketing DOCX send result body:", sendResultText);
@@ -2310,7 +2403,7 @@ async function processRequest(
 
       console.log("DOCX content created, size:", docxContent.length, "bytes");
 
-      const sendResult = await sendDocxFile(phoneNumber, docxContent, filename);
+      const sendResult = await sendDocxFile(phoneNumber, docxContent, filename, 1, userId);
       const sendResultText = await sendResult.text();
       console.log("DOCX send result status:", sendResult.status);
       console.log("DOCX send result body:", sendResultText);

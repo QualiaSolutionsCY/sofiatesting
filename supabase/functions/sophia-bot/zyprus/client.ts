@@ -46,10 +46,11 @@ export interface ListingData {
   floor?: string;
   potentialDuplicate?: boolean;
   aiMessage?: string | null;
-  // For Own Reference ID format: Owner - {Agent} - {Seller} - {Phone} - Reg No.{Reg}
+  // For Own Reference ID format: Owner - {Agent} - {Seller} - {Phone} - {Email}
   agentName?: string;
   ownerName?: string;
   ownerPhone?: string;
+  ownerEmail?: string;
   registrationNumber?: string;
 }
 
@@ -140,14 +141,15 @@ function addPrivacyOffset(coords: { lat: number; lon: number }): { lat: number; 
 
 /**
  * Generate Own Reference ID for quick reviewer reference
- * Format: Owner - {Agent Name} - {Seller Name} - {Seller Phone} - Reg No.{Registration}
- * Example: Owner - Evelina Neophytou - Jane Smith - 99123456 - Reg No.0/1234
- * Per Zyprus screenshot spec: Used for both field_own_reference_id and field_ai_draft_own_reference_id
+ * Format: Owner - {Agent Name} - {Seller Name} - {Seller Phone} - {Seller Email}
+ * Example: Owner - Evelina Neophytou - Jane Smith - 99123456 - seller@email.com
+ * Per Lauren feedback Jan 2026: Include owner email when provided
  */
 function generateOwnReferenceId(
   agentName?: string,
   ownerName?: string,
   ownerPhone?: string,
+  ownerEmail?: string,
   registrationNumber?: string
 ): string {
   const parts: string[] = ["Owner"];
@@ -164,6 +166,11 @@ function generateOwnReferenceId(
     // Clean phone number - remove spaces, +357, etc.
     const cleanPhone = ownerPhone.replace(/[\s\-\+]/g, "").replace(/^357/, "");
     parts.push(cleanPhone);
+  }
+
+  // Add owner email when provided (per Lauren feedback Jan 2026)
+  if (ownerEmail) {
+    parts.push(ownerEmail);
   }
 
   if (registrationNumber) {
@@ -191,11 +198,12 @@ function buildJsonApiPayload(
   viewUuids: string[]
 ): Record<string, unknown> {
   // Generate Own Reference ID for quick reviewer reference
-  // Format: Owner - {Agent Name} - {Seller Name} - {Seller Phone} - Reg No.{Registration}
+  // Format: Owner - {Agent Name} - {Seller Name} - {Seller Phone} - {Email}
   const ownReferenceId = generateOwnReferenceId(
     listing.agentName,
     listing.ownerName,
     listing.ownerPhone,
+    listing.ownerEmail,
     listing.registrationNumber
   );
 

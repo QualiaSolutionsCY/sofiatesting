@@ -12,6 +12,10 @@ export interface PropertyDetails {
   titleDeedStatus?: string;
   coveredArea: number;
   plotSize?: number;
+  /** Covered veranda area in sqm */
+  coveredVeranda?: number;
+  /** Uncovered veranda area in sqm */
+  uncoveredVeranda?: number;
   floor?: string;
   features?: string[];
   price: number;
@@ -80,10 +84,21 @@ function getRandomAdjective(): string {
 }
 
 /**
- * Capitalize first letter
+ * Capitalize first letter of a single word
  */
 function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+
+/**
+ * Title Case - Capitalize first letter of EVERY word
+ * Examples: "detached house" -> "Detached House", "semi detached" -> "Semi Detached"
+ */
+function toTitleCase(str: string): string {
+  return str
+    .split(" ")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 }
 
 /**
@@ -172,6 +187,7 @@ function getLocationParagraph(location: string): string {
 
 /**
  * Categorize features into indoor, outdoor, and views
+ * RULE: If underfloor heating is present, do NOT add central heating (per Lauren feedback)
  */
 function categorizeFeatures(details: PropertyDetails): {
   indoor: string[];
@@ -182,9 +198,15 @@ function categorizeFeatures(details: PropertyDetails): {
   const outdoor: string[] = [];
   const views: string[] = [];
 
+  // Check if underfloor heating is in features list
+  const hasUnderfloorHeating = details.features?.some(
+    f => f.toLowerCase().includes("underfloor") || f.toLowerCase().includes("floor heating")
+  );
+
   // Boolean features - categorized
   if (details.airConditioning) indoor.push("Air Conditioning");
-  if (details.centralHeating) indoor.push("Central Heating");
+  // ONLY add central heating if underfloor heating is NOT present
+  if (details.centralHeating && !hasUnderfloorHeating) indoor.push("Central Heating");
   if (details.storage) indoor.push("Storage Room");
 
   if (details.pool) outdoor.push("Private Swimming Pool");
@@ -285,43 +307,63 @@ function isBottomFeature(feature: string): boolean {
 }
 
 /**
- * Sort features by importance - premium features first
+ * Sort features by importance - Lauren's preferred ordering (Jan 2026 feedback):
+ * 1. Parking (covered parking, garage)
+ * 2. Extra rooms FIRST: Office, Gym, Maid's Room, Basement, Storeroom
+ * 3. Fireplace (feature, not tech)
+ * 4. Tech features: A/C, Underfloor Heating, Photovoltaic, Fitted Kitchen, Solar, Water Heating
+ * 5. Walk-in wardrobe and similar
+ * 6. External features (landscaped garden, BBQ area) - handled separately via isBottomFeature
  */
 function sortFeaturesByImportance(features: string[]): string[] {
-  // Priority order - higher index = higher priority (will appear first)
+  // Priority order - earlier in list = higher priority = appears first
   const priorityKeywords = [
-    // Highest priority - pools
-    "swimming pool",
-    "covered pool",
-    "pool",
-    // Views
+    // 1. Parking - highest priority
+    "covered parking",
+    "garage",
+    "parking",
+    // 2. Extra rooms FIRST (per Lauren feedback Jan 2026)
+    "office",
+    "playroom",
+    "office/playroom",
+    "gym",
+    "maids room",
+    "maid's room",
+    "guest room",
+    "basement",
+    "storeroom",
+    "storage room",
+    "storage",
+    // 3. Fireplace (feature, not tech)
+    "fireplace",
+    // 4. Tech features - AFTER rooms
+    "a/c",
+    "air conditioning",
+    "underfloor heating",
+    "central heating",
+    "photovoltaic",
+    "solar system",
+    "solar panel",
+    "solar",
+    "water heating",
+    "pressurized water",
+    "pressurised water",
+    "fitted kitchen",
+    "electric shutters",
+    "video entry",
+    "alarm",
+    "security",
+    // 5. Walk-in wardrobe and similar
+    "walk-in wardrobe",
+    "walk in wardrobe",
+    "fitted wardrobes",
+    // 6. Views (if not handled as top features)
     "sea view",
     "mountain view",
     "panoramic",
-    "unobstructed",
-    // Outdoor premium
-    "garden",
-    "landscaped",
-    "bbq",
-    "terrace",
-    "veranda",
-    "balcony",
-    // Parking
-    "garage",
-    "covered parking",
-    "parking",
-    // Indoor premium
-    "jacuzzi",
-    "sauna",
-    "fireplace",
-    "wine cellar",
-    // Standard features (lower priority)
-    "a/c",
-    "air conditioning",
-    "central heating",
-    "storage",
-    "storeroom",
-    "fitted",
+    // 7. Pools (if not handled as top features)
+    "swimming pool",
+    "pool",
   ];
 
   return features.sort((a, b) => {
@@ -347,24 +389,24 @@ function sortFeaturesByImportance(features: string[]): string[] {
 
 /**
  * Generate full property description
- * Format: Headline → 2-4 location sentences → Features (each line) → Closing sentences → CTA
- * NO title deeds, NO prices, NO section titles
+ * Format: Headline (Title Case) → Location sentences → Features → Closing → CTA
  */
 export function generateDescription(details: PropertyDetails): string {
-  const adjective = getRandomAdjective();
-  const propertyType = capitalize(details.type);
+  const adjective = getRandomAdjective(); // Already capitalized from ADJECTIVES array
+  const propertyType = toTitleCase(details.type); // Title Case: Detached House, Villa, etc.
   const location = capitalizeLocation(details.location);
   const bedroomText = details.bedrooms === 1 ? "1 Bedroom" : `${details.bedrooms} Bedroom`;
   const listingTypeText = details.listingType === "rent" ? "For Rent" : "For Sale";
 
   const lines: string[] = [];
 
-  // 1. HEADLINE (with title deeds if available)
-  let headline = `${adjective} ${bedroomText} ${propertyType} ${listingTypeText} in ${location}`;
+  // 1. HEADLINE - Title Case (per Lauren's feedback Jan 2026)
+  // Format: "Spacious 4 Bedroom Detached House For Sale In Moutagiaka, Limassol With Title Deeds"
+  let headline = `${adjective} ${bedroomText} ${propertyType} ${listingTypeText} In ${location}`;
   if (details.titleDeedStatus && details.listingType === "sale") {
     const titleDeedFormatted = formatTitleDeedStatus(details.titleDeedStatus);
     if (titleDeedFormatted) {
-      headline += ` with ${titleDeedFormatted}`;
+      headline += ` With ${titleDeedFormatted}`;
     }
   }
   lines.push(headline);
@@ -412,10 +454,16 @@ export function generateDescription(details: PropertyDetails): string {
     lines.push(feature);
   }
 
-  // 5. BASIC SPECS (bedrooms, bathrooms, area)
+  // 5. BASIC SPECS (bedrooms, bathrooms, areas)
   lines.push(`${details.bedrooms} ${details.bedrooms === 1 ? "Bedroom" : "Bedrooms"}`);
   lines.push(`${details.bathrooms} ${details.bathrooms === 1 ? "Bathroom" : "Bathrooms"}`);
   lines.push(`${details.coveredArea}m² Covered Area`);
+  if (details.coveredVeranda) {
+    lines.push(`${details.coveredVeranda}m² Covered Veranda`);
+  }
+  if (details.uncoveredVeranda) {
+    lines.push(`${details.uncoveredVeranda}m² Uncovered Veranda`);
+  }
   if (details.plotSize) {
     lines.push(`${details.plotSize}m² Plot Size`);
   }
@@ -574,10 +622,23 @@ function getGenericLocationSentences(location: string): string[] {
       "Close to beaches, restaurants and entertainment",
       "Easy access to the highway and all amenities!"
     ],
+    moutagiaka: [
+      "Located in a peaceful and attractive neighborhood.",
+      "It enjoys excellent access to the highway and the city center."
+    ],
+    mouttagiaka: [
+      "Located in a peaceful and attractive neighborhood.",
+      "It enjoys excellent access to the highway and the city center."
+    ],
     "potamos germasogeia": [
       "Situated in the popular tourist area of Potamos Germasogeia",
       "Walking distance to the beach and promenade",
       "Close to hotels, restaurants and nightlife!"
+    ],
+    germasogeia: [
+      "Located in the sought-after area of Germasogeia",
+      "Close to the beach, shops and restaurants",
+      "Easy access to Limassol town center and the highway!"
     ],
     "agios tychonas": [
       "Located in the upscale area of Agios Tychonas",

@@ -46,7 +46,7 @@ const TEMPLATE_CATEGORIES = {
   // Marketing Agreements (3 templates)
   marketing: ["14", "15", "16"],
 
-  // Client Communications (23 templates)
+  // Client Communications (24 templates)
   good_client: ["17", "18"],
   valuation: ["19", "20"],
   client_phone: ["21"],
@@ -59,6 +59,9 @@ const TEMPLATE_CATEGORIES = {
   selling: ["31", "32"],
   location: ["39", "40"],
   delays: ["41", "42", "43"],
+  location: ["39", "40"],
+  delays: ["41", "42", "43"],
+  phone_refusal: ["44"],
 } as const;
 
 // Most frequently used templates (loaded as fallback)
@@ -116,7 +119,7 @@ export function detectRelevantTemplates(userMessage: string): string[] {
   }
 
   // Client communications
-  if (GOOD_CLIENT_PATTERN.test(msg)) {
+  if (GOOD_CLIENT_PATTERN.test(msg) || /request.*callback|callback.*request/i.test(msg)) {
     addToSet(templates, TEMPLATE_CATEGORIES.good_client);
   }
   if (VALUATION_PATTERN.test(msg)) {
@@ -145,6 +148,15 @@ export function detectRelevantTemplates(userMessage: string): string[] {
   }
   if (AML_PATTERN.test(msg)) {
     addToSet(templates, TEMPLATE_CATEGORIES.aml_kyc);
+  }
+  
+  // Phone refusal or Email only request (including callback request via email)
+  if (
+    /refus.*phone|no.*phone.*number|doesn't.*want.*phone|email.*only|only.*email|communication.*via.*email|request.*callback.*email|callback.*via.*email/i.test(
+      msg
+    )
+  ) {
+    addToSet(templates, TEMPLATE_CATEGORIES.phone_refusal);
   }
 
   // If no templates matched, use most common ones

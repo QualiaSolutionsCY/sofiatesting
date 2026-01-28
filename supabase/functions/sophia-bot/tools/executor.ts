@@ -13,6 +13,39 @@ import { generateMyNotes, generateAIAssistantNotes } from "../services/my-notes-
 import { processImages, validateImages, generateImageWarnings, hasEnoughImages } from "../services/image-handler.ts";
 import { createDraftListing, getZyprusConfig, getAccessToken } from "../zyprus/client.ts";
 import { loadTaxonomy, findLocationUuid, findPropertyTypeUuid, getLocationsByRegion } from "../zyprus/taxonomy-cache.ts";
+import { clearPendingImages, getPendingImages } from "../services/pending-images.ts";
+
+// In-memory upload lock to prevent parallel uploads from same user
+// Key: phone number, Value: timestamp of last upload attempt
+const uploadLocks = new Map<string, number>();
+const UPLOAD_LOCK_DURATION_MS = 30000; // 30 seconds
+
+/**
+ * Check if an upload lock exists for this agent (prevents parallel uploads)
+ */
+function checkUploadLock(agentPhone: string): { locked: boolean; remainingSeconds?: number } {
+  const lastUpload = uploadLocks.get(agentPhone);
+  if (!lastUpload) {
+    return { locked: false };
+  }
+
+  const elapsed = Date.now() - lastUpload;
+  if (elapsed < UPLOAD_LOCK_DURATION_MS) {
+    const remaining = Math.ceil((UPLOAD_LOCK_DURATION_MS - elapsed) / 1000);
+    return { locked: true, remainingSeconds: remaining };
+  }
+
+  // Lock expired, remove it
+  uploadLocks.delete(agentPhone);
+  return { locked: false };
+}
+
+/**
+ * Set upload lock for this agent
+ */
+function setUploadLock(agentPhone: string): void {
+  uploadLocks.set(agentPhone, Date.now());
+}
 
 export interface ToolResult {
   success?: boolean;
@@ -97,6 +130,19 @@ async function handleCreatePropertyListing(
   }
 
   console.log("[ToolExecutor] Agent identified:", agent.fullName, agent.region);
+
+  // 1.5 CRITICAL: Check upload lock to prevent parallel uploads (e.g., when user sends multiple photos)
+  const lockCheck = checkUploadLock(agent.mobile || agent.fullName);
+  if (lockCheck.locked) {
+    console.log(`[ToolExecutor] Upload blocked by lock - another upload in progress for ${agent.fullName}`);
+    return {
+      needsInput: true,
+      question: `I'm already processing an upload for this property. Please wait ${lockCheck.remainingSeconds} seconds before trying again, or if you'd like to upload a different property, please let me know.`,
+    };
+  }
+
+  // Set lock immediately to prevent parallel webhook calls
+  setUploadLock(agent.mobile || agent.fullName);
 
   // 2. Validate required fields
   const validation = validateRequiredFields(args);
@@ -245,7 +291,38 @@ async function handleCreatePropertyListing(
   );
 
   // 7. Process images (sync classification)
-  const imageUrls = (args.imageUrls as string[]) || [];
+  // CRITICAL FIX: Fetch images from pending_images table instead of trusting AI-provided URLs
+  // The AI often hallucinates fake URLs like "images.zyprus.com" or "i.ibb.co/xxx"
+  // Real images are stored in Supabase Storage and tracked in pending_images table
+  const agentPhone = agent.mobile?.replace(/\D/g, "") || "";
+  let imageUrls: string[] = [];
+
+  if (agentPhone) {
+    const pendingImages = await getPendingImages(agentPhone);
+    if (pendingImages.length > 0) {
+      console.log(`[ToolExecutor] Using ${pendingImages.length} images from pending_images table (ignoring AI-provided URLs)`);
+      imageUrls = pendingImages;
+    } else {
+      // Fallback to AI-provided URLs only if no pending images found
+      const aiProvidedUrls = (args.imageUrls as string[]) || [];
+      // Filter out obviously fake URLs (hallucinated by AI)
+      imageUrls = aiProvidedUrls.filter(url => {
+        const isFake = url.includes("images.zyprus.com") ||
+                       (url.includes("ibb.co") && !url.includes("i.ibb.co")) ||
+                       url.includes("placeholder") ||
+                       url.includes("example.com");
+        if (isFake) {
+          console.warn(`[ToolExecutor] Filtering out fake/hallucinated URL: ${url}`);
+        }
+        return !isFake;
+      });
+      console.log(`[ToolExecutor] No pending images found, using ${imageUrls.length} AI-provided URLs`);
+    }
+  } else {
+    imageUrls = (args.imageUrls as string[]) || [];
+    console.log(`[ToolExecutor] No agent phone, using ${imageUrls.length} AI-provided URLs`);
+  }
+
   const processedImages = await processImages(imageUrls);
 
   // Check minimum images (sync)
@@ -340,6 +417,8 @@ async function handleCreatePropertyListing(
     titleDeedStatus: args.titleDeedStatus as string,
     coveredArea: args.coveredArea as number,
     plotSize: args.plotSize as number | undefined,
+    coveredVeranda: args.coveredVeranda as number | undefined,
+    uncoveredVeranda: args.uncoveredVeranda as number | undefined,
     features: args.features as string[] | undefined,
     price: args.price as number,
     yearBuilt: args.yearBuilt as number | undefined,
@@ -383,6 +462,15 @@ async function handleCreatePropertyListing(
   console.log("[ToolExecutor] Creating draft listing...");
   let result;
   try {
+    // Build aiMessage: include duplicate warning OR user's special notes
+    let aiMessageContent: string | null = null;
+    if (duplicates.isDuplicate) {
+      aiMessageContent = generateDuplicateWarning(duplicates.potentialMatches);
+    } else if (args.specialNotes) {
+      // Per Lauren feedback Jan 2026: Include user's notes in AI Message field
+      aiMessageContent = `Agent notes: ${args.specialNotes}`;
+    }
+
     result = await createDraftListing({
     listingType,
     propertyType: args.propertyType as string,
@@ -406,15 +494,21 @@ async function handleCreatePropertyListing(
     yearBuilt: args.yearBuilt as number | undefined,
     floor: args.floor as string | undefined,
     potentialDuplicate: duplicates.isDuplicate,
-    aiMessage: duplicates.isDuplicate ? generateDuplicateWarning(duplicates.potentialMatches) : null,
-    // For Own Reference ID: Owner - {Agent} - {Seller} - {Phone} - Reg No.{Reg}
+    aiMessage: aiMessageContent,
+    // For Own Reference ID: Owner - {Agent} - {Seller} - {Phone} - {Email}
     agentName: agent.fullName,
     ownerName: args.ownerName as string,
     ownerPhone: args.ownerPhone as string,
+    ownerEmail: args.ownerEmail as string | undefined,
     registrationNumber: args.registrationNumber as string | undefined,
     coordinates: resolvedCoordinates,
     });
     console.log("[ToolExecutor] Draft listing created successfully:", result.listingId);
+
+    // CRITICAL: Clear pending images after successful upload
+    // This prevents the same images from being used in the next listing
+    await clearPendingImages(agent.mobile);
+    console.log("[ToolExecutor] Cleared pending images for:", agent.mobile);
   } catch (createError) {
     console.error("[ToolExecutor] Failed to create draft listing:", createError);
     const errorMsg = createError instanceof Error ? createError.message : String(createError);
@@ -802,10 +896,8 @@ async function handleSendEmail(
 
     return {
       success: true,
-      message: `✅ Sent to your email\n\n` +
-        `Subject: ${subject}\n` +
-        (attachmentName ? `Attachment: ${attachmentName}\n` : "") +
-        `\n(Relay this confirmation to the user exactly as written - do not add asterisks or formatting)`,
+      message: `✅ Sent to your email\n\nSubject: ${subject}` +
+        (attachmentName ? `\nAttachment: ${attachmentName}` : ""),
       data: { emailId: result.id, subject },
     };
   } catch (error) {
