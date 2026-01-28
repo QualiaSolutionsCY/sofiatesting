@@ -24,7 +24,8 @@ import { getToolDefinitions } from "./tools/definitions.ts";
 import { executeTool } from "./tools/executor.ts";
 
 // Security utilities
-import { logger } from "./utils/logger.ts";
+import { logger, LogCategory, ErrorCategory } from "./utils/logger.ts";
+import { withContext, getContext, updateContext } from "./utils/context.ts";
 import {
   verifyWebhookSignature,
   extractSignatureHeader,
@@ -2461,15 +2462,22 @@ async function processRequest(
 }
 
 serve(async (req) => {
-  try {
-    // Handle GET requests (webhook verification)
-    if (req.method === "GET") {
-      logger.info("Webhook verification request received");
-      return new Response("Webhook functional", { status: 200 });
-    }
+  // Wrap entire request in context for correlation ID tracking
+  return withContext(
+    {
+      correlationId: crypto.randomUUID(),
+      startTime: Date.now(),
+    },
+    async () => {
+      try {
+        // Handle GET requests (webhook verification)
+        if (req.method === "GET") {
+          logger.info("Webhook verification request received", { category: LogCategory.WEBHOOK });
+          return new Response("Webhook functional", { status: 200 });
+        }
 
-    // Handle POST requests
-    if (req.method === "POST") {
+        // Handle POST requests
+        if (req.method === "POST") {
       // SECURITY: Read raw body for signature verification before parsing
       const rawBody = await req.text();
 
@@ -2675,14 +2683,19 @@ serve(async (req) => {
 
       // Return 200 OK after processing completes
       return new Response("OK", { status: 200 });
-    }
+        }
 
-    return new Response("Method not allowed", { status: 405 });
-  } catch (error) {
-    logger.error("Worker Error", error as Error, { operation: "worker" });
-    // Still return 200 to avoid webhook retries
-    return new Response("OK", { status: 200 });
-  }
+        return new Response("Method not allowed", { status: 405 });
+      } catch (error) {
+        logger.error("Worker error", error as Error, {
+          category: LogCategory.WEBHOOK,
+          errorCategory: ErrorCategory.UNKNOWN,
+        });
+        // Still return 200 to avoid webhook retries
+        return new Response("OK", { status: 200 });
+      }
+    }
+  );
 });
 
 /**
