@@ -1,71 +1,115 @@
-# Requirements: SOPHIA Production Hardening
+# Requirements: SOPHIA v1.1 Reliability & Hardening
 
-**Defined:** 2025-01-23
+**Defined:** 2026-01-28
 **Core Value:** Agents can trust SOPHIA to do the right thing every time
 
-## v1 Requirements
+## v1.1 Requirements
 
-### Templates & Responses
+### Carried from v1.0
 
-- [x] **TMPL-01**: SOPHIA never mentions template numbers to users ✓
-- [x] **TMPL-02**: Single reservation template only (official version with witness) ✓
-- [x] **TMPL-03**: Email auto-sends to speaking agent's email without asking ✓
-- [x] **TMPL-04**: No asterisks visible in WhatsApp messages ✓
-- [x] **TMPL-05**: Non-Exclusive Marketing Agreement has proper signature spacing ✓
-- [x] **TMPL-06**: Non-Exclusive Marketing Agreement has correct border/frame ✓
+- [ ] **LIST-06**: WhatsApp phone gallery images can be uploaded (not just URLs)
 
-### Telegram Lead Routing
+### Observability (Logging Foundation)
 
-- [x] **LEAD-01**: "Others" group routes based on property region ✓
-- [x] **LEAD-02**: Nicosia leads go to Ivan (regional manager) ✓
-- [x] **LEAD-03**: Famagusta leads go to Narine (regional manager) ✓
+- [ ] **LOG-01**: All requests have correlation ID that flows through entire pipeline
+- [ ] **LOG-02**: Structured logging with error categorization (info/warn/error/fatal)
+- [ ] **LOG-03**: Console.log calls migrated to structured logger (563 identified)
+- [ ] **LOG-04**: Error rate tracking visible in logs (count errors per hour/day)
+- [ ] **LOG-05**: PII redaction applied to all log output
 
-### Listing Uploads
+### Cache Management
 
-- [x] **LIST-01**: Listing Reviewer 1 correct (Lauren for sales, agent for rentals) ✓
-- [x] **LIST-02**: Listing Reviewer 2 correct (regional manager for sales) ✓
-- [x] **LIST-03**: Listing Owner correct (special email mappings honored) ✓
-- [x] **LIST-04**: My Notes populated with owner details ✓
-- [x] **LIST-05**: Google Maps pin at neutral location (2-3 streets away) ✓
-- [ ] **LIST-06**: WhatsApp gallery images uploadable (not just URLs)
+- [ ] **CACHE-01**: Prompt cache TTL restored to 5 minutes (currently 0)
+- [ ] **CACHE-02**: Version-based cache invalidation (check version before using cache)
+- [ ] **CACHE-03**: Admin endpoint to force cache invalidation (/admin/prompts/invalidate)
+- [ ] **CACHE-04**: Cache hit/miss logging for debugging
+- [ ] **CACHE-05**: Cache status endpoint (/admin/cache/status)
 
-## v2 Requirements
+### Prompt System
 
-(None — all requirements are critical for production)
+- [ ] **PRMT-01**: All prompt sections have explicit owner (which file/table "owns" each behavior)
+- [ ] **PRMT-02**: Conflict detection script identifies duplicate instructions across prompts
+- [ ] **PRMT-03**: Prompt versioning with history (track changes over time)
+- [ ] **PRMT-04**: One-click rollback to previous prompt version
+- [ ] **PRMT-05**: `templates` content migrated from file-only to DB (single source of truth)
+
+### Error Handling
+
+- [ ] **ERR-01**: External API calls use exponential backoff (OpenRouter, Zyprus, WaSender)
+- [ ] **ERR-02**: Errors categorized by type (network, auth, validation, AI, unknown)
+- [ ] **ERR-03**: User-friendly error messages for common failures (not technical jargon)
+- [ ] **ERR-04**: Health check endpoint (/health) for monitoring
+
+### Image Validation
+
+- [ ] **IMG-01**: Image URLs validated at webhook ingress (not at tool execution)
+- [ ] **IMG-02**: Clear error message when image URL is invalid/hallucinated
+- [ ] **IMG-03**: Validated images stored with correlation ID for debugging
+
+## v2 Requirements (Deferred)
+
+### Prompt Management
+- Staged deployment (test prompts before production)
+- A/B testing (compare prompt variations)
+- Semantic conflict analysis (AI-powered conflict detection)
+
+### Cache Management
+- Auto-invalidate on DB change (trigger-based)
+- Cache warming (pre-load prompts on deploy)
+
+### Error Handling
+- Circuit breaker pattern (auto-disable failing services)
+- Tiered fallbacks (graceful degradation chain)
+- Dead letter queue (retry failed operations)
+
+### Observability
+- Full request tracing (end-to-end spans)
+- AI-specific metrics (token usage, latency by model)
+- Dashboard/alerting (proactive monitoring)
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| New template types | Focus on fixing existing templates |
-| Web app changes | Edge Function fixes only |
-| Telegram bot enable | Disabled by design, separate decision |
+| Per-agent prompt customization | Adds complexity, not needed for 30 agents |
+| Visual prompt builder | Overkill, DB editing sufficient |
+| Real-time streaming dashboards | Manual review sufficient for scale |
+| Distributed cache sync | Single Edge Function, not needed |
+| External logging services | Supabase dashboard sufficient |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TMPL-01 | Phase 1 | Complete |
-| TMPL-02 | Phase 2 | Complete |
-| TMPL-03 | Phase 1 | Complete |
-| TMPL-04 | Phase 1 | Complete |
-| TMPL-05 | Phase 2 | Complete |
-| TMPL-06 | Phase 2 | Complete |
-| LEAD-01 | Phase 3 | Complete |
-| LEAD-02 | Phase 3 | Complete |
-| LEAD-03 | Phase 3 | Complete |
-| LIST-01 | Phase 4 | Complete |
-| LIST-02 | Phase 4 | Complete |
-| LIST-03 | Phase 4 | Complete |
-| LIST-04 | Phase 4 | Complete |
-| LIST-05 | Phase 4 | Complete |
-| LIST-06 | Phase 5 | Pending |
+| LIST-06 | Phase 6 | Pending |
+| LOG-01 | Phase 6 | Pending |
+| LOG-02 | Phase 6 | Pending |
+| LOG-03 | Phase 6 | Pending |
+| LOG-04 | Phase 6 | Pending |
+| LOG-05 | Phase 6 | Pending |
+| CACHE-01 | Phase 7 | Pending |
+| CACHE-02 | Phase 7 | Pending |
+| CACHE-03 | Phase 7 | Pending |
+| CACHE-04 | Phase 7 | Pending |
+| CACHE-05 | Phase 7 | Pending |
+| PRMT-01 | Phase 8 | Pending |
+| PRMT-02 | Phase 8 | Pending |
+| PRMT-03 | Phase 8 | Pending |
+| PRMT-04 | Phase 8 | Pending |
+| PRMT-05 | Phase 8 | Pending |
+| ERR-01 | Phase 9 | Pending |
+| ERR-02 | Phase 9 | Pending |
+| ERR-03 | Phase 9 | Pending |
+| ERR-04 | Phase 9 | Pending |
+| IMG-01 | Phase 9 | Pending |
+| IMG-02 | Phase 9 | Pending |
+| IMG-03 | Phase 9 | Pending |
 
 **Coverage:**
-- v1 requirements: 15 total
-- Mapped to phases: 15
+- v1.1 requirements: 23 total
+- Mapped to phases: 23
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2025-01-23*
-*Last updated: 2025-01-23 after initial definition*
+*Requirements defined: 2026-01-28*
+*Last updated: 2026-01-28 after research completion*
