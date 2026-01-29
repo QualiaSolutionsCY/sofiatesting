@@ -16,8 +16,8 @@ export type AdminCheckResult = {
  * Check if the current user has admin privileges
  * Returns user info if admin, or error details if not
  *
- * NOTE: Grants default admin access to all authenticated users (consistent with admin layout).
- * If user has explicit adminUserRole entry, that role is used; otherwise defaults to "admin".
+ * Security: Only users with explicit entries in adminUserRole table are granted access.
+ * All other authenticated users are denied (fail-closed).
  */
 export const checkAdminAuth = async (): Promise<AdminCheckResult> => {
   const session = await auth();
@@ -50,20 +50,21 @@ export const checkAdminAuth = async (): Promise<AdminCheckResult> => {
       };
     }
 
-    // Grant default admin access to all authenticated users
-    // This is consistent with the admin layout behavior
+    // Deny access if no explicit admin role exists
     return {
-      isAdmin: true,
+      isAdmin: false,
       userId,
-      role: "admin",
+      role: null,
+      error: "User does not have admin privileges",
     };
   } catch (error) {
     console.error("[checkAdminAuth] Database error:", error);
-    // On database error, grant default admin access to authenticated users
+    // On database error, deny access (fail-closed)
     return {
-      isAdmin: true,
+      isAdmin: false,
       userId,
-      role: "admin",
+      role: null,
+      error: "Database error checking admin status",
     };
   }
 };
