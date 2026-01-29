@@ -152,6 +152,11 @@ export function isRequestingInformation(content: string): boolean {
     return false;
   }
 
+  if (isCompletedReservationAgreementDocument(content)) {
+    console.log("[Field Validator] Detected completed reservation agreement, not requesting info");
+    return false;
+  }
+
   // Common patterns for information requests
   const requestPatterns = [
     // Direct requests
