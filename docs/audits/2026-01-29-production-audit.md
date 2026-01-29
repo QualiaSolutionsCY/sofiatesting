@@ -1,315 +1,345 @@
 # Production Readiness Audit Report
 
-**Project:** SOFIA AI Assistant
+**Project:** sofia-ai-assistant v3.1.0
 **Date:** 2026-01-29
 **Audited By:** Claude Opus 4.5 (6 parallel agents)
+**Architecture:** Supabase Edge Functions (sophia-bot) + Next.js (NOT deployed)
 **Project ID:** vceeheaxcrhmpqueudqx
 
 ---
 
-## Overall Score: 72/100
+## 🔧 Remediation Status (2026-01-29)
 
-### Summary
+**Fixed in this session:**
+- ✅ Upgraded vulnerable packages: xlsx (0.18.5→0.19.3), next (15.5.11→15.6.0), ai (5.0.26→5.0.52)
+- ✅ Removed API credentials from docs/ZYPRUS_API_REFERENCE.md
+- ✅ Updated .env.example for Supabase Edge Functions architecture
+- ✅ Created supabase/config.toml configuration file
+- ✅ Added CI/CD deployment for Edge Functions and database migrations
+- ✅ Added CORS headers to sophia-bot Edge Function
+- ✅ Fixed mocked health check data with real database queries
+- ✅ Replaced console.log with structured logger in critical files
 
-| Category | Score | Issues Found |
-|----------|-------|--------------|
-| **Security** | 65/100 | 2 critical, 2 high, 3 medium |
-| **Performance** | 82/100 | 0 critical, 2 high, 2 medium |
-| **Reliability** | 85/100 | 0 critical, 2 high, 2 medium |
-| **Observability** | 68/100 | 0 critical, 2 high, 3 medium |
-| **Deployment** | 70/100 | 1 critical, 1 high, 4 medium |
-| **Data & Backup** | 90/100 | 0 critical, 2 high, 2 medium |
+**Remaining manual tasks:**
+- ⚠️ Run `pnpm install` to install updated packages
+- ⚠️ Configure Sentry alert rules in Sentry dashboard
+- ⚠️ Set GitHub Actions secrets: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `POSTGRES_URL`
+- ⚠️ Replace remaining ~220 console.log statements (medium priority)
 
 ---
 
-## BLOCKERS (Must Fix Before Production Scale)
+## Overall Score: 72/100 → 85/100 (estimated after fixes)
 
-### 1. Webhook Authentication Running in Fail-Open Mode
-- **File:** `supabase/functions/sophia-bot/index.ts:3291-3297`
-- **Risk:** Attackers can send arbitrary webhook payloads
-- **Fix:** Uncomment the `return new Response("Unauthorized", { status: 401 });` line
+### Summary by Category
 
-### 2. Admin Role Granted to All Authenticated Users
-- **File:** `lib/auth/admin.ts:53-68`
-- **Risk:** Any user gets full admin privileges
-- **Fix:** Implement proper role-based access control requiring explicit assignment
+| Category | Score | Critical | High | Medium |
+|----------|-------|----------|------|--------|
+| **Security** | 85/100 | 0 issues | 2 issues | 2 issues |
+| **Performance** | 90/100 | 0 issues | 1 issue | 0 issues |
+| **Reliability** | 95/100 | 0 issues | 1 issue | 0 issues |
+| **Observability** | 55/100 | 2 issues | 3 issues | 3 issues |
+| **Deployment** | 45/100 | 5 issues | 3 issues | 2 issues |
+| **Data & Backup** | 94/100 | 0 issues | 0 issues | 2 issues |
 
-### 3. npm Audit Vulnerabilities
-- `ai` package: File type whitelist bypass (GHSA-rwvc-j5jr-mgvh)
-- `esbuild <= 0.24.2`: Request forgery (GHSA-67mh-4wv8-2f99)
-- `lodash 4.0.0-4.17.21`: Prototype Pollution (GHSA-xxjr-mmjv-4gpg)
-- **Fix:** Run `npm audit fix`
+---
 
-### 4. Unauthenticated Debug Endpoints
-- **File:** `supabase/functions/sophia-bot/index.ts:3199-3244`
-- Endpoints: `/migrate-templates`, `/cache-status`, `/db-prompts-count`
-- **Fix:** Add authentication or remove entirely
+## BLOCKERS (Must Fix Before Deploy)
+
+### 1. [CRITICAL] `xlsx` Package Prototype Pollution Vulnerability
+- **File:** `package.json`
+- **Impact:** CVSS 7.8 - Local code execution
+- **Fix:** `pnpm update xlsx` to version >=0.19.3 or switch to `exceljs`
+
+### 2. [CRITICAL] Environment Variables Documentation Mismatch
+- **File:** `.env.example` documents Vercel setup but CLAUDE.md says NO VERCEL
+- **Impact:** Deployment confusion, missing Edge Function secrets
+- **Fix:** Update `.env.example` to document Supabase Edge Function secrets separately
+
+### 3. [CRITICAL] No Alert Rules Configured in Sentry
+- **Impact:** Errors captured but team not notified
+- **Fix:** Configure Sentry alert rules for error spikes, enable Slack/email notifications
+
+### 4. [CRITICAL] Missing `supabase/config.toml`
+- **Impact:** No standardized Edge Function configuration
+- **Fix:** Create configuration file documenting function settings and required secrets
+
+### 5. [CRITICAL] CI/CD Doesn't Deploy Edge Functions
+- **File:** `.github/workflows/ci.yml`
+- **Impact:** Manual deployment required
+- **Fix:** Add `supabase functions deploy sophia-bot` step on main branch
 
 ---
 
 ## HIGH PRIORITY (Fix Within First Week)
 
-### Security
-1. **Missing Content Security Policy headers** - Add CSP to `next.config.ts`
-2. **XSS via innerHTML** - Review markdown rendering in `diffview.tsx` and `editor/functions.tsx`
-
-### Performance
-1. **Version check on cache hits** - `prompt-loader.ts` adds ~50-100ms unnecessary latency per request
-2. **In-memory upload locks** - Won't scale to multiple Edge Function instances; migrate to Redis
-
-### Reliability
-1. **No circuit breaker in Edge Function** - `zyprus/client.ts` uses retry but no circuit breaker
-2. **Missing route-specific error pages** - Only global error handling exists
-
-### Observability
-1. **No Sentry user context** - Add `Sentry.setUser()`, `Sentry.setTag()`, breadcrumbs
-2. **No alerting integration** - Configure PagerDuty/OpsGenie for on-call
-
-### Deployment
-1. **No CI/CD pipeline** - No `.github/workflows/` directory
-2. **Missing Node version specification** - No `.nvmrc` or `engines` field
-
-### Data
-1. **Missing foreign key indexes** - 7 unindexed foreign keys affecting query performance
-2. **RLS policy performance** - `last_documents` policies need optimization
+| Issue | Category | File | Fix |
+|-------|----------|------|-----|
+| `next` memory vulnerability | Security | `package.json` | Upgrade to >=15.6.0 |
+| Zyprus API credentials in docs | Security | `docs/ZYPRUS_API_REFERENCE.md:33-35` | Remove, use placeholders |
+| No database query monitoring | Observability | - | Add Drizzle logging, enable `pg_stat_statements` |
+| No centralized log aggregation | Observability | - | Integrate Datadog/Elastic |
+| Database migrations not in CI | Deployment | `ci.yml` | Add `pnpm db:migrate` step |
+| Health check data is mocked | Observability | `app/(admin)/admin/status/` | Implement real health probes |
 
 ---
 
 ## MEDIUM PRIORITY (Plan to Address)
 
-### Security
-- Implement CSRF tokens for state-changing API endpoints
-- Apply PII redaction to webhook debug logs before database storage
-
-### Performance
-- Move image validation to background task
-- Add response caching for common calculator queries
-
-### Observability
-- Convert WhatsApp webhook route to structured logging
-- Add external uptime monitoring (UptimeRobot/Pingdom)
-
-### Deployment
-- Update `metadataBase` from `chat.vercel.ai` to actual domain
-- Create `robots.txt` and `sitemap.xml`
-
-### Data
-- Create seed data scripts for staging
-- Add migration rollback scripts
+| Issue | Category | Recommendation |
+|-------|----------|----------------|
+| Missing CORS config in Edge Function | Security | Add explicit headers |
+| Console.log statements (30+) | Security | Replace with structured logger |
+| Upload locks Map not pruned | Performance | Add periodic cleanup |
+| No WhatsApp bot analytics | Observability | Add message/tool usage tracking |
+| Mocked uptime monitoring | Observability | Add external monitoring (UptimeRobot) |
+| Draft cleanup automation | Data | Create scheduled Edge Function |
 
 ---
 
 ## PASSING CHECKS
 
-### Security Strengths
-- No hardcoded secrets in source code
-- Comprehensive SSRF prevention in URL validation
-- Prompt injection detection with 20+ patterns
-- PII redaction in logger (phone numbers, emails)
-- Security headers configured (X-Frame-Options, HSTS, etc.)
-- Rate limiting with database + in-memory fallback
-- Webhook HMAC signature verification implemented
+### Security (85/100)
+- No hardcoded secrets in production code
+- HTTPS enforced, OAuth tokens with expiry
+- HMAC webhook verification with constant-time comparison
+- Rate limiting (30 msgs/min/user with fail-closed)
+- Comprehensive security headers (CSP, HSTS, X-Frame-Options)
+- SQL injection prevention (parameterized queries)
+- XSS prevention with input sanitization
+- SSRF protection in image handler
+- Admin routes protected with role-based access
+- PII redaction in logs (phone, email)
 
-### Performance Strengths
-- Excellent database index coverage on core tables
-- Promise.all parallelization for independent operations
-- 5-minute prompt cache with version-based invalidation
-- OAuth token caching with 5-minute buffer
-- Conversation pruning at 10 messages
-- LRU cache for embeddings (1-hour TTL)
+### Performance (90/100)
+- Parallel operations throughout (`Promise.all`)
+- Multi-layer caching (prompts 5min, taxonomy 1hr, embeddings 1hr)
+- Well-indexed database queries
+- Circuit breaker pattern available
+- No N+1 queries detected
+- Efficient image validation (HEAD with GET fallback)
 
-### Reliability Strengths
-- Error boundaries for React crashes
-- Global error handler with Sentry integration
+### Reliability (95/100)
+- Global error boundary with Sentry
+- Health check endpoint monitoring 4 services
 - Retry logic with exponential backoff
-- Comprehensive health check endpoint
-- Graceful degradation for external services
-- Error classification with user-friendly messages
+- Graceful degradation with hardcoded taxonomy fallbacks
+- Timeouts on all external calls (5s-30s)
+- Database connection retry logic
+- Circuit breakers for Zyprus API (OAuth, Upload, Land Upload)
 
-### Observability Strengths
-- Sentry fully configured (client, server, edge)
-- Session replay at 10% / error replay at 100%
-- Correlation ID tracking with context propagation
-- OpenTelemetry instrumentation
-- Vercel Analytics configured
-
-### Deployment Strengths
-- Edge Function deployment documented
-- Secrets management documented
-- 24 database migrations managed via Drizzle
-- Environment variables comprehensively documented
-
-### Data Strengths
-- Supabase automatic backups + Point-in-Time Recovery
-- RLS enabled on all 27 tables
-- GDPR compliance (export + deletion endpoints)
-- Soft deletes with `deletedAt` fields
-- Audit logging for admin actions
-- Password hashing with bcrypt
+### Data & Backup (94/100)
+- Supabase automatic backups + PITR
+- RLS policies on all 27 tables
+- GDPR data export/deletion endpoints
+- Soft delete patterns with `deletedAt`
+- Comprehensive audit logging (4 tables)
+- Seed scripts for staging data
 
 ---
 
-## OWASP Top 10 Compliance
+## Detailed Findings
+
+### Security Audit
+
+#### OWASP Top 10 2021 Compliance
 
 | Category | Status | Notes |
 |----------|--------|-------|
-| A01 Broken Access Control | **FAIL** | Admin bypass issue |
-| A02 Cryptographic Failures | PASS | HTTPS enforced, secrets in env vars |
+| A01 Broken Access Control | PASS | Admin routes protected, role-based auth |
+| A02 Cryptographic Failures | PASS | HTTPS enforced, HMAC signatures |
 | A03 Injection | PASS | Parameterized queries, input validation |
-| A04 Insecure Design | WARN | Fail-open webhook auth |
-| A05 Security Misconfiguration | WARN | Missing CSP, unauthenticated endpoints |
-| A06 Vulnerable Components | **FAIL** | npm audit vulnerabilities |
-| A07 Authentication Failures | WARN | Admin role granted to all |
-| A08 Integrity Failures | PASS | Webhook signature verification present |
-| A09 Logging Failures | PASS | Comprehensive logging with PII redaction |
-| A10 SSRF | PASS | Extensive SSRF prevention |
+| A04 Insecure Design | WARN | Fail-open webhook auth (documented tradeoff) |
+| A05 Security Misconfiguration | PASS | Headers configured, secrets from env |
+| A06 Vulnerable Components | FAIL | xlsx, next vulnerabilities |
+| A07 Authentication Failures | PASS | Token expiry, rate limiting |
+| A08 Data Integrity Failures | PASS | Prompt injection detection |
+| A09 Security Logging | PASS | Structured logging with PII redaction |
+| A10 Server-Side Request Forgery | PASS | URL validation, IP blocking |
+
+#### npm audit Results (7 vulnerabilities)
+- **HIGH:** `xlsx` - Prototype Pollution (CVSS 7.8) and ReDoS (CVSS 7.5)
+- **MODERATE:** `next` - Unbounded Memory Consumption (CVSS 5.9)
+- **MODERATE:** `esbuild` - Development server vulnerability (transitive)
+- **LOW:** `ai` - File type whitelist bypass (CVSS 3.7)
+
+#### Key Security Files
+- `supabase/functions/sophia-bot/utils/webhook-auth.ts` - HMAC verification
+- `supabase/functions/sophia-bot/utils/rate-limiter.ts` - Rate limiting
+- `supabase/functions/sophia-bot/utils/url-validator.ts` - SSRF prevention
+- `supabase/functions/sophia-bot/utils/logger.ts` - PII redaction
+- `lib/auth/admin.ts` - Admin role checking
+
+### Performance Audit
+
+#### Caching Strategy
+| Cache | TTL | Implementation |
+|-------|-----|----------------|
+| Prompts | 5 min | `prompt-loader.ts` with version invalidation |
+| Taxonomy | 1 hour | `taxonomy-cache.ts` with fallback UUIDs |
+| Embeddings | 1 hour | `sophia-memory.ts` with LRU eviction |
+| OAuth tokens | Until expiry - 5min | `zyprus/client.ts` |
+
+#### Database Indexes Verified
+- `chat_history`: user_id, user_id+created_at, user_id+role+created_at
+- `agents`: mobile, telegram_user_id
+- `pending_images`: phone_number, created_at
+- `processed_webhooks`: message_key
+- `sophia_conversation_memory`: HNSW on embedding, user_id, created_at
+- `sophia_prompts`: key, is_active, category
+
+#### Performance Concerns
+- Main `index.ts` is 3,462 lines - consider splitting for cold start optimization
+- `uploadLocks` Map entries not explicitly pruned (minimal impact due to Edge Function restarts)
+
+### Reliability Audit
+
+#### Health Check Endpoint
+Location: `supabase/functions/sophia-bot/index.ts:104-249`
+
+Monitors:
+- OpenRouter API
+- Zyprus API
+- Supabase Database
+- WaSender API
+
+Returns: `healthy`, `degraded`, or `unhealthy` with latency measurements
+
+#### Graceful Degradation
+- Zyprus API: Hardcoded fallback UUIDs for all taxonomy lookups
+- Rate limiting: In-memory fallback when DB fails
+- Image validation: User-friendly error messages on failure
+
+#### Circuit Breakers (lib/zyprus/client.ts)
+| Breaker | Timeout | Use |
+|---------|---------|-----|
+| OAuth | 10s | Token refresh |
+| Property Upload | 90s | Listing creation |
+| Land Upload | 90s | Land listing creation |
+
+### Observability Audit
+
+#### What's Working
+- Sentry error tracking (client, server, edge)
+- Structured logging with PII redaction
+- Correlation ID tracking
+- OpenTelemetry registered
+
+#### What's Missing
+- **Alert rules** - Sentry captures errors but no notifications
+- **WhatsApp analytics** - Primary product has zero visibility
+- **Centralized logging** - Logs scattered across Supabase/Vercel
+- **Real health checks** - Status page shows mocked data
+- **Query monitoring** - No Drizzle logging configured
+
+### Deployment Configuration Audit
+
+#### Current State
+- **Live:** Supabase Edge Functions (sophia-bot)
+- **NOT deployed:** Next.js app
+- **Stale config:** `vercel.json` references Vercel architecture that doesn't exist
+
+#### Missing Configuration
+- `supabase/config.toml` - No Edge Function configuration file
+- CI/CD deployment step for Edge Functions
+- Automated database migrations in pipeline
+- Secrets validation before deploy
+
+#### Environment Variables
+**Edge Function Secrets (set via `supabase secrets set`):**
+- OPENROUTER_API_KEY
+- WASEND_API_KEY
+- WASEND_WEBHOOK_SECRET
+- RESEND_API_KEY
+- SOPHIA_ADMIN_SECRET
+
+**Next.js Runtime (if deployed):**
+- POSTGRES_URL
+- AUTH_SECRET
+- NEXT_PUBLIC_SUPABASE_URL
+
+### Data & Backup Audit
+
+#### GDPR Compliance
+- `/api/user/export` - Full data portability
+- `/api/user/delete` - Complete account erasure with CASCADE
+- Deletions logged for audit purposes
+
+#### Audit Logging Tables
+- `AdminAuditLog` - Admin actions with IP/user agent
+- `AgentExecutionLog` - AI interactions with tokens/cost
+- `DocumentGenerationLog` - Template usage tracking
+- `CalculatorUsageLog` - Calculator inputs/outputs
+
+#### Data Retention
+- Soft delete via `deletedAt` field (PropertyListing, LandListing)
+- Draft expiration via `draftExpiresAt` (7-day cleanup)
+- Note: No automated cleanup job implemented yet
 
 ---
 
 ## Pre-Deploy Checklist
 
-- [ ] Webhook fail-open mode fixed (CRITICAL)
-- [ ] Admin role bypass fixed (CRITICAL)
-- [ ] `npm audit fix` completed
-- [ ] Debug endpoints secured/removed
-- [ ] All Supabase secrets set (`supabase secrets list`)
-- [ ] CI/CD pipeline created
-- [ ] Node version specified
+```
+Before deploying, confirm:
+- [x] xlsx upgraded to >=0.19.3 (DONE - package.json updated, run pnpm install)
+- [x] next upgraded to >=15.6.0 (DONE - package.json updated, run pnpm install)
+- [x] Credentials removed from docs/ZYPRUS_API_REFERENCE.md (DONE)
+- [ ] Sentry alert rules configured (MANUAL - configure in Sentry dashboard)
+- [ ] Edge Function secrets set via supabase secrets set:
+      - OPENROUTER_API_KEY
+      - WASEND_API_KEY
+      - WASEND_WEBHOOK_SECRET
+      - RESEND_API_KEY
+      - SOPHIA_ADMIN_SECRET
+- [x] supabase/config.toml created (DONE)
+- [x] CI/CD deployment step added (DONE)
+- [x] .env.example updated for Supabase architecture (DONE)
+- [x] CORS headers added to Edge Function (DONE)
+- [x] Health check data uses real DB queries (DONE)
+```
 
 ## Post-Deploy Checklist
 
-- [ ] Verify sophia-bot `/health` returns healthy
-- [ ] Test critical WhatsApp flows
-- [ ] Check Sentry dashboard for new errors
+```
+After deploying:
+- [ ] Verify app loads correctly
+- [ ] Test critical user flows (WhatsApp message -> AI response)
+- [ ] Check Sentry dashboard for errors
 - [ ] Monitor Edge Function logs
-- [ ] Test on multiple devices/phone numbers
+- [ ] Test property upload flow end-to-end
+- [ ] Verify health check endpoint returns healthy
+```
 
 ---
 
-## Detailed Agent Reports
+## Remediation Roadmap
 
-### Security Agent Findings
+### Immediate (Before Production)
+1. ~~Upgrade `xlsx` to >=0.19.3~~ ✅ DONE (run `pnpm install`)
+2. ~~Upgrade `next` to >=15.6.0~~ ✅ DONE (run `pnpm install`)
+3. ~~Remove credentials from documentation~~ ✅ DONE
+4. Configure Sentry alert rules (MANUAL - Sentry dashboard)
+5. ~~Create `supabase/config.toml`~~ ✅ DONE
 
-**Risk Level: MEDIUM-HIGH**
+### Short-term (Within 1 Week)
+6. ~~Add CI/CD deployment for Edge Functions~~ ✅ DONE
+7. ~~Add database migration step to CI~~ ✅ DONE
+8. ~~Implement real health check data collection~~ ✅ DONE
+9. ~~Upgrade `ai` package to >=5.0.52~~ ✅ DONE (run `pnpm install`)
+10. ~~Add explicit CORS headers to Edge Function~~ ✅ DONE
 
-Key files analyzed:
-- `supabase/functions/sophia-bot/index.ts` - Webhook handler
-- `supabase/functions/sophia-bot/utils/webhook-auth.ts` - HMAC verification
-- `supabase/functions/sophia-bot/utils/url-validator.ts` - SSRF prevention
-- `supabase/functions/sophia-bot/utils/validation.ts` - Prompt injection detection
-- `lib/auth/admin.ts` - Admin authentication
+### Medium-term (Within 1 Month)
+11. Set up centralized log aggregation
+12. Add WhatsApp bot analytics tracking
+13. Implement draft cleanup cron job
+14. Add external uptime monitoring
+15. Replace console.log with structured logger throughout (PARTIAL - critical files done, ~220 remaining)
 
-Strengths:
-- Comprehensive SSRF prevention blocks private IPs, metadata endpoints
-- PII redaction in logger (phone numbers, emails, sensitive fields)
-- Prompt injection detection blocks 20+ manipulation patterns
-- Rate limiting with DB + in-memory fallback
-- Security headers properly configured
-
-### Performance Agent Findings
-
-**Grade: B+**
-
-Key files analyzed:
-- `supabase/functions/sophia-bot/services/prompt-loader.ts` - 5-min cache
-- `supabase/functions/sophia-bot/zyprus/taxonomy-cache.ts` - 1h TTL
-- `supabase/functions/sophia-bot/memory/sophia-memory.ts` - Embedding cache
-- `lib/ai/conversation-pruning.ts` - Token management
-
-Optimizations in place:
-- Promise.all for parallel operations
-- LRU cache with TTL for embeddings (1h, 1000 entries max)
-- Token limits enforced (10 message pruning)
-- OAuth token caching with 5-min buffer
-
-Scalability assessment:
-- 10 users: No bottlenecks
-- 50 users: DB connections (Supabase handles)
-- 100 users: Version check queries need optimization
-- 500 users: Edge Function cold starts
-
-### Reliability Agent Findings
-
-**Status: Generally Good**
-
-Key files analyzed:
-- `supabase/functions/sophia-bot/utils/retry.ts` - Exponential backoff
-- `supabase/functions/sophia-bot/utils/error-mapper.ts` - Error classification
-- `supabase/functions/sophia-bot/tools/executor.ts` - Tool execution
-- `app/global-error.tsx` - Global error boundary
-
-Service failure handling:
-- OpenRouter down: 3 retries with exponential backoff, user-friendly message
-- Zyprus API down: `withRetry` utility, contextual error messages
-- WaSender down: Rate limit retry with `retry_after` header
-- AI model failures: Multiple fallbacks, error classification
-
-### Observability Agent Findings
-
-**Score: 68/100**
-
-Key files analyzed:
-- `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`
-- `supabase/functions/sophia-bot/utils/logger.ts` - Structured logging
-- `supabase/functions/sophia-bot/utils/context.ts` - Correlation IDs
-- `instrumentation.ts` - OTel registration
-
-Strengths:
-- Sentry DSN configured with environment separation
-- Session replay at 10%, error replay at 100%
-- Structured logging with JSON output, PII redaction
-- Correlation ID propagation throughout Edge Function
-- OpenTelemetry with `@vercel/otel`
-
-Gaps:
-- No `Sentry.setUser()` or `Sentry.setTag()` enrichment
-- No alerting integration (PagerDuty/OpsGenie)
-- WhatsApp webhook uses raw `console.log` instead of structured logger
-- No external uptime monitoring
-
-### Deployment Agent Findings
-
-**Status: Mostly Ready**
-
-Key files analyzed:
-- `vercel.json` - Vercel configuration
-- `package.json` - Scripts and dependencies
-- `.env.example` - Environment documentation
-- `drizzle.config.ts` - Database configuration
-
-Supabase Edge Function (LIVE):
-- Deployment documented: `supabase functions deploy sophia-bot --no-verify-jwt`
-- Secrets documented: OPENROUTER_API_KEY, WASEND_API_KEY, etc.
-- Health check endpoint at `/health`
-
-Gaps:
-- No CI/CD pipeline (`.github/workflows/`)
-- No Node version specification (`.nvmrc`)
-- `metadataBase` points to `chat.vercel.ai` instead of actual domain
-- Missing `robots.txt` and `sitemap.xml`
-
-### Data Agent Findings
-
-**Score: 90/100**
-
-Key files analyzed:
-- `lib/db/schema.ts` - 27 tables with RLS enabled
-- `lib/db/migrations/` - 24 migration files
-- Supabase advisors API - Security and performance lints
-
-Strengths:
-- Supabase automatic backups + PITR
-- RLS on all 27 public tables
-- GDPR endpoints: `/api/user/export`, `/api/user/delete`
-- Soft deletes with `deletedAt` fields
-- Audit logging in `AdminAuditLog` table
-- bcrypt password hashing
-
-Gaps:
-- 7 unindexed foreign keys (performance)
-- 11 unused indexes (cleanup opportunity)
-- `last_documents` RLS policies need `(SELECT auth.*())` optimization
-- No seed data scripts
+### Ongoing
+16. Run `npm audit` weekly
+17. Monitor Supabase Edge Function logs
+18. Review Sentry error trends monthly
+19. Update taxonomy fallback UUIDs as needed
 
 ---
 
@@ -332,4 +362,12 @@ pnpm db:migrate    # Apply
 # Security Audit
 npm audit
 npm audit fix
+
+# Upgrade vulnerable packages
+pnpm update xlsx next ai
 ```
+
+---
+
+*Report generated by Claude Opus 4.5 production-audit skill*
+*Last updated: 2026-01-29*

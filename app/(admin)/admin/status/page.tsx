@@ -1,8 +1,8 @@
 // Prevent static generation - this page needs real-time data
 export const dynamic = "force-dynamic";
 
-import { format } from "date-fns";
-import { desc, sql } from "drizzle-orm";
+import { format, subHours, startOfHour } from "date-fns";
+import { desc, gte, sql } from "drizzle-orm";
 import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 import { OverviewChart } from "@/components/admin/charts";
 import {
@@ -44,11 +44,30 @@ async function getStatusData() {
     })
   );
 
-  // Mock historical data for charts (replace with real aggregation in production)
-  const uptimeData = Array.from({ length: 24 }, (_, i) => ({
-    name: `${i}:00`,
-    total: 98 + Math.random() * 2, // Mock 98-100% uptime
-  }));
+  // Get real hourly uptime data from past 24 hours
+  const twentyFourHoursAgo = subHours(new Date(), 24);
+  const hourlyLogs = await db
+    .select({
+      hour: sql<string>`date_trunc('hour', ${systemHealthLog.timestamp})`,
+      totalChecks: sql<number>`count(*)`,
+      healthyChecks: sql<number>`sum(case when ${systemHealthLog.status} = 'healthy' then 1 else 0 end)`,
+    })
+    .from(systemHealthLog)
+    .where(gte(systemHealthLog.timestamp, twentyFourHoursAgo))
+    .groupBy(sql`date_trunc('hour', ${systemHealthLog.timestamp})`)
+    .orderBy(sql`date_trunc('hour', ${systemHealthLog.timestamp})`);
+
+  // Convert to chart format with uptime percentage
+  const uptimeData = hourlyLogs.length > 0
+    ? hourlyLogs.map((log) => ({
+        name: format(new Date(log.hour), "HH:00"),
+        total: log.totalChecks > 0 ? (log.healthyChecks / log.totalChecks) * 100 : 0,
+      }))
+    : // Fallback: show empty data if no logs exist yet
+      Array.from({ length: 24 }, (_, i) => ({
+        name: format(subHours(startOfHour(new Date()), 23 - i), "HH:00"),
+        total: 0,
+      }));
 
   return { latestStatus, uptimeData };
 }

@@ -30,11 +30,11 @@
 
 ### OAuth Credentials (Development)
 ```
-Client ID:     5Al3Dbs3X9Oqbi8PAjPh5wUfcfrothnub7gI8nOvLig
-Client Secret: M7wH"%zuyf8")KZ
+Client ID:     <ZYPRUS_CLIENT_ID>
+Client Secret: <ZYPRUS_CLIENT_SECRET>
 ```
 
-> **IMPORTANT**: These credentials are for the `ai_agent` scope only. Tokens expire after ~1 hour.
+> **IMPORTANT**: Get credentials from Supabase Edge Function secrets. Set via `supabase secrets set`. Tokens expire after ~1 hour.
 
 ---
 
@@ -53,8 +53,8 @@ User-Agent: SophiaAI
 **Body** (form-urlencoded):
 ```
 grant_type=client_credentials
-client_id=5Al3Dbs3X9Oqbi8PAjPh5wUfcfrothnub7gI8nOvLig
-client_secret=M7wH"%zuyf8")KZ
+client_id=<ZYPRUS_CLIENT_ID>
+client_secret=<ZYPRUS_CLIENT_SECRET>
 ```
 
 **Response**:
@@ -89,8 +89,8 @@ async function getAccessToken(baseUrl: string): Promise<string> {
     },
     body: new URLSearchParams({
       grant_type: 'client_credentials',
-      client_id: '5Al3Dbs3X9Oqbi8PAjPh5wUfcfrothnub7gI8nOvLig',
-      client_secret: 'M7wH"%zuyf8")KZ',
+      client_id: Deno.env.get('ZYPRUS_CLIENT_ID') || '',
+      client_secret: Deno.env.get('ZYPRUS_CLIENT_SECRET') || '',
     }),
   });
 

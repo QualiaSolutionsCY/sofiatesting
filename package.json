@@ -52,7 +52,7 @@
     "@vercel/blob": "^2.0.1",
     "@vercel/functions": "^2.0.0",
     "@vercel/otel": "^1.12.0",
-    "ai": "5.0.26",
+    "ai": "^5.0.52",
     "bcrypt-ts": "^5.0.2",
     "class-variance-authority": "^0.7.1",
     "classnames": "^2.5.1",
@@ -70,7 +70,7 @@
     "lodash": "^4.17.21",
     "lucide-react": "^0.446.0",
     "nanoid": "^5.0.8",
-    "next": "^15.5.11",
+    "next": "^15.6.0",
     "next-auth": "^5.0.0-beta.30",
     "next-themes": "^0.3.0",
     "opossum": "^9.0.0",
@@ -105,7 +105,7 @@
     "use-stick-to-bottom": "^1.1.1",
     "usehooks-ts": "^3.1.0",
     "wasenderapi": "^0.1.5",
-    "xlsx": "^0.18.5",
+    "xlsx": "^0.19.3",
     "zod": "^3.25.76"
   },
   "devDependencies": {
