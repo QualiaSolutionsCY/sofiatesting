@@ -7,6 +7,8 @@
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import type { ChatMessage } from "./adapters/types.ts";
+import { withRetry } from "../sophia-bot/utils/retry.ts";
+import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
 
 // Singleton client
 let _client: SupabaseClient | null = null;
@@ -35,15 +37,26 @@ export const getSupabaseAdmin = (): SupabaseClient => {
 export const getHistory = async (userId: string): Promise<ChatMessage[]> => {
   const supabase = getSupabaseAdmin();
 
-  const { data, error } = await supabase
-    .from("chat_history")
-    .select("role, parts")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(10);
+  const { data, error } = await withRetry(
+    async () => {
+      const result = await supabase
+        .from("chat_history")
+        .select("role, parts")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (result.error) throw result.error;
+      return result;
+    },
+    { maxRetries: 2, baseDelayMs: 200 },
+    "getHistory"
+  );
 
   if (error) {
-    console.error("Error fetching history:", error);
+    logger.error("Error fetching history", error, {
+      category: LogCategory.DATABASE,
+      operation: "getHistory",
+    });
     throw error;
   }
 
@@ -69,16 +82,27 @@ export const addMessage = async (
 ): Promise<void> => {
   const supabase = getSupabaseAdmin();
 
-  const { error } = await supabase.from("chat_history").insert([
-    {
-      user_id: userId,
-      role: role,
-      parts: [{ text: text }],
+  const { error } = await withRetry(
+    async () => {
+      const result = await supabase.from("chat_history").insert([
+        {
+          user_id: userId,
+          role: role,
+          parts: [{ text: text }],
+        },
+      ]);
+      if (result.error) throw result.error;
+      return result;
     },
-  ]);
+    { maxRetries: 2, baseDelayMs: 200 },
+    "addMessage"
+  );
 
   if (error) {
-    console.error("Error adding message:", error);
+    logger.error("Error adding message", error, {
+      category: LogCategory.DATABASE,
+      operation: "addMessage",
+    });
     throw error;
   }
 };
@@ -109,22 +133,37 @@ export const claimMessageForProcessing = async (
     if (error) {
       // Unique constraint violation (23505) = another request already claimed this message
       if (error.code === "23505") {
-        console.log(
-          `Message already claimed by another request (key: ${messageKey})`
-        );
+        logger.info("Message already claimed by another request", {
+          category: LogCategory.DATABASE,
+          operation: "claimMessageForProcessing",
+          messageKey,
+        });
         return false; // Don't process - it's a duplicate
       }
 
       // Other errors - log but allow processing (fail-open to avoid blocking messages)
-      console.error("Error claiming message:", error);
+      logger.error("Error claiming message", error, {
+        category: LogCategory.DATABASE,
+        operation: "claimMessageForProcessing",
+        messageKey,
+      });
       return true;
     }
 
     // Insert succeeded - this request should process the message
-    console.log(`Successfully claimed message for processing (key: ${messageKey})`);
+    logger.info("Successfully claimed message for processing", {
+      category: LogCategory.DATABASE,
+      operation: "claimMessageForProcessing",
+      messageKey,
+    });
     return true;
   } catch (error) {
-    console.error("Exception claiming message:", error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error("Exception claiming message", err, {
+      category: LogCategory.DATABASE,
+      operation: "claimMessageForProcessing",
+      messageKey,
+    });
     // On exception, allow processing (fail-open)
     return true;
   }
@@ -144,13 +183,22 @@ export const isMessageProcessed = async (messageKey: string): Promise<boolean> =
       .limit(1);
 
     if (error) {
-      console.error("Error checking processed webhooks:", error);
+      logger.error("Error checking processed webhooks", error, {
+        category: LogCategory.DATABASE,
+        operation: "isMessageProcessed",
+        messageKey,
+      });
       return false;
     }
 
     return data && data.length > 0;
   } catch (error) {
-    console.error("Exception checking processed webhooks:", error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error("Exception checking processed webhooks", err, {
+      category: LogCategory.DATABASE,
+      operation: "isMessageProcessed",
+      messageKey,
+    });
     return false;
   }
 };
@@ -174,11 +222,20 @@ export const markMessageProcessed = async (
 
     if (error) {
       if (error.code !== "23505") {
-        console.error("Error marking message as processed:", error);
+        logger.error("Error marking message as processed", error, {
+          category: LogCategory.DATABASE,
+          operation: "markMessageProcessed",
+          messageKey,
+        });
       }
     }
   } catch (error) {
-    console.error("Exception marking message as processed:", error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error("Exception marking message as processed", err, {
+      category: LogCategory.DATABASE,
+      operation: "markMessageProcessed",
+      messageKey,
+    });
   }
 };
 
@@ -222,9 +279,17 @@ export const saveLastDocument = async (
   ]);
 
   if (error) {
-    console.error("Error saving last document:", error);
+    logger.error("Error saving last document", error, {
+      category: LogCategory.DATABASE,
+      operation: "saveLastDocument",
+      documentName,
+    });
   } else {
-    console.log(`[DocTracker] Saved document for user ${userId}: ${documentName}`);
+    logger.info("Saved document for user", {
+      category: LogCategory.DATABASE,
+      operation: "saveLastDocument",
+      documentName,
+    });
   }
 };
 
@@ -260,5 +325,8 @@ export const clearLastDocument = async (userId: string): Promise<void> => {
     .delete()
     .eq("user_id", userId);
 
-  console.log(`[DocTracker] Cleared documents for user ${userId}`);
+  logger.info("Cleared documents for user", {
+    category: LogCategory.DATABASE,
+    operation: "clearLastDocument",
+  });
 };
