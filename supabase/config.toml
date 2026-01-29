@@ -1,0 +1,45 @@
+# ==============================================================================
+# Supabase Configuration
+# ==============================================================================
+# Project: SOFIA AI Assistant
+# Project ID: vceeheaxcrhmpqueudqx
+# Dashboard: https://supabase.com/dashboard/project/vceeheaxcrhmpqueudqx
+
+[api]
+enabled = true
+port = 54321
+
+# ==============================================================================
+# Edge Functions
+# ==============================================================================
+# Deploy: supabase functions deploy <name> --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
+# Logs:   supabase functions logs <name> --project-ref vceeheaxcrhmpqueudqx
+
+[functions.sophia-bot]
+# WhatsApp bot webhook handler
+# Endpoint: https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot
+verify_jwt = false
+
+[functions.ai-chat]
+# AI chat proxy for OpenRouter
+# Endpoint: https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/ai-chat
+verify_jwt = true
+
+# ==============================================================================
+# Required Secrets
+# ==============================================================================
+# Set via: supabase secrets set KEY=value --project-ref vceeheaxcrhmpqueudqx
+# List:    supabase secrets list --project-ref vceeheaxcrhmpqueudqx
+#
+# REQUIRED for sophia-bot:
+#   - OPENROUTER_API_KEY      : AI provider (OpenRouter)
+#   - WASEND_API_KEY          : WhatsApp messaging (WaSenderAPI)
+#   - WASEND_WEBHOOK_SECRET   : Webhook HMAC verification (optional)
+#   - RESEND_API_KEY          : Email sending
+#   - ZYPRUS_CLIENT_ID        : Property API OAuth
+#   - ZYPRUS_CLIENT_SECRET    : Property API OAuth
+#   - SOPHIA_ADMIN_SECRET     : Admin endpoint auth
+#
+# OPTIONAL:
+#   - TELEGRAM_BOT_TOKEN      : Telegram bot (disabled by default)
+#   - SOPHIA_TELEGRAM_ENABLED : Set to "true" to enable Telegram

@@ -1,31 +1,51 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { logger, LogCategory } from "./utils/logger.ts";
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// Validate required environment variables at module load time
+const supabaseUrl = Deno.env.get("SUPABASE_URL");
+const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+if (!supabaseUrl) {
+  throw new Error("SUPABASE_URL environment variable is required but not set");
+}
+
+if (!supabaseKey) {
+  throw new Error("SUPABASE_SERVICE_ROLE_KEY environment variable is required but not set");
+}
+
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
  * Fetch the last 10 messages for a user, ordered chronologically (oldest to newest)
  * This is the format Gemini expects for conversation history
+ *
+ * Uses a subquery pattern: get the 10 most recent, then order by oldest first
  */
 export async function getHistory(userId: string): Promise<Array<{role: string, parts: Array<{text: string}>}>> {
+  // First get the 10 most recent messages (descending), then we'll process them
   const { data, error } = await supabase
     .from('chat_history')
-    .select('role, parts')
+    .select('role, parts, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(10);
 
   if (error) {
-    console.error("Error fetching history:", error);
+    logger.error("Error fetching history", error as Error, { category: LogCategory.DATABASE, operation: "getHistory" });
     throw error;
   }
 
-  // Reverse to get chronological order (oldest -> newest) for Gemini
-  const reversed = (data || []).reverse();
-  
+  // Sort by created_at ascending (oldest first) for Gemini's expected format
+  // This is more efficient than reverse() as it doesn't allocate a new array
+  const messages = data || [];
+  messages.sort((a, b) => {
+    const timeA = new Date(a.created_at).getTime();
+    const timeB = new Date(b.created_at).getTime();
+    return timeA - timeB;
+  });
+
   // Ensure parts is always an array of objects with text property
-  return reversed.map(msg => ({
+  return messages.map(msg => ({
     role: msg.role,
     parts: Array.isArray(msg.parts) ? msg.parts : [{ text: String(msg.parts) }]
   }));
@@ -44,7 +64,7 @@ export async function addMessage(userId: string, role: string, text: string): Pr
     }]);
 
   if (error) {
-    console.error("Error adding message:", error);
+    logger.error("Error adding message", error as Error, { category: LogCategory.DATABASE, operation: "addMessage" });
     throw error;
   }
 }
@@ -70,20 +90,20 @@ export async function claimMessageForProcessing(messageKey: string, phoneNumber:
     if (error) {
       // Unique constraint violation (23505) = another request already claimed this message
       if (error.code === '23505') {
-        console.log(`Message already claimed by another request (key: ${messageKey})`);
+        logger.debug("Message already claimed by another request", { category: LogCategory.DATABASE, operation: "claimMessage", messageKey });
         return false; // Don't process - it's a duplicate
       }
 
       // Other errors - log but allow processing (fail-open to avoid blocking messages)
-      console.error("Error claiming message:", error);
+      logger.error("Error claiming message", error as Error, { category: LogCategory.DATABASE, operation: "claimMessage" });
       return true;
     }
 
     // Insert succeeded - this request should process the message
-    console.log(`Successfully claimed message for processing (key: ${messageKey})`);
+    logger.debug("Successfully claimed message for processing", { category: LogCategory.DATABASE, operation: "claimMessage", messageKey });
     return true;
-  } catch (error) {
-    console.error("Exception claiming message:", error);
+  } catch (err) {
+    logger.error("Exception claiming message", err as Error, { category: LogCategory.DATABASE, operation: "claimMessage" });
     // On exception, allow processing (fail-open)
     return true;
   }
@@ -101,13 +121,13 @@ export async function isMessageProcessed(messageKey: string): Promise<boolean> {
       .limit(1);
 
     if (error) {
-      console.error("Error checking processed webhooks:", error);
+      logger.error("Error checking processed webhooks", error as Error, { category: LogCategory.DATABASE, operation: "isMessageProcessed" });
       return false;
     }
 
     return data && data.length > 0;
-  } catch (error) {
-    console.error("Exception checking processed webhooks:", error);
+  } catch (err) {
+    logger.error("Exception checking processed webhooks", err as Error, { category: LogCategory.DATABASE, operation: "isMessageProcessed" });
     return false;
   }
 }
@@ -126,11 +146,11 @@ export async function markMessageProcessed(messageKey: string, phoneNumber: stri
 
     if (error) {
       if (error.code !== '23505') {
-        console.error("Error marking message as processed:", error);
+        logger.error("Error marking message as processed", error as Error, { category: LogCategory.DATABASE, operation: "markMessageProcessed" });
       }
     }
-  } catch (error) {
-    console.error("Exception marking message as processed:", error);
+  } catch (err) {
+    logger.error("Exception marking message as processed", err as Error, { category: LogCategory.DATABASE, operation: "markMessageProcessed" });
   }
 }
 

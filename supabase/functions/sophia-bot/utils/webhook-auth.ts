@@ -7,6 +7,8 @@
  * WaSend uses HMAC-SHA256 for webhook signature verification.
  */
 
+import { logger, LogCategory, ErrorCategory } from "./logger.ts";
+
 /**
  * Verifies the webhook signature from WaSend
  *
@@ -49,8 +51,8 @@ export async function verifyWebhookSignature(
 
     // Constant-time comparison to prevent timing attacks
     return constantTimeCompare(signature, expectedSignature);
-  } catch (error) {
-    console.error("Webhook signature verification error:", error);
+  } catch (err) {
+    logger.error("Webhook signature verification error", err as Error, { category: LogCategory.WEBHOOK, errorCategory: ErrorCategory.AUTH });
     return false;
   }
 }
@@ -59,16 +61,22 @@ export async function verifyWebhookSignature(
  * Constant-time string comparison to prevent timing attacks
  *
  * This ensures the comparison takes the same amount of time
- * regardless of where the strings differ.
+ * regardless of where the strings differ or their lengths.
+ * The comparison always processes the maximum length to avoid
+ * leaking length information through timing.
  */
 function constantTimeCompare(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
+  const maxLen = Math.max(a.length, b.length);
 
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  // XOR the lengths first - this will be non-zero if lengths differ
+  let result = a.length ^ b.length;
+
+  // Always iterate through the maximum length to prevent timing leaks
+  for (let i = 0; i < maxLen; i++) {
+    // Use 0 as fallback for out-of-bounds access
+    const charA = i < a.length ? a.charCodeAt(i) : 0;
+    const charB = i < b.length ? b.charCodeAt(i) : 0;
+    result |= charA ^ charB;
   }
 
   return result === 0;
