@@ -39,6 +39,7 @@ import { checkRateLimit } from "./utils/rate-limiter.ts";
 import {
   hasAllRequiredFields,
   isCollectingInformation,
+  isCompletedReservationAgreementDocument,
 } from "./utils/field-validator.ts";
 import {
   validateExternalUrl,
@@ -629,6 +630,12 @@ function formatForWhatsApp(text: string): string {
  * Detects if an AI response is a clarification question rather than actual document content
  */
 function isClarificationResponse(aiResponse: string): boolean {
+  // FIRST: Check if this is a completed reservation agreement - these should NOT be classified as clarifications
+  if (isCompletedReservationAgreementDocument(aiResponse)) {
+    logger.info("[CLARIFICATION] Detected completed reservation agreement, not a clarification", { category: LogCategory.GENERAL });
+    return false;
+  }
+
   const response = aiResponse.toLowerCase();
 
   // Common clarification patterns - expanded list

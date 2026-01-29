@@ -258,7 +258,7 @@ function validateViewingFormFields(content: string): boolean {
 /**
  * Checks if content looks like a completed reservation agreement document
  */
-function isCompletedReservationAgreementDocument(content: string): boolean {
+export function isCompletedReservationAgreementDocument(content: string): boolean {
   const lowerContent = content.toLowerCase();
 
   // Must have reservation agreement structure
