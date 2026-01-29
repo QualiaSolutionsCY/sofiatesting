@@ -61,6 +61,6 @@ export function getTelegramToolConfig() {
 
   return {
     tools,
-    activeTools: Object.keys(tools),
+    activeTools: Object.keys(tools) as (keyof typeof tools)[],
   };
 }

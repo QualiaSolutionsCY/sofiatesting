@@ -59,8 +59,6 @@ const TEMPLATE_CATEGORIES = {
   selling: ["31", "32"],
   location: ["39", "40"],
   delays: ["41", "42", "43"],
-  location: ["39", "40"],
-  delays: ["41", "42", "43"],
   phone_refusal: ["44"],
 } as const;
 
