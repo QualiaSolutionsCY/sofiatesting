@@ -381,3 +381,144 @@ export async function getPromptVersionHistory(
   }
   return data;
 }
+
+interface RollbackResult {
+  success: boolean;
+  message: string;
+  newVersion?: number;
+  error?: string;
+}
+
+/**
+ * Rollback a prompt to a previous version
+ *
+ * Strategy:
+ * 1. Find the target version's content
+ * 2. Mark current version as not current (replaced_at = NOW())
+ * 3. Create new version with target's content (version = current + 1)
+ * 4. Invalidate cache
+ *
+ * This is append-only - we never delete or mutate historical versions.
+ */
+export async function rollbackPrompt(
+  supabase: SupabaseClient,
+  key: string,
+  targetVersion: number,
+  reason: string
+): Promise<RollbackResult> {
+  try {
+    // 1. Get the target version's content
+    const { data: targetData, error: targetError } = await supabase
+      .from("sophia_prompts")
+      .select("content, priority, category, description")
+      .eq("key", key)
+      .eq("version", targetVersion)
+      .single();
+
+    if (targetError || !targetData) {
+      return {
+        success: false,
+        message: `Target version ${targetVersion} not found for key '${key}'`,
+        error: targetError?.message,
+      };
+    }
+
+    // 2. Get current version number
+    const { data: currentData, error: currentError } = await supabase
+      .from("sophia_prompts")
+      .select("version")
+      .eq("key", key)
+      .eq("is_current", true)
+      .single();
+
+    if (currentError || !currentData) {
+      return {
+        success: false,
+        message: `No current version found for key '${key}'`,
+        error: currentError?.message,
+      };
+    }
+
+    const currentVersion = currentData.version;
+    const newVersion = currentVersion + 1;
+
+    // 3. Mark current version as not current
+    const { error: updateError } = await supabase
+      .from("sophia_prompts")
+      .update({
+        is_current: false,
+        replaced_at: new Date().toISOString(),
+      })
+      .eq("key", key)
+      .eq("version", currentVersion);
+
+    if (updateError) {
+      return {
+        success: false,
+        message: "Failed to mark current version as replaced",
+        error: updateError.message,
+      };
+    }
+
+    // 4. Insert new version with target's content
+    const { error: insertError } = await supabase
+      .from("sophia_prompts")
+      .insert({
+        key,
+        content: targetData.content,
+        category: targetData.category,
+        description: targetData.description,
+        priority: targetData.priority,
+        is_active: true,
+        is_current: true,
+        version: newVersion,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        updated_by: `rollback:${reason}`,
+      });
+
+    if (insertError) {
+      // Try to restore current version flag
+      await supabase
+        .from("sophia_prompts")
+        .update({ is_current: true, replaced_at: null })
+        .eq("key", key)
+        .eq("version", currentVersion);
+
+      return {
+        success: false,
+        message: "Failed to create rollback version",
+        error: insertError.message,
+      };
+    }
+
+    // 5. Invalidate cache
+    invalidateCache(`rollback:${key}:v${targetVersion}`);
+
+    logger.info("Prompt rolled back", {
+      category: LogCategory.CACHE,
+      promptKey: key,
+      fromVersion: currentVersion,
+      toVersion: newVersion,
+      targetVersion,
+      reason,
+    });
+
+    return {
+      success: true,
+      message: `Rolled back '${key}' from v${currentVersion} to content of v${targetVersion} (now v${newVersion})`,
+      newVersion,
+    };
+  } catch (err) {
+    logger.error("Rollback failed", err as Error, {
+      category: LogCategory.CACHE,
+      promptKey: key,
+      targetVersion,
+    });
+    return {
+      success: false,
+      message: "Rollback failed with exception",
+      error: String(err),
+    };
+  }
+}
