@@ -34,6 +34,11 @@ let cachedPromptSections: Map<string, string> | null = null;
 let cacheTimestamp: number = 0;
 let cacheVersion: string | null = null; // Stores MAX(updated_at) from last load
 let lastInvalidationReason: string | null = null;
+let lastVersionCheckTime: number = 0;
+
+// Version check interval: Only check DB version every 30 seconds (not every request)
+// This reduces DB queries from ~50-100ms per request to once per 30s
+const VERSION_CHECK_INTERVAL_MS = 30_000;
 
 // Fallback prompts imported from modular files (used if DB fails)
 import { IDENTITY } from "../prompts/core/identity.ts";
@@ -161,17 +166,25 @@ async function getPromptSections(
   } else if (now - cacheTimestamp >= CACHE_TTL_MS) {
     cacheMissReason = "expired";
   } else {
-    // Cache exists and within TTL - check version
-    const dbVersion = await getDatabaseVersion(supabase);
-    if (dbVersion && dbVersion !== cacheVersion) {
-      cacheMissReason = "version_mismatch";
-      logger.info("Cache version mismatch detected", {
-        category: LogCategory.CACHE,
-        cachedVersion: cacheVersion?.substring(0, 19) ?? "none",  // Truncate timestamp for readability
-        dbVersion: dbVersion.substring(0, 19),
-      });
-    } else {
-      // Cache hit - version matches
+    // Cache exists and within TTL
+    // Only check version periodically (every 30s) to avoid DB query on every request
+    const shouldCheckVersion = now - lastVersionCheckTime >= VERSION_CHECK_INTERVAL_MS;
+
+    if (shouldCheckVersion) {
+      lastVersionCheckTime = now;
+      const dbVersion = await getDatabaseVersion(supabase);
+      if (dbVersion && dbVersion !== cacheVersion) {
+        cacheMissReason = "version_mismatch";
+        logger.info("Cache version mismatch detected", {
+          category: LogCategory.CACHE,
+          cachedVersion: cacheVersion?.substring(0, 19) ?? "none",
+          dbVersion: dbVersion.substring(0, 19),
+        });
+      }
+    }
+
+    // If no version mismatch (or didn't check), return cached data
+    if (!cacheMissReason) {
       const cacheAge = now - cacheTimestamp;
       logger.debug("Cache HIT", {
         category: LogCategory.CACHE,

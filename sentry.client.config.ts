@@ -10,6 +10,22 @@ Sentry.init({
   // Only enable in production
   enabled: process.env.NODE_ENV === "production",
 
+  // Environment tag for filtering
+  environment: process.env.NODE_ENV,
+
+  // Before send hook to enrich events
+  beforeSend(event, _hint) {
+    // Add breadcrumb for page URL
+    if (typeof window !== "undefined") {
+      Sentry.addBreadcrumb({
+        category: "navigation",
+        message: window.location.href,
+        level: "info",
+      });
+    }
+    return event;
+  },
+
   // Adjust sampling rates for production
   // - tracesSampleRate: Performance monitoring sample rate (0.0 to 1.0)
   // - Use lower rate in production to reduce costs

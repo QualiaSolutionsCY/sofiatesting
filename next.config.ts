@@ -3,6 +3,21 @@ import type { NextConfig } from "next";
 
 const securityHeaders = [
   {
+    // Content Security Policy - prevents XSS and injection attacks
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://*.sentry.io",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https: http:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.supabase.co https://*.sentry.io https://openrouter.ai wss://*.supabase.co",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; "),
+  },
+  {
     // Prevent clickjacking attacks
     key: "X-Frame-Options",
     value: "DENY",

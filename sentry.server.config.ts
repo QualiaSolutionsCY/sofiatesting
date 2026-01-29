@@ -10,6 +10,9 @@ Sentry.init({
   // Only enable in production
   enabled: process.env.NODE_ENV === "production",
 
+  // Environment tag for filtering
+  environment: process.env.NODE_ENV,
+
   // Performance monitoring sample rate
   tracesSampleRate: 0.1,
 
@@ -18,4 +21,11 @@ Sentry.init({
 
   // Spotlight for development
   spotlight: process.env.NODE_ENV === "development",
+
+  // Server-side tags
+  initialScope: {
+    tags: {
+      service: "sofia-api",
+    },
+  },
 });

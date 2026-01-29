@@ -1,0 +1,13 @@
+# SOFIA AI Assistant
+# https://sofia.zyprus.com
+
+User-agent: *
+Allow: /
+
+# Disallow admin and API routes
+Disallow: /admin/
+Disallow: /api/
+Disallow: /monitoring
+
+# Sitemap
+Sitemap: https://sofia.zyprus.com/sitemap.xml
