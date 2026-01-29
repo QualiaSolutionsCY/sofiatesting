@@ -838,4 +838,71 @@ export const documentSend = pgTable(
 
 export type DocumentSend = InferSelectModel<typeof documentSend>;
 
+// ===================================================================
+// SUPABASE NATIVE TABLES (snake_case)
+// These map to existing Supabase tables for Telegram lead routing
+// ===================================================================
+
+export const supabaseAgent = pgTable("agents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  fullName: text("full_name").notNull(),
+  mobile: text("mobile"),
+  communicationEmail: text("communication_email"),
+  listingOwnerEmail: text("listing_owner_email"),
+  region: text("region"),
+  role: text("role"),
+  canUpload: boolean("can_upload").default(true),
+  telegramUserId: bigint("telegram_user_id", { mode: "number" }),
+  isActive: boolean("is_active").default(true),
+  canReceiveLeads: boolean("can_receive_leads").default(true),
+  zyprusUserId: uuid("zyprus_user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type SupabaseAgent = InferSelectModel<typeof supabaseAgent>;
+
+export const supabaseTelegramGroup = pgTable("telegram_groups", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  groupId: bigint("group_id", { mode: "number" }).notNull().unique(),
+  groupName: text("group_name"),
+  groupType: text("group_type"),
+  region: text("region"),
+  isActive: boolean("is_active").default(true),
+  leadRoutingEnabled: boolean("lead_routing_enabled").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type SupabaseTelegramGroup = InferSelectModel<typeof supabaseTelegramGroup>;
+
+export const supabaseTelegramLead = pgTable("telegram_leads", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sourceGroupId: bigint("source_group_id", { mode: "number" }).notNull(),
+  sourceGroupName: text("source_group_name"),
+  originalMessageId: text("original_message_id").notNull(),
+  originalMessageText: text("original_message_text"),
+  senderTelegramId: bigint("sender_telegram_id", { mode: "number" }),
+  senderName: text("sender_name"),
+  propertyReferenceId: text("property_reference_id"),
+  propertyRegion: text("property_region"),
+  forwardedToAgentId: uuid("forwarded_to_agent_id").references(() => supabaseAgent.id),
+  forwardedToTelegramId: bigint("forwarded_to_telegram_id", { mode: "number" }),
+  forwardedMessageId: bigint("forwarded_message_id", { mode: "number" }),
+  groupAckMessageId: bigint("group_ack_message_id", { mode: "number" }),
+  clientLanguage: text("client_language"),
+  status: text("status").default("new"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type SupabaseTelegramLead = InferSelectModel<typeof supabaseTelegramLead>;
+
+export const supabaseLeadForwardingRotation = pgTable("lead_forwarding_rotation", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  region: text("region").notNull(),
+  lastForwardedToAgentId: uuid("last_forwarded_to_agent_id").references(() => supabaseAgent.id),
+  forwardCount: integer("forward_count").default(0),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type SupabaseLeadForwardingRotation = InferSelectModel<typeof supabaseLeadForwardingRotation>;
+
 export type { InferInsertModel } from "drizzle-orm";

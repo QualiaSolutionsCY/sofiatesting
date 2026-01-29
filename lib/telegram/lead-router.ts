@@ -2,10 +2,11 @@ import "server-only";
 import { and, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import {
-  leadForwardingRotation,
-  telegramGroup,
-  telegramLead,
-  zyprusAgent,
+  // Use Supabase native tables (snake_case) for lead routing
+  supabaseAgent,
+  supabaseLeadForwardingRotation,
+  supabaseTelegramGroup,
+  supabaseTelegramLead,
 } from "../db/schema";
 import { getTelegramClient } from "./client";
 import {
@@ -19,7 +20,6 @@ import {
   LARNACA_AGENTS,
   LIMASSOL_AGENTS,
   OTHERS_GROUP_AGENTS,
-  PRIORITY_AGENTS,
   RUSSIAN_SPEAKER_AGENT,
 } from "./routing-constants";
 import type { TelegramMessage } from "./types";
@@ -68,22 +68,22 @@ async function getOrCreateGroup(
   chatId: number,
   title: string | undefined,
   type: string
-): Promise<typeof telegramGroup.$inferSelect | null> {
+): Promise<typeof supabaseTelegramGroup.$inferSelect | null> {
   try {
     // Try to find existing group
     const [existingGroup] = await db
       .select()
-      .from(telegramGroup)
-      .where(eq(telegramGroup.groupId, chatId))
+      .from(supabaseTelegramGroup)
+      .where(eq(supabaseTelegramGroup.groupId, chatId))
       .limit(1);
 
     if (existingGroup) {
       // Update title if changed
       if (title && existingGroup.groupName !== title) {
         await db
-          .update(telegramGroup)
+          .update(supabaseTelegramGroup)
           .set({ groupName: title })
-          .where(eq(telegramGroup.id, existingGroup.id));
+          .where(eq(supabaseTelegramGroup.id, existingGroup.id));
       }
       return existingGroup;
     }
@@ -93,7 +93,7 @@ async function getOrCreateGroup(
 
     // Create new group record
     const [newGroup] = await db
-      .insert(telegramGroup)
+      .insert(supabaseTelegramGroup)
       .values({
         groupId: chatId,
         groupName: title || `Telegram ${type}`,
@@ -193,7 +193,7 @@ async function getTargetAgents(
   groupType: string | null,
   _propertyId?: string | null,
   messageText?: string
-): Promise<(typeof zyprusAgent.$inferSelect)[]> {
+): Promise<(typeof supabaseAgent.$inferSelect)[]> {
   try {
     // RULE 1: Limassol leads go ONLY to Michelle or Diana
     // Per spec: "RULE: Never forward to individual agents, FORWARD TO: Michelle OR Diana (only these two)"
@@ -201,11 +201,11 @@ async function getTargetAgents(
       console.log("Limassol region detected - routing to Michelle/Diana only");
       const agents = await db
         .select()
-        .from(zyprusAgent)
+        .from(supabaseAgent)
         .where(
           and(
-            inArray(zyprusAgent.fullName, LIMASSOL_AGENTS),
-            eq(zyprusAgent.isActive, true)
+            inArray(supabaseAgent.fullName, LIMASSOL_AGENTS),
+            eq(supabaseAgent.isActive, true)
           )
         );
       return agents;
@@ -216,11 +216,11 @@ async function getTargetAgents(
       console.log("Larnaca region detected - routing to Michelle/Diana");
       const agents = await db
         .select()
-        .from(zyprusAgent)
+        .from(supabaseAgent)
         .where(
           and(
-            inArray(zyprusAgent.fullName, LARNACA_AGENTS),
-            eq(zyprusAgent.isActive, true)
+            inArray(supabaseAgent.fullName, LARNACA_AGENTS),
+            eq(supabaseAgent.isActive, true)
           )
         );
       return agents;
@@ -240,11 +240,11 @@ async function getTargetAgents(
         // Query for the specific regional manager
         const agents = await db
           .select()
-          .from(zyprusAgent)
+          .from(supabaseAgent)
           .where(
             and(
-              eq(zyprusAgent.fullName, regionalManager),
-              eq(zyprusAgent.isActive, true)
+              eq(supabaseAgent.fullName, regionalManager),
+              eq(supabaseAgent.isActive, true)
             )
           );
 
@@ -258,14 +258,16 @@ async function getTargetAgents(
       }
 
       // Fallback: no region detected or manager not found, use rotation
-      console.log("Others group - extracted region: none, routing to: rotation");
+      console.log(
+        "Others group - extracted region: none, routing to: rotation"
+      );
       const agents = await db
         .select()
-        .from(zyprusAgent)
+        .from(supabaseAgent)
         .where(
           and(
-            inArray(zyprusAgent.fullName, OTHERS_GROUP_AGENTS),
-            eq(zyprusAgent.isActive, true)
+            inArray(supabaseAgent.fullName, OTHERS_GROUP_AGENTS),
+            eq(supabaseAgent.isActive, true)
           )
         );
       return agents;
@@ -275,11 +277,11 @@ async function getTargetAgents(
     if (!region || region === "All") {
       const agents = await db
         .select()
-        .from(zyprusAgent)
+        .from(supabaseAgent)
         .where(
           and(
-            eq(zyprusAgent.isActive, true),
-            eq(zyprusAgent.canReceiveLeads, true)
+            eq(supabaseAgent.isActive, true),
+            eq(supabaseAgent.canReceiveLeads, true)
           )
         )
         .limit(5);
@@ -287,15 +289,16 @@ async function getTargetAgents(
     }
 
     // RULE 4: For other regions (Paphos, Larnaca, Nicosia, Famagusta)
-    // Get agents for specific region
+    // Get agents for specific region (case-insensitive match)
+    const normalizedRegion = region.toLowerCase();
     const agents = await db
       .select()
-      .from(zyprusAgent)
+      .from(supabaseAgent)
       .where(
         and(
-          eq(zyprusAgent.region, region),
-          eq(zyprusAgent.isActive, true),
-          eq(zyprusAgent.canReceiveLeads, true)
+          eq(supabaseAgent.region, normalizedRegion),
+          eq(supabaseAgent.isActive, true),
+          eq(supabaseAgent.canReceiveLeads, true)
         )
       );
 
@@ -312,7 +315,7 @@ async function getTargetAgents(
  */
 async function detectRequestedAgent(
   messageText: string
-): Promise<typeof zyprusAgent.$inferSelect | null> {
+): Promise<typeof supabaseAgent.$inferSelect | null> {
   const match = messageText.match(AGENT_REQUEST_PATTERN);
   if (!match) return null;
 
@@ -322,14 +325,14 @@ async function detectRequestedAgent(
   // Look for partial name match (first name or full name)
   const agents = await db
     .select()
-    .from(zyprusAgent)
+    .from(supabaseAgent)
     .where(
       and(
         or(
-          ilike(zyprusAgent.fullName, `${requestedName}%`),
-          ilike(zyprusAgent.fullName, `% ${requestedName}%`)
+          ilike(supabaseAgent.fullName, `${requestedName}%`),
+          ilike(supabaseAgent.fullName, `% ${requestedName}%`)
         ),
-        eq(zyprusAgent.isActive, true)
+        eq(supabaseAgent.isActive, true)
       )
     )
     .limit(1);
@@ -348,9 +351,9 @@ async function detectRequestedAgent(
  * Per spec: "CONDITION: If lead appears Russian-speaking → prefer Diana"
  */
 function selectLimassolAgent(
-  agents: (typeof zyprusAgent.$inferSelect)[],
+  agents: (typeof supabaseAgent.$inferSelect)[],
   isRussianSpeaking: boolean
-): typeof zyprusAgent.$inferSelect | null {
+): typeof supabaseAgent.$inferSelect | null {
   if (agents.length === 0) return null;
 
   // If Russian-speaking, prefer Diana
@@ -372,8 +375,8 @@ function selectLimassolAgent(
  */
 async function getNextAgentInRotation(
   region: string,
-  availableAgents: (typeof zyprusAgent.$inferSelect)[]
-): Promise<typeof zyprusAgent.$inferSelect | null> {
+  availableAgents: (typeof supabaseAgent.$inferSelect)[]
+): Promise<typeof supabaseAgent.$inferSelect | null> {
   if (availableAgents.length === 0) {
     return null;
   }
@@ -384,8 +387,8 @@ async function getNextAgentInRotation(
   // Get current rotation state for this region
   const rotationState = await db
     .select()
-    .from(leadForwardingRotation)
-    .where(eq(leadForwardingRotation.region, region.toLowerCase()))
+    .from(supabaseLeadForwardingRotation)
+    .where(eq(supabaseLeadForwardingRotation.region, region.toLowerCase()))
     .limit(1);
 
   // Sort agents by ID for consistent ordering across calls
@@ -434,7 +437,7 @@ async function updateRotationState(
 
   try {
     await db
-      .insert(leadForwardingRotation)
+      .insert(supabaseLeadForwardingRotation)
       .values({
         region: region.toLowerCase(),
         lastForwardedToAgentId: agentId,
@@ -442,10 +445,10 @@ async function updateRotationState(
         updatedAt: now,
       })
       .onConflictDoUpdate({
-        target: leadForwardingRotation.region,
+        target: supabaseLeadForwardingRotation.region,
         set: {
           lastForwardedToAgentId: agentId,
-          forwardCount: sql`${leadForwardingRotation.forwardCount} + 1`,
+          forwardCount: sql`${supabaseLeadForwardingRotation.forwardCount} + 1`,
           updatedAt: now,
         },
       });
@@ -471,13 +474,13 @@ async function isRecentDuplicate(
 
   try {
     const recentLeads = await db
-      .select({ id: telegramLead.id })
-      .from(telegramLead)
+      .select({ id: supabaseTelegramLead.id })
+      .from(supabaseTelegramLead)
       .where(
         and(
-          eq(telegramLead.propertyReferenceId, propertyId),
-          eq(telegramLead.sourceGroupId, sourceGroupId),
-          sql`${telegramLead.createdAt} > ${tenMinutesAgo}`
+          eq(supabaseTelegramLead.propertyReferenceId, propertyId),
+          eq(supabaseTelegramLead.sourceGroupId, sourceGroupId),
+          sql`${supabaseTelegramLead.createdAt} > ${tenMinutesAgo}`
         )
       )
       .limit(1);
@@ -508,12 +511,12 @@ async function logLead(data: {
   senderTelegramId: number | null;
   senderName: string | null;
   forwardedToAgentId: string | null;
-  forwardedToTelegramId: string | null;
+  forwardedToTelegramId: number | null;
   region: string | null;
   clientLanguage?: string;
 }): Promise<void> {
   try {
-    await db.insert(telegramLead).values({
+    await db.insert(supabaseTelegramLead).values({
       propertyReferenceId: data.propertyReferenceId,
       sourceGroupId: data.sourceGroupId,
       sourceGroupName: data.sourceGroupName,
@@ -522,9 +525,7 @@ async function logLead(data: {
       senderTelegramId: data.senderTelegramId,
       senderName: data.senderName,
       forwardedToAgentId: data.forwardedToAgentId,
-      forwardedToTelegramId: data.forwardedToTelegramId
-        ? Number(data.forwardedToTelegramId)
-        : null,
+      forwardedToTelegramId: data.forwardedToTelegramId,
       propertyRegion: data.region,
       clientLanguage: data.clientLanguage || null,
       status: "forwarded",
@@ -651,7 +652,7 @@ export async function handleGroupMessage(
   }
 
   // Select agent based on routing rules
-  let selectedAgent: typeof zyprusAgent.$inferSelect | null = null;
+  let selectedAgent: typeof supabaseAgent.$inferSelect | null = null;
   const effectiveRegion = region || "all";
 
   // For Limassol, apply Russian-speaking preference
@@ -704,7 +705,7 @@ export async function handleGroupMessage(
 async function forwardLeadToAgent(
   telegramClient: ReturnType<typeof getTelegramClient>,
   message: TelegramMessage,
-  agent: typeof zyprusAgent.$inferSelect,
+  agent: typeof supabaseAgent.$inferSelect,
   propertyId: string | null,
   region: string | null,
   clientLanguage: string,
