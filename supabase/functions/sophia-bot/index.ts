@@ -244,7 +244,7 @@ async function sendEmailViaResend(
   intent: EmailSendingIntent
 ): Promise<{ success: boolean; error?: string }> {
   if (!RESEND_API_KEY) {
-    logger.error("Email error: RESEND_API_KEY is not configured", { category: LogCategory.WEBHOOK });
+    logger.error("Email error: RESEND_API_KEY is not configured", undefined, { category: LogCategory.WEBHOOK });
     return { success: false, error: "Email service not configured" };
   }
 
@@ -921,7 +921,7 @@ async function sendDocxFile(
   const documentUrl = await uploadDocxToStorage(docxContent, filename);
 
   if (!documentUrl) {
-    logger.error("Failed to upload DOCX to storage, cannot send document", { category: LogCategory.ZYPRUS });
+    logger.error("Failed to upload DOCX to storage, cannot send document", undefined, { category: LogCategory.ZYPRUS });
     // Return a fake error response
     return new Response(JSON.stringify({ error: "Failed to upload document" }), { status: 500 });
   }
@@ -1058,7 +1058,7 @@ async function sendLogoImage(phoneNumber: string): Promise<Response> {
   const logoUrl = await uploadLogoToStorage();
 
   if (!logoUrl) {
-    logger.error("Failed to get logo URL", { category: LogCategory.GENERAL });
+    logger.error("Failed to get logo URL", undefined, { category: LogCategory.GENERAL });
     return new Response(JSON.stringify({ error: "Failed to get logo" }), { status: 500 });
   }
 
@@ -1565,7 +1565,7 @@ async function processRequest(
   try {
     // Check if critical API keys are set
     if (!OPENROUTER_API_KEY || !WASEND_API_KEY) {
-      logger.error("CRITICAL: Missing API keys - OPENROUTER_API_KEY or WASEND_API_KEY not set", { category: LogCategory.GENERAL });
+      logger.error("CRITICAL: Missing API keys - OPENROUTER_API_KEY or WASEND_API_KEY not set", undefined, { category: LogCategory.GENERAL });
       const errorMsg = "Service configuration error. Please contact support.";
 
       // Try to send error if WaSend key exists
@@ -1607,7 +1607,7 @@ async function processRequest(
         }).catch(err => logger.error("Memory error: Async store failed for user message", err, { category: LogCategory.GENERAL }));
       }
     } catch (memErr) {
-      logger.error("Memory error: Error building user context: " + String(memErr), { category: LogCategory.GENERAL });
+      logger.error("Memory error: Error building user context: " + String(memErr), undefined, { category: LogCategory.GENERAL });
       // Continue without personalization - non-blocking
     }
 
@@ -1677,7 +1677,7 @@ async function processRequest(
         logger.info(`[Agent] Identified: ${identifiedAgent.fullName} (${identifiedAgent.region})`, { category: LogCategory.GENERAL });
       }
     } catch (err) {
-      logger.error("[Agent] Error identifying agent: " + String(err), { category: LogCategory.GENERAL });
+      logger.error("[Agent] Error identifying agent: " + String(err), undefined, { category: LogCategory.GENERAL });
     }
 
     // Inject sender info with agent details if known
@@ -1898,8 +1898,8 @@ Please respond with something like:
           continue;
         }
 
-        logger.error("OpenRouter Error:", JSON.stringify(errorData, null, 2), { category: LogCategory.GENERAL });
-        logger.error("Status: " + String(aiRes.status), { category: LogCategory.GENERAL });
+        logger.error("OpenRouter Error: " + JSON.stringify(errorData, null, 2), undefined, { category: LogCategory.GENERAL });
+        logger.error("Status: " + String(aiRes.status), undefined, { category: LogCategory.GENERAL });
 
         const errorMessage = "I'm experiencing technical difficulties right now. Please try again in a few moments.";
         await sendTextMessage(phoneNumber, errorMessage);
@@ -1907,7 +1907,7 @@ Please respond with something like:
       }
 
       if (!aiRes || !aiRes.ok) {
-        logger.error("OpenRouter API call failed after retries", { category: LogCategory.GENERAL });
+        logger.error("OpenRouter API call failed after retries", undefined, { category: LogCategory.GENERAL });
         const errorMessage = "I'm having trouble processing your request. Please try again shortly.";
         await sendTextMessage(phoneNumber, errorMessage);
         return;
@@ -1936,12 +1936,12 @@ Please respond with something like:
           try {
             toolArgs = JSON.parse(toolCall.function.arguments || "{}");
           } catch (e) {
-            logger.error(`Tool error: Failed to parse arguments for ${toolName}:`, e, { category: LogCategory.TOOL });
+            logger.error(`Tool error: Failed to parse arguments for ${toolName}`, e as Error, { category: LogCategory.TOOL });
             toolArgs = {};
           }
 
           logger.info(`Tool: Executing: ${toolName}`, { category: LogCategory.TOOL });
-          logger.info(`Tool: Arguments:`, JSON.stringify(toolArgs).substring(0, 200), { category: LogCategory.TOOL });
+          logger.info(`Tool: Arguments: ${JSON.stringify(toolArgs).substring(0, 200)}`, { category: LogCategory.TOOL });
 
           // Execute the tool
           const toolResult = await executeTool(
@@ -1951,7 +1951,7 @@ Please respond with something like:
             supabaseKey
           );
 
-          logger.info(`Tool: Result:`, JSON.stringify(toolResult).substring(0, 200), { category: LogCategory.TOOL });
+          logger.info(`Tool: Result: ${JSON.stringify(toolResult).substring(0, 200)}`, { category: LogCategory.TOOL });
 
           // Add tool result to history
           currentMessages.push({
@@ -2065,7 +2065,7 @@ Please respond with something like:
     }
 
     if (!aiResponse) {
-      logger.error("Empty response from OpenRouter", { category: LogCategory.GENERAL });
+      logger.error("Empty response from OpenRouter", undefined, { category: LogCategory.GENERAL });
 
       // Send error message to user
       const errorMessage = "I couldn't generate a response. Please rephrase your request and try again.";
@@ -2073,7 +2073,7 @@ Please respond with something like:
       return;
     }
 
-    logger.info("AI Response received (first 500 chars):", aiResponse.substring(0, 500), { category: LogCategory.GENERAL });
+    logger.info("AI Response received (first 500 chars): " + aiResponse.substring(0, 500), { category: LogCategory.GENERAL });
     logger.info("AI Response length:" + String(aiResponse.length), { category: LogCategory.GENERAL });
 
     // 4. Add AI response to database
@@ -2092,7 +2092,7 @@ Please respond with something like:
 
     // 4.5 Check if AI claims to have sent an email - actually send it!
     logger.info("[Email Check] Checking AI response for email intent...", { category: LogCategory.GENERAL });
-    logger.info("[Email Check] AI Response preview:", aiResponse.substring(0, 300), { category: LogCategory.GENERAL });
+    logger.info("[Email Check] AI Response preview: " + aiResponse.substring(0, 300), { category: LogCategory.GENERAL });
 
     const updatedHistoryForEmail = await getHistory(userId);
     const emailIntent = detectEmailSendingIntent(
@@ -2115,7 +2115,7 @@ Please respond with something like:
         logger.info("Email: Email actually sent successfully via Resend!", { category: LogCategory.WEBHOOK });
         // The AI's response already says "I have sent...", so just send it as text
       } else {
-        logger.error("Email error: Failed to send email: " + String(emailResult.error), { category: LogCategory.WEBHOOK });
+        logger.error("Email error: Failed to send email: " + String(emailResult.error), undefined, { category: LogCategory.WEBHOOK });
         // Modify the AI response to indicate failure
         const failureNote = `
 
@@ -2230,8 +2230,8 @@ Please respond with something like:
                           aiResponse.toLowerCase().includes("i can only generate documents");
 
     if (isPlaceholder) {
-      logger.error("ERROR: AI returned placeholder response, not sending.", { category: LogCategory.GENERAL });
-      logger.error("AI Response: " + String(aiResponse), { category: LogCategory.GENERAL });
+      logger.error("ERROR: AI returned placeholder response, not sending.", undefined, { category: LogCategory.GENERAL });
+      logger.error("AI Response: " + String(aiResponse), undefined, { category: LogCategory.GENERAL });
       return;
     }
 
@@ -2306,7 +2306,7 @@ Please respond with something like:
             
             if (retryResponse && retryResponse.length > 500) {
               logger.info("Retry successful! Response length:" + String(retryResponse.length), { category: LogCategory.GENERAL });
-              logger.info("Retry response preview:", retryResponse.substring(0, 300), { category: LogCategory.GENERAL });
+              logger.info("Retry response preview: " + retryResponse.substring(0, 300), { category: LogCategory.GENERAL });
               
               // Check if retry response is proper document content
               const retryIsDocx = isDocxTemplate(retryResponse, history);
@@ -2321,7 +2321,7 @@ Please respond with something like:
                 logger.info("Creating DOCX file from retry response:" + String(filename), { category: LogCategory.GENERAL });
                 
                 const docxContent = await createDocxFile(retryResponse, filename);
-                logger.info("DOCX content created, size:" + String(docxContent.length, "bytes"), { category: LogCategory.GENERAL });
+                logger.info("DOCX content created, size: " + String(docxContent.length) + " bytes", { category: LogCategory.GENERAL });
                 
                 const sendResult = await sendDocxFile(phoneNumber, docxContent, filename, 1, userId);
                 const sendResultText = await sendResult.text();
@@ -2329,16 +2329,16 @@ Please respond with something like:
                 logger.info("DOCX send result body:" + String(sendResultText), { category: LogCategory.GENERAL });
 
                 if (!sendResult.ok) {
-                  logger.error("Failed to send DOCX file from retry! Falling back to text.", { category: LogCategory.GENERAL });
+                  logger.error("Failed to send DOCX file from retry! Falling back to text.", undefined, { category: LogCategory.GENERAL });
                   await sendTextMessage(phoneNumber, retryResponse);
                 }
                 return; // Successfully sent from retry
               }
             }
           }
-          logger.error("Retry failed or didn't produce valid document content", { category: LogCategory.GENERAL });
+          logger.error("Retry failed or didn't produce valid document content", undefined, { category: LogCategory.GENERAL });
         } catch (retryError) {
-          logger.error("Error during retry OpenRouter call: " + String(retryError), { category: LogCategory.GENERAL });
+          logger.error("Error during retry OpenRouter call: " + String(retryError), undefined, { category: LogCategory.GENERAL });
         }
       }
       
@@ -2364,8 +2364,8 @@ Please respond with something like:
         detectedTemplateType: detectedTemplateType || "unknown",
         originalResponseLength: aiResponse.length,
       }, null, 2));
-      logger.error("ERROR: DOCX template was requested but couldn't generate proper content.", { category: LogCategory.GENERAL });
-      logger.error("Not sending placeholder message to user.", { category: LogCategory.GENERAL });
+      logger.error("ERROR: DOCX template was requested but couldn't generate proper content.", undefined, { category: LogCategory.GENERAL });
+      logger.error("Not sending placeholder message to user.", undefined, { category: LogCategory.GENERAL });
       return;
     }
 
@@ -2373,7 +2373,7 @@ Please respond with something like:
       // Send as DOCX file
       logger.info("Detected DOCX template - generating and sending as file attachment", { category: LogCategory.GENERAL });
       logger.info("AI Response length:" + String(aiResponse.length), { category: LogCategory.GENERAL });
-      logger.info("AI Response preview:", aiResponse.substring(0, 200), { category: LogCategory.GENERAL });
+      logger.info("AI Response preview: " + aiResponse.substring(0, 200), { category: LogCategory.GENERAL });
 
       let filename = `document_${Date.now()}.docx`;
       logger.info("Creating DOCX file:" + String(filename), { category: LogCategory.GENERAL });
@@ -2399,13 +2399,13 @@ Please respond with something like:
           logger.info("Marketing DOCX send result body:" + String(sendResultText), { category: LogCategory.GENERAL });
 
           if (!sendResult.ok) {
-            logger.error("Failed to send Marketing DOCX! Falling back to text.", { category: LogCategory.GENERAL });
+            logger.error("Failed to send Marketing DOCX! Falling back to text.", undefined, { category: LogCategory.GENERAL });
             await sendTextMessage(phoneNumber, aiResponse);
           }
           logger.info("=== MARKETING AGREEMENT SENT AS DOCX ===", { category: LogCategory.GENERAL });
           return; // Exit early - we've handled the forced marketing case
         } else {
-          logger.error("Could not parse marketing data - falling back to normal flow", { category: LogCategory.GENERAL });
+          logger.error("Could not parse marketing data - falling back to normal flow", undefined, { category: LogCategory.GENERAL });
           // Fall through to normal processing
         }
       }
@@ -2433,7 +2433,7 @@ Please respond with something like:
               logoData = array;
               logger.info("Logo decoded successfully for viewing form", { category: LogCategory.GENERAL });
             } catch (e) {
-              logger.error("Failed to decode logo: " + String(e), { category: LogCategory.GENERAL });
+              logger.error("Failed to decode logo: " + String(e), undefined, { category: LogCategory.GENERAL });
               logoData = undefined;
             }
           }
@@ -2507,14 +2507,14 @@ Please respond with something like:
             logger.info("Converting structured document to buffer...", { category: LogCategory.GENERAL });
             const buffer = await Packer.toBuffer(docxDoc);
             docxContent = new Uint8Array(buffer);
-            logger.info("Structured DOCX created, size:" + String(docxContent.length, "bytes"), { category: LogCategory.GENERAL });
+            logger.info("Structured DOCX created, size: " + String(docxContent.length) + " bytes", { category: LogCategory.GENERAL });
           } else {
             // Fallback to generic DOCX creation
             logger.info("Using generic DOCX creation as fallback", { category: LogCategory.GENERAL });
             docxContent = await createDocxFile(aiResponse, filename);
           }
         } catch (error) {
-          logger.error("Error creating structured viewing form: " + String(error), { category: LogCategory.GENERAL });
+          logger.error("Error creating structured viewing form: " + String(error), undefined, { category: LogCategory.GENERAL });
           logger.info("Falling back to generic DOCX creation", { category: LogCategory.GENERAL });
           docxContent = await createDocxFile(aiResponse, filename);
         }
@@ -2524,7 +2524,7 @@ Please respond with something like:
         docxContent = await createDocxFile(aiResponse, filename);
       }
 
-      logger.info("DOCX content created, size:" + String(docxContent.length, "bytes"), { category: LogCategory.GENERAL });
+      logger.info("DOCX content created, size: " + String(docxContent.length) + " bytes", { category: LogCategory.GENERAL });
 
       const sendResult = await sendDocxFile(phoneNumber, docxContent, filename, 1, userId);
       const sendResultText = await sendResult.text();
@@ -2532,8 +2532,8 @@ Please respond with something like:
       logger.info("DOCX send result body:" + String(sendResultText), { category: LogCategory.GENERAL });
 
       if (!sendResult.ok) {
-        logger.error("Failed to send DOCX file! Status: " + String(sendResult.status), { category: LogCategory.GENERAL });
-        logger.error("Error response: " + String(sendResultText), { category: LogCategory.GENERAL });
+        logger.error("Failed to send DOCX file! Status: " + String(sendResult.status), undefined, { category: LogCategory.GENERAL });
+        logger.error("Error response: " + String(sendResultText), undefined, { category: LogCategory.GENERAL });
         // Fallback: send as text message
         logger.info("Falling back to text message...", { category: LogCategory.GENERAL });
         await sendTextMessage(phoneNumber, aiResponse);
@@ -2574,8 +2574,8 @@ Please respond with something like:
     }
     logger.info("=== PROCESS REQUEST COMPLETED ===", { category: LogCategory.GENERAL });
   } catch (error) {
-    logger.error("=== PROCESS REQUEST ERROR ===", { category: LogCategory.GENERAL });
-    logger.error("Error details: " + String(error), { category: LogCategory.GENERAL });
+    logger.error("=== PROCESS REQUEST ERROR ===", undefined, { category: LogCategory.GENERAL });
+    logger.error("Error details: " + String(error), undefined, { category: LogCategory.GENERAL });
     logger.error("Error in processRequest", error as Error, {
       operation: "process_request",
     });
@@ -2745,9 +2745,9 @@ async function handleTemplateMigration(): Promise<Response> {
       .maybeSingle();
 
     if (checkError) {
-      logger.error("Admin: Template migration check failed", {
+      logger.error("Admin: Template migration check failed", undefined, {
         category: LogCategory.GENERAL,
-        error: checkError.message,
+        errorMessage: checkError.message,
       });
 
       return new Response(JSON.stringify({
@@ -2807,9 +2807,9 @@ async function handleTemplateMigration(): Promise<Response> {
       .single();
 
     if (insertError) {
-      logger.error("Admin: Template migration insert failed", {
+      logger.error("Admin: Template migration insert failed", undefined, {
         category: LogCategory.GENERAL,
-        error: insertError.message,
+        errorMessage: insertError.message,
       });
 
       return new Response(JSON.stringify({
@@ -2849,9 +2849,9 @@ async function handleTemplateMigration(): Promise<Response> {
       headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
-    logger.error("Admin: Template migration unexpected error", {
+    logger.error("Admin: Template migration unexpected error", err instanceof Error ? err : undefined, {
       category: LogCategory.GENERAL,
-      error: err instanceof Error ? err.message : String(err),
+      errorDetails: err instanceof Error ? err.message : String(err),
     });
 
     return new Response(JSON.stringify({
@@ -2949,7 +2949,7 @@ serve(async (req) => {
           ? '[REDACTED]'
           : value.substring(0, 100);
       });
-      logger.info("Incoming webhook headers:", JSON.stringify(headerEntries), { category: LogCategory.GENERAL });
+      logger.info("Incoming webhook headers: " + JSON.stringify(headerEntries), { category: LogCategory.GENERAL });
 
       // SECURITY: Verify webhook signature (if secret is configured)
       // NOTE: WaSend may not support webhook signatures - check their documentation
@@ -2991,7 +2991,7 @@ serve(async (req) => {
       try {
         payload = JSON.parse(rawBody);
       } catch {
-        logger.error("Invalid JSON payload", { category: LogCategory.GENERAL });
+        logger.error("Invalid JSON payload", undefined, { category: LogCategory.GENERAL });
         return new Response("Bad Request", { status: 400 });
       }
 
@@ -3071,14 +3071,14 @@ serve(async (req) => {
       const { message, remoteJid, userMessage, imageUrls } = extracted;
 
       if (!remoteJid) {
-        logger.error("No remoteJid found in message", { category: LogCategory.GENERAL });
+        logger.error("No remoteJid found in message", undefined, { category: LogCategory.GENERAL });
         return new Response("OK", { status: 200 });
       }
 
       // Format phone number
       const phoneNumber = formatPhoneNumber(remoteJid);
       if (!phoneNumber) {
-        logger.error("Could not format phone number", { category: LogCategory.GENERAL });
+        logger.error("Could not format phone number", undefined, { category: LogCategory.GENERAL });
         return new Response("OK", { status: 200 });
       }
 
@@ -3136,7 +3136,7 @@ serve(async (req) => {
         await processRequest(remoteJid, sanitizedMessage, phoneNumber, imageUrls);
         logger.info("processRequest completed successfully", { category: LogCategory.GENERAL });
       } catch (err) {
-        logger.error("processRequest failed: " + String(err), { category: LogCategory.GENERAL });
+        logger.error("processRequest failed: " + String(err), undefined, { category: LogCategory.GENERAL });
         logger.error("Processing error", err as Error, {
           operation: "process_request",
         });
