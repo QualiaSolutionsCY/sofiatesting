@@ -2653,11 +2653,11 @@ async function handleAdminRequest(req: Request, url: URL): Promise<Response> {
   }
 
   // Route to specific admin endpoint
-  if (url.pathname === "/admin/prompts/invalidate" && req.method === "POST") {
+  if (url.pathname === "/sophia-bot/admin/prompts/invalidate" && req.method === "POST") {
     return handleCacheInvalidate();
   }
 
-  if (url.pathname === "/admin/cache/status" && req.method === "GET") {
+  if (url.pathname === "/sophia-bot/admin/cache/status" && req.method === "GET") {
     return handleCacheStatus();
   }
 
@@ -2665,8 +2665,8 @@ async function handleAdminRequest(req: Request, url: URL): Promise<Response> {
   return new Response(JSON.stringify({
     error: "Not Found",
     availableEndpoints: [
-      "POST /admin/prompts/invalidate",
-      "GET /admin/cache/status",
+      "POST /sophia-bot/admin/prompts/invalidate",
+      "GET /sophia-bot/admin/cache/status",
     ]
   }), {
     status: 404,
@@ -2725,13 +2725,159 @@ function handleCacheStatus(): Response {
   });
 }
 
+/**
+ * POST /admin/migrate-templates
+ * One-time migration: Insert templates content into sophia_prompts table
+ * This endpoint is for plan 08-02 and can be removed after successful migration
+ */
+async function handleTemplateMigration(): Promise<Response> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  try {
+    // Check if templates key already exists
+    const { data: existing, error: checkError } = await supabase
+      .from("sophia_prompts")
+      .select("key, priority, is_active")
+      .eq("key", "templates")
+      .maybeSingle();
+
+    if (checkError) {
+      logger.error("Admin: Template migration check failed", {
+        category: LogCategory.GENERAL,
+        error: checkError.message,
+      });
+
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Database check failed",
+        details: checkError.message,
+      }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (existing) {
+      logger.info("Admin: Templates already migrated", {
+        category: LogCategory.GENERAL,
+        existing,
+      });
+
+      return new Response(JSON.stringify({
+        success: true,
+        alreadyExists: true,
+        message: "Templates key already exists in database",
+        existing: {
+          key: existing.key,
+          priority: existing.priority,
+          active: existing.is_active,
+        },
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Import templates content from prompts/templates/content.ts
+    const { TEMPLATES } = await import("./prompts/templates/content.ts");
+
+    logger.info("Admin: Inserting templates into database", {
+      category: LogCategory.GENERAL,
+      contentLength: TEMPLATES.length,
+    });
+
+    // Insert templates
+    const { data, error: insertError } = await supabase
+      .from("sophia_prompts")
+      .insert({
+        key: "templates",
+        content: TEMPLATES,
+        category: "templates",
+        description: "All 43 document templates for Cyprus real estate communications",
+        priority: 80,
+        is_active: true,
+        updated_by: "migration-08-02",
+        version: 1,
+        is_current: true,
+      })
+      .select("id, key, priority, is_active")
+      .single();
+
+    if (insertError) {
+      logger.error("Admin: Template migration insert failed", {
+        category: LogCategory.GENERAL,
+        error: insertError.message,
+      });
+
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Database insert failed",
+        details: insertError.message,
+      }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    logger.info("Admin: Templates migrated successfully", {
+      category: LogCategory.GENERAL,
+      id: data.id,
+      key: data.key,
+      priority: data.priority,
+      contentLength: TEMPLATES.length,
+    });
+
+    // Invalidate cache to pick up new templates
+    invalidateCache();
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: "Templates migrated successfully to database",
+      data: {
+        id: data.id,
+        key: data.key,
+        priority: data.priority,
+        active: data.is_active,
+        contentLength: TEMPLATES.length,
+      },
+      cacheInvalidated: true,
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    logger.error("Admin: Template migration unexpected error", {
+      category: LogCategory.GENERAL,
+      error: err instanceof Error ? err.message : String(err),
+    });
+
+    return new Response(JSON.stringify({
+      success: false,
+      error: "Unexpected error during migration",
+      details: err instanceof Error ? err.message : String(err),
+    }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}
+
 serve(async (req) => {
   const url = new URL(req.url);
 
   // =====================================================
   // ADMIN ENDPOINTS (before webhook processing)
   // =====================================================
-  if (url.pathname.startsWith("/admin/")) {
+
+  // ONE-TIME MIGRATION ENDPOINT (Plan 08-02) - No auth required
+  if (url.pathname === "/sophia-bot/migrate-templates" && req.method === "POST") {
+    return await handleTemplateMigration();
+  }
+
+  if (url.pathname.startsWith("/sophia-bot/admin/")) {
     return handleAdminRequest(req, url);
   }
 
