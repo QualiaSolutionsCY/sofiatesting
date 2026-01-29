@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { Document, Packer } from "https://esm.sh/docx@8.5.0";
 import { ZYPRUS_LOGO_BASE64 } from "../_shared/prompts.ts";
-import { loadSystemPrompt } from "./services/prompt-loader.ts";
+import { loadSystemPrompt, invalidateCache, getCacheStatus } from "./services/prompt-loader.ts";
 import { getHistory, addMessage, claimMessageForProcessing, saveLastDocument, getLastDocument } from "../_shared/db.ts";
 import { createDocxFile, isDocxTemplate, wasDocxTemplateRequested } from "./docx-generator.ts";
 import { detectDocxTemplateType } from "./docx/detector.ts";
@@ -72,6 +72,7 @@ const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const WASEND_API_KEY = Deno.env.get("WASEND_API_KEY");
 const WASEND_WEBHOOK_SECRET = Deno.env.get("WASEND_WEBHOOK_SECRET");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const ADMIN_SECRET = Deno.env.get("SOPHIA_ADMIN_SECRET");
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -2582,7 +2583,158 @@ Please respond with something like:
   }
 }
 
+// =====================================================
+// ADMIN API ENDPOINTS
+// =====================================================
+
+/**
+ * ADMIN API ENDPOINTS
+ * ====================
+ *
+ * Authentication: All admin endpoints require the `x-admin-secret` header
+ * matching the SOPHIA_ADMIN_SECRET environment variable.
+ *
+ * Endpoints:
+ *
+ * POST /admin/prompts/invalidate
+ *   - Clears the prompt cache
+ *   - Next request will reload prompts from database
+ *   - Use after editing prompts in Supabase Dashboard
+ *   - Response: { success: true, message: string, timestamp: string }
+ *
+ * GET /admin/cache/status
+ *   - Returns cache diagnostic information
+ *   - Useful for debugging cache issues
+ *   - Response: { cache: { isCached, ageMs, ttlMs, sectionCount, version }, timestamp }
+ *
+ * Setup:
+ *   supabase secrets set SOPHIA_ADMIN_SECRET=your-secret-here --project-ref vceeheaxcrhmpqueudqx
+ *
+ * Usage:
+ *   curl -X POST "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot/admin/prompts/invalidate" \
+ *     -H "x-admin-secret: your-secret-here"
+ *
+ *   curl "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot/admin/cache/status" \
+ *     -H "x-admin-secret: your-secret-here"
+ */
+
+/**
+ * Handle admin API requests
+ * Requires SOPHIA_ADMIN_SECRET header for authentication
+ */
+async function handleAdminRequest(req: Request, url: URL): Promise<Response> {
+  // Authenticate admin request
+  const providedSecret = req.headers.get("x-admin-secret");
+
+  if (!ADMIN_SECRET) {
+    logger.warn("Admin endpoint accessed but SOPHIA_ADMIN_SECRET not configured", {
+      category: LogCategory.GENERAL,
+      endpoint: url.pathname,
+    });
+    return new Response(JSON.stringify({
+      error: "Admin endpoints not configured"
+    }), {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  if (providedSecret !== ADMIN_SECRET) {
+    logger.warn("Admin endpoint unauthorized access attempt", {
+      category: LogCategory.GENERAL,
+      endpoint: url.pathname,
+    });
+    return new Response(JSON.stringify({
+      error: "Unauthorized"
+    }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  // Route to specific admin endpoint
+  if (url.pathname === "/admin/prompts/invalidate" && req.method === "POST") {
+    return handleCacheInvalidate();
+  }
+
+  if (url.pathname === "/admin/cache/status" && req.method === "GET") {
+    return handleCacheStatus();
+  }
+
+  // Unknown admin endpoint
+  return new Response(JSON.stringify({
+    error: "Not Found",
+    availableEndpoints: [
+      "POST /admin/prompts/invalidate",
+      "GET /admin/cache/status",
+    ]
+  }), {
+    status: 404,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+/**
+ * POST /admin/prompts/invalidate
+ * Clears the prompt cache, forcing reload on next request
+ */
+function handleCacheInvalidate(): Response {
+  invalidateCache();
+
+  logger.info("Admin: Cache invalidated via API", {
+    category: LogCategory.GENERAL,
+  });
+
+  return new Response(JSON.stringify({
+    success: true,
+    message: "Prompt cache invalidated. Next request will reload from database.",
+    timestamp: new Date().toISOString(),
+  }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+/**
+ * GET /admin/cache/status
+ * Returns cache diagnostic information
+ */
+function handleCacheStatus(): Response {
+  const status = getCacheStatus();
+
+  logger.debug("Admin: Cache status requested", {
+    category: LogCategory.GENERAL,
+    ...status,
+  });
+
+  return new Response(JSON.stringify({
+    cache: {
+      isCached: status.isCached,
+      ageMs: status.age,
+      ageFormatted: status.age > 0 ? `${Math.round(status.age / 1000)}s` : "N/A",
+      ttlMs: status.ttl,
+      ttlFormatted: status.ttl > 0 ? `${Math.round(status.ttl / 60000)}min` : "disabled",
+      sectionCount: status.sectionCount,
+      version: status.version,
+      isExpired: status.ttl > 0 ? status.age > status.ttl : false,
+    },
+    timestamp: new Date().toISOString(),
+  }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
+  const url = new URL(req.url);
+
+  // =====================================================
+  // ADMIN ENDPOINTS (before webhook processing)
+  // =====================================================
+  if (url.pathname.startsWith("/admin/")) {
+    return handleAdminRequest(req, url);
+  }
+
   // Wrap entire request in context for correlation ID tracking
   return withContext(
     {
