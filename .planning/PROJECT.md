@@ -2,109 +2,104 @@
 
 ## What This Is
 
-Production-ready fixes for SOPHIA AI assistant — fixing template generation issues, Telegram lead routing bugs, property listing upload problems, and system reliability issues. This brings SOPHIA to zero-mistake production quality for Zyprus Property Group agents.
+Production-ready AI assistant for Zyprus Property Group agents — handling WhatsApp conversations, document generation, property uploads, and lead routing. Now with structured logging, version-controlled prompts, and robust error handling.
 
 ## Core Value
 
-**Agents can trust SOPHIA to do the right thing every time** — correct templates, correct routing, correct uploads, no manual intervention needed.
+**Agents can trust SOPHIA to do the right thing every time** — correct templates, correct routing, correct uploads, user-friendly errors, no manual intervention needed.
 
-## Current Milestone: v1.1 Reliability & Hardening
+## Current State (v1.1 Shipped)
 
-**Goal:** Eliminate system fragility — consolidate prompts, validate image URLs, improve cache management, harden the system.
+**Shipped:** 2026-01-29
 
-**Target features:**
-- Prompt consolidation (eliminate conflicts, single source of truth)
-- Image URL validation (reject hallucinated URLs, validate before upload)
-- Cache management (faster propagation, admin invalidation)
-- System reliability (webhook dedup verification, error handling)
-- Complete WhatsApp image upload (carried from v1.0)
+**Infrastructure:**
+- Supabase Edge Function `sophia-bot` (WhatsApp)
+- Structured JSON logging with correlation IDs
+- 5-minute prompt cache with version-based invalidation
+- Admin endpoints for cache and prompt management
+- User-friendly error messages (no technical jargon)
+
+**Key capabilities:**
+- WhatsApp image uploads from phone gallery
+- Property listing creation on Zyprus
+- 37 DOCX document templates
+- Telegram lead routing by region
+- Health check endpoint for monitoring
+
+**Tech stack:**
+- Supabase (Edge Functions, PostgreSQL, Storage)
+- OpenRouter (Gemini 2.0 Flash)
+- WaSenderAPI (WhatsApp)
+- Deno runtime
 
 ## Requirements
 
-### Validated (v1.0)
+### Validated
 
-- ✓ **TMPL-01**: SOPHIA never mentions template numbers to users — Phase 1
-- ✓ **TMPL-02**: Single reservation template only (official version with witness) — Phase 2
-- ✓ **TMPL-03**: Email auto-sends to speaking agent's email without asking — Phase 1
-- ✓ **TMPL-04**: No asterisks visible in WhatsApp messages — Phase 1
-- ✓ **TMPL-05**: Non-Exclusive Marketing Agreement has proper signature spacing — Phase 2
-- ✓ **TMPL-06**: Non-Exclusive Marketing Agreement has correct border/frame — Phase 2
-- ✓ **LEAD-01**: "Others" group routes based on property region — Phase 3
-- ✓ **LEAD-02**: Nicosia leads go to Ivan (regional manager) — Phase 3
-- ✓ **LEAD-03**: Famagusta leads go to Narine (regional manager) — Phase 3
-- ✓ **LIST-01**: Listing Reviewer 1 correct (Lauren for sales, agent for rentals) — Phase 4
-- ✓ **LIST-02**: Listing Reviewer 2 correct (regional manager for sales) — Phase 4
-- ✓ **LIST-03**: Listing Owner correct (special email mappings honored) — Phase 4
-- ✓ **LIST-04**: My Notes populated with owner details — Phase 4
-- ✓ **LIST-05**: Google Maps pin at neutral location (2-3 streets away) — Phase 4
+**v1.0 (shipped 2026-01-27):**
+- TMPL-01: No template numbers in responses
+- TMPL-02: Single reservation template
+- TMPL-03: Auto-send to agent's email
+- TMPL-04: No asterisks in WhatsApp
+- TMPL-05: Proper signature spacing
+- TMPL-06: Correct border/frame
+- LEAD-01: Region-based routing
+- LEAD-02: Nicosia → Ivan
+- LEAD-03: Famagusta → Narine
+- LIST-01 to LIST-05: Upload fixes
 
-### Active (v1.1)
+**v1.1 (shipped 2026-01-29):**
+- LIST-06: WhatsApp gallery images
+- LOG-01 to LOG-05: Structured logging
+- CACHE-01 to CACHE-05: Cache management
+- PRMT-01 to PRMT-05: Prompt consolidation
+- ERR-01 to ERR-04: Error handling
+- IMG-01 to IMG-03: Image validation
 
-#### Carried from v1.0
-- [ ] **LIST-06**: WhatsApp phone gallery images can be uploaded (not just URLs)
+### Active
 
-#### Prompt System
-- [ ] **PRMT-01**: All prompt sections consolidated — no duplicate instructions across files
-- [ ] **PRMT-02**: Single source of truth for each behavior (DB or file, not both with conflicts)
-- [ ] **PRMT-03**: Priority ordering documented and enforced
-
-#### Image Handling
-- [ ] **IMG-01**: AI-generated URLs validated before use (reject hallucinations)
-- [ ] **IMG-02**: Image persistence reliable (Supabase Storage fallback)
-- [ ] **IMG-03**: Clear error messages when image upload fails
-
-#### Cache & Performance
-- [ ] **CACHE-01**: Prompt changes propagate within 1 minute (not 5)
-- [ ] **CACHE-02**: Admin can force cache invalidation
-- [ ] **CACHE-03**: Cache status visible for debugging
-
-#### System Reliability
-- [ ] **REL-01**: Webhook deduplication verified under load
-- [ ] **REL-02**: Error handling improved (graceful degradation)
-- [ ] **REL-03**: Logging improved for debugging production issues
+(None — defining next milestone)
 
 ### Out of Scope
 
-- New features beyond fixing existing functionality
-- UI/web app changes (this is Edge Function fixes only)
-- Telegram bot enable/disable (currently disabled by design)
-- Major architectural changes (refactoring for its own sake)
+| Feature | Reason |
+|---------|--------|
+| Per-agent prompt customization | Not needed for 30 agents |
+| Visual prompt builder | DB editing sufficient |
+| Circuit breaker pattern | Retry logic sufficient |
+| External logging services | Supabase dashboard sufficient |
+| Real-time dashboards | Manual review sufficient |
 
 ## Context
 
-**Current State:**
-- SOPHIA runs as Supabase Edge Function `sophia-bot`
-- WhatsApp integration via WaSenderAPI
-- Prompt system uses DB (sophia_prompts) + file fallbacks
-- Cache TTL currently disabled (0) for testing
-- Image persistence service exists but needs verification
+**Codebase:**
+- Edge Functions: ~15 files in `supabase/functions/sophia-bot/`
+- Prompt files: 7 files with DB ownership headers
+- Test coverage: Unit tests for key modules
 
-**Key Documentation:**
-- Prompt system: `sophia-bot/services/prompt-loader.ts`
-- Image handling: `sophia-bot/services/image-persistence.ts`, `media-decryptor.ts`
-- Tools: `sophia-bot/tools/definitions.ts`, `executor.ts`
-
-**Known Issues:**
-- Same instruction in multiple prompts causes conflicts (lower priority wins)
-- AI sometimes hallucinates image URLs
-- 5-minute cache delay can confuse during development
-
-## Constraints
-
-- **Deployment**: Supabase Edge Functions only (no Vercel)
-- **WhatsApp**: WaSenderAPI for media handling
-- **Testing**: Must test with real agent phone numbers from `agents` table
-- **Backwards Compatible**: Changes must not break existing functionality
+**Known issues:**
+- SOPHIA_ADMIN_SECRET needs to be set for admin endpoints
+- correlation_id column migration for pending_images (code handles gracefully)
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Single reservation template | Reduce confusion, use official version | ✓ Good |
-| Auto-detect agent for email | Better UX, agents shouldn't specify their own email | ✓ Good |
-| Region-based "Others" routing | Leads must go to correct regional manager | ✓ Good |
-| DB prompts take precedence over files | Allows live editing without deploy | ✓ Good |
-| Reuse documents bucket for WhatsApp images | Avoid creating new bucket | — Pending |
+| Single reservation template | Reduce confusion | Good |
+| Auto-detect agent for email | Better UX | Good |
+| Region-based routing | Correct lead assignment | Good |
+| DB prompts take precedence | Live editing without deploy | Good |
+| Logging before other phases | Enables debugging | Good |
+| MAX(updated_at) version check | No migration needed | Good |
+| Append-only rollback | Never mutates history | Good |
+| Validate images at ingress | Fail fast, immediate feedback | Good |
+
+## Constraints
+
+- **Deployment**: Supabase Edge Functions only (no Vercel)
+- **WhatsApp**: WaSenderAPI for media handling
+- **Testing**: Real agent phone numbers from `agents` table
+- **Backwards Compatible**: Changes must not break existing functionality
 
 ---
-*Last updated: 2026-01-28 after milestone v1.1 initialization*
+*Last updated: 2026-01-29 after v1.1 milestone*
