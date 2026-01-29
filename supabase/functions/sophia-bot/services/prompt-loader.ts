@@ -9,6 +9,7 @@
  */
 
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
+import { logger, LogCategory } from "../utils/logger.ts";
 
 // Cache configuration
 // TEMP: Disabled cache for testing image batching fix (Jan 26, 2026)
@@ -18,6 +19,7 @@ const CACHE_TTL_MS = 0; // 5 * 60 * 1000; // 5 minutes
 // In-memory cache
 let cachedPromptSections: Map<string, string> | null = null;
 let cacheTimestamp: number = 0;
+let cacheVersion: string | null = null; // Stores MAX(updated_at) from last load
 
 // Fallback prompts imported from modular files (used if DB fails)
 import { IDENTITY } from "../prompts/core/identity.ts";
@@ -55,6 +57,31 @@ interface AgentContext {
 }
 
 /**
+ * Get current database version using MAX(updated_at)
+ * Used for version-based cache invalidation
+ */
+async function getDatabaseVersion(
+  supabase: SupabaseClient
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from("sophia_prompts")
+      .select("updated_at")
+      .eq("is_active", true)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+    return data.updated_at;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Load prompt sections from database with caching
  */
 async function loadPromptSectionsFromDB(
@@ -68,12 +95,18 @@ async function loadPromptSectionsFromDB(
       .order("priority", { ascending: true });
 
     if (error) {
-      console.error("[PromptLoader] DB error:", error.message);
+      logger.error(
+        "DB error loading prompts",
+        new Error(error.message),
+        { category: LogCategory.CACHE, errorMessage: error.message }
+      );
       return null;
     }
 
     if (!data || data.length === 0) {
-      console.warn("[PromptLoader] No active prompts found in DB");
+      logger.warn("No active prompts found in DB", {
+        category: LogCategory.CACHE,
+      });
       return null;
     }
 
@@ -83,10 +116,15 @@ async function loadPromptSectionsFromDB(
       promptMap.set(row.key, row.content);
     }
 
-    console.log(`[PromptLoader] Loaded ${promptMap.size} prompts from DB`);
+    logger.info("Loaded prompts from DB", {
+      category: LogCategory.CACHE,
+      promptCount: promptMap.size,
+    });
     return promptMap;
   } catch (err) {
-    console.error("[PromptLoader] Exception loading prompts:", err);
+    logger.error("Exception loading prompts", err as Error, {
+      category: LogCategory.CACHE,
+    });
     return null;
   }
 }
@@ -100,12 +138,28 @@ async function getPromptSections(
 ): Promise<Map<string, string>> {
   const now = Date.now();
 
-  // Return cached if valid
+  // Check if cache exists and is within TTL
   if (cachedPromptSections && now - cacheTimestamp < CACHE_TTL_MS) {
-    console.log("[PromptLoader] Using cached prompts");
-    return cachedPromptSections;
+    // Version check: verify DB hasn't been updated
+    const dbVersion = await getDatabaseVersion(supabase);
+    if (dbVersion && dbVersion === cacheVersion) {
+      // Cache hit - version matches
+      logger.debug("Cache hit - using cached prompts", {
+        category: LogCategory.CACHE,
+        cacheAge: now - cacheTimestamp,
+        version: cacheVersion,
+      });
+      return cachedPromptSections;
+    }
+    // Version mismatch - DB was updated
+    logger.info("Cache version mismatch - refreshing", {
+      category: LogCategory.CACHE,
+      cachedVersion: cacheVersion,
+      dbVersion: dbVersion,
+    });
   }
 
+  // Cache miss or stale - load from DB
   // Start with fallback prompts (full modular content)
   const mergedPrompts = new Map(Object.entries(FALLBACK_PROMPTS));
 
@@ -117,10 +171,21 @@ async function getPromptSections(
     for (const [key, value] of dbPrompts) {
       mergedPrompts.set(key, value);
     }
-    console.log(`[PromptLoader] Merged ${dbPrompts.size} DB prompts with ${Object.keys(FALLBACK_PROMPTS).length - dbPrompts.size} fallback prompts`);
+    const fallbackCount = Object.keys(FALLBACK_PROMPTS).length - dbPrompts.size;
+    logger.debug("Merged DB prompts with fallbacks", {
+      category: LogCategory.CACHE,
+      dbCount: dbPrompts.size,
+      fallbackCount: fallbackCount,
+    });
   } else {
-    console.warn("[PromptLoader] Using fallback hardcoded prompts (DB unavailable)");
+    logger.warn("Using fallback hardcoded prompts (DB unavailable)", {
+      category: LogCategory.CACHE,
+    });
   }
+
+  // After successful load, store the version
+  const dbVersion = await getDatabaseVersion(supabase);
+  cacheVersion = dbVersion;
 
   // Update cache
   cachedPromptSections = mergedPrompts;
@@ -186,9 +251,10 @@ export async function loadSystemPrompt(
   // Join all sections with separator
   const fullPrompt = promptParts.join("\n\n---\n\n");
 
-  console.log(
-    `[PromptLoader] Assembled system prompt (${fullPrompt.length} chars)`
-  );
+  logger.debug("Assembled system prompt", {
+    category: LogCategory.CACHE,
+    promptLength: fullPrompt.length,
+  });
 
   return fullPrompt;
 }
@@ -210,7 +276,8 @@ export async function getPromptSection(
 export function invalidateCache(): void {
   cachedPromptSections = null;
   cacheTimestamp = 0;
-  console.log("[PromptLoader] Cache invalidated");
+  cacheVersion = null;
+  logger.info("Cache manually invalidated", { category: LogCategory.CACHE });
 }
 
 /**
@@ -229,11 +296,13 @@ export function getCacheStatus(): {
   age: number;
   ttl: number;
   sectionCount: number;
+  version: string | null;
 } {
   return {
     isCached: !!cachedPromptSections,
     age: cachedPromptSections ? Date.now() - cacheTimestamp : 0,
     ttl: CACHE_TTL_MS,
     sectionCount: cachedPromptSections?.size ?? 0,
+    version: cacheVersion,
   };
 }
