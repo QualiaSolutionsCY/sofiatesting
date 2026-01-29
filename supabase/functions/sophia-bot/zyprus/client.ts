@@ -16,6 +16,8 @@ import {
   findPropertyViewUuids,
 } from "./taxonomy-cache.ts";
 import { logger, LogCategory } from "../utils/logger.ts";
+import { withRetry } from "../utils/retry.ts";
+import { logClassifiedError } from "../utils/error-mapper.ts";
 
 export interface TokenCache {
   token: string;
@@ -100,18 +102,29 @@ export async function getAccessToken(config: ZyprusConfig): Promise<string> {
     operation: "getAccessToken",
   });
 
-  const response = await fetch(`${config.apiUrl}/oauth/token`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": "SophiaAI",
+  const response = await withRetry(
+    async () => {
+      const res = await fetch(`${config.apiUrl}/oauth/token`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "SophiaAI",
+        },
+        body: new URLSearchParams({
+          grant_type: "client_credentials",
+          client_id: config.clientId,
+          client_secret: config.clientSecret,
+        }),
+      });
+
+      if (!res.ok && [500, 502, 503, 504].includes(res.status)) {
+        throw new Error(`Token request failed: ${res.status}`);
+      }
+      return res;
     },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-    }),
-  });
+    { maxRetries: 3, baseDelayMs: 500 },
+    "getAccessToken"
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -422,18 +435,29 @@ async function uploadSingleImage(
     }
 
     // Upload to Zyprus (NOTE: field_gallery_ with trailing underscore)
-    const uploadResponse = await fetch(
-      `${config.apiUrl}/jsonapi/node/property/field_gallery_`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/octet-stream",
-          "Content-Disposition": `file; filename="${filename}"`,
-          "User-Agent": "SophiaAI",
-        },
-        body: imageBuffer,
-      }
+    const uploadResponse = await withRetry(
+      async () => {
+        const res = await fetch(
+          `${config.apiUrl}/jsonapi/node/property/field_gallery_`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/octet-stream",
+              "Content-Disposition": `file; filename="${filename}"`,
+              "User-Agent": "SophiaAI",
+            },
+            body: imageBuffer,
+          }
+        );
+
+        if (!res.ok && res.status >= 500) {
+          throw new Error(`Image upload failed: ${res.status}`);
+        }
+        return res;
+      },
+      { maxRetries: 2, baseDelayMs: 500 },
+      "uploadSingleImage"
     );
 
     if (!uploadResponse.ok) {
@@ -459,7 +483,7 @@ async function uploadSingleImage(
     return null;
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    logger.error("Image upload error", err, {
+    logClassifiedError("Image upload error", err, {
       category: LogCategory.ZYPRUS,
       operation: "uploadSingleImage",
       imageIndex: index,
@@ -589,16 +613,28 @@ export async function createDraftListing(
     viewUuids
   );
 
-  const response = await fetch(`${config.apiUrl}/jsonapi/node/property`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/vnd.api+json",
-      Accept: "application/vnd.api+json",
-      "User-Agent": "SophiaAI",
+  const response = await withRetry(
+    async () => {
+      const res = await fetch(`${config.apiUrl}/jsonapi/node/property`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/vnd.api+json",
+          Accept: "application/vnd.api+json",
+          "User-Agent": "SophiaAI",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      // Only retry on server errors, not client errors (4xx)
+      if (!res.ok && res.status >= 500) {
+        throw new Error(`Listing creation failed: ${res.status}`);
+      }
+      return res;
     },
-    body: JSON.stringify(payload),
-  });
+    { maxRetries: 2, baseDelayMs: 1000 },
+    "createDraftListing"
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -612,7 +648,7 @@ export async function createDraftListing(
     } catch {
       errorDetail = errorText.substring(0, 200);
     }
-    logger.error("Failed to create Zyprus listing", undefined, {
+    logClassifiedError("Failed to create Zyprus listing", new Error(`Failed to create listing (${response.status}): ${errorDetail || "Unknown error"}`), {
       category: LogCategory.ZYPRUS,
       operation: "createDraftListing",
       status: response.status,
