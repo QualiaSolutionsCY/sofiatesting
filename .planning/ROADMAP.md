@@ -19,7 +19,7 @@
 | 5 | WhatsApp Image Upload | LIST-06 | Carried to v1.1 |
 | 6 | Logging Foundation | LOG-01 to LOG-05, LIST-06 | Complete |
 | 7 | Cache Restoration | CACHE-01 to CACHE-05 | Complete |
-| 8 | Prompt Consolidation | PRMT-01 to PRMT-05 | Planned |
+| 8 | Prompt Consolidation | PRMT-01 to PRMT-05 | Complete |
 | 9 | Validation & Error Handling | ERR-01 to ERR-04, IMG-01 to IMG-03 | Not started |
 
 ---
@@ -200,14 +200,15 @@ Low-Medium — Restore existing functionality with version checking
 **Goal:** Establish single source of truth for each prompt behavior, eliminating priority conflicts
 **Depends on:** Phase 7 (stable cache required for testing prompt changes)
 **Requirements:** PRMT-01, PRMT-02, PRMT-03, PRMT-04, PRMT-05
-**Status:** Planned
+**Status:** Complete
+**Completed:** 2026-01-29
 **Plans:** 4 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — Schema versioning + prompt-loader updates (version, is_current columns)
-- [ ] 08-02-PLAN.md — Templates migration to DB (file-only to DB authoritative)
-- [ ] 08-03-PLAN.md — Ownership documentation + conflict detection script
-- [ ] 08-04-PLAN.md — Admin rollback API endpoint
+- [x] 08-01-PLAN.md — Schema versioning + prompt-loader updates (version, is_current columns)
+- [x] 08-02-PLAN.md — Templates migration to DB (file-only to DB authoritative)
+- [x] 08-03-PLAN.md — Ownership documentation + conflict detection script
+- [x] 08-04-PLAN.md — Admin rollback API endpoint
 
 ### Key Files
 - `sophia_prompts` table (schema and data)
@@ -300,10 +301,11 @@ v1.1 (In Progress)
 | 5. WhatsApp Image Upload | v1.0 | 1/3 | Carried | - |
 | 6. Logging Foundation | v1.1 | 4/4 | Complete | 2026-01-28 |
 | 7. Cache Restoration | v1.1 | 3/3 | Complete | 2026-01-29 |
-| 8. Prompt Consolidation | v1.1 | 0/4 | Planned | - |
+| 8. Prompt Consolidation | v1.1 | 4/4 | Complete | 2026-01-29 |
 | 9. Validation & Error Handling | v1.1 | 0/TBD | Not started | - |
 
 ---
 
 *Roadmap created: 2026-01-23*
+*Last updated: 2026-01-29 — Phase 8 complete*
 *Last updated: 2026-01-29 — Phase 8 planned*
