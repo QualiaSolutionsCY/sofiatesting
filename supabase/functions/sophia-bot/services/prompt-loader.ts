@@ -26,10 +26,14 @@ import { logger, LogCategory } from "../utils/logger.ts";
  */
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+// Cache miss reason tracking
+type CacheMissReason = "first_load" | "expired" | "version_mismatch" | "manual_invalidation";
+
 // In-memory cache
 let cachedPromptSections: Map<string, string> | null = null;
 let cacheTimestamp: number = 0;
 let cacheVersion: string | null = null; // Stores MAX(updated_at) from last load
+let lastInvalidationReason: string | null = null;
 
 // Fallback prompts imported from modular files (used if DB fails)
 import { IDENTITY } from "../prompts/core/identity.ts";
@@ -147,29 +151,45 @@ async function getPromptSections(
   supabase: SupabaseClient
 ): Promise<Map<string, string>> {
   const now = Date.now();
+  let cacheMissReason: CacheMissReason | null = null;
 
-  // Check if cache exists and is within TTL
-  if (cachedPromptSections && now - cacheTimestamp < CACHE_TTL_MS) {
-    // Version check: verify DB hasn't been updated
+  // Check if cache exists
+  if (!cachedPromptSections) {
+    cacheMissReason = "first_load";
+  } else if (now - cacheTimestamp >= CACHE_TTL_MS) {
+    cacheMissReason = "expired";
+  } else {
+    // Cache exists and within TTL - check version
     const dbVersion = await getDatabaseVersion(supabase);
-    if (dbVersion && dbVersion === cacheVersion) {
-      // Cache hit - version matches
-      logger.debug("Cache hit - using cached prompts", {
+    if (dbVersion && dbVersion !== cacheVersion) {
+      cacheMissReason = "version_mismatch";
+      logger.info("Cache version mismatch detected", {
         category: LogCategory.CACHE,
-        cacheAge: now - cacheTimestamp,
-        version: cacheVersion,
+        cachedVersion: cacheVersion?.substring(0, 19) ?? "none",  // Truncate timestamp for readability
+        dbVersion: dbVersion.substring(0, 19),
+      });
+    } else {
+      // Cache hit - version matches
+      const cacheAge = now - cacheTimestamp;
+      logger.debug("Cache HIT", {
+        category: LogCategory.CACHE,
+        cacheAgeMs: cacheAge,
+        cacheAgeFormatted: `${Math.round(cacheAge / 1000)}s`,
+        ttlRemainingMs: CACHE_TTL_MS - cacheAge,
+        sectionCount: cachedPromptSections.size,
+        version: cacheVersion?.substring(0, 19) ?? "unknown",
       });
       return cachedPromptSections;
     }
-    // Version mismatch - DB was updated
-    logger.info("Cache version mismatch - refreshing", {
-      category: LogCategory.CACHE,
-      cachedVersion: cacheVersion,
-      dbVersion: dbVersion,
-    });
   }
 
-  // Cache miss or stale - load from DB
+  // Cache miss - log reason and reload
+  logger.info("Cache MISS", {
+    category: LogCategory.CACHE,
+    reason: cacheMissReason,
+    previousCacheAge: cachedPromptSections ? now - cacheTimestamp : null,
+  });
+
   // Start with fallback prompts (full modular content)
   const mergedPrompts = new Map(Object.entries(FALLBACK_PROMPTS));
 
@@ -200,6 +220,17 @@ async function getPromptSections(
   // Update cache
   cachedPromptSections = mergedPrompts;
   cacheTimestamp = now;
+
+  // Log cache population
+  logger.info("Cache populated", {
+    category: LogCategory.CACHE,
+    sectionCount: mergedPrompts.size,
+    dbPromptCount: dbPrompts?.size ?? 0,
+    fallbackPromptCount: Object.keys(FALLBACK_PROMPTS).length,
+    version: cacheVersion?.substring(0, 19) ?? "unknown",
+    ttlMs: CACHE_TTL_MS,
+  });
+
   return mergedPrompts;
 }
 
@@ -283,11 +314,15 @@ export async function getPromptSection(
 /**
  * Force refresh the cache (useful after Dashboard edits)
  */
-export function invalidateCache(): void {
+export function invalidateCache(reason: string = "manual"): void {
   cachedPromptSections = null;
   cacheTimestamp = 0;
   cacheVersion = null;
-  logger.info("Cache manually invalidated", { category: LogCategory.CACHE });
+  lastInvalidationReason = reason;
+  logger.info("Cache invalidated", {
+    category: LogCategory.CACHE,
+    reason,
+  });
 }
 
 /**
@@ -307,12 +342,17 @@ export function getCacheStatus(): {
   ttl: number;
   sectionCount: number;
   version: string | null;
+  lastInvalidationReason: string | null;
+  isExpired: boolean;
 } {
+  const age = cachedPromptSections ? Date.now() - cacheTimestamp : 0;
   return {
     isCached: !!cachedPromptSections,
-    age: cachedPromptSections ? Date.now() - cacheTimestamp : 0,
+    age,
     ttl: CACHE_TTL_MS,
     sectionCount: cachedPromptSections?.size ?? 0,
     version: cacheVersion,
+    lastInvalidationReason,
+    isExpired: age > CACHE_TTL_MS,
   };
 }
