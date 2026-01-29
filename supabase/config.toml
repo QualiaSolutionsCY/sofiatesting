@@ -25,6 +25,12 @@ verify_jwt = false
 # Endpoint: https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/ai-chat
 verify_jwt = true
 
+[functions.draft-cleanup]
+# Scheduled cleanup of expired draft listings
+# Endpoint: https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/draft-cleanup
+# Schedule: Daily at 2 AM UTC via pg_cron
+verify_jwt = true
+
 # ==============================================================================
 # Required Secrets
 # ==============================================================================
