@@ -1,7 +1,7 @@
 # Roadmap: SOPHIA Production Hardening
 
 **Created:** 2026-01-23
-**Updated:** 2026-01-28
+**Updated:** 2026-01-29
 
 ## Milestones
 
@@ -18,7 +18,7 @@
 | 4 | Listing Upload Fixes | LIST-01 to LIST-05 | ✓ Complete |
 | 5 | WhatsApp Image Upload | LIST-06 | Carried to v1.1 |
 | 6 | Logging Foundation | LOG-01 to LOG-05, LIST-06 | ✓ Complete |
-| 7 | Cache Restoration | CACHE-01 to CACHE-05 | Planning |
+| 7 | Cache Restoration | CACHE-01 to CACHE-05 | ✓ Complete |
 | 8 | Prompt Consolidation | PRMT-01 to PRMT-05 | Not started |
 | 9 | Validation & Error Handling | ERR-01 to ERR-04, IMG-01 to IMG-03 | Not started |
 
@@ -170,10 +170,13 @@ Medium — Logger infrastructure exists, needs enhancement and migration
 **Requirements:** CACHE-01, CACHE-02, CACHE-03, CACHE-04, CACHE-05
 **Plans:** 3 plans
 
+**Status:** ✓ Complete
+**Completed:** 2026-01-29
+
 Plans:
-- [ ] 07-01-PLAN.md — Version checking using MAX(updated_at), migrate to structured logger
-- [ ] 07-02-PLAN.md — Admin endpoints (/admin/prompts/invalidate, /admin/cache/status)
-- [ ] 07-03-PLAN.md — Restore 5-minute TTL with comprehensive hit/miss logging
+- [x] 07-01-PLAN.md — Version checking using MAX(updated_at), migrate to structured logger
+- [x] 07-02-PLAN.md — Admin endpoints (/admin/prompts/invalidate, /admin/cache/status)
+- [x] 07-03-PLAN.md — Restore 5-minute TTL with comprehensive hit/miss logging
 
 ### Key Files
 - `supabase/functions/sophia-bot/services/prompt-loader.ts` (restore TTL, add version check)
@@ -287,11 +290,11 @@ v1.1 (In Progress)
 | 4. Listing Upload Fixes | v1.0 | 2/2 | Complete | 2026-01-25 |
 | 5. WhatsApp Image Upload | v1.0 | 1/3 | Carried | - |
 | 6. Logging Foundation | v1.1 | 4/4 | Complete | 2026-01-28 |
-| 7. Cache Restoration | v1.1 | 0/TBD | Not started | - |
+| 7. Cache Restoration | v1.1 | 3/3 | Complete | 2026-01-29 |
 | 8. Prompt Consolidation | v1.1 | 0/TBD | Not started | - |
 | 9. Validation & Error Handling | v1.1 | 0/TBD | Not started | - |
 
 ---
 
 *Roadmap created: 2026-01-23*
-*Last updated: 2026-01-28 — Phase 6 complete*
+*Last updated: 2026-01-29 — Phase 7 complete*

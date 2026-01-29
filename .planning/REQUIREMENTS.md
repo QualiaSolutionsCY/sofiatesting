@@ -19,11 +19,11 @@
 
 ### Cache Management
 
-- [ ] **CACHE-01**: Prompt cache TTL restored to 5 minutes (currently 0)
-- [ ] **CACHE-02**: Version-based cache invalidation (check version before using cache)
-- [ ] **CACHE-03**: Admin endpoint to force cache invalidation (/admin/prompts/invalidate)
-- [ ] **CACHE-04**: Cache hit/miss logging for debugging
-- [ ] **CACHE-05**: Cache status endpoint (/admin/cache/status)
+- [x] **CACHE-01**: Prompt cache TTL restored to 5 minutes (currently 0)
+- [x] **CACHE-02**: Version-based cache invalidation (check version before using cache)
+- [x] **CACHE-03**: Admin endpoint to force cache invalidation (/admin/prompts/invalidate)
+- [x] **CACHE-04**: Cache hit/miss logging for debugging
+- [x] **CACHE-05**: Cache status endpoint (/admin/cache/status)
 
 ### Prompt System
 
@@ -87,11 +87,11 @@
 | LOG-03 | Phase 6 | Complete |
 | LOG-04 | Phase 6 | Complete |
 | LOG-05 | Phase 6 | Complete |
-| CACHE-01 | Phase 7 | Pending |
-| CACHE-02 | Phase 7 | Pending |
-| CACHE-03 | Phase 7 | Pending |
-| CACHE-04 | Phase 7 | Pending |
-| CACHE-05 | Phase 7 | Pending |
+| CACHE-01 | Phase 7 | Complete |
+| CACHE-02 | Phase 7 | Complete |
+| CACHE-03 | Phase 7 | Complete |
+| CACHE-04 | Phase 7 | Complete |
+| CACHE-05 | Phase 7 | Complete |
 | PRMT-01 | Phase 8 | Pending |
 | PRMT-02 | Phase 8 | Pending |
 | PRMT-03 | Phase 8 | Pending |
@@ -112,4 +112,4 @@
 
 ---
 *Requirements defined: 2026-01-28*
-*Last updated: 2026-01-28 — Phase 6 requirements complete*
+*Last updated: 2026-01-29 — Phase 7 requirements complete*
