@@ -56,6 +56,7 @@ import {
   getPendingImageCount,
   clearPendingImages,
 } from "./services/pending-images.ts";
+import { validateImagesAtIngress } from "./services/image-validator.ts";
 
 // Memory and personalization (RAG)
 import {
@@ -1551,32 +1552,71 @@ async function extractMessage(payload: any): Promise<{
     }
   }
 
-  // Persist images to Supabase Storage for stable URLs
-  // WaSenderAPI decrypted URLs expire after ~1 hour
-  let persistedImageUrls = imageUrls;
+  // Early image validation (before storage)
+  let persistedImageUrls: string[] = [];
   if (imageUrls.length > 0) {
-    logger.info(`Image: Extracted ${imageUrls.length} image URL(s), persisting to storage...`, { category: LogCategory.IMAGE });
-    persistedImageUrls = await persistImages(imageUrls);
-    if (persistedImageUrls.length > 0) {
-      logger.info(`Image: Persisted ${persistedImageUrls.length} images to Supabase Storage`, { category: LogCategory.IMAGE });
+    logger.info("Validating images at ingress", {
+      category: LogCategory.IMAGE,
+      operation: "webhookImageValidation",
+      imageCount: imageUrls.length,
+    });
 
-      // CRITICAL: Store images in pending_images table for accumulation
-      // This allows SOPHIA to track images across multiple webhook calls
+    const validation = await validateImagesAtIngress(imageUrls);
+
+    // Log validation results
+    if (validation.invalid.length > 0) {
+      logger.warn("Some images failed validation at ingress", {
+        category: LogCategory.IMAGE,
+        operation: "webhookImageValidation",
+        validCount: validation.valid.length,
+        invalidCount: validation.invalid.length,
+        invalidReasons: validation.invalid.map(i => i.error),
+      });
+    }
+
+    // Only persist valid images
+    if (validation.valid.length > 0) {
+      const validUrls = validation.valid.map(i => i.url);
+      logger.info(`Image: Persisting ${validUrls.length} valid image(s) to storage...`, { category: LogCategory.IMAGE });
+      persistedImageUrls = await persistImages(validUrls);
+
+      if (persistedImageUrls.length > 0) {
+        logger.info(`Image: Persisted ${persistedImageUrls.length} images to Supabase Storage`, { category: LogCategory.IMAGE });
+
+        // CRITICAL: Store images in pending_images table for accumulation
+        // This allows SOPHIA to track images across multiple webhook calls
+        const phoneNumber = remoteJid?.split("@")[0]?.replace(/\D/g, "") || "";
+        if (phoneNumber) {
+          logger.info("Storing images to pending queue", {
+            category: LogCategory.IMAGE,
+            count: persistedImageUrls.length,
+          });
+          await addPendingImages(phoneNumber, persistedImageUrls, getContext().correlationId);
+          logger.info("Images queued for property upload", {
+            category: LogCategory.IMAGE,
+            count: persistedImageUrls.length,
+          });
+        }
+      } else if (validUrls.length > 0) {
+        logger.warn(`Image warning: Failed to persist any valid images`, { category: LogCategory.IMAGE });
+      }
+    }
+
+    // If ALL images were invalid, send feedback to user
+    if (validation.valid.length === 0 && validation.invalid.length > 0) {
+      // Get the most helpful user message
+      const userMessage = validation.invalid[0].userMessage ||
+        "These images could not be used. Please send photos directly from your phone gallery.";
+
+      // Send feedback (this happens before AI processing)
       const phoneNumber = remoteJid?.split("@")[0]?.replace(/\D/g, "") || "";
       if (phoneNumber) {
-        logger.info("Storing images to pending queue", {
+        logger.info("Sending image validation feedback to user", {
           category: LogCategory.IMAGE,
-          count: persistedImageUrls.length,
+          operation: "webhookImageValidation",
         });
-        await addPendingImages(phoneNumber, persistedImageUrls);
-        logger.info("Images queued for property upload", {
-          category: LogCategory.IMAGE,
-          count: persistedImageUrls.length,
-        });
+        await sendTextMessage(phoneNumber, userMessage);
       }
-    } else if (imageUrls.length > 0) {
-      logger.warn(`Image warning: Failed to persist any images, falling back to temporary URLs`, { category: LogCategory.IMAGE });
-      persistedImageUrls = imageUrls; // Fall back to temporary URLs if persistence fails
     }
   }
 
