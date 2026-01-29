@@ -6,7 +6,7 @@
 ## Milestones
 
 - **v1.0 Production Ready** - Phases 1-5 (shipped 2026-01-27, 93% complete)
-- **v1.1 Reliability & Hardening** - Phases 6-9 (in progress)
+- **v1.1 Reliability & Hardening** - Phases 6-9 (complete 2026-01-29)
 
 ## Phase Overview
 
@@ -20,7 +20,7 @@
 | 6 | Logging Foundation | LOG-01 to LOG-05, LIST-06 | Complete |
 | 7 | Cache Restoration | CACHE-01 to CACHE-05 | Complete |
 | 8 | Prompt Consolidation | PRMT-01 to PRMT-05 | Complete |
-| 9 | Validation & Error Handling | ERR-01 to ERR-04, IMG-01 to IMG-03 | Not started |
+| 9 | Validation & Error Handling | ERR-01 to ERR-04, IMG-01 to IMG-03 | Complete |
 
 ---
 
@@ -234,14 +234,16 @@ Medium — Careful migration required, risk of breaking existing behavior
 **Goal:** Validate inputs early, handle errors gracefully with user-friendly messages
 **Depends on:** Phase 8 (clean prompts ensure predictable AI behavior during validation)
 **Requirements:** ERR-01, ERR-02, ERR-03, ERR-04, IMG-01, IMG-02, IMG-03
+**Status:** Complete
+**Completed:** 2026-01-29
 **Plans:** 5 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — Retry utility + error classification (foundation)
-- [ ] 09-02-PLAN.md — Integrate retry into Zyprus client and DB operations
-- [ ] 09-03-PLAN.md — Health check endpoint with dependency monitoring
-- [ ] 09-04-PLAN.md — Early image validation with user-friendly errors
-- [ ] 09-05-PLAN.md — Integration: webhook image validation + tool error messages
+- [x] 09-01-PLAN.md — Retry utility + error classification (foundation)
+- [x] 09-02-PLAN.md — Integrate retry into Zyprus client and DB operations
+- [x] 09-03-PLAN.md — Health check endpoint with dependency monitoring
+- [x] 09-04-PLAN.md — Early image validation with user-friendly errors
+- [x] 09-05-PLAN.md — Integration: webhook image validation + tool error messages
 
 ### Key Files
 - `supabase/functions/sophia-bot/index.ts` (early validation at webhook entry, health endpoint)
@@ -309,9 +311,9 @@ v1.1 (In Progress)
 | 6. Logging Foundation | v1.1 | 4/4 | Complete | 2026-01-28 |
 | 7. Cache Restoration | v1.1 | 3/3 | Complete | 2026-01-29 |
 | 8. Prompt Consolidation | v1.1 | 4/4 | Complete | 2026-01-29 |
-| 9. Validation & Error Handling | v1.1 | 0/5 | Planned | - |
+| 9. Validation & Error Handling | v1.1 | 5/5 | Complete | 2026-01-29 |
 
 ---
 
 *Roadmap created: 2026-01-23*
-*Last updated: 2026-01-29 — Phase 9 planned (5 plans in 3 waves)*
+*Last updated: 2026-01-29 — v1.1 Milestone complete (Phases 6-9)*
