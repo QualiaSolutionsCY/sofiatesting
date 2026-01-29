@@ -2877,6 +2877,48 @@ serve(async (req) => {
     return await handleTemplateMigration();
   }
 
+  // DEBUG: Cache status without auth (Plan 08-02 verification)
+  if (url.pathname === "/sophia-bot/cache-status" && req.method === "GET") {
+    const status = getCacheStatus();
+    return new Response(JSON.stringify({
+      cache: {
+        isCached: status.isCached,
+        ageMs: status.age,
+        ttlMs: status.ttl,
+        sectionCount: status.sectionCount,
+        version: status.version,
+      }
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  // DEBUG: Query DB for active prompts count (Plan 08-02 verification)
+  if (url.pathname === "/sophia-bot/db-prompts-count" && req.method === "GET") {
+    const { data, error } = await supabase
+      .from("sophia_prompts")
+      .select("key, priority, is_active")
+      .eq("is_active", true)
+      .eq("is_current", true)
+      .order("priority");
+
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    return new Response(JSON.stringify({
+      totalActive: data.length,
+      prompts: data,
+      hasTemplates: data.some(p => p.key === "templates"),
+      templatesPriority: data.find(p => p.key === "templates")?.priority || null,
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
   if (url.pathname.startsWith("/sophia-bot/admin/")) {
     return handleAdminRequest(req, url);
   }
