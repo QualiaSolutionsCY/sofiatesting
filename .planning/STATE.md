@@ -12,11 +12,11 @@ See: `.planning/PROJECT.md` (updated 2026-01-28)
 ## Current Position
 
 Phase: 8 of 9 (Prompt Consolidation)
-Plan: 3 of TBD complete (in progress)
+Plan: 4 of TBD complete (in progress)
 Status: In progress
-Last activity: 2026-01-29 — Completed 08-03 (Ownership & Conflict Detection)
+Last activity: 2026-01-29 — Completed 08-04 (Admin Rollback API)
 
-Progress: [████████░░] 82% (v1.0 complete + Phases 6-7 complete + 08-01,02,03 complete)
+Progress: [████████░░] 83% (v1.0 complete + Phases 6-7 complete + 08-01,02,03,04 complete)
 
 ## Performance Metrics
 
@@ -31,9 +31,10 @@ Progress: [████████░░] 82% (v1.0 complete + Phases 6-7 compl
 |-------|-------|-------|----------|
 | 6 (complete) | 4 | ~24min | ~6min |
 | 7 (complete) | 3 | ~6min | ~2min |
-| 8 (in progress) | 3 | ~19min | ~6.3min |
+| 8 (in progress) | 4 | ~22min | ~5.5min |
 
 **Recent Trend:**
+- Plan 08-04: 3 min (admin rollback API)
 - Plan 08-03: 2 min (ownership headers + conflict detection)
 - Plan 08-02: 13 min (templates DB migration with routing fixes)
 - Plan 08-01: 4 min (version tracking infrastructure)
@@ -77,6 +78,9 @@ Recent decisions affecting current work:
 - [08-03]: Ownership headers on prompt files documenting DB as source of truth
 - [08-03]: Keyword-based conflict detection to catch multi-prompt contradictions
 - [08-03]: Informational conflicts require human review (not all duplicates are bugs)
+- [08-04]: Rollback creates new version instead of mutating current
+- [08-04]: Cache invalidation happens after successful rollback
+- [08-04]: Rollback action logged with reason parameter
 
 ### Pending Todos
 
@@ -97,10 +101,10 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-29
-Stopped at: Completed 08-03 (Ownership & Conflict Detection)
+Stopped at: Completed 08-04 (Admin Rollback API)
 Resume file: None
 Next action: Continue Phase 8 (or plan next phase if 08 complete)
 
 ---
 
-*State snapshot: 2026-01-29 — Plan 08-03 complete, ownership docs + conflict detection in place*
+*State snapshot: 2026-01-29 — Plan 08-04 complete, rollback API with append-only strategy deployed*
