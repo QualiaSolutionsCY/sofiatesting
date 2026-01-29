@@ -82,6 +82,7 @@ async function getDatabaseVersion(
       .from("sophia_prompts")
       .select("updated_at")
       .eq("is_active", true)
+      .eq("is_current", true)
       .order("updated_at", { ascending: false })
       .limit(1)
       .single();
@@ -106,6 +107,7 @@ async function loadPromptSectionsFromDB(
       .from("sophia_prompts")
       .select("key, content, priority")
       .eq("is_active", true)
+      .eq("is_current", true)
       .order("priority", { ascending: true });
 
     if (error) {
@@ -355,4 +357,27 @@ export function getCacheStatus(): {
     lastInvalidationReason,
     isExpired: age > CACHE_TTL_MS,
   };
+}
+
+/**
+ * Get version history for a prompt key (for admin UI)
+ */
+export async function getPromptVersionHistory(
+  supabase: SupabaseClient,
+  key: string
+): Promise<Array<{version: number, created_at: string, replaced_at: string | null, is_current: boolean}>> {
+  const { data, error } = await supabase
+    .from("sophia_prompts")
+    .select("version, created_at, replaced_at, is_current")
+    .eq("key", key)
+    .order("version", { ascending: false });
+
+  if (error || !data) {
+    logger.error("Failed to get version history", new Error(error?.message || "Unknown"), {
+      category: LogCategory.CACHE,
+      promptKey: key,
+    });
+    return [];
+  }
+  return data;
 }
