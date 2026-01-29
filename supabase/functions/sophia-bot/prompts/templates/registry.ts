@@ -117,9 +117,43 @@ export function extractTemplateTitle(response: string): string | null {
 }
 
 /**
+ * Check if content looks like a completed reservation agreement
+ */
+function isCompletedReservationAgreement(content: string): boolean {
+  const lowerContent = content.toLowerCase();
+
+  // Must have reservation agreement structure
+  if (!lowerContent.includes('property reservation') && !lowerContent.includes('reservation agreement')) {
+    return false;
+  }
+
+  // Must have prospective buyer with passport info
+  const hasBuyerInfo = /prospective\s+buyer/i.test(content) &&
+                       (/passport[:\s]+[A-Z0-9]+/i.test(content) || /[A-Z]+\s+PASSPORT/i.test(content));
+
+  // Must have vendor
+  const hasVendor = /vendor[:\s]+/i.test(content);
+
+  // Must have property registration
+  const hasPropertyReg = /\d+\/\d+/i.test(content);
+
+  // Must have financial terms
+  const hasFinancials = /reservation\s+fee[:\s]+[€$]?\s*[\d,]+/i.test(content) &&
+                        /purchase\s+price[:\s]+[€$]?\s*[\d,]+/i.test(content);
+
+  return hasBuyerInfo && hasVendor && hasPropertyReg && hasFinancials;
+}
+
+/**
  * Check if a response is a clarification question rather than actual document content
  */
 function isClarificationQuestion(response: string): boolean {
+  // FIRST: Check if this is a completed reservation agreement - these should NOT be classified as clarifications
+  if (isCompletedReservationAgreement(response)) {
+    console.log("[Registry] Detected completed reservation agreement, not a clarification");
+    return false;
+  }
+
   const lower = response.toLowerCase();
 
   // Clarification patterns - AI asking for more info
