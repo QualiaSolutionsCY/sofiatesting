@@ -7,11 +7,14 @@ import {
   logListingUploadAttempt,
   updateListingStatus,
 } from "@/lib/db/queries";
+import { createLogger } from "@/lib/logger";
 import {
   isPermanentError,
   uploadToZyprusAPI,
   ZyprusAPIError,
 } from "@/lib/zyprus/client";
+
+const logger = createLogger("api:listings:upload");
 
 const uploadListingSchema = z.object({
   listingId: z.string().uuid(),
@@ -138,11 +141,9 @@ export async function POST(req: Request) {
     }
 
     if (error instanceof ZyprusAPIError) {
-      console.error("Zyprus API Error Details:", {
-        message: error.message,
+      logger.error("Zyprus API Error", error, {
         code: error.code,
         statusCode: error.statusCode,
-        fullError: error,
       });
       const statusCode = error.statusCode || 500;
       return NextResponse.json(
@@ -156,7 +157,7 @@ export async function POST(req: Request) {
       );
     }
 
-    console.error("Failed to upload listing:", error);
+    logger.error("Failed to upload listing", error);
     return NextResponse.json(
       { error: "Failed to upload listing" },
       { status: 500 }

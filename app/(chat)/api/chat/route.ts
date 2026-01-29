@@ -18,6 +18,7 @@ import { entitlementsByUserType } from "@/lib/ai/entitlements";
 import type { ChatModel } from "@/lib/ai/models";
 import { type RequestHints, systemPrompt } from "@/lib/ai/prompts";
 import { myProvider } from "@/lib/ai/providers";
+import { createLogger } from "@/lib/logger";
 import { calculateCapitalGainsTool } from "@/lib/ai/tools/calculate-capital-gains";
 import { calculateTransferFeesTool } from "@/lib/ai/tools/calculate-transfer-fees";
 import { calculateVATTool } from "@/lib/ai/tools/calculate-vat";
@@ -50,15 +51,16 @@ import { type PostRequestBody, postRequestBodySchema } from "./schema";
 // Increased to 120s to allow for image uploads to Zyprus API
 export const maxDuration = 120;
 
+const logger = createLogger("api:chat");
+
 const getTokenlensCatalog = cache(
   async (): Promise<ModelCatalog | undefined> => {
     try {
       return await fetchModels();
     } catch (err) {
-      console.warn(
-        "TokenLens: catalog fetch failed, using default catalog",
-        err
-      );
+      logger.warn("TokenLens catalog fetch failed, using default catalog", {
+        error: err instanceof Error ? err.message : String(err),
+      });
       return; // tokenlens helpers will fall back to defaultCatalog
     }
   },
@@ -91,7 +93,7 @@ export async function POST(request: Request) {
         .join(", ");
     }
 
-    console.error("Validation error in POST /api/chat:", {
+    logger.error("Validation error in POST /api/chat", undefined, {
       error: errorMessage,
     });
     return new ChatSDKError(
@@ -132,9 +134,12 @@ export async function POST(request: Request) {
     const maxMessages = entitlementsByUserType[userType].maxMessagesPerDay;
 
     if (messageCount >= maxMessages) {
-      console.error(
-        `Rate limit exceeded for user ${session.user.id} (type: ${userType}): ${messageCount}/${maxMessages} messages in 24h`
-      );
+      logger.warn("Rate limit exceeded", {
+        userId: session.user.id,
+        userType,
+        messageCount,
+        maxMessages,
+      });
       return new ChatSDKError("rate_limit:chat").toResponse();
     }
 
@@ -275,7 +280,9 @@ export async function POST(request: Request) {
               finalMergedUsage = { ...usage, ...summary, modelId } as AppUsage;
               dataStream.write({ type: "data-usage", data: finalMergedUsage });
             } catch (err) {
-              console.warn("TokenLens enrichment failed", err);
+              logger.warn("TokenLens enrichment failed", {
+                error: err instanceof Error ? err.message : String(err),
+              });
               finalMergedUsage = usage;
               dataStream.write({ type: "data-usage", data: finalMergedUsage });
             }
@@ -310,7 +317,10 @@ export async function POST(request: Request) {
               context: finalMergedUsage,
             });
           } catch (err) {
-            console.warn("Unable to persist last usage for chat", id, err);
+            logger.warn("Unable to persist last usage for chat", {
+              chatId: id,
+              error: err instanceof Error ? err.message : String(err),
+            });
           }
         }
       },
@@ -344,7 +354,7 @@ export async function POST(request: Request) {
         "AI Gateway requires a valid credit card on file to service requests"
       )
     ) {
-      console.warn("AI Gateway billing issue - falling back to Gemini", {
+      logger.warn("AI Gateway billing issue - falling back to Gemini", {
         vercelId,
       });
       // Don't fail the request - just use Gemini as fallback
@@ -368,8 +378,7 @@ export async function POST(request: Request) {
         error.message?.includes("ETIMEDOUT") ||
         error.message?.includes("fetch failed"))
     ) {
-      console.error("Service error - attempting recovery:", {
-        message: error.message,
+      logger.error("Service error - attempting recovery", error, {
         vercelId,
         model: requestBody.selectedChatModel,
       });
@@ -379,7 +388,7 @@ export async function POST(request: Request) {
       return new ChatSDKError("offline:chat").toResponse();
     }
 
-    console.error("Unhandled error in chat API:", error, { vercelId });
+    logger.error("Unhandled error in chat API", error, { vercelId });
     return new ChatSDKError("offline:chat").toResponse();
   }
 }

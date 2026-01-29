@@ -5,7 +5,10 @@ import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import { db } from "@/lib/db/client";
 import { documentSend } from "@/lib/db/schema";
+import { createLogger } from "@/lib/logger";
 import { getWhatsAppClient } from "@/lib/whatsapp/client";
+
+const logger = createLogger("api:documents:send");
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -121,7 +124,7 @@ export async function POST(request: Request) {
         .where(eq(documentSend.id, sendRecord.id));
     } catch (sendError) {
       // Update tracking record with error
-      console.error("[Documents] Send error:", sendError);
+      logger.error("Send error", sendError);
       result = {
         success: false,
         error:
@@ -145,7 +148,7 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   } catch (error) {
-    console.error("[Documents] Send endpoint error:", error);
+    logger.error("Send endpoint error", error);
     return NextResponse.json(
       {
         error:
@@ -214,13 +217,13 @@ async function sendViaEmail({
     });
 
     if (error) {
-      console.error("[Documents] Resend error:", error);
+      logger.error("Resend error", error);
       return { success: false, error: error.message };
     }
 
     return { success: true };
   } catch (error) {
-    console.error("[Documents] Email send error:", error);
+    logger.error("Email send error", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Email sending failed",
@@ -273,7 +276,7 @@ async function sendViaWhatsApp({
 
     return { success: true };
   } catch (error) {
-    console.error("[Documents] WhatsApp send error:", error);
+    logger.error("WhatsApp send error", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "WhatsApp sending failed",

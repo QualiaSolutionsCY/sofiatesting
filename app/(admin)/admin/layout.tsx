@@ -5,6 +5,9 @@ import { AdminHeader } from "@/components/admin/header";
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { db } from "@/lib/db/client";
 import { adminUserRole } from "@/lib/db/schema";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("admin:layout");
 
 async function getAdminRole(userId: string) {
   try {
@@ -16,7 +19,7 @@ async function getAdminRole(userId: string) {
 
     return adminRole;
   } catch (error) {
-    console.error("[Admin Layout] Failed to fetch admin role:", error);
+    logger.error("Failed to fetch admin role", error);
     // Return empty array to trigger default permissions
     return [];
   }

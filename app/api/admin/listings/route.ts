@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { checkAdminAuth } from "@/lib/auth/admin";
 import { db } from "@/lib/db/client";
 import { propertyListing, user } from "@/lib/db/schema";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("api:admin:listings");
 
 /**
  * GET /api/admin/listings - Get all property listings for admin review
@@ -80,7 +83,7 @@ export async function GET(req: Request) {
       count: listings.length,
     });
   } catch (error) {
-    console.error("Failed to get admin listings:", error);
+    logger.error("Failed to get admin listings", error);
     return NextResponse.json(
       { error: "Failed to get listings" },
       { status: 500 }

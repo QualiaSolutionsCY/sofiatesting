@@ -2,6 +2,9 @@ import { and, eq, sql } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db/client";
 import { zyprusAgent } from "@/lib/db/schema";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("api:admin:agents:link-whatsapp");
 
 /**
  * POST /api/admin/agents/[id]/link-whatsapp
@@ -83,10 +86,7 @@ export async function POST(
       message: "WhatsApp account linked successfully",
     });
   } catch (error) {
-    console.error(
-      "[API /api/admin/agents/[id]/link-whatsapp POST] Error linking WhatsApp:",
-      error
-    );
+    logger.error("Error linking WhatsApp", error);
     return NextResponse.json(
       {
         error: "Failed to link WhatsApp account",
@@ -126,10 +126,7 @@ export async function DELETE(
       message: "WhatsApp account unlinked successfully",
     });
   } catch (error) {
-    console.error(
-      "[API /api/admin/agents/[id]/link-whatsapp DELETE] Error unlinking WhatsApp:",
-      error
-    );
+    logger.error("Error unlinking WhatsApp", error);
     return NextResponse.json(
       {
         error: "Failed to unlink WhatsApp account",

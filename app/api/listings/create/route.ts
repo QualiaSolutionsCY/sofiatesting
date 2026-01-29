@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import { createPropertyListing } from "@/lib/db/queries";
+import { createLogger } from "@/lib/logger";
 import { generateUUID } from "@/lib/utils";
+
+const logger = createLogger("api:listings:create");
 
 const createListingSchema = z.object({
   name: z.string().min(1).max(200),
@@ -83,7 +86,7 @@ export async function POST(req: Request) {
       );
     }
 
-    console.error("Failed to create listing:", error);
+    logger.error("Failed to create listing", error);
     return NextResponse.json(
       { error: "Failed to create listing" },
       { status: 500 }

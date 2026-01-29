@@ -1,5 +1,6 @@
 import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
+import { createLogger } from "@/lib/logger";
 import { handleWhatsAppMessage } from "@/lib/whatsapp/message-handler";
 import type {
   WaSenderMessageData,
@@ -7,6 +8,8 @@ import type {
   WaSenderStatusData,
 } from "@/lib/whatsapp/types";
 import { verifyWebhookSignature } from "@/lib/whatsapp/webhook-utils";
+
+const logger = createLogger("whatsapp:webhook");
 
 // Deduplication configuration
 const DEDUP_PREFIX = "whatsapp:dedup:";
@@ -72,7 +75,7 @@ const isMessageProcessed = async (messageId: string): Promise<boolean> => {
       await redis.set(key, 1, { ex: DEDUP_TTL_SECONDS });
       return false;
     } catch (error) {
-      console.error("[WhatsApp Webhook] Redis dedup failed:", error);
+      logger.error("Redis dedup failed", error);
       // Fall through to memory cache
     }
   }
@@ -146,12 +149,11 @@ export async function POST(request: Request): Promise<Response> {
     headerNames.push(key);
   });
 
-  console.log("[WhatsApp Webhook] Incoming request:", {
+  logger.debug("Incoming request", {
     method: request.method,
     headerNames,
     hasWebhookSignature: !!request.headers.get("x-webhook-signature"),
     hasWasenderSignature: !!request.headers.get("x-wasender-signature"),
-    timestamp: new Date().toISOString(),
   });
 
   // 1. Get signature from headers
@@ -163,7 +165,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // 2. Verify webhook secret is configured
   if (!webhookSecret) {
-    console.error("[WhatsApp Webhook] WASENDER_WEBHOOK_SECRET not configured");
+    logger.error("WASENDER_WEBHOOK_SECRET not configured");
     return NextResponse.json(
       { error: "Server misconfigured" },
       { status: 500 }
@@ -180,7 +182,7 @@ export async function POST(request: Request): Promise<Response> {
   const isHmacValid = verifyWebhookSignature(rawBody, signature, webhookSecret);
 
   if (!isDirectSecretMatch && !isHmacValid) {
-    console.warn("[WhatsApp Webhook] Invalid signature, rejecting request", {
+    logger.warn("Invalid signature, rejecting request", {
       hasSignature: !!signature,
       signatureLength: signature?.length,
       secretLength: webhookSecret.length,
@@ -191,7 +193,7 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  console.log("[WhatsApp Webhook] Signature verified successfully");
+  logger.debug("Signature verified successfully");
 
   // 5. Parse verified body
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -199,20 +201,17 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = JSON.parse(rawBody) as Record<string, any>;
   } catch {
-    console.error("[WhatsApp Webhook] Invalid JSON in request body");
+    logger.error("Invalid JSON in request body");
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
   try {
     // Log EVERYTHING for debugging
-    console.log(
-      "[WhatsApp Webhook] RAW PAYLOAD:",
-      JSON.stringify(body, null, 2)
-    );
+    logger.debug("RAW PAYLOAD", { payload: body });
 
     // Handle test webhook event (legacy format)
     if (body.event === "webhook.test") {
-      console.log("[WhatsApp Webhook] Test event received successfully");
+      logger.info("Test event received successfully");
       return NextResponse.json({
         success: true,
         message: "Webhook test successful",
@@ -223,12 +222,11 @@ export async function POST(request: Request): Promise<Response> {
     // Fall back to 'event' for legacy support
     const eventType = body.type || body.event;
 
-    console.log("[WhatsApp Webhook] Event received:", {
+    logger.info("Event received", {
       event: body.event,
       type: body.type,
       eventType,
       sessionId: body.sessionId,
-      timestamp: new Date().toISOString(),
     });
 
     switch (eventType) {
@@ -241,7 +239,7 @@ export async function POST(request: Request): Promise<Response> {
         const rawData = body.data;
 
         if (!rawData) {
-          console.log("[WhatsApp Webhook] No data in payload");
+          logger.debug("No data in payload");
           return NextResponse.json({ success: true });
         }
 
@@ -251,7 +249,7 @@ export async function POST(request: Request): Promise<Response> {
         if (rawData.messages && !rawData.key) {
           // Webhook format: data.messages contains the message
           messageSource = rawData.messages;
-          console.log("[WhatsApp Webhook] Using nested messages format");
+          logger.debug("Using nested messages format");
         }
 
         // Handle both single object and array formats
@@ -262,7 +260,7 @@ export async function POST(request: Request): Promise<Response> {
         for (const msgData of messagesArray) {
           // Skip if no message data
           if (!msgData) {
-            console.log("[WhatsApp Webhook] Empty message entry, skipping");
+            logger.debug("Empty message entry, skipping");
             continue;
           }
 
@@ -287,7 +285,7 @@ export async function POST(request: Request): Promise<Response> {
 
             // Log LID format for debugging
             if (remoteId.includes("@lid")) {
-              console.log("[WhatsApp Webhook] LID format detected:", {
+              logger.debug("LID format detected", {
                 remoteId,
                 senderPn,
                 participant: key.participant,
@@ -298,9 +296,7 @@ export async function POST(request: Request): Promise<Response> {
 
             // Skip messages from self (bot's own messages)
             if (key.fromMe) {
-              console.log(
-                "[WhatsApp Webhook] Skipping own message (fromMe=true)"
-              );
+              logger.debug("Skipping own message (fromMe=true)");
               continue;
             }
 
@@ -309,17 +305,14 @@ export async function POST(request: Request): Promise<Response> {
             let phoneNumber: string;
             if (senderPn) {
               phoneNumber = String(senderPn).replace(/[^0-9]/g, "");
-              console.log("[WhatsApp Webhook] Using senderPn:", phoneNumber);
+              logger.debug("Using senderPn", { phoneNumber });
             } else if (remoteId.includes("@lid")) {
               // LID format without senderPn - cannot reply
-              console.error(
-                "[WhatsApp Webhook] Cannot reply to LID without senderPn:",
-                {
-                  remoteId,
-                  participant: key.participant,
-                  pushName: msgData.pushName,
-                }
-              );
+              logger.error("Cannot reply to LID without senderPn", undefined, {
+                remoteId,
+                participant: key.participant,
+                pushName: msgData.pushName,
+              });
               // Skip this message - we can't determine the phone number
               continue;
             } else {
@@ -368,15 +361,15 @@ export async function POST(request: Request): Promise<Response> {
             };
           } else {
             // Legacy/fallback format - use data as-is if it matches our expected structure
-            console.log("[WhatsApp Webhook] Using legacy message format");
+            logger.debug("Using legacy message format");
             messageData = msgData as WaSenderMessageData;
           }
 
-          console.log("[WhatsApp Webhook] Parsed message data:", {
+          logger.info("Parsed message data", {
             from: messageData.from,
             type: messageData.type,
             textLength: messageData.text?.length || 0,
-            text:
+            textPreview:
               messageData.text?.substring(0, 50) +
               (messageData.text && messageData.text.length > 50 ? "..." : ""),
             isGroup: messageData.isGroup,
@@ -384,7 +377,7 @@ export async function POST(request: Request): Promise<Response> {
 
           // Skip if no text content for text messages
           if (messageData.type === "text" && !messageData.text) {
-            console.log("[WhatsApp Webhook] Empty text message, skipping");
+            logger.debug("Empty text message, skipping");
             continue;
           }
 
@@ -392,23 +385,18 @@ export async function POST(request: Request): Promise<Response> {
           // WaSenderAPI can send multiple events for the same message
           const messageKey = `${messageData.id}-${messageData.from}`;
           if (await isMessageProcessed(messageKey)) {
-            console.log(
-              "[WhatsApp Webhook] Duplicate message, skipping:",
-              messageKey
-            );
+            logger.debug("Duplicate message, skipping", { messageKey });
             continue;
           }
 
           // Process message and wait for completion
           // The 60s function timeout should be enough for AI processing
           try {
-            console.log("[WhatsApp Webhook] Starting message handler...");
+            logger.debug("Starting message handler...");
             await handleWhatsAppMessage(messageData);
-            console.log("[WhatsApp Webhook] Handler completed successfully");
+            logger.debug("Handler completed successfully");
           } catch (error) {
-            console.error("[WhatsApp Webhook] Error processing message:", {
-              error: error instanceof Error ? error.message : "Unknown error",
-              stack: error instanceof Error ? error.stack : undefined,
+            logger.error("Error processing message", error, {
               from: messageData.from,
               type: messageData.type,
             });
@@ -423,7 +411,7 @@ export async function POST(request: Request): Promise<Response> {
       case "message-receipt.update": {
         // Message delivery status update
         const statusData = body.data as WaSenderStatusData;
-        console.log("[WhatsApp Webhook] Message status update:", {
+        logger.debug("Message status update", {
           messageId: statusData?.id,
           status: statusData?.status,
           timestamp: statusData?.timestamp,
@@ -434,7 +422,7 @@ export async function POST(request: Request): Promise<Response> {
       case "session.status": {
         // Session connection status change
         const sessionData = body.data as WaSenderSessionData;
-        console.log("[WhatsApp Webhook] Session status update:", {
+        logger.info("Session status update", {
           status: sessionData?.status,
           hasQR: !!(sessionData as any)?.qr,
         });
@@ -450,28 +438,23 @@ export async function POST(request: Request): Promise<Response> {
       case "chats.update":
       case "call": {
         // Log other events for debugging but don't process
-        console.log(
-          `[WhatsApp Webhook] ${eventType}:`,
-          JSON.stringify(body.data).substring(0, 200)
-        );
+        logger.debug(`Event: ${eventType}`, {
+          dataPreview: JSON.stringify(body.data).substring(0, 200),
+        });
         break;
       }
 
       default:
-        console.log(
-          "[WhatsApp Webhook] Unknown event:",
+        logger.warn("Unknown event", {
           eventType,
-          JSON.stringify(body).substring(0, 500)
-        );
+          bodyPreview: JSON.stringify(body).substring(0, 500),
+        });
     }
 
     // Always return 200 OK to acknowledge receipt
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[WhatsApp Webhook] Error:", {
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    logger.error("Webhook processing error", error);
 
     // Return 200 even on error to prevent webhook retries flooding
     return NextResponse.json({ success: false, error: "Processing error" });

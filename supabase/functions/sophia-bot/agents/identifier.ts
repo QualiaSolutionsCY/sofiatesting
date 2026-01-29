@@ -4,6 +4,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { logger, LogCategory } from "../utils/logger.ts";
 
 export interface Agent {
   id: string;
@@ -57,11 +58,11 @@ export async function identifyAgentByPhone(
     .single();
 
   if (error || !data) {
-    console.log(`[AgentIdentifier] No agent found for phone: ${phone} (normalized: ${normalized})`);
+    logger.debug(`[AgentIdentifier] No agent found for phone`, { category: LogCategory.DATABASE, normalized });
     return null;
   }
 
-  console.log(`[AgentIdentifier] Found agent: ${data.full_name} (${data.region})`);
+  logger.debug(`[AgentIdentifier] Found agent: ${data.full_name} (${data.region})`, { category: LogCategory.DATABASE });
 
   return {
     id: data.id,

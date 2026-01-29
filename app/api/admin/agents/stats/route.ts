@@ -2,6 +2,9 @@ import { and, eq, gte, sql } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db/client";
 import { agentChatSession, zyprusAgent } from "@/lib/db/schema";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("api:admin:agents:stats");
 
 /**
  * GET /api/admin/agents/stats
@@ -147,10 +150,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error(
-      "[API /api/admin/agents/stats GET] Error fetching statistics:",
-      error
-    );
+    logger.error("Error fetching statistics", error);
     return NextResponse.json(
       {
         error: "Failed to fetch statistics",

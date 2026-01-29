@@ -1,6 +1,9 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { customProvider } from "ai";
 import { isTestEnvironment } from "../constants";
+import { logger } from "../logger";
+
+const log = logger.ai.child("providers");
 
 // OpenRouter API configuration
 // API key is server-side only (in API routes), NOT exposed to browser
@@ -13,14 +16,14 @@ const isOpenRouterConfigured = (() => {
 
   const isBuildTime = process.env.NEXT_PHASE === "phase-production-build";
   if (isBuildTime) {
-    console.log("[SOFIA] Build time detected - skipping OpenRouter validation");
+    log.debug("Build time detected - skipping OpenRouter validation");
     return false;
   }
 
   const hasKey = !!OPENROUTER_API_KEY;
 
   if (!hasKey && typeof window === "undefined" && !process.env.NODE_ENV?.includes("test")) {
-    console.warn("[SOFIA] WARNING: OPENROUTER_API_KEY missing. Chat will not work.");
+    log.warn("OPENROUTER_API_KEY missing - chat will not work");
   }
 
   return hasKey;

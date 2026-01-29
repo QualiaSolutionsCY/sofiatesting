@@ -1,5 +1,8 @@
 import "server-only";
 import { createWasender, type WasenderAPIError } from "wasenderapi";
+import { logger } from "../logger";
+
+const log = logger.whatsapp.child("client");
 
 /**
  * WhatsApp Client for WaSenderAPI
@@ -21,9 +24,7 @@ const WEBHOOK_SECRET = process.env.WASENDER_WEBHOOK_SECRET;
 
 // Log configuration status
 if (!API_KEY) {
-  console.warn(
-    "[WhatsApp] WASENDER_API_KEY is not set - WhatsApp integration disabled"
-  );
+  log.warn("WASENDER_API_KEY is not set - WhatsApp integration disabled");
 }
 
 /**
@@ -70,11 +71,7 @@ export class WhatsAppClient {
       const base64Data = buffer.toString("base64");
       const dataUrl = `data:${mimeType};base64,${base64Data}`;
 
-      console.log("[WhatsApp] Uploading file:", {
-        filename,
-        mimeType,
-        size: buffer.length,
-      });
+      log.debug("Uploading file", { filename, mimeType, size: buffer.length });
 
       const response = await fetch("https://api.wasenderapi.com/api/upload", {
         method: "POST",
@@ -87,10 +84,7 @@ export class WhatsAppClient {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error("[WhatsApp] Upload failed:", {
-          status: response.status,
-          error: errorData,
-        });
+        log.error("Upload failed", undefined, { status: response.status, error: errorData });
         return {
           success: false,
           error:
@@ -103,10 +97,10 @@ export class WhatsAppClient {
       const data = await response.json();
       // WaSenderAPI returns publicUrl, not url
       const fileUrl = data.url || data.publicUrl;
-      console.log("[WhatsApp] Upload successful:", { url: fileUrl });
+      log.debug("Upload successful", { url: fileUrl });
       return { success: true, url: fileUrl };
     } catch (error) {
-      console.error("[WhatsApp] Upload error:", error);
+      log.error("Upload error", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Upload failed",
@@ -132,9 +126,11 @@ export class WhatsAppClient {
       lastError = result.error || "Unknown error";
 
       if (attempt < maxRetries) {
-        console.log(
-          `[WhatsApp] Upload retry ${attempt + 1}/${maxRetries} after error: ${lastError}`
-        );
+        log.debug("Upload retry after error", {
+          attempt: attempt + 1,
+          maxRetries,
+          lastError,
+        });
         // Exponential backoff
         await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
       }
@@ -155,7 +151,7 @@ export class WhatsAppClient {
     error?: string;
   }> {
     if (!wasenderClient) {
-      console.warn("[WhatsApp] Client not configured");
+      log.warn("Client not configured");
       return { success: false, error: "WhatsApp API key not configured" };
     }
 
@@ -165,7 +161,7 @@ export class WhatsAppClient {
         text,
       });
 
-      console.log("[WhatsApp] Message sent successfully", {
+      log.debug("Message sent successfully", {
         to,
         textLength: text.length,
         rateLimit: response.rateLimit,
@@ -177,10 +173,9 @@ export class WhatsAppClient {
       };
     } catch (error) {
       const apiError = error as WasenderAPIError;
-      console.error("[WhatsApp] Send message error:", {
+      log.error("Send message error", error, {
         statusCode: apiError.statusCode,
         message: apiError.apiMessage,
-        details: apiError.errorDetails,
         to,
         textLength: text.length,
       });
@@ -212,7 +207,7 @@ export class WhatsAppClient {
     error?: string;
   }> {
     if (!wasenderClient) {
-      console.warn("[WhatsApp] Client not configured");
+      log.warn("Client not configured");
       return { success: false, error: "WhatsApp API key not configured" };
     }
 
@@ -228,14 +223,14 @@ export class WhatsAppClient {
       });
 
       if (!uploadResult.success || !uploadResult.url) {
-        console.error("[WhatsApp] Document upload failed:", uploadResult.error);
+        log.error("Document upload failed", undefined, { error: uploadResult.error });
         return {
           success: false,
           error: uploadResult.error || "Failed to upload document",
         };
       }
 
-      console.log("[WhatsApp] Document uploaded, sending message:", {
+      log.debug("Document uploaded, sending message", {
         to,
         filename,
         uploadUrl: uploadResult.url,
@@ -249,7 +244,7 @@ export class WhatsAppClient {
         text: caption || `Document: ${filename}`,
       } as Parameters<typeof wasenderClient.sendDocument>[0]);
 
-      console.log("[WhatsApp] Document sent successfully", {
+      log.debug("Document sent successfully", {
         to,
         filename,
         size: document.length,
@@ -262,10 +257,9 @@ export class WhatsAppClient {
       };
     } catch (error) {
       const apiError = error as WasenderAPIError;
-      console.error("[WhatsApp] Send document error:", {
+      log.error("Send document error", error, {
         statusCode: apiError.statusCode,
         message: apiError.apiMessage,
-        details: apiError.errorDetails,
         to,
         filename,
       });
@@ -334,7 +328,7 @@ export class WhatsAppClient {
       };
     } catch (error) {
       const apiError = error as WasenderAPIError;
-      console.error("[WhatsApp] Send image error:", {
+      log.error("Send image error", error, {
         statusCode: apiError.statusCode,
         message: apiError.apiMessage,
         to,

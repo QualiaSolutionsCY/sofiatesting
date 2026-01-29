@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/(auth)/auth";
 import { getListingsByUserId } from "@/lib/db/queries";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("api:listings:list");
 
 export async function GET(req: Request) {
   try {
@@ -42,7 +45,7 @@ export async function GET(req: Request) {
       count: listings.length,
     });
   } catch (error) {
-    console.error("Failed to get listings:", error);
+    logger.error("Failed to get listings", error);
     return NextResponse.json(
       { error: "Failed to get listings" },
       { status: 500 }

@@ -15,6 +15,7 @@ import { isProductionEnvironment } from "@/lib/constants";
 import { db } from "@/lib/db/client";
 import { getMessagesByChatIdWithHistory, saveMessages } from "@/lib/db/queries";
 import { agentExecutionLog } from "@/lib/db/schema";
+import { logger } from "@/lib/logger";
 import type { ChatMessage } from "@/lib/types";
 import { convertToUIMessages, generateUUID } from "@/lib/utils";
 import { getWhatsAppClient } from "./client";
@@ -24,6 +25,8 @@ import {
   getOrCreateWhatsAppUser,
   updateAgentLastActive,
 } from "./user-mapping";
+
+const log = logger.whatsapp.child("handler");
 
 /**
  * Handle incoming WhatsApp message and generate AI response
@@ -35,11 +38,10 @@ export async function handleWhatsAppMessage(
   // Only handle text messages, skip group messages
   if (messageData.type !== "text" || !messageData.text || messageData.isGroup) {
     if (isProductionEnvironment) {
-      console.log(
-        "Skipping WhatsApp message:",
-        messageData.type,
-        messageData.isGroup ? "group" : ""
-      );
+      log.debug("Skipping WhatsApp message", {
+        type: messageData.type,
+        isGroup: messageData.isGroup,
+      });
     }
     return;
   }
@@ -99,10 +101,7 @@ export async function handleWhatsAppMessage(
         },
       });
     } catch (dbError) {
-      console.warn(
-        "[WhatsApp] DB operations failed, using fallback context:",
-        dbError
-      );
+      log.warn("DB operations failed, using fallback context", { error: String(dbError) });
     }
 
     // Get message history - last 30 days for context
@@ -115,7 +114,7 @@ export async function handleWhatsAppMessage(
         });
         previousMessages = convertToUIMessages(messagesFromDb);
       } catch (err) {
-        console.warn("[WhatsApp] Failed to retrieve history:", err);
+        log.warn("Failed to retrieve history", { error: String(err) });
       }
     }
 
@@ -200,7 +199,7 @@ export async function handleWhatsAppMessage(
     const aiUserContext = { user: userContext };
 
     // Generate AI response - EXACT same as web
-    console.log("[WhatsApp AI] Starting AI response generation for:", {
+    log.info("Starting AI response generation", {
       user: userContext.name,
       messagePreview: userMessage.substring(0, 50),
       model: DEFAULT_CHAT_MODEL,
@@ -284,7 +283,7 @@ export async function handleWhatsAppMessage(
       text: fullResponse,
     });
   } catch (error) {
-    console.error("Error handling WhatsApp message:", error);
+    log.error("Error handling WhatsApp message", error);
     
     // Determine error message based on error type
     let errorMessage = "I encountered an error. Please try again or rephrase.";
@@ -313,7 +312,7 @@ export async function handleWhatsAppMessage(
         text: errorMessage,
       });
     } catch (sendError) {
-      console.error("Failed to send error message:", sendError);
+      log.error("Failed to send error message", sendError);
       // ignore - can't do anything if we can't send messages
     }
   }

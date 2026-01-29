@@ -3,8 +3,11 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/client";
 import { user } from "../db/schema";
 import { generateHashedPassword } from "../db/utils";
+import { logger } from "../logger";
 import { generateUUID } from "../utils";
 import type { TelegramUser } from "./types";
+
+const log = logger.telegram.child("user-mapping");
 
 /**
  * Map Telegram user to database user
@@ -34,18 +37,16 @@ export async function getTelegramUser(
       .values({ email, password })
       .returning({ id: user.id, email: user.email });
 
-    console.log(
-      `Created new user for Telegram user @${telegramUser.username || telegramUser.first_name} (ID: ${telegramUser.id})`
-    );
+    log.info("Created new user for Telegram user", {
+      telegramUsername: telegramUser.username || telegramUser.first_name,
+      telegramUserId: telegramUser.id,
+    });
 
     return newUser;
   } catch (error) {
-    console.error("Error getting Telegram user:", {
+    log.error("Error getting Telegram user", error, {
       telegramUserId: telegramUser.id,
       telegramUsername: telegramUser.username,
-      error,
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
-      errorStack: error instanceof Error ? error.stack : undefined,
     });
     throw new Error("Failed to get or create user for Telegram");
   }

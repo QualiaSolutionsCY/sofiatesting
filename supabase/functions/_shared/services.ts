@@ -5,6 +5,8 @@
  * Used by all channels (WhatsApp, Telegram, Web).
  */
 
+import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
+
 // =============================================================================
 // URL VALIDATOR - SSRF Prevention
 // =============================================================================
@@ -268,7 +270,7 @@ const checkImageAccessible = async (url: string): Promise<boolean> => {
   try {
     const securityCheck = validateImageUrl(url);
     if (!securityCheck.valid) {
-      console.warn(`[Image Handler] SSRF blocked: ${securityCheck.error}`);
+      logger.warn(`[Image Handler] SSRF blocked: ${securityCheck.error}`, { category: LogCategory.IMAGE });
       return false;
     }
 

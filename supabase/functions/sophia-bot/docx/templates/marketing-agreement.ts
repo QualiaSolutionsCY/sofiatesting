@@ -20,6 +20,7 @@ import {
 } from "https://esm.sh/docx@8.5.0";
 
 import { FONTS } from "../styles.ts";
+import { logger, LogCategory } from "../../utils/logger.ts";
 
 /**
  * Marketing Agreement Data
@@ -479,8 +480,8 @@ export function parseMarketingAgreementData(
 ): MarketingAgreementData | null {
   try {
     const cleanResponse = response.replace(/\*\*/g, "");
-    console.log("[MarketingAgreement] Parsing response...");
-    console.log("[MarketingAgreement] Clean response preview:", cleanResponse.substring(0, 500));
+    logger.debug("[MarketingAgreement] Parsing response...");
+    logger.debug("[MarketingAgreement] Clean response preview", { preview: cleanResponse.substring(0, 500) });
 
     // Extract seller name - multiple patterns for different AI output formats
     const sellerMatch =
@@ -531,11 +532,11 @@ export function parseMarketingAgreementData(
     ];
 
     if (sellerName && invalidSellerPatterns.some(pattern => pattern.test(sellerName))) {
-      console.log(`[MarketingAgreement] Invalid seller name detected: "${sellerName}" - rejecting`);
+      logger.debug(`[MarketingAgreement] Invalid seller name detected: "${sellerName}" - rejecting`, { category: LogCategory.GENERAL });
       sellerName = "";
     }
 
-    console.log("[MarketingAgreement] Extracted:", {
+    logger.debug("[MarketingAgreement] Extracted:", {
       sellerName,
       propertyRegistration,
       marketingPrice,
@@ -545,7 +546,7 @@ export function parseMarketingAgreementData(
 
     // Require at least seller name and property registration
     if (!sellerName || !propertyRegistration) {
-      console.log("[MarketingAgreement] Missing required fields - sellerName:", !!sellerName, "propertyReg:", !!propertyRegistration);
+      logger.debug("[MarketingAgreement] Missing required fields", { hasSellerName: !!sellerName, hasPropertyReg: !!propertyRegistration });
       return null;
     }
 
@@ -557,7 +558,7 @@ export function parseMarketingAgreementData(
       agentName,
     };
   } catch (error) {
-    console.error("[MarketingAgreement] Error parsing response:", error);
+    logger.error("[MarketingAgreement] Parse error", error instanceof Error ? error : new Error(String(error)));
     return null;
   }
 }

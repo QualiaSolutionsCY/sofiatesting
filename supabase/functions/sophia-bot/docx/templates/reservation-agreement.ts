@@ -23,6 +23,7 @@ import {
 } from "https://esm.sh/docx@8.5.0";
 
 import { numberToWords } from "../../utils/number-to-words.ts";
+import { logger, LogCategory } from "../../utils/logger.ts";
 
 // NO LOGO on reservation agreements - matches reference templates
 
@@ -582,12 +583,12 @@ function formatDate(date: Date): string {
  */
 export function parseReservationAgreementData(response: string): ReservationAgreementData | null {
   try {
-    console.log("[ReservationAgreement] Parsing response, length:", response.length);
+    logger.debug("[ReservationAgreement] Parsing response", { length: response.length });
 
     // Extract LOAN/VAT flags
     const hasLoanClause = /loan/i.test(response) && /yes/i.test(response);
     const hasVatClause = /vat/i.test(response) && /yes/i.test(response);
-    console.log("[ReservationAgreement] Loan:", hasLoanClause, "VAT:", hasVatClause);
+    logger.debug("[ReservationAgreement] Flags", { hasLoan: hasLoanClause, hasVat: hasVatClause });
 
     // BUYER: Extract any name after "Prospective Buyer"
     let buyerName = "";
@@ -609,7 +610,7 @@ export function parseReservationAgreementData(response: string): ReservationAgre
       }
     }
 
-    console.log("[ReservationAgreement] Buyer:", buyerName, buyerIdType, buyerIdNumber);
+    logger.debug("[ReservationAgreement] Buyer", { name: buyerName, idType: buyerIdType, idNumber: buyerIdNumber });
 
     if (!buyerName || !buyerIdNumber) {
       // Last resort - just grab any name-like text
@@ -620,7 +621,7 @@ export function parseReservationAgreementData(response: string): ReservationAgre
     }
 
     if (!buyerName) {
-      console.log("[ReservationAgreement] No buyer name found");
+      logger.debug("[ReservationAgreement] No buyer name found");
       return null;
     }
 
@@ -652,7 +653,7 @@ export function parseReservationAgreementData(response: string): ReservationAgre
       }
     }
 
-    console.log("[ReservationAgreement] Vendor:", vendorName, vendorIdType, vendorIdNumber);
+    logger.debug("[ReservationAgreement] Vendor", { name: vendorName, idType: vendorIdType, idNumber: vendorIdNumber });
 
     if (!vendorName) {
       // Fallback
@@ -661,7 +662,7 @@ export function parseReservationAgreementData(response: string): ReservationAgre
     }
 
     if (!vendorName) {
-      console.log("[ReservationAgreement] No vendor name found");
+      logger.debug("[ReservationAgreement] No vendor name found");
       return null;
     }
 
@@ -677,7 +678,7 @@ export function parseReservationAgreementData(response: string): ReservationAgre
     if (propertyMatch) {
       propertyDesc = propertyMatch[1].trim().split('\n')[0].trim() || propertyDesc;
     }
-    console.log("[ReservationAgreement] Property:", propertyDesc.substring(0, 50));
+    logger.debug("[ReservationAgreement] Property", { preview: propertyDesc.substring(0, 50) });
 
     const property: PropertyInfo = { description: propertyDesc };
 
@@ -695,7 +696,7 @@ export function parseReservationAgreementData(response: string): ReservationAgre
       purchasePrice = parseInt(purchaseMatch[1].replace(/,/g, ""), 10) || 300000;
     }
 
-    console.log("[ReservationAgreement] Financial:", reservationFee, purchasePrice);
+    logger.debug("[ReservationAgreement] Financial", { reservationFee, purchasePrice });
 
     const financial: FinancialTerms = {
       reservationFee,
@@ -704,7 +705,7 @@ export function parseReservationAgreementData(response: string): ReservationAgre
       purchasePriceWords: numberToWords(purchasePrice) + " euro",
     };
 
-    console.log("[ReservationAgreement] PARSE SUCCESS:", {
+    logger.debug("[ReservationAgreement] PARSE SUCCESS:", {
       buyer: buyers[0].fullName,
       vendor: vendor.name,
       property: propertyDesc.substring(0, 30),
@@ -721,7 +722,7 @@ export function parseReservationAgreementData(response: string): ReservationAgre
       hasVatClause,
     };
   } catch (error) {
-    console.error("[ReservationAgreement] PARSE ERROR:", error);
+    logger.error("[ReservationAgreement] Parse error", error instanceof Error ? error : new Error(String(error)));
     return null;
   }
 }

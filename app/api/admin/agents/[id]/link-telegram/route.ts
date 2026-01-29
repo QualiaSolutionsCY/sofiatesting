@@ -2,6 +2,9 @@ import { and, eq, sql } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db/client";
 import { zyprusAgent } from "@/lib/db/schema";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("api:admin:agents:link-telegram");
 
 /**
  * POST /api/admin/agents/[id]/link-telegram
@@ -80,10 +83,7 @@ export async function POST(
       message: "Telegram account linked successfully",
     });
   } catch (error) {
-    console.error(
-      "[API /api/admin/agents/[id]/link-telegram POST] Error linking Telegram:",
-      error
-    );
+    logger.error("Error linking Telegram", error);
     return NextResponse.json(
       {
         error: "Failed to link Telegram account",
@@ -123,10 +123,7 @@ export async function DELETE(
       message: "Telegram account unlinked successfully",
     });
   } catch (error) {
-    console.error(
-      "[API /api/admin/agents/[id]/link-telegram DELETE] Error unlinking Telegram:",
-      error
-    );
+    logger.error("Error unlinking Telegram", error);
     return NextResponse.json(
       {
         error: "Failed to unlink Telegram account",

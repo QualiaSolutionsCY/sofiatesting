@@ -3,6 +3,8 @@
  * Ensures all required fields are present before generating DOCX files
  */
 
+import { logger, LogCategory } from "./logger.ts";
+
 /**
  * Checks if the AI response contains placeholders or missing data
  * NOTE: Signature lines (___________) are intentional and NOT placeholders
@@ -12,7 +14,7 @@ export function containsPlaceholders(content: string): boolean {
 
   // Check for XXXXXXXX placeholders (real placeholder indicator)
   if (/XXXXXXX+/g.test(content)) {
-    console.log("[Field Validator] Found XXXXXXXX placeholder");
+    logger.debug("[Field Validator] Found XXXXXXXX placeholder");
     return true;
   }
 
@@ -26,13 +28,13 @@ export function containsPlaceholders(content: string): boolean {
     p.length > 3
   );
   if (realPlaceholders.length > 0) {
-    console.log("[Field Validator] Found bracket placeholders:", realPlaceholders);
+    logger.debug("[Field Validator] Found bracket placeholders:", realPlaceholders);
     return true;
   }
 
   // Check for {{placeholder}} style
   if (/\{\{[\w\s_]+\}\}/g.test(content)) {
-    console.log("[Field Validator] Found mustache placeholder");
+    logger.debug("[Field Validator] Found mustache placeholder");
     return true;
   }
 
@@ -49,7 +51,7 @@ export function containsPlaceholders(content: string): boolean {
 
   for (const word of placeholderWords) {
     if (lowerContent.includes(word)) {
-      console.log("[Field Validator] Found placeholder word:", word);
+      logger.debug("[Field Validator] Found placeholder word:", word);
       return true;
     }
   }
@@ -143,17 +145,17 @@ export function isRequestingInformation(content: string): boolean {
 
   // FIRST: Check if this looks like a completed document
   if (isCompletedViewingFormDocument(content)) {
-    console.log("[Field Validator] Detected completed viewing form, not requesting info");
+    logger.debug("[Field Validator] Detected completed viewing form, not requesting info");
     return false;
   }
 
   if (isCompletedMarketingAgreementDocument(content)) {
-    console.log("[Field Validator] Detected completed marketing agreement, not requesting info");
+    logger.debug("[Field Validator] Detected completed marketing agreement, not requesting info");
     return false;
   }
 
   if (isCompletedReservationAgreementDocument(content)) {
-    console.log("[Field Validator] Detected completed reservation agreement, not requesting info");
+    logger.debug("[Field Validator] Detected completed reservation agreement, not requesting info");
     return false;
   }
 
@@ -179,7 +181,7 @@ export function isRequestingInformation(content: string): boolean {
   // Check for request patterns
   for (const pattern of requestPatterns) {
     if (pattern.test(lowerContent)) {
-      console.log("[Field Validator] Found request pattern");
+      logger.debug("[Field Validator] Found request pattern");
       return true;
     }
   }
@@ -187,7 +189,7 @@ export function isRequestingInformation(content: string): boolean {
   // Check for multiple questions (indicates gathering information)
   const questionMarks = (content.match(/\?/g) || []).length;
   if (questionMarks >= 2) {
-    console.log("[Field Validator] Multiple questions detected");
+    logger.debug("[Field Validator] Multiple questions detected");
     return true;
   }
 
@@ -203,7 +205,7 @@ export function isRequestingInformation(content: string): boolean {
   
   if (bulletListCount >= 3 && content.length < 800) {
     // Short response with multiple bullet points = likely requesting info
-    console.log("[Field Validator] Bullet list requesting info (count: " + bulletListCount + ")");
+    logger.debug("[Field Validator] Bullet list requesting info (count: " + bulletListCount + ")");
     return true;
   }
 
@@ -216,7 +218,7 @@ export function isRequestingInformation(content: string): boolean {
 function validateViewingFormFields(content: string): boolean {
   // FIRST: If this looks like a completed viewing form document, it's valid
   if (isCompletedViewingFormDocument(content)) {
-    console.log("[Field Validator] Viewing form passes completed document check");
+    logger.debug("[Field Validator] Viewing form passes completed document check");
     return true;
   }
 
@@ -248,7 +250,7 @@ function validateViewingFormFields(content: string): boolean {
   }
 
   if (missingFields > 0) {
-    console.log(`[Field Validator] Viewing form missing ${missingFields} fields:`, missingFieldNames.join(', '));
+    logger.debug(`[Field Validator] Viewing form missing ${missingFields} fields: ${missingFieldNames.join(', ')}`, { category: LogCategory.GENERAL });
   }
 
   // If more than 2 fields are missing, it's likely a request for information
@@ -284,7 +286,7 @@ export function isCompletedReservationAgreementDocument(content: string): boolea
   const hasFinancials = /reservation\s+fee[:\s]+[€$]?\s*[\d,]+/i.test(contentNoMarkdown) &&
                         /purchase\s+price[:\s]+[€$]?\s*[\d,]+/i.test(contentNoMarkdown);
 
-  console.log(`[Field Validator] Reservation check: buyer=${hasBuyerInfo}, vendor=${hasVendor}, reg=${hasPropertyReg}, financials=${hasFinancials}`);
+  logger.debug(`[Field Validator] Reservation check: buyer=${hasBuyerInfo}, vendor=${hasVendor}, reg=${hasPropertyReg}, financials=${hasFinancials}`, { category: LogCategory.GENERAL });
 
   return hasBuyerInfo && hasVendor && hasPropertyReg && hasFinancials;
 }
@@ -295,7 +297,7 @@ export function isCompletedReservationAgreementDocument(content: string): boolea
 function validateReservationAgreementFields(content: string): boolean {
   // FIRST: If this looks like a completed reservation agreement, it's valid
   if (isCompletedReservationAgreementDocument(content)) {
-    console.log("[Field Validator] Reservation agreement passes completed document check");
+    logger.debug("[Field Validator] Reservation agreement passes completed document check");
     return true;
   }
 
@@ -326,7 +328,7 @@ function validateReservationAgreementFields(content: string): boolean {
   }
 
   if (missingFields > 0) {
-    console.log(`[Field Validator] Reservation agreement missing ${missingFields} fields:`, missingFieldNames.join(', '));
+    logger.debug(`[Field Validator] Reservation agreement missing ${missingFields} fields: ${missingFieldNames.join(', ')}`, { category: LogCategory.GENERAL });
   }
 
   // Allow up to 2 missing fields

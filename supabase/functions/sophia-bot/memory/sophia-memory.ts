@@ -6,6 +6,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { logger, LogCategory } from "../utils/logger.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -44,7 +45,7 @@ function evictOldestCacheEntries(): void {
   for (let i = 0; i < toRemove && i < entries.length; i++) {
     embeddingCache.delete(entries[i][0]);
   }
-  console.log(`[Memory] Cache eviction: removed ${toRemove} oldest entries`);
+  logger.debug(`[Memory] Cache eviction: removed ${toRemove} oldest entries`, { category: LogCategory.CACHE });
 }
 
 // =====================================================
@@ -99,7 +100,7 @@ export interface UserContext {
  */
 export async function generateEmbedding(text: string): Promise<number[] | null> {
   if (!GOOGLE_API_KEY) {
-    console.warn("[Memory] GOOGLE_API_KEY not set - embeddings disabled");
+    logger.warn("[Memory] GOOGLE_API_KEY not set - embeddings disabled", { category: LogCategory.AI });
     return null;
   }
 
@@ -108,7 +109,7 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
   const cached = embeddingCache.get(cacheKey);
 
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    console.log("[Memory] Embedding cache HIT");
+    logger.debug("[Memory] Embedding cache HIT", { category: LogCategory.CACHE });
     return cached.embedding;
   }
 
@@ -134,7 +135,7 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[Memory] Embedding API error:", response.status, errorText);
+      logger.error(`[Memory] Embedding API error: ${response.status}`, new Error(errorText), { category: LogCategory.AI });
       return null;
     }
 
@@ -148,12 +149,12 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
         embedding,
         timestamp: Date.now(),
       });
-      console.log(`[Memory] Embedding cached, cache size: ${embeddingCache.size}`);
+      logger.debug(`[Memory] Embedding cached, cache size: ${embeddingCache.size}`, { category: LogCategory.CACHE });
     }
 
     return embedding;
   } catch (error) {
-    console.error("[Memory] Embedding generation failed:", error);
+    logger.error("[Memory] Embedding generation failed", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.AI });
     return null;
   }
 }
@@ -177,13 +178,13 @@ export async function getOrCreateUser(
     });
 
     if (error) {
-      console.error("[Memory] Error getting/creating user:", error);
+      logger.error("[Memory] Error getting/creating user", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
       return null;
     }
 
     return data as SophiaUserProfile;
   } catch (error) {
-    console.error("[Memory] Exception in getOrCreateUser:", error);
+    logger.error("[Memory] Exception in getOrCreateUser", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
     return null;
   }
 }
@@ -212,13 +213,13 @@ export async function updateUserPreferences(
     });
 
     if (error) {
-      console.error("[Memory] Error updating preferences:", error);
+      logger.error("[Memory] Error updating preferences", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error("[Memory] Exception in updateUserPreferences:", error);
+    logger.error("[Memory] Exception in updateUserPreferences", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
     return false;
   }
 }
@@ -255,13 +256,13 @@ export async function storeMemory(
     });
 
     if (error) {
-      console.error("[Memory] Error storing memory:", error);
+      logger.error("[Memory] Error storing memory", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error("[Memory] Exception in storeMemory:", error);
+    logger.error("[Memory] Exception in storeMemory", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
     return false;
   }
 }
@@ -287,7 +288,7 @@ export async function searchMemory(
 
     return searchMemoryWithEmbedding(userId, embedding, options);
   } catch (error) {
-    console.error("[Memory] Exception in searchMemory:", error);
+    logger.error("[Memory] Exception in searchMemory", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
     return [];
   }
 }
@@ -313,13 +314,13 @@ export async function searchMemoryWithEmbedding(
     });
 
     if (error) {
-      console.error("[Memory] Error searching memory:", error);
+      logger.error("[Memory] Error searching memory", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error("[Memory] Exception in searchMemoryWithEmbedding:", error);
+    logger.error("[Memory] Exception in searchMemoryWithEmbedding", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
     return [];
   }
 }
@@ -338,13 +339,13 @@ export async function getRecentMemories(
     });
 
     if (error) {
-      console.error("[Memory] Error getting recent context:", error);
+      logger.error("[Memory] Error getting recent context", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error("[Memory] Exception in getRecentMemories:", error);
+    logger.error("[Memory] Exception in getRecentMemories", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
     return [];
   }
 }
@@ -368,13 +369,13 @@ export async function searchKnowledge(
     const embedding = await generateEmbedding(query);
 
     if (!embedding) {
-      console.warn("[Memory] Knowledge search skipped - no embedding");
+      logger.warn("[Memory] Knowledge search skipped - no embedding", { category: LogCategory.AI });
       return [];
     }
 
     return searchKnowledgeWithEmbedding(embedding, options);
   } catch (error) {
-    console.error("[Memory] Exception in searchKnowledge:", error);
+    logger.error("[Memory] Exception in searchKnowledge", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
     return [];
   }
 }
@@ -400,13 +401,13 @@ export async function searchKnowledgeWithEmbedding(
     });
 
     if (error) {
-      console.error("[Memory] Error searching knowledge:", error);
+      logger.error("[Memory] Error searching knowledge", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error("[Memory] Exception in searchKnowledgeWithEmbedding:", error);
+    logger.error("[Memory] Exception in searchKnowledgeWithEmbedding", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
     return [];
   }
 }
@@ -439,7 +440,7 @@ export async function buildUserContext(
     const profile = await getOrCreateUser(phoneNumber, userName);
 
     if (!profile) {
-      console.warn("[Memory] Could not get/create user profile");
+      logger.warn("[Memory] Could not get/create user profile", { category: LogCategory.DATABASE });
       return null;
     }
 
@@ -476,7 +477,7 @@ export async function buildUserContext(
     }
 
     const duration = Date.now() - startTime;
-    console.log(`[Memory] buildUserContext completed in ${duration}ms`);
+    logger.debug(`[Memory] buildUserContext completed in ${duration}ms`, { category: LogCategory.DATABASE, duration });
 
     return {
       profile,
@@ -484,7 +485,7 @@ export async function buildUserContext(
       relevantKnowledge,
     };
   } catch (error) {
-    console.error("[Memory] Exception in buildUserContext:", error);
+    logger.error("[Memory] Exception in buildUserContext", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
     return null;
   }
 }

@@ -16,6 +16,8 @@ import { loadTaxonomy, findLocationUuid, findPropertyTypeUuid, getLocationsByReg
 import { clearPendingImages, getPendingImages } from "../services/pending-images.ts";
 import { logger, LogCategory } from "../utils/logger.ts";
 import { classifyError, getUserFriendlyMessage, ErrorType } from "../utils/error-mapper.ts";
+import { trackToolUsed, trackPropertyUploaded, trackDocumentGenerated, createTimer } from "../services/analytics.ts";
+import { getLastDocument } from "../../_shared/db.ts";
 
 // In-memory upload lock to prevent parallel uploads from same user
 // Key: phone number, Value: timestamp of last upload attempt
@@ -64,14 +66,17 @@ export interface ToolCall {
 }
 
 /**
- * Execute a tool call
+ * Execute a tool call with analytics tracking
  */
 export async function executeTool(
   tool: ToolCall,
   agent: Agent | null,
   supabaseUrl: string,
-  supabaseKey: string
+  supabaseKey: string,
+  phoneNumber?: string
 ): Promise<ToolResult> {
+  const timer = createTimer();
+
   logger.info("Tool execution started", {
     category: LogCategory.TOOL,
     toolName: tool.name,
@@ -79,24 +84,43 @@ export async function executeTool(
   });
 
   try {
+    let result: ToolResult;
+
     switch (tool.name) {
       case "createPropertyListing":
-        return await handleCreatePropertyListing(tool.arguments, agent, supabaseUrl, supabaseKey);
+        result = await handleCreatePropertyListing(tool.arguments, agent, supabaseUrl, supabaseKey);
+        // Track successful property upload
+        if (result.success && phoneNumber) {
+          trackPropertyUploaded(phoneNumber, agent?.id, {
+            propertyType: tool.arguments.propertyType,
+            location: tool.arguments.location,
+          });
+        }
+        break;
 
       case "getZyprusData":
-        return await handleGetZyprusData(tool.arguments);
+        result = await handleGetZyprusData(tool.arguments);
+        break;
 
       case "calculateVAT":
-        return handleCalculateVAT(tool.arguments);
+        result = handleCalculateVAT(tool.arguments);
+        break;
 
       case "calculateTransferFees":
-        return handleCalculateTransferFees(tool.arguments);
+        result = handleCalculateTransferFees(tool.arguments);
+        break;
 
       case "calculateCapitalGains":
-        return handleCalculateCapitalGains(tool.arguments);
+        result = handleCalculateCapitalGains(tool.arguments);
+        break;
 
       case "sendEmail":
-        return await handleSendEmail(tool.arguments, agent);
+        result = await handleSendEmail(tool.arguments, agent, phoneNumber);
+        // Track document sent via email
+        if (result.success && phoneNumber && (tool.arguments.attachmentUrl || result.data?.attachedDocument)) {
+          trackDocumentGenerated(phoneNumber, "email_with_document", agent?.id);
+        }
+        break;
 
       default:
         logger.warn("Unknown tool requested", {
@@ -105,7 +129,24 @@ export async function executeTool(
         });
         return { error: `Unknown tool: ${tool.name}` };
     }
+
+    // Track tool usage (fire-and-forget)
+    if (phoneNumber) {
+      trackToolUsed(phoneNumber, tool.name, timer.end(), agent?.id, {
+        success: result.success ?? !result.error,
+      });
+    }
+
+    return result;
   } catch (error) {
+    // Track tool error
+    if (phoneNumber) {
+      trackToolUsed(phoneNumber, tool.name, timer.end(), agent?.id, {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
     if (error instanceof RejectionError) {
       // RejectionError messages are already user-friendly
       return { error: error.message };
@@ -923,10 +964,12 @@ function handleCalculateCapitalGains(args: Record<string, unknown>): ToolResult 
 /**
  * Send Email via Resend API
  * Automatically uses agent's communicationEmail - ignores any 'to' parameter from AI
+ * If no attachmentUrl is provided, automatically attaches the most recent document
  */
 async function handleSendEmail(
   args: Record<string, unknown>,
-  agent: Agent | null
+  agent: Agent | null,
+  phoneNumber?: string
 ): Promise<ToolResult> {
   // ALWAYS use agent's communicationEmail - ignore any 'to' parameter
   if (!agent?.communicationEmail) {
@@ -940,8 +983,47 @@ async function handleSendEmail(
   const to = agent.communicationEmail;  // Force use of agent's registered email
   const subject = String(args.subject || "");
   const body = String(args.body || "");
-  const attachmentUrl = args.attachmentUrl as string | undefined;
-  const attachmentName = args.attachmentName as string | undefined;
+  let attachmentUrl = args.attachmentUrl as string | undefined;
+  let attachmentName = args.attachmentName as string | undefined;
+  let attachedFromLastDocument = false;
+
+  // AUTO-ATTACH: If no explicit attachment provided, check for recently generated document
+  if (!attachmentUrl && phoneNumber) {
+    try {
+      const lastDoc = await getLastDocument(phoneNumber);
+      if (lastDoc) {
+        // Only auto-attach if document was created within last 30 minutes
+        const docAge = Date.now() - new Date(lastDoc.created_at).getTime();
+        const MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
+
+        if (docAge < MAX_AGE_MS) {
+          logger.info("Auto-attaching recent document to email", {
+            category: LogCategory.TOOL,
+            operation: "sendEmail",
+            documentName: lastDoc.document_name,
+            documentType: lastDoc.document_type,
+            ageMinutes: Math.round(docAge / 60000),
+          });
+          attachmentUrl = lastDoc.document_url;
+          attachmentName = lastDoc.document_name;
+          attachedFromLastDocument = true;
+        } else {
+          logger.info("Last document too old, not auto-attaching", {
+            category: LogCategory.TOOL,
+            operation: "sendEmail",
+            ageMinutes: Math.round(docAge / 60000),
+          });
+        }
+      }
+    } catch (err) {
+      logger.warn("Failed to fetch last document for auto-attach", {
+        category: LogCategory.TOOL,
+        operation: "sendEmail",
+        error: err instanceof Error ? err.message : String(err),
+      });
+      // Continue without attachment - don't block email sending
+    }
+  }
 
   // Validate email (defensive check, should always be valid from DB)
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -1075,13 +1157,15 @@ async function handleSendEmail(
       category: LogCategory.TOOL,
       operation: "sendEmail",
       emailId: result.id,
+      hadAttachment: !!attachmentUrl,
+      autoAttached: attachedFromLastDocument,
     });
 
     return {
       success: true,
       message: `✅ Sent to your email\n\nSubject: ${subject}` +
         (attachmentName ? `\nAttachment: ${attachmentName}` : ""),
-      data: { emailId: result.id, subject },
+      data: { emailId: result.id, subject, attachedDocument: attachedFromLastDocument ? attachmentName : undefined },
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));

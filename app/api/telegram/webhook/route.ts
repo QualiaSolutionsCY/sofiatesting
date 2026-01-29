@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import { createLogger } from "@/lib/logger";
 import { handleTelegramMessage } from "@/lib/telegram/message-handler";
 import type { TelegramUpdate } from "@/lib/telegram/types";
+
+const logger = createLogger("telegram:webhook");
 
 // Extended duration to allow AI responses to complete (Telegram timeout is 60s)
 export const maxDuration = 60;
@@ -26,30 +29,26 @@ export async function POST(request: Request) {
   if (TELEGRAM_WEBHOOK_SECRET) {
     const secretToken = request.headers.get("X-Telegram-Bot-Api-Secret-Token");
     if (secretToken !== TELEGRAM_WEBHOOK_SECRET) {
-      console.warn("[TELEGRAM WEBHOOK] Invalid or missing secret token", {
+      logger.warn("Invalid or missing secret token", {
         hasToken: !!secretToken,
-        timestamp: new Date().toISOString(),
       });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   } else if (process.env.NODE_ENV === "production") {
     // Log warning if secret is not configured (should be set in production)
-    console.warn(
-      "[TELEGRAM WEBHOOK] TELEGRAM_WEBHOOK_SECRET not configured - webhook is unprotected"
-    );
+    logger.warn("TELEGRAM_WEBHOOK_SECRET not configured - webhook is unprotected");
   }
 
   try {
     const body = (await request.json()) as TelegramUpdate;
 
-    console.log("[TELEGRAM WEBHOOK] Message received:", {
+    logger.info("Message received", {
       update_id: body.update_id,
       has_message: !!body.message,
       has_edited_message: !!body.edited_message,
       chat_id: body.message?.chat.id,
       from_user: body.message?.from?.username,
       message_text: body.message?.text?.substring(0, 100),
-      timestamp: new Date().toISOString(),
     });
 
     // Handle new message - ASYNC (no await)
@@ -61,24 +60,20 @@ export async function POST(request: Request) {
       handleTelegramMessage(body.message)
         .then(() => {
           const duration = Date.now() - startTime;
-          console.log("[TELEGRAM WEBHOOK] Message processed successfully:", {
+          logger.info("Message processed successfully", {
             update_id: body.update_id,
             chat_id: body.message?.chat.id,
             duration_ms: duration,
-            timestamp: new Date().toISOString(),
           });
         })
         .catch((error) => {
           const duration = Date.now() - startTime;
-          console.error("[TELEGRAM WEBHOOK] Error in async message handler:", {
+          logger.error("Error in async message handler", error, {
             update_id: body.update_id,
             chat_id: body.message?.chat.id,
             from_user: body.message?.from?.username,
             message_text: body.message?.text?.substring(0, 100),
             duration_ms: duration,
-            error: error instanceof Error ? error.message : "Unknown error",
-            stack: error instanceof Error ? error.stack : undefined,
-            timestamp: new Date().toISOString(),
           });
         });
 
@@ -89,19 +84,15 @@ export async function POST(request: Request) {
     // Handle edited message
     if (body.edited_message) {
       // You can handle edited messages if needed
-      console.log("[TELEGRAM WEBHOOK] Edited message received, ignoring");
+      logger.debug("Edited message received, ignoring");
       return NextResponse.json({ ok: true });
     }
 
     // No message to process
-    console.log("[TELEGRAM WEBHOOK] No message to process");
+    logger.debug("No message to process");
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("[TELEGRAM WEBHOOK] Error processing webhook:", {
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString(),
-    });
+    logger.error("Error processing webhook", error);
 
     // Return 200 even on error to prevent Telegram from retrying
     // (log the error for debugging)

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/(auth)/auth";
+import { createLogger } from "@/lib/logger";
 import { getZyprusLocations } from "@/lib/zyprus/client";
+
+const logger = createLogger("api:listings:locations");
 
 export async function GET(_req: Request) {
   try {
@@ -30,7 +33,7 @@ export async function GET(_req: Request) {
       count: formattedLocations.length,
     });
   } catch (error) {
-    console.error("Failed to get locations:", error);
+    logger.error("Failed to get locations", error);
     return NextResponse.json(
       { error: "Failed to get locations from Zyprus" },
       { status: 500 }

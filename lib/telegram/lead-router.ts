@@ -8,7 +8,10 @@ import {
   supabaseTelegramGroup,
   supabaseTelegramLead,
 } from "../db/schema";
+import { logger } from "../logger";
 import { getTelegramClient } from "./client";
+
+const log = logger.telegram.child("lead-router");
 import {
   AGENT_REQUEST_PATTERN,
   detectRussianLanguage,
@@ -104,7 +107,7 @@ async function getOrCreateGroup(
       })
       .returning();
 
-    console.log("Created new Telegram group record:", {
+    log.info("Created new Telegram group record", {
       id: newGroup.id,
       groupName: newGroup.groupName,
       groupId: chatId,
@@ -112,7 +115,7 @@ async function getOrCreateGroup(
 
     return newGroup;
   } catch (error) {
-    console.error("Error getting/creating Telegram group:", error);
+    log.error("Error getting/creating Telegram group", error);
     return null;
   }
 }
@@ -198,7 +201,7 @@ async function getTargetAgents(
     // RULE 1: Limassol leads go ONLY to Michelle or Diana
     // Per spec: "RULE: Never forward to individual agents, FORWARD TO: Michelle OR Diana (only these two)"
     if (isLimassolRegion(region)) {
-      console.log("Limassol region detected - routing to Michelle/Diana only");
+      log.debug("Limassol region detected - routing to Michelle/Diana only");
       const agents = await db
         .select()
         .from(supabaseAgent)
@@ -213,7 +216,7 @@ async function getTargetAgents(
 
     // RULE 1.5: Larnaca leads go to Michelle/Diana (same as Limassol)
     if (isLarnacaRegion(region)) {
-      console.log("Larnaca region detected - routing to Michelle/Diana");
+      log.debug("Larnaca region detected - routing to Michelle/Diana");
       const agents = await db
         .select()
         .from(supabaseAgent)
@@ -234,9 +237,10 @@ async function getTargetAgents(
       const regionalManager = getRegionalManagerForOthers(extractedRegion);
 
       if (regionalManager) {
-        console.log(
-          `Others group - extracted region: ${extractedRegion}, routing to: ${regionalManager}`
-        );
+        log.debug("Others group routing", {
+          extractedRegion,
+          regionalManager,
+        });
         // Query for the specific regional manager
         const agents = await db
           .select()
@@ -252,15 +256,13 @@ async function getTargetAgents(
           return agents;
         }
         // If manager not found, fall through to rotation
-        console.log(
-          `Regional manager ${regionalManager} not found, falling back to rotation`
-        );
+        log.debug("Regional manager not found, falling back to rotation", {
+          regionalManager,
+        });
       }
 
       // Fallback: no region detected or manager not found, use rotation
-      console.log(
-        "Others group - extracted region: none, routing to: rotation"
-      );
+      log.debug("Others group - no region extracted, routing to rotation");
       const agents = await db
         .select()
         .from(supabaseAgent)
@@ -304,7 +306,7 @@ async function getTargetAgents(
 
     return agents;
   } catch (error) {
-    console.error("Error getting target agents:", error);
+    log.error("Error getting target agents", error, { region, groupType });
     return [];
   }
 }
@@ -320,7 +322,7 @@ async function detectRequestedAgent(
   if (!match) return null;
 
   const requestedName = match[1].trim();
-  console.log(`Detected agent request for: "${requestedName}"`);
+  log.debug("Detected agent request", { requestedName });
 
   // Look for partial name match (first name or full name)
   const agents = await db
@@ -338,11 +340,11 @@ async function detectRequestedAgent(
     .limit(1);
 
   if (agents.length > 0) {
-    console.log(`Found requested agent: ${agents[0].fullName}`);
+    log.debug("Found requested agent", { agentName: agents[0].fullName });
     return agents[0];
   }
 
-  console.log(`No agent found matching: "${requestedName}"`);
+  log.debug("No agent found matching request", { requestedName });
   return null;
 }
 
@@ -360,7 +362,7 @@ function selectLimassolAgent(
   if (isRussianSpeaking) {
     const diana = agents.find((a) => a.fullName === RUSSIAN_SPEAKER_AGENT);
     if (diana) {
-      console.log("Russian-speaking lead detected - routing to Diana");
+      log.debug("Russian-speaking lead detected - routing to Diana");
       return diana;
     }
   }
@@ -398,9 +400,10 @@ async function getNextAgentInRotation(
 
   if (rotationState.length === 0 || !rotationState[0].lastForwardedToAgentId) {
     // First lead for this region - start with first agent
-    console.log(
-      `First lead for region ${region}, starting with ${sortedAgents[0].fullName}`
-    );
+    log.debug("First lead for region, starting rotation", {
+      region,
+      agentName: sortedAgents[0].fullName,
+    });
     return sortedAgents[0];
   }
 
@@ -409,9 +412,7 @@ async function getNextAgentInRotation(
 
   if (lastIndex === -1) {
     // Last agent no longer available - start fresh
-    console.log(
-      `Previous agent no longer available for ${region}, restarting rotation`
-    );
+    log.debug("Previous agent no longer available, restarting rotation", { region });
     return sortedAgents[0];
   }
 
@@ -419,9 +420,11 @@ async function getNextAgentInRotation(
   const nextIndex = (lastIndex + 1) % sortedAgents.length;
   const nextAgent = sortedAgents[nextIndex];
 
-  console.log(
-    `Rotation for ${region}: last was ${sortedAgents[lastIndex].fullName}, next is ${nextAgent.fullName}`
-  );
+  log.debug("Rotation selected next agent", {
+    region,
+    lastAgent: sortedAgents[lastIndex].fullName,
+    nextAgent: nextAgent.fullName,
+  });
 
   return nextAgent;
 }
@@ -453,9 +456,9 @@ async function updateRotationState(
         },
       });
 
-    console.log(`Updated rotation state for ${region}: agent ${agentId}`);
+    log.debug("Updated rotation state", { region, agentId });
   } catch (error) {
-    console.error(`Failed to update rotation state for ${region}:`, error);
+    log.error("Failed to update rotation state", error, { region, agentId });
     // Don't throw - rotation state update is non-critical
   }
 }
@@ -486,15 +489,13 @@ async function isRecentDuplicate(
       .limit(1);
 
     if (recentLeads.length > 0) {
-      console.log(
-        `Duplicate lead detected: ${propertyId} already forwarded within last 10 minutes`
-      );
+      log.debug("Duplicate lead detected", { propertyId, sourceGroupId });
       return true;
     }
 
     return false;
   } catch (error) {
-    console.error("Error checking for duplicate lead:", error);
+    log.error("Error checking for duplicate lead", error, { propertyId });
     return false; // On error, allow the lead through
   }
 }
@@ -531,7 +532,7 @@ async function logLead(data: {
       status: "forwarded",
     });
   } catch (error) {
-    console.error("Error logging lead:", error);
+    log.error("Error logging lead", error, { propertyReferenceId: data.propertyReferenceId });
   }
 }
 
@@ -582,7 +583,7 @@ export async function handleGroupMessage(
     const isDuplicate = await isRecentDuplicate(primaryPropertyId, chatId);
     if (isDuplicate) {
       // Silently ignore duplicate leads
-      console.log(`Skipping duplicate lead for property: ${primaryPropertyId}`);
+      log.debug("Skipping duplicate lead", { propertyId: primaryPropertyId });
       return;
     }
   }
@@ -598,7 +599,7 @@ export async function handleGroupMessage(
   // Per spec: "Client wants to speak with [Agent Name]" → Forward directly to named agent
   const requestedAgent = await detectRequestedAgent(messageText);
   if (requestedAgent) {
-    console.log(`Client requested specific agent: ${requestedAgent.fullName}`);
+    log.info("Client requested specific agent", { agentName: requestedAgent.fullName });
     await forwardLeadToAgent(
       telegramClient,
       message,
@@ -620,7 +621,7 @@ export async function handleGroupMessage(
   );
 
   if (targetAgents.length === 0) {
-    console.log("No target agents found for region:", region);
+    log.warn("No target agents found for region", { region });
     // Acknowledge in group but note no agents available
     try {
       await telegramClient.sendMessage({
@@ -629,7 +630,7 @@ export async function handleGroupMessage(
         replyToMessageId: message.message_id,
       });
     } catch (error) {
-      console.error("Failed to send acknowledgment:", error);
+      log.error("Failed to send acknowledgment", error);
     }
     return;
   }
@@ -638,7 +639,7 @@ export async function handleGroupMessage(
   const agentsWithTelegram = targetAgents.filter((a) => a.telegramUserId);
 
   if (agentsWithTelegram.length === 0) {
-    console.log("No agents with Telegram IDs for region:", region);
+    log.warn("No agents with Telegram IDs for region", { region });
     try {
       await telegramClient.sendMessage({
         chatId,
@@ -646,7 +647,7 @@ export async function handleGroupMessage(
         replyToMessageId: message.message_id,
       });
     } catch (error) {
-      console.error("Failed to send acknowledgment:", error);
+      log.error("Failed to send acknowledgment", error);
     }
     return;
   }
@@ -677,7 +678,7 @@ export async function handleGroupMessage(
   }
 
   if (!selectedAgent) {
-    console.log("No agent selected after rotation");
+    log.warn("No agent selected after rotation", { region: effectiveRegion });
     return;
   }
 
@@ -715,7 +716,7 @@ async function forwardLeadToAgent(
   const messageText = message.text || message.caption || "";
 
   if (!agent.telegramUserId) {
-    console.log(`Agent ${agent.fullName} has no Telegram ID`);
+    log.warn("Agent has no Telegram ID", { agentName: agent.fullName });
     return;
   }
 
@@ -739,7 +740,11 @@ async function forwardLeadToAgent(
       }`,
     });
 
-    console.log(`Lead forwarded to ${agent.fullName} (${routingReason})`);
+    log.info("Lead forwarded to agent", {
+      agentName: agent.fullName,
+      routingReason,
+      propertyId,
+    });
 
     // Log the lead
     await logLead({
@@ -766,9 +771,9 @@ async function forwardLeadToAgent(
         replyToMessageId: message.message_id,
       });
     } catch (error) {
-      console.error("Failed to send acknowledgment:", error);
+      log.error("Failed to send acknowledgment", error);
     }
   } catch (error) {
-    console.error(`Failed to forward to agent ${agent.fullName}:`, error);
+    log.error("Failed to forward to agent", error, { agentName: agent.fullName });
   }
 }

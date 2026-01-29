@@ -2,6 +2,9 @@ import type { NextRequest } from "next/server";
 import { auth } from "@/app/(auth)/auth";
 import { deleteAllChatsByUserId, getChatsByUserId } from "@/lib/db/queries";
 import { ChatSDKError } from "@/lib/errors";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("api:history");
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,10 +41,7 @@ export async function GET(request: NextRequest) {
     }
 
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Unexpected error in GET /api/history:", {
-      error: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    logger.error("Unexpected error in GET /api/history", error);
 
     return new ChatSDKError(
       "bad_request:database",
@@ -65,7 +65,7 @@ export async function DELETE() {
     if (error instanceof ChatSDKError) {
       return error.toResponse();
     }
-    console.error("Unexpected error in DELETE /api/history:", error);
+    logger.error("Unexpected error in DELETE /api/history", error);
     return new ChatSDKError("bad_request:database").toResponse();
   }
 }

@@ -13,6 +13,7 @@
  */
 
 import { shouldSendAsDocx, extractTemplateTitle } from "../prompts/templates/registry.ts";
+import { logger, LogCategory } from "../utils/logger.ts";
 
 /**
  * Minimum content requirements for a valid DOCX document
@@ -38,28 +39,28 @@ const PLACEHOLDER_PATTERNS = [
  */
 export function hasValidDocumentContent(response: string): boolean {
   const trimmed = response.trim();
-  
+
   // Reject very short responses
   if (trimmed.length < MIN_DOCUMENT_LENGTH) {
-    console.log(`[DOCX Detector] Response too short: ${trimmed.length} chars (min: ${MIN_DOCUMENT_LENGTH})`);
+    logger.debug(`[DOCX Detector] Response too short: ${trimmed.length} chars (min: ${MIN_DOCUMENT_LENGTH})`, { category: LogCategory.GENERAL });
     return false;
   }
-  
+
   // Reject placeholder messages
   for (const pattern of PLACEHOLDER_PATTERNS) {
     if (pattern.test(trimmed)) {
-      console.log(`[DOCX Detector] Response matches placeholder pattern`);
+      logger.debug("[DOCX Detector] Response matches placeholder pattern", { category: LogCategory.GENERAL });
       return false;
     }
   }
-  
+
   // Check line count
   const lines = trimmed.split('\n').filter(line => line.trim().length > 0);
   if (lines.length < MIN_DOCUMENT_LINES) {
-    console.log(`[DOCX Detector] Too few lines: ${lines.length} (min: ${MIN_DOCUMENT_LINES})`);
+    logger.debug(`[DOCX Detector] Too few lines: ${lines.length} (min: ${MIN_DOCUMENT_LINES})`, { category: LogCategory.GENERAL });
     return false;
   }
-  
+
   return true;
 }
 
@@ -76,22 +77,22 @@ export function isDocxTemplate(
 ): boolean {
   // Step 1: Check if response has Subject: line -> always TEXT (it's an email)
   if (aiResponse.includes("Subject:")) {
-    console.log("[DOCX Detector] Has Subject: line -> TEXT message");
+    logger.debug("[DOCX Detector] Has Subject: line -> TEXT message", { category: LogCategory.GENERAL });
     return false;
   }
-  
+
   // Step 2: Validate content is substantial enough for a document
   if (!hasValidDocumentContent(aiResponse)) {
-    console.log("[DOCX Detector] Content validation failed -> TEXT message");
+    logger.debug("[DOCX Detector] Content validation failed -> TEXT message", { category: LogCategory.GENERAL });
     return false;
   }
-  
+
   // Step 3: Use the registry to determine if this is a DOCX template
   const isDocx = shouldSendAsDocx(aiResponse);
-  
+
   const title = extractTemplateTitle(aiResponse);
-  console.log(`[DOCX Detector] Title: "${title}", Is DOCX: ${isDocx}`);
-  
+  logger.debug(`[DOCX Detector] Title: "${title}", Is DOCX: ${isDocx}`, { category: LogCategory.GENERAL });
+
   return isDocx;
 }
 

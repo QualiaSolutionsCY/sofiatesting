@@ -3,6 +3,9 @@ import { type NextRequest, NextResponse } from "next/server";
 import { read, utils } from "xlsx";
 import { db } from "@/lib/db/client";
 import { zyprusAgent } from "@/lib/db/schema";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("api:admin:agents:import");
 
 type AgentRow = {
   "Fulla Name": string;
@@ -171,10 +174,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error(
-      "[API /api/admin/agents/import POST] Error importing agents:",
-      error
-    );
+    logger.error("Error importing agents", error);
     return NextResponse.json(
       {
         error: "Failed to import agents",

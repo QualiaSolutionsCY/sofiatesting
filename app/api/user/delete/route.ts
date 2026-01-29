@@ -12,6 +12,9 @@ import {
   user,
   userActivitySummary,
 } from "@/lib/db/schema";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("api:user:delete");
 
 /**
  * DELETE /api/user/delete - Delete user and all associated data (GDPR Right to Erasure)
@@ -164,7 +167,7 @@ export async function DELETE(request: Request) {
       summary: deletionSummary.deletedData,
     });
   } catch (error) {
-    console.error("[GDPR Delete] Error deleting user data:", error);
+    logger.error("GDPR Delete - Error deleting user data", error);
     return NextResponse.json(
       {
         error: "Failed to delete user data",
@@ -225,7 +228,7 @@ export async function GET() {
         "This action is IRREVERSIBLE. To proceed, send a DELETE request with { confirmDelete: true } in the body.",
     });
   } catch (error) {
-    console.error("[GDPR Delete] Error getting user data summary:", error);
+    logger.error("GDPR Delete - Error getting user data summary", error);
     return NextResponse.json(
       { error: "Failed to get user data summary" },
       { status: 500 }

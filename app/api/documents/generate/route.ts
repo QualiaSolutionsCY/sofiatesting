@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import { generateDocx } from "@/lib/documents/docx-generator";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("api:documents:generate");
 
 const generateDocumentSchema = z.object({
   content: z.string().min(1, "Content is required"),
@@ -58,7 +61,7 @@ export async function POST(request: Request) {
       contentType: blob.contentType,
     });
   } catch (error) {
-    console.error("[Documents] Generate error:", error);
+    logger.error("Generate error", error);
     return NextResponse.json(
       {
         error:

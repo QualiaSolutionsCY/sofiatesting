@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/app/(auth)/auth";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("api:files:upload");
 
 // Use Blob instead of File since File is not available in Node.js environment
 const FileSchema = z.object({
@@ -57,19 +60,14 @@ export async function POST(request: Request) {
 
       return NextResponse.json(data);
     } catch (error) {
-      console.error("Blob upload error:", {
+      logger.error("Blob upload error", error, {
         filename,
         fileSize: fileBuffer.byteLength,
-        error: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : undefined,
       });
       return NextResponse.json({ error: "Upload failed" }, { status: 500 });
     }
   } catch (error) {
-    console.error("File upload request processing error:", {
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    logger.error("File upload request processing error", error);
     return NextResponse.json(
       { error: "Failed to process request" },
       { status: 500 }

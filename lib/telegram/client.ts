@@ -1,5 +1,8 @@
 import "server-only";
+import { logger } from "../logger";
 import type { TelegramWebhookInfo } from "./types";
+
+const log = logger.telegram.child("client");
 
 /**
  * Telegram Bot API Client
@@ -55,7 +58,7 @@ export class TelegramClient {
       const data = await response.json();
 
       if (!data.ok) {
-        console.error("Telegram API error:", {
+        log.error("Telegram API error", undefined, {
           description: data.description,
           errorCode: data.error_code,
           chatId,
@@ -66,8 +69,7 @@ export class TelegramClient {
 
       return data.result;
     } catch (error) {
-      console.error("Error sending Telegram message:", {
-        error: error instanceof Error ? error.message : "Unknown error",
+      log.error("Error sending Telegram message", error, {
         chatId,
         textLength: text.length,
       });
@@ -97,7 +99,7 @@ export class TelegramClient {
         }),
       });
     } catch (error) {
-      console.error("Error sending chat action:", error);
+      log.error("Error sending chat action", error, { chatId, action });
     }
   }
 
@@ -130,7 +132,7 @@ export class TelegramClient {
       const data = await response.json();
       return data.ok;
     } catch (error) {
-      console.error("Error setting webhook:", error);
+      log.error("Error setting webhook", error);
       return false;
     }
   }
@@ -148,7 +150,7 @@ export class TelegramClient {
       }
       return null;
     } catch (error) {
-      console.error("Error getting webhook info:", error);
+      log.error("Error getting webhook info", error);
       return null;
     }
   }
@@ -164,7 +166,7 @@ export class TelegramClient {
       const data = await response.json();
       return data.ok;
     } catch (error) {
-      console.error("Error deleting webhook:", error);
+      log.error("Error deleting webhook", error);
       return false;
     }
   }
@@ -178,7 +180,7 @@ export class TelegramClient {
       const data = await response.json();
       return data.ok ? data.result : null;
     } catch (error) {
-      console.error("Error getting bot info:", error);
+      log.error("Error getting bot info", error);
       return null;
     }
   }
@@ -212,7 +214,7 @@ export class TelegramClient {
       const data = await response.json();
 
       if (!data.ok) {
-        console.error("Telegram forwardMessage error:", {
+        log.error("Telegram forwardMessage error", undefined, {
           description: data.description,
           errorCode: data.error_code,
           chatId,
@@ -224,8 +226,7 @@ export class TelegramClient {
 
       return data.result;
     } catch (error) {
-      console.error("Error forwarding Telegram message:", {
-        error: error instanceof Error ? error.message : "Unknown error",
+      log.error("Error forwarding Telegram message", error, {
         chatId,
         fromChatId,
         messageId,
@@ -258,7 +259,7 @@ export class TelegramClient {
       const data = await response.json();
 
       if (!data.ok) {
-        console.error("Telegram getFile error:", {
+        log.error("Telegram getFile error", undefined, {
           description: data.description,
           fileId,
         });
@@ -267,7 +268,7 @@ export class TelegramClient {
 
       return data.result;
     } catch (error) {
-      console.error("Error getting file from Telegram:", error);
+      log.error("Error getting file from Telegram", error, { fileId });
       return null;
     }
   }
@@ -284,14 +285,14 @@ export class TelegramClient {
       const response = await fetch(downloadUrl);
 
       if (!response.ok) {
-        console.error("Failed to download file:", response.statusText);
+        log.error("Failed to download file", undefined, { status: response.statusText });
         return null;
       }
 
       const arrayBuffer = await response.arrayBuffer();
       return Buffer.from(arrayBuffer);
     } catch (error) {
-      console.error("Error downloading file from Telegram:", error);
+      log.error("Error downloading file from Telegram", error);
       return null;
     }
   }
@@ -350,7 +351,7 @@ export class TelegramClient {
       const data = await response.json();
 
       if (!data.ok) {
-        console.error("Telegram getChat error:", {
+        log.error("Telegram getChat error", undefined, {
           description: data.description,
           chatId,
         });
@@ -359,7 +360,7 @@ export class TelegramClient {
 
       return data.result;
     } catch (error) {
-      console.error("Error getting chat info:", error);
+      log.error("Error getting chat info", error, { chatId });
       return null;
     }
   }

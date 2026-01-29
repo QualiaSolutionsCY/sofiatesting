@@ -4,6 +4,7 @@
  */
 
 import { validateImageUrl } from "../utils/url-validator.ts";
+import { logger, LogCategory } from "../utils/logger.ts";
 
 export interface ProcessedImage {
   url: string;
@@ -166,7 +167,8 @@ async function checkImageAccessibleWithError(url: string): Promise<{ valid: bool
     // P0 SECURITY: Validate URL before making any request (SSRF prevention)
     const securityCheck = validateImageUrl(url);
     if (!securityCheck.valid) {
-      console.warn(`[Image Handler] SSRF blocked: ${securityCheck.error}`, {
+      logger.warn(`[Image Handler] SSRF blocked: ${securityCheck.error}`, {
+        category: LogCategory.IMAGE,
         url: url.substring(0, 100),
       });
       return { valid: false, error: `Security: ${securityCheck.error}` };

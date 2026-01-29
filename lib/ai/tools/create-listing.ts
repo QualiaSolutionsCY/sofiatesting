@@ -8,6 +8,7 @@ import {
   updateListingDuplicateStatus,
   updateListingStatus,
 } from "@/lib/db/queries";
+import { logger } from "@/lib/logger";
 import {
   checkForDuplicates,
   generateReferenceId,
@@ -15,6 +16,8 @@ import {
   uploadToZyprusAPI,
   ZyprusAPIError,
 } from "@/lib/zyprus/client";
+
+const log = logger.ai.child("create-listing");
 
 // Cyprus cities for validation
 const _CYPRUS_LOCATIONS = [
@@ -424,7 +427,7 @@ export const createListingTool = tool({
         }
       } catch (err) {
         // Don't fail if duplicate check errors - just log and continue
-        console.warn("Duplicate check failed:", err);
+        log.warn("Duplicate check failed", { error: String(err) });
       }
 
       // Now automatically upload to Zyprus as DRAFT (status: false = unpublished)
@@ -513,7 +516,7 @@ export const createListingTool = tool({
             : "draft";
         await updateListingStatus({ id: listing.id, status: newStatus });
 
-        console.error("Error uploading to Zyprus:", err);
+        log.error("Error uploading to Zyprus", err);
       }
 
       // Build response message
@@ -566,7 +569,7 @@ ${duplicateWarning ? `${duplicateWarning}\n\n` : ""}❌ **Upload Error**: ${uplo
 The listing has been saved locally and can be uploaded manually later.`,
       };
     } catch (error) {
-      console.error("Error creating listing:", error);
+      log.error("Error creating listing", error);
       return {
         success: false,
         error: "Failed to create listing. Please try again.",

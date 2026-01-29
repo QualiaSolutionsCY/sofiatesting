@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { createLogger } from "@/lib/logger";
 import { getTelegramClient } from "@/lib/telegram/client";
+
+const logger = createLogger("api:telegram:setup");
 
 /**
  * Telegram Bot Setup Endpoint
@@ -20,7 +23,7 @@ function validateAdminAuth(request: Request): boolean {
   const expectedKey = process.env.ADMIN_API_KEY;
 
   if (!expectedKey) {
-    console.error("ADMIN_API_KEY not configured - setup endpoint is disabled");
+    logger.error("ADMIN_API_KEY not configured - setup endpoint is disabled");
     return false;
   }
 
@@ -50,7 +53,7 @@ export async function GET(request: Request) {
       status: "ok",
     });
   } catch (error) {
-    console.error("Error getting bot info:", error);
+    logger.error("Error getting bot info", error);
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Unknown error",
@@ -101,7 +104,7 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   } catch (error) {
-    console.error("Error setting webhook:", error);
+    logger.error("Error setting webhook", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
@@ -131,7 +134,7 @@ export async function DELETE(request: Request) {
         : "Failed to delete webhook",
     });
   } catch (error) {
-    console.error("Error deleting webhook:", error);
+    logger.error("Error deleting webhook", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }

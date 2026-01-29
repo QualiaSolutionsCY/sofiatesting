@@ -21,6 +21,9 @@ import {
 } from "@/components/ui/card";
 import { db } from "@/lib/db/client";
 import { systemHealthLog, zyprusAgent } from "@/lib/db/schema";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("admin:dashboard");
 
 async function getDashboardStats() {
   try {
@@ -86,7 +89,7 @@ async function getDashboardStats() {
       recentAgents,
     };
   } catch (error) {
-    console.error("[Admin Dashboard] Failed to fetch stats:", error);
+    logger.error("Failed to fetch dashboard stats", error);
     // Return default values to allow page to render
     return {
       agents: { total: 0, active: 0, pending: 0 },

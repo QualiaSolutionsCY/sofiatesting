@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/(auth)/auth";
+import { createLogger } from "@/lib/logger";
 import { getZyprusTaxonomyTerms } from "@/lib/zyprus/client";
+
+const logger = createLogger("api:listings:taxonomy");
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -40,7 +43,7 @@ export async function GET(req: Request) {
     const terms = await getZyprusTaxonomyTerms(vocabularyType);
     return NextResponse.json({ success: true, terms });
   } catch (error: unknown) {
-    console.error("Failed to fetch taxonomy terms:", error);
+    logger.error("Failed to fetch taxonomy terms", error);
 
     const message =
       error instanceof Error && error.message

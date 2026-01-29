@@ -4,6 +4,7 @@
  */
 
 import { Agent } from "../agents/identifier.ts";
+import { logger, LogCategory } from "../utils/logger.ts";
 
 // Location to region mapping
 const REGION_LOCATIONS: Record<string, string[]> = {
@@ -95,7 +96,7 @@ export function validateRegionalAccess(
 
   // If we can't determine the region, trust the agent (they know their region)
   if (!propertyRegion) {
-    console.log(`[RegionValidator] Could not determine region for: ${propertyLocation}, trusting agent`);
+    logger.debug(`[RegionValidator] Could not determine region for: ${propertyLocation}, trusting agent`, { category: LogCategory.GENERAL });
     return {
       allowed: true,
       propertyRegion: agent.region

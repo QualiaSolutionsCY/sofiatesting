@@ -4,6 +4,9 @@ import { type NextRequest, NextResponse } from "next/server";
 import { checkAdminAuth, hasMinimumRole } from "@/lib/auth/admin";
 import { db } from "@/lib/db/client";
 import { zyprusAgent } from "@/lib/db/schema";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("api:admin:agents");
 
 /**
  * GET /api/admin/agents
@@ -89,7 +92,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[API /api/admin/agents GET] Error fetching agents:", error);
+    logger.error("Error fetching agents", error);
     return NextResponse.json(
       {
         error: "Failed to fetch agents",
@@ -188,7 +191,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("[API /api/admin/agents POST] Error creating agent:", error);
+    logger.error("Error creating agent", error);
     return NextResponse.json(
       {
         error: "Failed to create agent",

@@ -12,6 +12,9 @@ import {
   user,
   userActivitySummary,
 } from "@/lib/db/schema";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("api:user:export");
 
 /**
  * GET /api/user/export - Export all user data (GDPR Right to Data Portability)
@@ -186,7 +189,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error("[GDPR Export] Error exporting user data:", error);
+    logger.error("GDPR Export - Error exporting user data", error);
     return NextResponse.json(
       {
         error: "Failed to export user data",

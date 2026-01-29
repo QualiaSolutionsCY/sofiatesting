@@ -10,6 +10,7 @@ import {
   saveChat,
   saveMessages,
 } from "../db/queries";
+import { logger } from "../logger";
 import {
   generateFilePath,
   uploadToSupabaseStorage,
@@ -20,6 +21,8 @@ import { getTelegramClient } from "./client";
 import { handleGroupMessage, isGroupChat } from "./lead-router";
 import type { TelegramMessage } from "./types";
 import { getTelegramChatId, getTelegramUser } from "./user-mapping";
+
+const log = logger.telegram.child("handler");
 
 // Top-level regex patterns for quick responses (performance optimization)
 const GREETING_PATTERN =
@@ -221,11 +224,9 @@ export async function handleTelegramMessage(
         break; // Success - exit retry loop
       } catch (streamError) {
         retryCount++;
-        console.error(`AI stream attempt ${retryCount} failed:`, {
+        log.error("AI stream attempt failed", streamError, {
           chatId,
           attempt: retryCount,
-          error: streamError instanceof Error ? streamError.message : "Unknown",
-          stack: streamError instanceof Error ? streamError.stack : undefined,
         });
 
         if (retryCount > MAX_RETRIES) {
@@ -252,7 +253,7 @@ export async function handleTelegramMessage(
     for await (const textPart of result.textStream) {
       // Check for timeout
       if (Date.now() - streamStartTime > STREAM_TIMEOUT_MS) {
-        console.error("AI stream timeout exceeded", {
+        log.error("AI stream timeout exceeded", undefined, {
           chatId,
           duration: Date.now() - streamStartTime,
           partialResponse: fullResponse.substring(0, 200),
@@ -298,15 +299,12 @@ export async function handleTelegramMessage(
     });
   } catch (error) {
     const errorId = Date.now();
-    console.error("Error handling Telegram message:", {
+    log.error("Error handling Telegram message", error, {
       errorId,
       chatId,
-      fromUser: message.from,
+      fromUser: message.from?.id,
       messageText: message.text?.substring(0, 100),
-      error,
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
-      errorStack: error instanceof Error ? error.stack : undefined,
-      modelName: chatModel.modelId, // Log the actual model being used
+      modelName: chatModel.modelId,
     });
 
     try {
@@ -324,11 +322,9 @@ export async function handleTelegramMessage(
         parseMode: undefined, // Plain text mode
       });
     } catch (sendError) {
-      console.error("Failed to send error message to Telegram:", {
+      log.error("Failed to send error message to Telegram", sendError, {
         errorId,
         chatId,
-        sendError:
-          sendError instanceof Error ? sendError.message : "Unknown error",
         originalError: error instanceof Error ? error.message : "Unknown error",
       });
     }
@@ -808,17 +804,15 @@ async function handleFileUpload(message: TelegramMessage): Promise<void> {
 
       if (uploadResult.success && uploadResult.publicUrl) {
         documentUrl = uploadResult.publicUrl;
-        console.log("Title deed uploaded to:", uploadResult.publicUrl);
+        log.info("Title deed uploaded", { url: uploadResult.publicUrl });
 
         // Try to parse the title deed if it's an image
         if (fileData.mimeType?.startsWith("image/")) {
           // TODO: Add OCR parsing for image-based deeds
-          console.log(
-            "Image title deed received - OCR parsing not implemented yet"
-          );
+          log.debug("Image title deed received - OCR parsing not implemented yet");
         }
       } else {
-        console.error("Failed to upload title deed:", uploadResult.error);
+        log.error("Failed to upload title deed", undefined, { error: uploadResult.error });
       }
     }
 
@@ -872,7 +866,7 @@ If this is for a property listing, please describe the property:
       replyToMessageId: message.message_id,
     });
   } catch (error) {
-    console.error("Error handling file upload:", error);
+    log.error("Error handling file upload", error);
     await telegramClient.sendMessage({
       chatId,
       text: "Sorry, I had trouble processing your file. Please try again.",

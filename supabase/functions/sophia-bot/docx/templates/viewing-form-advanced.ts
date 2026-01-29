@@ -24,6 +24,7 @@ import {
 } from "https://esm.sh/docx@8.5.0";
 
 import { COLORS, FONTS, SPACING, COMPANY, LOGO, LEGAL_TEXT, createSignatureLine, formatDate } from "../styles.ts";
+import { logger, LogCategory } from "../../utils/logger.ts";
 
 /**
  * Person data for viewing form
@@ -559,7 +560,7 @@ export function parseViewingFormAdvancedData(response: string): ViewingFormAdvan
     const dateMatch = cleanResponse.match(/Date:?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
     
     if (persons.length === 0 || !regNoMatch) {
-      console.log("[ViewingFormAdvanced] Could not parse required fields from response");
+      logger.debug("[ViewingFormAdvanced] Could not parse required fields from response");
       return null;
     }
     
@@ -574,7 +575,7 @@ export function parseViewingFormAdvancedData(response: string): ViewingFormAdvan
       },
     };
   } catch (error) {
-    console.error("[ViewingFormAdvanced] Error parsing response:", error);
+    logger.error("[ViewingFormAdvanced] Parse error", error instanceof Error ? error : new Error(String(error)));
     return null;
   }
 }

@@ -1,4 +1,7 @@
+import { logger } from "../logger";
 import { getZyprusLocations, getZyprusTaxonomyTerms } from "./client";
+
+const log = logger.zyprus.child("taxonomy");
 
 export type TaxonomyCache = {
   locations?: Map<string, string>; // name → id
@@ -52,9 +55,7 @@ function isBuildTime(): boolean {
 async function refreshCache(): Promise<TaxonomyCache> {
   // During build time, skip API calls and return empty cache
   if (isBuildTime()) {
-    console.log(
-      "Build time detected - skipping taxonomy cache refresh (will populate at runtime)"
-    );
+    log.debug("Build time detected - skipping taxonomy cache refresh");
     return {
       lastUpdated: 0,
     };
@@ -167,11 +168,11 @@ async function refreshCache(): Promise<TaxonomyCache> {
 
     return newCache;
   } catch (error) {
-    console.error("Failed to refresh taxonomy cache from Zyprus API:", error);
+    log.error("Failed to refresh taxonomy cache from Zyprus API", error);
 
     // During build time, return empty cache instead of retrying
     if (isBuildTime()) {
-      console.log("Build time - returning empty cache after API failure");
+      log.debug("Build time - returning empty cache after API failure");
       return {
         lastUpdated: 0,
       };
@@ -195,7 +196,7 @@ async function refreshCache(): Promise<TaxonomyCache> {
 export async function getCache(): Promise<TaxonomyCache> {
   // During build time, return empty cache immediately
   if (isBuildTime()) {
-    console.log("Build time - returning empty taxonomy cache");
+    log.debug("Build time - returning empty taxonomy cache");
     return {
       lastUpdated: 0,
     };
@@ -206,7 +207,7 @@ export async function getCache(): Promise<TaxonomyCache> {
     // Refresh in background if we have data, otherwise wait
     if (globalCache.lastUpdated > 0) {
       refreshCache().catch((err) =>
-        console.error("Background cache refresh failed:", err)
+        log.error("Background cache refresh failed", err)
       );
       return globalCache;
     }
@@ -221,7 +222,7 @@ export async function getCache(): Promise<TaxonomyCache> {
  */
 export async function forceRefreshCache(): Promise<void> {
   await refreshCache();
-  console.log("Taxonomy cache force refreshed");
+  log.info("Taxonomy cache force refreshed");
 }
 
 /**

@@ -1,4 +1,7 @@
 import CircuitBreaker from "opossum";
+import { logger } from "./logger";
+
+const log = logger.circuit;
 
 /**
  * Circuit Breaker Configuration
@@ -62,33 +65,23 @@ export function createCircuitBreaker<
 
   // Log circuit breaker state changes
   breaker.on("open", () => {
-    console.warn(
-      `[CircuitBreaker:${opts.name}] Circuit OPENED - service unhealthy, failing fast`
-    );
+    log.warn("Circuit OPENED - service unhealthy, failing fast", { name: opts.name });
   });
 
   breaker.on("halfOpen", () => {
-    console.log(
-      `[CircuitBreaker:${opts.name}] Circuit HALF-OPEN - testing service health`
-    );
+    log.info("Circuit HALF-OPEN - testing service health", { name: opts.name });
   });
 
   breaker.on("close", () => {
-    console.log(
-      `[CircuitBreaker:${opts.name}] Circuit CLOSED - service recovered`
-    );
+    log.info("Circuit CLOSED - service recovered", { name: opts.name });
   });
 
   breaker.on("timeout", () => {
-    console.warn(
-      `[CircuitBreaker:${opts.name}] Request timeout after ${opts.timeout}ms`
-    );
+    log.warn("Request timeout", { name: opts.name, timeout: opts.timeout });
   });
 
   breaker.on("reject", () => {
-    console.warn(
-      `[CircuitBreaker:${opts.name}] Request REJECTED - circuit is open`
-    );
+    log.warn("Request REJECTED - circuit is open", { name: opts.name });
   });
 
   // Provide fallback function if specified
@@ -126,7 +119,5 @@ export function getCircuitBreakerStats(breaker: CircuitBreaker<any, any>) {
  */
 export function resetCircuitBreaker(breaker: CircuitBreaker<any, any>) {
   breaker.close();
-  console.log(
-    `[CircuitBreaker:${breaker.name}] Manually reset to CLOSED state`
-  );
+  log.info("Manually reset to CLOSED state", { name: breaker.name });
 }

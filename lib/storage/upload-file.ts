@@ -1,4 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
+import { logger } from "../logger";
+
+const log = logger.storage;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -33,7 +36,7 @@ export async function uploadToSupabaseStorage({
       });
 
     if (error) {
-      console.error("Supabase storage upload error:", error);
+      log.error("Supabase storage upload error", error);
       return { success: false, error: error.message };
     }
 
@@ -48,7 +51,7 @@ export async function uploadToSupabaseStorage({
       publicUrl,
     };
   } catch (error) {
-    console.error("Storage upload failed:", error);
+    log.error("Storage upload failed", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -87,13 +90,13 @@ export async function deleteFromSupabaseStorage({
     const { error } = await supabaseAdmin.storage.from(bucket).remove([path]);
 
     if (error) {
-      console.error("Supabase storage delete error:", error);
+      log.error("Supabase storage delete error", error);
       return { success: false, error: error.message };
     }
 
     return { success: true };
   } catch (error) {
-    console.error("Storage delete failed:", error);
+    log.error("Storage delete failed", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",

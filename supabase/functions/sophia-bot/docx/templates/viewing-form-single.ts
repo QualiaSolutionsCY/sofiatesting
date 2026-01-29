@@ -20,6 +20,7 @@ import {
 } from "https://esm.sh/docx@8.5.0";
 
 import { COLORS, FONTS, SPACING, COMPANY, LOGO, createSignatureLine, formatDate } from "../styles.ts";
+import { logger, LogCategory } from "../../utils/logger.ts";
 
 /**
  * Data required for a single person viewing form
@@ -314,7 +315,7 @@ export function parseViewingFormSingleData(response: string): ViewingFormSingleD
     const dateMatch = cleanResponse.match(/Date:?\s*\*?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
 
     if (!personMatch || !regNoMatch) {
-      console.log("[ViewingFormSingle] Could not parse required fields from response");
+      logger.debug("[ViewingFormSingle] Could not parse required fields from response", { category: LogCategory.GENERAL });
       return null;
     }
 
@@ -333,7 +334,7 @@ export function parseViewingFormSingleData(response: string): ViewingFormSingleD
       },
     };
   } catch (error) {
-    console.error("[ViewingFormSingle] Error parsing response:", error);
+    logger.error("[ViewingFormSingle] Error parsing response", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.GENERAL });
     return null;
   }
 }

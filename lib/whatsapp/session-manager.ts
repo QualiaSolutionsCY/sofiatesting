@@ -4,6 +4,9 @@
  */
 
 import { Redis } from "@upstash/redis";
+import { logger } from "../logger";
+
+const log = logger.whatsapp.child("session");
 
 export type SessionState = {
   currentMenu?:
@@ -49,9 +52,7 @@ const getRedis = (): Redis | null => {
 
   const redisUrl = process.env.REDIS_URL;
   if (!redisUrl) {
-    console.warn(
-      "[WhatsApp Session] REDIS_URL not configured, using in-memory fallback"
-    );
+    log.warn("REDIS_URL not configured, using in-memory fallback");
     return null;
   }
 
@@ -60,9 +61,7 @@ const getRedis = (): Redis | null => {
     const redisToken = parsedRedisUrl.password;
 
     if (!redisToken) {
-      console.warn(
-        "[WhatsApp Session] REDIS_URL missing password, using in-memory fallback"
-      );
+      log.warn("REDIS_URL missing password, using in-memory fallback");
       return null;
     }
 
@@ -73,7 +72,7 @@ const getRedis = (): Redis | null => {
 
     return redisClient;
   } catch (error) {
-    console.error("[WhatsApp Session] Failed to initialize Redis:", error);
+    log.error("Failed to initialize Redis", error);
     return null;
   }
 };
@@ -108,7 +107,7 @@ export async function getSession(phoneNumber: string): Promise<SessionState> {
       await redis.set(key, newSession, { ex: SESSION_TTL_SECONDS });
       return newSession;
     } catch (error) {
-      console.error("[WhatsApp Session] Redis get failed:", error);
+      log.error("Redis get failed", error);
       // Fall through to memory cache
     }
   }
@@ -143,7 +142,7 @@ export async function updateSession(
       await redis.set(key, updated, { ex: SESSION_TTL_SECONDS });
       return;
     } catch (error) {
-      console.error("[WhatsApp Session] Redis set failed:", error);
+      log.error("Redis set failed", error);
       // Fall through to memory cache
     }
   }
@@ -165,7 +164,7 @@ export async function clearSession(phoneNumber: string): Promise<void> {
     try {
       await redis.del(key);
     } catch (error) {
-      console.error("[WhatsApp Session] Redis del failed:", error);
+      log.error("Redis del failed", error);
     }
   }
 

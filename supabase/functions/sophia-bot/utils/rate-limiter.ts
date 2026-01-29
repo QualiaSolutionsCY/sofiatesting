@@ -6,6 +6,7 @@
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { logger, LogCategory } from "./logger.ts";
 
 // Configuration - aligned with local lib/whatsapp rate limit
 const RATE_LIMIT = 30; // messages per minute per user (was 10)
@@ -43,7 +44,7 @@ function checkInMemoryRateLimit(userId: string): boolean {
   }
 
   if (entry.count >= RATE_LIMIT) {
-    console.log(`[Fallback Rate Limit] Limit exceeded for user ${userId.substring(0, 10)}...`);
+    logger.warn(`[Fallback Rate Limit] Limit exceeded for user`, { category: LogCategory.GENERAL });
     return false;
   }
 
@@ -74,17 +75,17 @@ export async function checkRateLimit(
 
     if (error) {
       // P2 SECURITY: Use fallback rate limiter on DB error
-      console.error("Rate limit check error:", error.message);
+      logger.error("Rate limit check error", new Error(error.message), { category: LogCategory.DATABASE });
       consecutiveDbErrors++;
 
       if (consecutiveDbErrors >= FALLBACK_FAILURE_COUNT) {
         // Too many DB failures - fail closed for security
-        console.warn("[Rate Limit] Too many DB errors, failing closed");
+        logger.warn("[Rate Limit] Too many DB errors, failing closed", { category: LogCategory.GENERAL });
         return false;
       }
 
       // Use in-memory fallback
-      console.log("[Rate Limit] Using in-memory fallback");
+      logger.debug("[Rate Limit] Using in-memory fallback", { category: LogCategory.GENERAL });
       return checkInMemoryRateLimit(userId);
     }
 
@@ -95,12 +96,12 @@ export async function checkRateLimit(
     const withinLimit = currentCount < RATE_LIMIT;
 
     if (!withinLimit) {
-      console.log(`Rate limit exceeded for user. Count: ${currentCount}/${RATE_LIMIT}`);
+      logger.warn(`Rate limit exceeded for user. Count: ${currentCount}/${RATE_LIMIT}`, { category: LogCategory.GENERAL });
     }
 
     return withinLimit;
   } catch (error) {
-    console.error("Rate limit check exception:", error);
+    logger.error("Rate limit check exception", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
     consecutiveDbErrors++;
 
     if (consecutiveDbErrors >= FALLBACK_FAILURE_COUNT) {

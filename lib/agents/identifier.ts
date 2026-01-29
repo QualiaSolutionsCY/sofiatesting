@@ -2,6 +2,9 @@ import "server-only";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { agentChatSession, zyprusAgent } from "@/lib/db/schema";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("agents");
 
 /**
  * Agent Identification Utilities
@@ -60,10 +63,7 @@ export async function identifyAgentByTelegram(
 
     return agent;
   } catch (error) {
-    console.error(
-      `[identifyAgentByTelegram] Error identifying agent with Telegram ID ${telegramUserId}:`,
-      error
-    );
+    log.error("Error identifying agent by Telegram", error, { telegramUserId });
     return null;
   }
 }
@@ -101,10 +101,7 @@ export async function identifyAgentByWhatsApp(
 
     return agent;
   } catch (error) {
-    console.error(
-      `[identifyAgentByWhatsApp] Error identifying agent with phone ${phoneNumber}:`,
-      error
-    );
+    log.error("Error identifying agent by WhatsApp", error, { phoneNumber });
     return null;
   }
 }
@@ -139,10 +136,7 @@ export async function identifyAgentByEmail(
 
     return agent;
   } catch (error) {
-    console.error(
-      `[identifyAgentByEmail] Error identifying agent with email ${email}:`,
-      error
-    );
+    log.error("Error identifying agent by email", error, { email });
     return null;
   }
 }
@@ -174,10 +168,7 @@ export async function identifyAgentByUserId(
 
     return agent;
   } catch (error) {
-    console.error(
-      `[identifyAgentByUserId] Error identifying agent with user ID ${userId}:`,
-      error
-    );
+    log.error("Error identifying agent by user ID", error, { userId });
     return null;
   }
 }
@@ -238,7 +229,7 @@ export async function trackAgentSession(params: {
 
     return session.id;
   } catch (error) {
-    console.error("[trackAgentSession] Error tracking session:", error);
+    log.error("Error tracking agent session", error);
     throw error;
   }
 }
@@ -284,10 +275,7 @@ export async function updateAgentSessionStats(
       .set(updateData)
       .where(eq(agentChatSession.id, sessionId));
   } catch (error) {
-    console.error(
-      "[updateAgentSessionStats] Error updating session stats:",
-      error
-    );
+    log.error("Error updating agent session stats", error, { sessionId });
     // Don't throw - stats updates shouldn't break the flow
   }
 }
@@ -302,7 +290,7 @@ export async function endAgentSession(sessionId: string): Promise<void> {
       .set({ endedAt: new Date() })
       .where(eq(agentChatSession.id, sessionId));
   } catch (error) {
-    console.error("[endAgentSession] Error ending session:", error);
+    log.error("Error ending agent session", error, { sessionId });
     // Don't throw - session end shouldn't break the flow
   }
 }
@@ -315,7 +303,7 @@ export async function isZyprusAgent(userId: string): Promise<boolean> {
     const agent = await identifyAgentByUserId(userId);
     return agent !== null;
   } catch (error) {
-    console.error("[isZyprusAgent] Error checking agent status:", error);
+    log.error("Error checking agent status", error, { userId });
     return false;
   }
 }

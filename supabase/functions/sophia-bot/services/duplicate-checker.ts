@@ -4,6 +4,7 @@
  */
 
 import { normalizePhone } from "../agents/identifier.ts";
+import { logger, LogCategory } from "../utils/logger.ts";
 
 export interface DuplicateMatch {
   id: string;
@@ -84,7 +85,7 @@ export async function checkForDuplicates(
       });
     }
   } catch (error) {
-    console.error("[DuplicateChecker] Search error:", error);
+    logger.error("[DuplicateChecker] Search error", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
     // Don't fail the upload if duplicate check fails
     // Just log and continue
   }
@@ -119,7 +120,7 @@ async function searchByPhone(
     );
 
     if (!response.ok) {
-      console.log("[DuplicateChecker] Phone search failed:", response.status);
+      logger.debug(`[DuplicateChecker] Phone search failed: ${response.status}`, { category: LogCategory.ZYPRUS });
       return [];
     }
 
@@ -131,7 +132,7 @@ async function searchByPhone(
       location: ((item.attributes as Record<string, unknown>)?.field_location as string) || undefined,
     }));
   } catch (error) {
-    console.error("[DuplicateChecker] Phone search error:", error);
+    logger.error("[DuplicateChecker] Phone search error", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
     return [];
   }
 }
@@ -162,7 +163,7 @@ async function searchByNameAndLocation(
     );
 
     if (!response.ok) {
-      console.log("[DuplicateChecker] Name search failed:", response.status);
+      logger.debug(`[DuplicateChecker] Name search failed: ${response.status}`, { category: LogCategory.ZYPRUS });
       return [];
     }
 
@@ -182,7 +183,7 @@ async function searchByNameAndLocation(
         location: ((item.attributes as Record<string, unknown>)?.field_location as string) || undefined,
       }));
   } catch (error) {
-    console.error("[DuplicateChecker] Name search error:", error);
+    logger.error("[DuplicateChecker] Name search error", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
     return [];
   }
 }

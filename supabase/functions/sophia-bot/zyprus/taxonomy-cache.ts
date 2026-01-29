@@ -5,6 +5,7 @@
 
 import { getAccessToken, getZyprusConfig } from "./client.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { logger, LogCategory } from "../utils/logger.ts";
 
 // Supabase client for agent lookups
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -29,14 +30,14 @@ async function lookupAgentFromSupabase(email: string): Promise<string | null> {
     }
 
     if (data.zyprus_user_id) {
-      console.log(`[Taxonomy] Found agent "${data.full_name}" in Supabase with Zyprus UUID: ${data.zyprus_user_id}`);
+      logger.debug(`[Taxonomy] Found agent "${data.full_name}" in Supabase with Zyprus UUID: ${data.zyprus_user_id}`);
       return data.zyprus_user_id;
     }
 
-    console.log(`[Taxonomy] Agent "${data.full_name}" found but no zyprus_user_id set`);
+    logger.debug(`[Taxonomy] Agent "${data.full_name}" found but no zyprus_user_id set`);
     return null;
   } catch (err) {
-    console.error(`[Taxonomy] Error looking up agent from Supabase:`, err);
+    logger.error("[Taxonomy] Error looking up agent from Supabase", err instanceof Error ? err : new Error(String(err)), { category: LogCategory.ZYPRUS });
     return null;
   }
 }
@@ -95,7 +96,7 @@ async function fetchTaxonomy(
     });
 
     if (!response.ok) {
-      console.error(`[Taxonomy] Failed to fetch ${vocabularyName}: ${response.status}`);
+      logger.error(`[Taxonomy] Failed to fetch ${vocabularyName}: ${response.status}`, undefined, { category: LogCategory.ZYPRUS });
       break;
     }
 
@@ -113,7 +114,7 @@ async function fetchTaxonomy(
     nextUrl = data.links?.next?.href || null;
   }
 
-  console.log(`[Taxonomy] Loaded ${items.length} ${vocabularyName} terms`);
+  logger.debug(`[Taxonomy] Loaded ${items.length} ${vocabularyName} terms`);
   return items;
 }
 
@@ -138,7 +139,7 @@ async function fetchLocations(
     });
 
     if (!response.ok) {
-      console.error(`[Taxonomy] Failed to fetch locations: ${response.status}`);
+      logger.error(`[Taxonomy] Failed to fetch locations: ${response.status}`, undefined, { category: LogCategory.ZYPRUS });
       break;
     }
 
@@ -156,7 +157,7 @@ async function fetchLocations(
     nextUrl = data.links?.next?.href || null;
   }
 
-  console.log(`[Taxonomy] Loaded ${items.length} location nodes`);
+  logger.debug(`[Taxonomy] Loaded ${items.length} location nodes`);
   return items;
 }
 
@@ -180,7 +181,7 @@ async function fetchUsers(
     });
 
     if (!response.ok) {
-      console.error(`[Taxonomy] Failed to fetch users: ${response.status}`);
+      logger.error(`[Taxonomy] Failed to fetch users: ${response.status}`, undefined, { category: LogCategory.ZYPRUS });
       break;
     }
 
@@ -200,7 +201,7 @@ async function fetchUsers(
     nextUrl = data.links?.next?.href || null;
   }
 
-  console.log(`[Taxonomy] Loaded ${items.length} users`);
+  logger.debug(`[Taxonomy] Loaded ${items.length} users`);
   return items;
 }
 
@@ -215,11 +216,11 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
 
   // P2 PERFORMANCE: Prevent cache stampede - only one concurrent fetch
   if (taxonomyLoadPromise) {
-    console.log("[Taxonomy] Waiting for existing load operation...");
+    logger.debug("[Taxonomy] Waiting for existing load operation...", { category: LogCategory.CACHE });
     return taxonomyLoadPromise;
   }
 
-  console.log("[Taxonomy] Loading taxonomy data...");
+  logger.info("[Taxonomy] Loading taxonomy data...", { category: LogCategory.CACHE });
 
   // Create singleton promise for this load operation
   taxonomyLoadPromise = (async () => {
@@ -265,7 +266,7 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
         lastUpdated: Date.now(),
       };
 
-      console.log("[Taxonomy] Taxonomy loaded successfully");
+      logger.info("[Taxonomy] Taxonomy loaded successfully", { category: LogCategory.CACHE });
       return cache;
     } finally {
       // Clear the singleton promise after load completes (success or failure)
@@ -311,7 +312,7 @@ export async function findLocationUuid(locationName: string): Promise<string> {
 
   // Try exact match on first word (the specific location)
   if (LOCATION_FALLBACKS[firstWord] && !LOCATION_FALLBACKS[firstWord].includes("PLACEHOLDER")) {
-    console.log(`[Taxonomy] Using hardcoded location for "${firstWord}": ${LOCATION_FALLBACKS[firstWord]}`);
+    logger.debug(`[Taxonomy] Using hardcoded location for "${firstWord}": ${LOCATION_FALLBACKS[firstWord]}`);
     return LOCATION_FALLBACKS[firstWord];
   }
 
@@ -358,7 +359,7 @@ export async function findLocationUuid(locationName: string): Promise<string> {
       (loc) => loc.name.toLowerCase() === normalized
     );
     if (exact) {
-      console.log(`[Taxonomy] Exact match for "${locationName}": ${exact.name}`);
+      logger.debug(`[Taxonomy] Exact match for "${locationName}": ${exact.name}`);
       return exact.id;
     }
 
@@ -374,7 +375,7 @@ export async function findLocationUuid(locationName: string): Promise<string> {
                  loc.name.toLowerCase().split(/[\s,]+/)[0] === firstWord
       );
       if (exactFirstWordMatch) {
-        console.log(`[Taxonomy] Exact first-word match for "${locationName}": ${exactFirstWordMatch.name}`);
+        logger.debug(`[Taxonomy] Exact first-word match for "${locationName}": ${exactFirstWordMatch.name}`);
         return exactFirstWordMatch.id;
       }
     }
@@ -384,7 +385,7 @@ export async function findLocationUuid(locationName: string): Promise<string> {
     for (const [region, locationsList] of Object.entries(REGION_LOCATIONS)) {
       if (words.some(w => locationsList.some(loc => loc.includes(w) || w.includes(loc)))) {
         detectedRegion = region;
-        console.log(`[Taxonomy] Detected region "${region}" from input: ${locationName}`);
+        logger.debug(`[Taxonomy] Detected region "${region}" from input: ${locationName}`);
         break;
       }
     }
@@ -454,12 +455,12 @@ export async function findLocationUuid(locationName: string): Promise<string> {
     if (scoredMatches.length > 0) {
       scoredMatches.sort((a, b) => b.score - a.score);
       const best = scoredMatches[0];
-      console.log(`[Taxonomy] Best match for "${locationName}": ${best.location.name} (score: ${best.score}, matched: ${best.matchedWords.join(", ")}, bonus: ${best.bonusReason})`);
+      logger.debug(`[Taxonomy] Best match for "${locationName}": ${best.location.name} (score: ${best.score}, matched: ${best.matchedWords.join(", ")}, bonus: ${best.bonusReason})`);
 
       // Log top 3 alternatives for debugging
       for (let i = 1; i < Math.min(4, scoredMatches.length); i++) {
         const alt = scoredMatches[i];
-        console.log(`[Taxonomy] Alternative ${i}: ${alt.location.name} (score: ${alt.score})`);
+        logger.debug(`[Taxonomy] Alternative ${i}: ${alt.location.name} (score: ${alt.score})`);
       }
 
       return best.location.id;
@@ -472,22 +473,22 @@ export async function findLocationUuid(locationName: string): Promise<string> {
         loc.name.toLowerCase().includes(detectedRegion)
       );
       if (regionFallback) {
-        console.log(`[Taxonomy] Using region fallback for "${locationName}": ${regionFallback.name}`);
+        logger.debug(`[Taxonomy] Using region fallback for "${locationName}": ${regionFallback.name}`);
         return regionFallback.id;
       }
     }
 
     // Ultimate fallback: return first location if available
     if (taxonomy.locations.length > 0) {
-      console.log(`[Taxonomy] WARNING: Using first available location for "${locationName}": ${taxonomy.locations[0].name}`);
+      logger.debug(`[Taxonomy] WARNING: Using first available location for "${locationName}": ${taxonomy.locations[0].name}`);
       return taxonomy.locations[0].id;
     }
   } catch (error) {
-    console.error(`[Taxonomy] Error finding location:`, error);
+    logger.error("[Taxonomy] Error finding location", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
   }
 
   // Ultimate fallback: use known working UUID
-  console.log(`[Taxonomy] Using hardcoded default location UUID for: ${locationName}`);
+  logger.debug(`[Taxonomy] Using hardcoded default location UUID for: ${locationName}`);
   return DEFAULT_LOCATION_UUID;
 }
 
@@ -514,18 +515,18 @@ export async function findPropertyTypeUuid(typeName: string): Promise<string> {
   const DEFAULT_PROPERTY_TYPE_UUID = "e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44"; // Apartment
 
   const normalized = typeName.toLowerCase().trim();
-  console.log(`[Taxonomy] Finding property type UUID for: "${typeName}" (normalized: "${normalized}")`);
+  logger.debug(`[Taxonomy] Finding property type UUID for: "${typeName}" (normalized: "${normalized}")`);
 
   // FIRST: Check if we have a hardcoded fallback for this type
   // This ensures common types like "villa" always get the correct UUID
   if (PROPERTY_TYPE_FALLBACKS[normalized]) {
-    console.log(`[Taxonomy] Using hardcoded fallback for "${typeName}": ${PROPERTY_TYPE_FALLBACKS[normalized]}`);
+    logger.debug(`[Taxonomy] Using hardcoded fallback for "${typeName}": ${PROPERTY_TYPE_FALLBACKS[normalized]}`);
     return PROPERTY_TYPE_FALLBACKS[normalized];
   }
 
   try {
     const taxonomy = await loadTaxonomy();
-    console.log(`[Taxonomy] Available property types: ${taxonomy.propertyTypes.map(pt => pt.name).join(", ")}`);
+    logger.debug(`[Taxonomy] Available property types: ${taxonomy.propertyTypes.map(pt => pt.name).join(", ")}`);
 
     // Common aliases - maps user input to taxonomy names
     const aliases: Record<string, string[]> = {
@@ -543,7 +544,7 @@ export async function findPropertyTypeUuid(typeName: string): Promise<string> {
       (pt) => pt.name.toLowerCase() === normalized
     );
     if (exact) {
-      console.log(`[Taxonomy] Exact match for "${typeName}": ${exact.name} (${exact.id})`);
+      logger.debug(`[Taxonomy] Exact match for "${typeName}": ${exact.name} (${exact.id})`);
       return exact.id;
     }
 
@@ -555,12 +556,12 @@ export async function findPropertyTypeUuid(typeName: string): Promise<string> {
           (pt) => pt.name.toLowerCase() === canonical
         );
         if (match) {
-          console.log(`[Taxonomy] Alias match: "${typeName}" -> "${canonical}" -> ${match.id}`);
+          logger.debug(`[Taxonomy] Alias match: "${typeName}" -> "${canonical}" -> ${match.id}`);
           return match.id;
         }
         // If canonical not in taxonomy, use hardcoded fallback
         if (PROPERTY_TYPE_FALLBACKS[canonical]) {
-          console.log(`[Taxonomy] Alias fallback: "${typeName}" -> "${canonical}" -> ${PROPERTY_TYPE_FALLBACKS[canonical]}`);
+          logger.debug(`[Taxonomy] Alias fallback: "${typeName}" -> "${canonical}" -> ${PROPERTY_TYPE_FALLBACKS[canonical]}`);
           return PROPERTY_TYPE_FALLBACKS[canonical];
         }
       }
@@ -572,21 +573,21 @@ export async function findPropertyTypeUuid(typeName: string): Promise<string> {
       (pt) => pt.name.toLowerCase().includes(normalized)
     );
     if (partial) {
-      console.log(`[Taxonomy] Partial match for "${typeName}": ${partial.name} (${partial.id})`);
+      logger.debug(`[Taxonomy] Partial match for "${typeName}": ${partial.name} (${partial.id})`);
       return partial.id;
     }
 
     // Last resort: return first property type if available
     if (taxonomy.propertyTypes.length > 0) {
-      console.log(`[Taxonomy] WARNING: Using first available property type: ${taxonomy.propertyTypes[0].name}`);
+      logger.debug(`[Taxonomy] WARNING: Using first available property type: ${taxonomy.propertyTypes[0].name}`);
       return taxonomy.propertyTypes[0].id;
     }
   } catch (error) {
-    console.error(`[Taxonomy] Error finding property type:`, error);
+    logger.error("[Taxonomy] Error finding property type", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
   }
 
   // Ultimate fallback: use default UUID
-  console.log(`[Taxonomy] Using default property type UUID for: ${typeName}`);
+  logger.debug(`[Taxonomy] Using default property type UUID for: ${typeName}`);
   return DEFAULT_PROPERTY_TYPE_UUID;
 }
 
@@ -614,15 +615,15 @@ export async function findListingTypeUuid(type: "sale" | "rent"): Promise<string
 
     // Fallback: return first listing type if available
     if (taxonomy.listingTypes.length > 0) {
-      console.log(`[Taxonomy] Using first available listing type: ${taxonomy.listingTypes[0].name}`);
+      logger.debug(`[Taxonomy] Using first available listing type: ${taxonomy.listingTypes[0].name}`);
       return taxonomy.listingTypes[0].id;
     }
   } catch (error) {
-    console.error(`[Taxonomy] Error finding listing type:`, error);
+    logger.error("[Taxonomy] Error finding listing type", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
   }
 
   // Ultimate fallback: use documented default UUID
-  console.log(`[Taxonomy] Using hardcoded default listing type UUID`);
+  logger.debug(`[Taxonomy] Using hardcoded default listing type UUID`);
   return DEFAULT_LISTING_TYPE_UUID;
 }
 
@@ -716,15 +717,15 @@ export async function findPriceModifierUuid(modifier?: string): Promise<string> 
 
     // Fallback: return first price modifier if available
     if (taxonomy.priceModifiers.length > 0) {
-      console.log(`[Taxonomy] Using first available price modifier: ${taxonomy.priceModifiers[0].name}`);
+      logger.debug(`[Taxonomy] Using first available price modifier: ${taxonomy.priceModifiers[0].name}`);
       return taxonomy.priceModifiers[0].id;
     }
   } catch (error) {
-    console.error(`[Taxonomy] Error finding price modifier:`, error);
+    logger.error("[Taxonomy] Error finding price modifier", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
   }
 
   // Ultimate fallback: use documented default UUID
-  console.log(`[Taxonomy] Using hardcoded default price modifier UUID`);
+  logger.debug(`[Taxonomy] Using hardcoded default price modifier UUID`);
   return DEFAULT_PRICE_MODIFIER_UUID;
 }
 
@@ -775,15 +776,15 @@ export async function findTitleDeedUuid(status?: string): Promise<string> {
 
     // Fallback: return first title deed if available
     if (taxonomy.titleDeeds.length > 0) {
-      console.log(`[Taxonomy] Using first available title deed: ${taxonomy.titleDeeds[0].name}`);
+      logger.debug(`[Taxonomy] Using first available title deed: ${taxonomy.titleDeeds[0].name}`);
       return taxonomy.titleDeeds[0].id;
     }
   } catch (error) {
-    console.error(`[Taxonomy] Error finding title deed:`, error);
+    logger.error("[Taxonomy] Error finding title deed", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
   }
 
   // Ultimate fallback: use documented default UUID
-  console.log(`[Taxonomy] Using hardcoded default title deed UUID`);
+  logger.debug(`[Taxonomy] Using hardcoded default title deed UUID`);
   return DEFAULT_TITLE_DEED_UUID;
 }
 
@@ -877,7 +878,7 @@ const USER_FALLBACKS: Record<string, string> = {
  */
 export async function findUserUuid(email: string): Promise<string> {
   if (!email) {
-    console.log("[Taxonomy] No email provided, using SOPHIA_AI_UUID");
+    logger.debug("[Taxonomy] No email provided, using SOPHIA_AI_UUID", { category: LogCategory.ZYPRUS });
     return SOPHIA_AI_UUID;
   }
 
@@ -895,7 +896,7 @@ export async function findUserUuid(email: string): Promise<string> {
     // Strategy 1: Direct email match from Zyprus API
     const userByEmail = taxonomy.users.find(u => u.email === normalizedEmail);
     if (userByEmail) {
-      console.log(`[Taxonomy] Found user by email ${normalizedEmail}: ${userByEmail.id}`);
+      logger.debug(`[Taxonomy] Found user by email ${normalizedEmail}: ${userByEmail.id}`);
       return userByEmail.id;
     }
 
@@ -910,7 +911,7 @@ export async function findUserUuid(email: string): Promise<string> {
           normalizedName.includes(u.name.toLowerCase())
         );
         if (userByName) {
-          console.log(`[Taxonomy] Found user by name "${name}" for ${normalizedEmail}: ${userByName.id}`);
+          logger.debug(`[Taxonomy] Found user by name "${name}" for ${normalizedEmail}: ${userByName.id}`);
           return userByName.id;
         }
       }
@@ -924,25 +925,25 @@ export async function findUserUuid(email: string): Promise<string> {
         u.name.toLowerCase().includes(emailUsername)
       );
       if (userByUsername) {
-        console.log(`[Taxonomy] Found user by username "${emailUsername}" for ${normalizedEmail}: ${userByUsername.id}`);
+        logger.debug(`[Taxonomy] Found user by username "${emailUsername}" for ${normalizedEmail}: ${userByUsername.id}`);
         return userByUsername.id;
       }
     }
 
-    console.log(`[Taxonomy] User not found in API for ${normalizedEmail}, checking fallbacks`);
+    logger.debug(`[Taxonomy] User not found in API for ${normalizedEmail}, checking fallbacks`);
   } catch (error) {
-    console.error(`[Taxonomy] Error finding user:`, error);
+    logger.error("[Taxonomy] Error finding user", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
   }
 
   // Strategy 4: Check hardcoded fallbacks
   const fallback = USER_FALLBACKS[normalizedEmail];
   if (fallback) {
-    console.log(`[Taxonomy] Using hardcoded fallback for ${normalizedEmail}: ${fallback}`);
+    logger.debug(`[Taxonomy] Using hardcoded fallback for ${normalizedEmail}: ${fallback}`);
     return fallback;
   }
 
   // Ultimate fallback: use SOPHIA_AI_UUID
-  console.log(`[Taxonomy] Using SOPHIA_AI_UUID fallback for ${normalizedEmail}`);
+  logger.debug(`[Taxonomy] Using SOPHIA_AI_UUID fallback for ${normalizedEmail}`);
   return SOPHIA_AI_UUID;
 }
 
@@ -961,7 +962,7 @@ export async function findUserUuids(emails: string[]): Promise<string[]> {
       if (uuid !== SOPHIA_AI_UUID && !uuids.includes(uuid)) {
         uuids.push(uuid);
       } else if (uuid === SOPHIA_AI_UUID) {
-        console.log(`[Taxonomy] Skipping SOPHIA_AI_UUID for reviewer email: ${email}`);
+        logger.debug(`[Taxonomy] Skipping SOPHIA_AI_UUID for reviewer email: ${email}`);
       }
     }
   }
@@ -1085,7 +1086,7 @@ function resolveFeatureAlias(input: string, aliasMap: Record<string, string[]>):
   // Check if input matches any alias
   for (const [canonical, aliases] of Object.entries(aliasMap)) {
     if (aliases.some(alias => alias === normalized || normalized.includes(alias) || alias.includes(normalized))) {
-      console.log(`[Taxonomy] ALIAS: "${input}" -> "${canonical}"`);
+      logger.debug(`[Taxonomy] ALIAS: "${input}" -> "${canonical}"`);
       return canonical;
     }
   }
@@ -1106,7 +1107,7 @@ export async function findIndoorFeatureUuids(featureNames: string[], bathrooms?:
   // Auto-add features based on bathroom count
   const effectiveFeatures = [...featureNames];
   if (bathrooms && bathrooms >= 2) {
-    console.log(`[Taxonomy] Bathrooms >= 2 (${bathrooms}), auto-adding guest toilet and master bed`);
+    logger.debug(`[Taxonomy] Bathrooms >= 2 (${bathrooms}), auto-adding guest toilet and master bed`);
     if (!effectiveFeatures.some(f => f.toLowerCase().includes("guest"))) {
       effectiveFeatures.push("guest toilet");
     }
@@ -1115,8 +1116,8 @@ export async function findIndoorFeatureUuids(featureNames: string[], bathrooms?:
     }
   }
 
-  console.log(`[Taxonomy] Finding indoor features from: ${effectiveFeatures.join(", ")}`);
-  console.log(`[Taxonomy] Available indoor features (${taxonomy.indoorFeatures.length}): ${taxonomy.indoorFeatures.map(f => f.name).join(", ")}`);
+  logger.debug(`[Taxonomy] Finding indoor features from: ${effectiveFeatures.join(", ")}`);
+  logger.debug(`[Taxonomy] Available indoor features (${taxonomy.indoorFeatures.length}): ${taxonomy.indoorFeatures.map(f => f.name).join(", ")}`);
 
   for (const name of effectiveFeatures) {
     if (!name) continue;
@@ -1159,21 +1160,21 @@ export async function findIndoorFeatureUuids(featureNames: string[], bathrooms?:
     }
 
     if (match && !uuids.includes(match.id)) {
-      console.log(`[Taxonomy] INDOOR MATCHED: "${name}" -> "${match.name}" (${match.id})`);
+      logger.debug(`[Taxonomy] INDOOR MATCHED: "${name}" -> "${match.name}" (${match.id})`);
       uuids.push(match.id);
     } else if (!match) {
       // Strategy 4: Use hardcoded fallback
       const fallbackUuid = INDOOR_FEATURE_FALLBACKS[normalized];
       if (fallbackUuid && !fallbackUuid.includes("placeholder") && !uuids.includes(fallbackUuid)) {
-        console.log(`[Taxonomy] INDOOR FALLBACK: "${name}" -> ${fallbackUuid}`);
+        logger.debug(`[Taxonomy] INDOOR FALLBACK: "${name}" -> ${fallbackUuid}`);
         uuids.push(fallbackUuid);
       } else {
-        console.log(`[Taxonomy] INDOOR NO MATCH: "${name}"`);
+        logger.debug(`[Taxonomy] INDOOR NO MATCH: "${name}"`);
       }
     }
   }
 
-  console.log(`[Taxonomy] Found ${uuids.length} indoor feature UUIDs`);
+  logger.debug(`[Taxonomy] Found ${uuids.length} indoor feature UUIDs`);
   return uuids;
 }
 
@@ -1207,7 +1208,7 @@ function hasContradictoryModifiers(input: string, taxonomyTerm: string): boolean
     // Check both directions: input has mod1 & tax has mod2, or input has mod2 & tax has mod1
     if ((inputLower.includes(mod1) && taxLower.includes(mod2)) ||
         (inputLower.includes(mod2) && taxLower.includes(mod1))) {
-      console.log(`[Taxonomy] REJECTED: "${input}" vs "${taxonomyTerm}" - contradictory modifiers (${mod1}/${mod2})`);
+      logger.debug(`[Taxonomy] REJECTED: "${input}" vs "${taxonomyTerm}" - contradictory modifiers (${mod1}/${mod2})`);
       return true;
     }
   }
@@ -1224,8 +1225,8 @@ export async function findOutdoorFeatureUuids(featureNames: string[]): Promise<s
   const taxonomy = await loadTaxonomy();
   const uuids: string[] = [];
 
-  console.log(`[Taxonomy] Finding outdoor features from: ${featureNames.join(", ")}`);
-  console.log(`[Taxonomy] Available outdoor features (${taxonomy.outdoorFeatures.length}): ${taxonomy.outdoorFeatures.map(f => f.name).join(", ")}`);
+  logger.debug(`[Taxonomy] Finding outdoor features from: ${featureNames.join(", ")}`);
+  logger.debug(`[Taxonomy] Available outdoor features (${taxonomy.outdoorFeatures.length}): ${taxonomy.outdoorFeatures.map(f => f.name).join(", ")}`);
 
   for (const name of featureNames) {
     if (!name) continue;
@@ -1270,21 +1271,21 @@ export async function findOutdoorFeatureUuids(featureNames: string[]): Promise<s
     }
 
     if (match && !uuids.includes(match.id)) {
-      console.log(`[Taxonomy] OUTDOOR MATCHED: "${name}" -> "${match.name}" (${match.id})`);
+      logger.debug(`[Taxonomy] OUTDOOR MATCHED: "${name}" -> "${match.name}" (${match.id})`);
       uuids.push(match.id);
     } else if (!match) {
       // Strategy 4: Use hardcoded fallback
       const fallbackUuid = OUTDOOR_FEATURE_FALLBACKS[normalized];
       if (fallbackUuid && !fallbackUuid.includes("placeholder") && !uuids.includes(fallbackUuid)) {
-        console.log(`[Taxonomy] OUTDOOR FALLBACK: "${name}" -> ${fallbackUuid}`);
+        logger.debug(`[Taxonomy] OUTDOOR FALLBACK: "${name}" -> ${fallbackUuid}`);
         uuids.push(fallbackUuid);
       } else {
-        console.log(`[Taxonomy] OUTDOOR NO MATCH: "${name}"`);
+        logger.debug(`[Taxonomy] OUTDOOR NO MATCH: "${name}"`);
       }
     }
   }
 
-  console.log(`[Taxonomy] Found ${uuids.length} outdoor feature UUIDs`);
+  logger.debug(`[Taxonomy] Found ${uuids.length} outdoor feature UUIDs`);
   return uuids;
 }
 
@@ -1297,8 +1298,8 @@ export async function findPropertyViewUuids(featureNames: string[]): Promise<str
   const taxonomy = await loadTaxonomy();
   const uuids: string[] = [];
 
-  console.log(`[Taxonomy] Finding property views from: ${featureNames.join(", ")}`);
-  console.log(`[Taxonomy] Available property views (${taxonomy.propertyViews.length}): ${taxonomy.propertyViews.map(f => f.name).join(", ")}`);
+  logger.debug(`[Taxonomy] Finding property views from: ${featureNames.join(", ")}`);
+  logger.debug(`[Taxonomy] Available property views (${taxonomy.propertyViews.length}): ${taxonomy.propertyViews.map(f => f.name).join(", ")}`);
 
   for (const name of featureNames) {
     const normalized = name.toLowerCase().trim();
@@ -1328,21 +1329,21 @@ export async function findPropertyViewUuids(featureNames: string[]): Promise<str
     }
 
     if (match && !uuids.includes(match.id)) {
-      console.log(`[Taxonomy] VIEW MATCHED: "${name}" -> "${match.name}" (${match.id})`);
+      logger.debug(`[Taxonomy] VIEW MATCHED: "${name}" -> "${match.name}" (${match.id})`);
       uuids.push(match.id);
     } else if (!match) {
       // Strategy 4: Use hardcoded fallback
       const fallbackUuid = VIEW_FALLBACKS[normalized];
       if (fallbackUuid && !fallbackUuid.includes("placeholder") && !uuids.includes(fallbackUuid)) {
-        console.log(`[Taxonomy] VIEW FALLBACK: "${name}" -> ${fallbackUuid}`);
+        logger.debug(`[Taxonomy] VIEW FALLBACK: "${name}" -> ${fallbackUuid}`);
         uuids.push(fallbackUuid);
       } else {
-        console.log(`[Taxonomy] VIEW NO MATCH: "${name}"`);
+        logger.debug(`[Taxonomy] VIEW NO MATCH: "${name}"`);
       }
     }
   }
 
-  console.log(`[Taxonomy] Found ${uuids.length} property view UUIDs`);
+  logger.debug(`[Taxonomy] Found ${uuids.length} property view UUIDs`);
   return uuids;
 }
 

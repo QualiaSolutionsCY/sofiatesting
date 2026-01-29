@@ -2,6 +2,9 @@ import { desc, eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db/client";
 import { agentChatSession, zyprusAgent } from "@/lib/db/schema";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("api:admin:agents:id");
 
 /**
  * GET /api/admin/agents/[id]
@@ -73,10 +76,7 @@ export async function GET(
       recentSessions: sessions,
     });
   } catch (error) {
-    console.error(
-      "[API /api/admin/agents/[id] GET] Error fetching agent:",
-      error
-    );
+    logger.error("Error fetching agent", error);
     return NextResponse.json(
       {
         error: "Failed to fetch agent",
@@ -142,10 +142,7 @@ export async function PUT(
       message: "Agent updated successfully",
     });
   } catch (error) {
-    console.error(
-      "[API /api/admin/agents/[id] PUT] Error updating agent:",
-      error
-    );
+    logger.error("Error updating agent", error);
     return NextResponse.json(
       {
         error: "Failed to update agent",
@@ -193,10 +190,7 @@ export async function DELETE(
       message: "Agent deactivated successfully",
     });
   } catch (error) {
-    console.error(
-      "[API /api/admin/agents/[id] DELETE] Error deactivating agent:",
-      error
-    );
+    logger.error("Error deactivating agent", error);
     return NextResponse.json(
       {
         error: "Failed to deactivate agent",

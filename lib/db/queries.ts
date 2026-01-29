@@ -16,9 +16,12 @@ import {
 import type { ArtifactKind } from "@/components/artifact";
 import type { VisibilityType } from "@/components/visibility-selector";
 import { ChatSDKError } from "../errors";
+import { logger } from "../logger";
 import type { AppUsage } from "../usage";
 import { generateUUID } from "../utils";
 import { db } from "./client";
+
+const log = logger.db;
 import {
   chat,
   type DBMessage,
@@ -45,11 +48,7 @@ export async function getUser(email: string): Promise<User[]> {
   try {
     return await db.select().from(user).where(eq(user.email, email));
   } catch (error) {
-    console.error("Database error in getUser:", {
-      email,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to get user by email", error, { email });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get user by email"
@@ -63,11 +62,7 @@ export async function createUser(email: string, password: string) {
   try {
     return await db.insert(user).values({ email, password: hashedPassword });
   } catch (error) {
-    console.error("Database error in createUser:", {
-      email,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to create user", error, { email });
     throw new ChatSDKError("bad_request:database", "Failed to create user");
   }
 }
@@ -82,11 +77,7 @@ export async function createGuestUser() {
       email: user.email,
     });
   } catch (error) {
-    console.error("Database error in createGuestUser:", {
-      email,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to create guest user", error, { email });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to create guest user"
@@ -114,7 +105,7 @@ export async function saveChat({
       visibility,
     });
   } catch (error) {
-    console.error("Database error in saveChat:", error);
+    log.error("Failed to save chat", error, { chatId: id, userId });
     throw new ChatSDKError("bad_request:database", "Failed to save chat");
   }
 }
@@ -128,11 +119,7 @@ export async function deleteChatById({ id }: { id: string }) {
       .returning();
     return chatsDeleted;
   } catch (error) {
-    console.error("Database error in deleteChatById:", {
-      chatId: id,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to delete chat by id", error, { chatId: id });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to delete chat by id"
@@ -150,11 +137,7 @@ export async function deleteAllChatsByUserId({ userId }: { userId: string }) {
 
     return { deletedCount: deletedChats.length };
   } catch (error) {
-    console.error("Database error in deleteAllChatsByUserId:", {
-      userId,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to delete all chats by user id", error, { userId });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to delete all chats by user id"
@@ -231,7 +214,7 @@ export async function getChatsByUserId({
     if (error instanceof ChatSDKError) {
       throw error;
     }
-    console.error("Database error in getChatsByUserId:", error);
+    log.error("Failed to get chats by user id", error, { userId: id, limit });
     throw new ChatSDKError(
       "bad_request:database",
       `Failed to get chats: ${error instanceof Error ? error.message : String(error)}`
@@ -248,7 +231,7 @@ export async function getChatById({ id }: { id: string }) {
 
     return selectedChat;
   } catch (error) {
-    console.error("Database error in getChatById:", error);
+    log.error("Failed to get chat by id", error, { chatId: id });
     throw new ChatSDKError("bad_request:database", "Failed to get chat by id");
   }
 }
@@ -257,7 +240,7 @@ export async function saveMessages({ messages }: { messages: DBMessage[] }) {
   try {
     return await db.insert(message).values(messages);
   } catch (error) {
-    console.error("Database error in saveMessages:", error);
+    log.error("Failed to save messages", error, { count: messages.length });
     throw new ChatSDKError("bad_request:database", "Failed to save messages");
   }
 }
@@ -270,11 +253,7 @@ export async function getMessagesByChatId({ id }: { id: string }) {
       .where(eq(message.chatId, id))
       .orderBy(asc(message.createdAt));
   } catch (error) {
-    console.error("Database error in getMessagesByChatId:", {
-      chatId: id,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to get messages by chat id", error, { chatId: id });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get messages by chat id"
@@ -302,12 +281,7 @@ export async function getMessagesByChatIdWithHistory({
       .where(and(eq(message.chatId, id), gte(message.createdAt, cutoffDate)))
       .orderBy(asc(message.createdAt));
   } catch (error) {
-    console.error("Database error in getMessagesByChatIdWithHistory:", {
-      chatId: id,
-      days,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to get messages with history", error, { chatId: id, days });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get messages with history"
@@ -342,13 +316,7 @@ export async function voteMessage({
       isUpvoted: type === "up",
     });
   } catch (error) {
-    console.error("Database error in voteMessage:", {
-      chatId,
-      messageId,
-      type,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to vote message", error, { chatId, messageId, type });
     throw new ChatSDKError("bad_request:database", "Failed to vote message");
   }
 }
@@ -357,11 +325,7 @@ export async function getVotesByChatId({ id }: { id: string }) {
   try {
     return await db.select().from(vote).where(eq(vote.chatId, id));
   } catch (error) {
-    console.error("Database error in getVotesByChatId:", {
-      chatId: id,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to get votes by chat id", error, { chatId: id });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get votes by chat id"
@@ -395,13 +359,7 @@ export async function saveDocument({
       })
       .returning();
   } catch (error) {
-    console.error("Database error in saveDocument:", {
-      documentId: id,
-      userId,
-      kind,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to save document", error, { documentId: id, userId, kind });
     throw new ChatSDKError("bad_request:database", "Failed to save document");
   }
 }
@@ -416,11 +374,7 @@ export async function getDocumentsById({ id }: { id: string }) {
 
     return documents;
   } catch (error) {
-    console.error("Database error in getDocumentsById:", {
-      documentId: id,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to get documents by id", error, { documentId: id });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get documents by id"
@@ -438,11 +392,7 @@ export async function getDocumentById({ id }: { id: string }) {
 
     return selectedDocument;
   } catch (error) {
-    console.error("Database error in getDocumentById:", {
-      documentId: id,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to get document by id", error, { documentId: id });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get document by id"
@@ -472,11 +422,9 @@ export async function deleteDocumentsByIdAfterTimestamp({
       .where(and(eq(document.id, id), gt(document.createdAt, timestamp)))
       .returning();
   } catch (error) {
-    console.error("Database error in deleteDocumentsByIdAfterTimestamp:", {
+    log.error("Failed to delete documents by id after timestamp", error, {
       documentId: id,
       timestamp: timestamp.toISOString(),
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
     });
     throw new ChatSDKError(
       "bad_request:database",
@@ -493,11 +441,7 @@ export async function saveSuggestions({
   try {
     return await db.insert(suggestion).values(suggestions);
   } catch (error) {
-    console.error("Database error in saveSuggestions:", {
-      suggestionCount: suggestions.length,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to save suggestions", error, { count: suggestions.length });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to save suggestions"
@@ -516,11 +460,7 @@ export async function getSuggestionsByDocumentId({
       .from(suggestion)
       .where(and(eq(suggestion.documentId, documentId)));
   } catch (error) {
-    console.error("Database error in getSuggestionsByDocumentId:", {
-      documentId,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to get suggestions by document id", error, { documentId });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get suggestions by document id"
@@ -532,11 +472,7 @@ export async function getMessageById({ id }: { id: string }) {
   try {
     return await db.select().from(message).where(eq(message.id, id));
   } catch (error) {
-    console.error("Database error in getMessageById:", {
-      messageId: id,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to get message by id", error, { messageId: id });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get message by id"
@@ -577,11 +513,9 @@ export async function deleteMessagesByChatIdAfterTimestamp({
         );
     }
   } catch (error) {
-    console.error("Database error in deleteMessagesByChatIdAfterTimestamp:", {
+    log.error("Failed to delete messages by chat id after timestamp", error, {
       chatId,
       timestamp: timestamp.toISOString(),
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
     });
     throw new ChatSDKError(
       "bad_request:database",
@@ -600,12 +534,7 @@ export async function updateChatVisiblityById({
   try {
     return await db.update(chat).set({ visibility }).where(eq(chat.id, chatId));
   } catch (error) {
-    console.error("Database error in updateChatVisiblityById:", {
-      chatId,
-      visibility,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to update chat visibility by id", error, { chatId, visibility });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to update chat visibility by id"
@@ -627,7 +556,7 @@ export async function updateChatLastContextById({
       .set({ lastContext: context })
       .where(eq(chat.id, chatId));
   } catch (error) {
-    console.warn("Failed to update lastContext for chat", chatId, error);
+    log.warn("Failed to update lastContext for chat", { chatId, error: String(error) });
     return;
   }
 }
@@ -659,11 +588,9 @@ export async function getMessageCountByUserId({
 
     return stats?.count ?? 0;
   } catch (error) {
-    console.error("Database error in getMessageCountByUserId:", {
+    log.error("Failed to get message count by user id", error, {
       userId: id,
       differenceInHours,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
     });
     throw new ChatSDKError(
       "bad_request:database",
@@ -684,12 +611,7 @@ export async function createStreamId({
       .insert(stream)
       .values({ id: streamId, chatId, createdAt: new Date() });
   } catch (error) {
-    console.error("Database error in createStreamId:", {
-      streamId,
-      chatId,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to create stream id", error, { streamId, chatId });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to create stream id"
@@ -708,11 +630,7 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
 
     return streamIds.map(({ id }) => id);
   } catch (error) {
-    console.error("Database error in getStreamIdsByChatId:", {
-      chatId,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to get stream ids by chat id", error, { chatId });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get stream ids by chat id"
@@ -728,12 +646,10 @@ export async function createPropertyListing(
     const [listing] = await db.insert(propertyListing).values(data).returning();
     return listing;
   } catch (error) {
-    console.error("Database error in createPropertyListing:", {
+    log.error("Failed to create property listing", error, {
       userId: data.userId,
       chatId: data.chatId,
       name: data.name,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
     });
     throw new ChatSDKError(
       "bad_request:database",
@@ -753,11 +669,7 @@ export async function getListingById({ id }: { id: string }) {
 
     return listing;
   } catch (error) {
-    console.error("Database error in getListingById:", {
-      listingId: id,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to get listing by id", error, { listingId: id });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get listing by id"
@@ -785,12 +697,7 @@ export async function getListingsByUserId({
       .orderBy(desc(propertyListing.createdAt))
       .limit(limit);
   } catch (error) {
-    console.error("Database error in getListingsByUserId:", {
-      userId,
-      limit,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to get listings by user id", error, { userId, limit });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get listings by user id"
@@ -823,12 +730,10 @@ export async function updateListingStatus({
       })
       .where(eq(propertyListing.id, id));
   } catch (error) {
-    console.error("Database error in updateListingStatus:", {
+    log.error("Failed to update listing status", error, {
       listingId: id,
       status,
       zyprusListingId,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
     });
     throw new ChatSDKError(
       "bad_request:database",
@@ -860,12 +765,10 @@ export async function logListingUploadAttempt(data: {
       durationMs: data.durationMs,
     });
   } catch (error) {
-    console.error("Database error in logListingUploadAttempt:", {
+    log.error("Failed to log upload attempt", error, {
       listingId: data.listingId,
       attemptNumber: data.attemptNumber,
       status: data.status,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
     });
     throw new ChatSDKError(
       "bad_request:database",
@@ -885,12 +788,10 @@ export async function createLandListing(
     const [listing] = await db.insert(landListing).values(data).returning();
     return listing;
   } catch (error) {
-    console.error("Database error in createLandListing:", {
+    log.error("Failed to create land listing", error, {
       userId: data.userId,
       chatId: data.chatId,
       name: data.name,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
     });
     throw new ChatSDKError(
       "bad_request:database",
@@ -908,11 +809,7 @@ export async function getLandListingById({ id }: { id: string }) {
 
     return listing;
   } catch (error) {
-    console.error("Database error in getLandListingById:", {
-      listingId: id,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to get land listing by id", error, { listingId: id });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get land listing by id"
@@ -935,12 +832,7 @@ export async function getLandListingsByUserId({
       .orderBy(desc(landListing.createdAt))
       .limit(limit);
   } catch (error) {
-    console.error("Database error in getLandListingsByUserId:", {
-      userId,
-      limit,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    log.error("Failed to get land listings by user id", error, { userId, limit });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get land listings by user id"
@@ -973,12 +865,10 @@ export async function updateLandListingStatus({
       })
       .where(eq(landListing.id, id));
   } catch (error) {
-    console.error("Database error in updateLandListingStatus:", {
+    log.error("Failed to update land listing status", error, {
       listingId: id,
       status,
       zyprusListingId,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
     });
     throw new ChatSDKError(
       "bad_request:database",
@@ -1023,12 +913,10 @@ export async function updateListingDuplicateStatus({
         .where(eq(propertyListing.id, id));
     }
   } catch (error) {
-    console.error("Database error in updateListingDuplicateStatus:", {
+    log.error("Failed to update listing duplicate status", error, {
       listingId: id,
       duplicateDetected,
       type,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
     });
     throw new ChatSDKError(
       "bad_request:database",

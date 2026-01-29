@@ -6,6 +6,8 @@
  * - DOCX templates: Sent as file attachments
  */
 
+import { logger, LogCategory } from "../../utils/logger.ts";
+
 /**
  * DOCX Templates - These are sent as file attachments
  * Only these 4 templates should generate DOCX files
@@ -153,7 +155,7 @@ function isCompletedReservationAgreement(content: string): boolean {
 function isClarificationQuestion(response: string): boolean {
   // FIRST: Check if this is a completed reservation agreement - these should NOT be classified as clarifications
   if (isCompletedReservationAgreement(response)) {
-    console.log("[Registry] Detected completed reservation agreement, not a clarification");
+    logger.debug("[Registry] Detected completed reservation agreement, not a clarification", { category: LogCategory.GENERAL });
     return false;
   }
 
@@ -200,7 +202,7 @@ function isClarificationQuestion(response: string): boolean {
   if (response.length < 800) {
     for (const pattern of clarificationPatterns) {
       if (lower.includes(pattern)) {
-        console.log(`[Registry] Clarification detected: "${pattern}" in short response`);
+        logger.debug(`[Registry] Clarification detected: "${pattern}" in short response`, { category: LogCategory.GENERAL });
         return true;
       }
     }
@@ -212,13 +214,13 @@ function isClarificationQuestion(response: string): boolean {
 
   // Multiple bullets + questions + short = definitely asking for info
   if (bulletCount >= 3 && questionCount >= 1 && response.length < 1000) {
-    console.log(`[Registry] Clarification detected: ${bulletCount} bullets, ${questionCount} questions`);
+    logger.debug(`[Registry] Clarification detected: ${bulletCount} bullets, ${questionCount} questions`, { category: LogCategory.GENERAL });
     return true;
   }
 
   // NEW: Any question mark in a short response is likely a clarification
   if (questionCount >= 1 && response.length < 500) {
-    console.log(`[Registry] Clarification detected: question mark in short response (${response.length} chars)`);
+    logger.debug(`[Registry] Clarification detected: question mark in short response (${response.length} chars)`, { category: LogCategory.GENERAL });
     return true;
   }
 
@@ -243,26 +245,26 @@ const MIN_DOCX_LENGTH = 400;
 export function shouldSendAsDocx(response: string): boolean {
   // Rule 0: If it's a clarification question, NEVER send as DOCX
   if (isClarificationQuestion(response)) {
-    console.log("[Registry] Clarification response -> TEXT");
+    logger.debug("[Registry] Clarification response -> TEXT", { category: LogCategory.GENERAL });
     return false;
   }
 
   // Rule 1: If it has a Subject: line, it's an email template -> TEXT
   if (response.includes("Subject:")) {
-    console.log("[Registry] Has Subject: line -> TEXT");
+    logger.debug("[Registry] Has Subject: line -> TEXT", { category: LogCategory.GENERAL });
     return false;
   }
 
   // Rule 2: Response must be long enough to be a real document
   if (response.length < MIN_DOCX_LENGTH) {
-    console.log(`[Registry] Too short for DOCX: ${response.length} < ${MIN_DOCX_LENGTH} -> TEXT`);
+    logger.debug(`[Registry] Too short for DOCX: ${response.length} < ${MIN_DOCX_LENGTH} -> TEXT`, { category: LogCategory.GENERAL });
     return false;
   }
 
   // Rule 3: Extract title and check against DOCX templates
   const title = extractTemplateTitle(response);
   if (title && isDocxTemplateTitle(title)) {
-    console.log(`[Registry] Title match: "${title}" -> DOCX`);
+    logger.debug(`[Registry] Title match: "${title}" -> DOCX`, { category: LogCategory.GENERAL });
     return true;
   }
 
@@ -276,7 +278,7 @@ export function shouldSendAsDocx(response: string): boolean {
     (fullLower.includes("herein, i") || fullLower.includes("confirm that")) &&
     (fullLower.includes("id number") || fullLower.includes("passport") || fullLower.includes("signature"))
   ) {
-    console.log("[Registry] Viewing Form content detected -> DOCX");
+    logger.debug("[Registry] Viewing Form content detected -> DOCX", { category: LogCategory.GENERAL });
     return true;
   }
 
@@ -287,7 +289,7 @@ export function shouldSendAsDocx(response: string): boolean {
       firstPart.includes("reservation agreement")) &&
     (fullLower.includes("buyer") || fullLower.includes("vendor") || fullLower.includes("deposit"))
   ) {
-    console.log("[Registry] Reservation Agreement content detected -> DOCX");
+    logger.debug("[Registry] Reservation Agreement content detected -> DOCX", { category: LogCategory.GENERAL });
     return true;
   }
 
@@ -298,12 +300,12 @@ export function shouldSendAsDocx(response: string): boolean {
     (fullLower.includes("between") || fullLower.includes("csc zyprus")) &&
     (fullLower.includes("owner") || fullLower.includes("agent") || fullLower.includes("property"))
   ) {
-    console.log("[Registry] Marketing Agreement content detected -> DOCX");
+    logger.debug("[Registry] Marketing Agreement content detected -> DOCX", { category: LogCategory.GENERAL });
     return true;
   }
 
   // Default: TEXT
-  console.log("[Registry] No DOCX match -> TEXT");
+  logger.debug("[Registry] No DOCX match -> TEXT", { category: LogCategory.GENERAL });
   return false;
 }
 

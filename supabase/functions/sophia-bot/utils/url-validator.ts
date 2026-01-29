@@ -10,6 +10,8 @@
  * @see https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html
  */
 
+import { logger, LogCategory } from "./logger.ts";
+
 /**
  * Domains allowed for external URL fetching
  * Only add trusted domains that you control or have verified
@@ -137,8 +139,8 @@ export const validateExternalUrl = (url: string): UrlValidationResult => {
 
     // 1. Protocol check - HTTPS only
     if (parsed.protocol !== "https:") {
-      console.warn("[URL Validator] SSRF blocked: non-HTTPS protocol", {
-        url: url.substring(0, 100),
+      logger.warn("[URL Validator] SSRF blocked: non-HTTPS protocol", {
+        category: LogCategory.GENERAL,
         protocol: parsed.protocol,
       });
       return {
@@ -152,8 +154,8 @@ export const validateExternalUrl = (url: string): UrlValidationResult => {
 
     // 2. Block known dangerous hostnames
     if (isBlockedHostname(hostname)) {
-      console.warn("[URL Validator] SSRF blocked: dangerous hostname", {
-        url: url.substring(0, 100),
+      logger.warn("[URL Validator] SSRF blocked: dangerous hostname", {
+        category: LogCategory.GENERAL,
         hostname,
       });
       return {
@@ -167,8 +169,8 @@ export const validateExternalUrl = (url: string): UrlValidationResult => {
     if (isIpAddress(hostname)) {
       // Check if it's a private/internal IP
       if (isBlockedIp(hostname)) {
-        console.error("[URL Validator] SSRF ATTACK BLOCKED: private IP range", {
-          url: url.substring(0, 100),
+        logger.error("[URL Validator] SSRF ATTACK BLOCKED: private IP range", undefined, {
+          category: LogCategory.GENERAL,
           hostname,
         });
         return {
@@ -179,8 +181,8 @@ export const validateExternalUrl = (url: string): UrlValidationResult => {
       }
 
       // Block all raw IPs even if public - use domain names
-      console.warn("[URL Validator] SSRF blocked: raw IP address", {
-        url: url.substring(0, 100),
+      logger.warn("[URL Validator] SSRF blocked: raw IP address", {
+        category: LogCategory.GENERAL,
         hostname,
       });
       return {
@@ -192,10 +194,9 @@ export const validateExternalUrl = (url: string): UrlValidationResult => {
 
     // 4. Check against allowed domains
     if (!isAllowedDomain(hostname)) {
-      console.warn("[URL Validator] SSRF blocked: domain not in allowlist", {
-        url: url.substring(0, 100),
+      logger.warn("[URL Validator] SSRF blocked: domain not in allowlist", {
+        category: LogCategory.GENERAL,
         hostname,
-        allowedDomains: ALLOWED_DOMAINS,
       });
       return {
         valid: false,
@@ -206,8 +207,8 @@ export const validateExternalUrl = (url: string): UrlValidationResult => {
 
     // 5. Check for path traversal attempts
     if (parsed.pathname.includes("..")) {
-      console.warn("[URL Validator] SSRF blocked: path traversal attempt", {
-        url: url.substring(0, 100),
+      logger.warn("[URL Validator] SSRF blocked: path traversal attempt", {
+        category: LogCategory.GENERAL,
         pathname: parsed.pathname,
       });
       return {
@@ -224,8 +225,8 @@ export const validateExternalUrl = (url: string): UrlValidationResult => {
       protocol: parsed.protocol,
     };
   } catch {
-    console.warn("[URL Validator] Invalid URL format", {
-      url: url.substring(0, 50),
+    logger.warn("[URL Validator] Invalid URL format", {
+      category: LogCategory.GENERAL,
     });
     return {
       valid: false,
@@ -317,8 +318,8 @@ export const validateImageUrl = (url: string): UrlValidationResult => {
 
     // 2. Block known dangerous hostnames
     if (isBlockedHostname(hostname)) {
-      console.warn("[URL Validator] Image URL blocked: dangerous hostname", {
-        url: url.substring(0, 100),
+      logger.warn("[URL Validator] Image URL blocked: dangerous hostname", {
+        category: LogCategory.IMAGE,
         hostname,
       });
       return {
@@ -330,8 +331,8 @@ export const validateImageUrl = (url: string): UrlValidationResult => {
 
     // 3. Block private IP ranges (SSRF prevention)
     if (isIpAddress(hostname) && isBlockedIp(hostname)) {
-      console.error("[URL Validator] SSRF blocked for image: private IP", {
-        url: url.substring(0, 100),
+      logger.error("[URL Validator] SSRF blocked for image: private IP", undefined, {
+        category: LogCategory.IMAGE,
         hostname,
       });
       return {

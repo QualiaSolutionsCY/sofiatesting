@@ -1,10 +1,13 @@
 import { createCircuitBreaker } from "@/lib/circuit-breakers";
 import type { PropertyListing } from "@/lib/db/schema";
+import { logger } from "@/lib/logger";
 import {
   DEFAULT_LISTING_INSTRUCTOR_UUID,
   DEFAULT_LISTING_REVIEWER_UUID,
 } from "./constants";
 import { getReviewers } from "./reviewer-assignment";
+
+const log = logger.zyprus;
 
 type ZyprusAPIErrorOptions = {
   message: string;
@@ -78,10 +81,11 @@ const filterValidUuids = (ids: string[], fieldName: string): string[] => {
   }
 
   if (invalid.length > 0) {
-    console.warn(
-      `[Zyprus] Filtered out ${invalid.length} invalid ${fieldName} ID(s): ${invalid.join(", ")}. ` +
-        "Use getZyprusData tool to fetch valid UUIDs."
-    );
+    log.warn("Filtered out invalid UUIDs", {
+      fieldName,
+      invalidCount: invalid.length,
+      invalidIds: invalid,
+    });
   }
 
   return valid;
@@ -100,9 +104,7 @@ const convertToDirectImageUrl = (url: string): string => {
     // Convert to direct image URL format
     // Note: ibb.co doesn't have a simple conversion, we need to fetch the page and extract the image
     // For now, log a warning and try the i.ibb.co format
-    console.warn(
-      `ibb.co page URL detected: ${url}. Please use direct image URLs (i.ibb.co) instead.`
-    );
+    log.warn("ibb.co page URL detected, use direct image URLs instead", { url });
     // Try common i.ibb.co format - this may not always work
     return `https://i.ibb.co/${imageId}/image.jpg`;
   }
@@ -373,15 +375,18 @@ async function uploadToZyprusAPIInternal(listing: ZyprusListingInput): Promise<{
     const imageUrls = listing.image as string[];
     const totalImages = imageUrls.length;
 
-    console.log(`Starting PARALLEL upload of ${totalImages} images to Zyprus`);
+    log.info("Starting PARALLEL image upload to Zyprus", { totalImages });
 
     // Create upload promise for each image
     const uploadPromises = imageUrls.map(async (imageUrl, i) => {
       // Convert ibb.co page URLs to direct image URLs
       const directUrl = convertToDirectImageUrl(imageUrl);
-      console.log(
-        `Uploading image ${i + 1}/${totalImages}: ${directUrl}${directUrl !== imageUrl ? ` (converted from ${imageUrl})` : ""}`
-      );
+      log.debug("Uploading image", {
+        index: i + 1,
+        totalImages,
+        url: directUrl,
+        converted: directUrl !== imageUrl,
+      });
 
       try {
         // Fetch image from URL (supports both external URLs and Vercel Blob URLs)
@@ -431,13 +436,10 @@ async function uploadToZyprusAPIInternal(listing: ZyprusListingInput): Promise<{
         }
 
         const data = await uploadResponse.json();
-        console.log(`Successfully uploaded image ${i + 1}: ${data.data.id}`);
+        log.debug("Successfully uploaded image", { index: i + 1, id: data.data.id });
         return { index: i, id: data.data.id, url: imageUrl };
       } catch (imgError) {
-        console.error(
-          `Error processing image ${i + 1} (${imageUrl}):`,
-          imgError
-        );
+        log.error("Error processing image", imgError, { index: i + 1, url: imageUrl });
         throw imgError; // Re-throw to mark as rejected in Promise.allSettled
       }
     });
@@ -450,18 +452,15 @@ async function uploadToZyprusAPIInternal(listing: ZyprusListingInput): Promise<{
       if (result.status === "fulfilled") {
         imageIds.push(result.value.id);
       } else {
-        console.error(
-          `Image ${i + 1} upload failed:`,
-          result.reason instanceof Error
-            ? result.reason.message
-            : "Unknown error"
-        );
+        log.error("Image upload failed", result.reason, { index: i + 1 });
       }
     });
 
-    console.log(
-      `Parallel image upload complete: ${imageIds.length}/${totalImages} successful (${((imageIds.length / totalImages) * 100).toFixed(1)}%)`
-    );
+    log.info("Parallel image upload complete", {
+      successful: imageIds.length,
+      total: totalImages,
+      successRate: `${((imageIds.length / totalImages) * 100).toFixed(1)}%`,
+    });
   }
 
   // Extract coordinates for field_map if available
@@ -726,10 +725,9 @@ async function uploadToZyprusAPIInternal(listing: ZyprusListingInput): Promise<{
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error("Zyprus API Response Error:", {
+      log.error("Zyprus API Response Error", undefined, {
         status: response.status,
         errors: errorData.errors,
-        fullResponse: errorData,
       });
 
       // Build detailed error message
@@ -908,16 +906,17 @@ async function uploadLandToZyprusAPIInternal(
     const imageUrls = listing.images;
     const totalImages = imageUrls.length;
 
-    console.log(
-      `Starting PARALLEL upload of ${totalImages} land images to Zyprus`
-    );
+    log.info("Starting PARALLEL land image upload to Zyprus", { totalImages });
 
     const uploadPromises = imageUrls.map(async (imageUrl, i) => {
       // Convert ibb.co page URLs to direct image URLs
       const directUrl = convertToDirectImageUrl(imageUrl);
-      console.log(
-        `Uploading land image ${i + 1}/${totalImages}: ${directUrl}${directUrl !== imageUrl ? ` (converted from ${imageUrl})` : ""}`
-      );
+      log.debug("Uploading land image", {
+        index: i + 1,
+        totalImages,
+        url: directUrl,
+        converted: directUrl !== imageUrl,
+      });
 
       try {
         const imageResponse = await fetch(directUrl);
@@ -963,15 +962,10 @@ async function uploadLandToZyprusAPIInternal(
         }
 
         const data = await uploadResponse.json();
-        console.log(
-          `Successfully uploaded land image ${i + 1}: ${data.data.id}`
-        );
+        log.debug("Successfully uploaded land image", { index: i + 1, id: data.data.id });
         return { index: i, id: data.data.id, url: imageUrl };
       } catch (imgError) {
-        console.error(
-          `Error processing land image ${i + 1} (${imageUrl}):`,
-          imgError
-        );
+        log.error("Error processing land image", imgError, { index: i + 1, url: imageUrl });
         throw imgError;
       }
     });
@@ -982,18 +976,14 @@ async function uploadLandToZyprusAPIInternal(
       if (result.status === "fulfilled") {
         imageIds.push(result.value.id);
       } else {
-        console.error(
-          "Land image upload failed:",
-          result.reason instanceof Error
-            ? result.reason.message
-            : "Unknown error"
-        );
+        log.error("Land image upload failed", result.reason);
       }
     }
 
-    console.log(
-      `Parallel land image upload complete: ${imageIds.length}/${totalImages} successful`
-    );
+    log.info("Parallel land image upload complete", {
+      successful: imageIds.length,
+      total: totalImages,
+    });
   }
 
   // Build land-specific field_map
@@ -1188,10 +1178,9 @@ async function uploadLandToZyprusAPIInternal(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error("Zyprus Land API Response Error:", {
+      log.error("Zyprus Land API Response Error", undefined, {
         status: response.status,
         errors: errorData.errors,
-        fullResponse: errorData,
       });
 
       let errorMessage = `API error: ${response.status}`;
@@ -1309,7 +1298,7 @@ export async function uploadFilesToZyprus(
   const token = await getAccessToken();
   const endpoint = `${apiUrl}/jsonapi/node/${nodeBundle}/${fieldName}`;
 
-  console.log(`Starting upload of ${fileUrls.length} files to ${fieldName}`);
+  log.info("Starting file upload to Zyprus", { count: fileUrls.length, fieldName });
 
   const uploadPromises = fileUrls.map(async (url, i) => {
     try {
@@ -1348,10 +1337,10 @@ export async function uploadFilesToZyprus(
       }
 
       const data = await uploadResponse.json();
-      console.log(`Successfully uploaded file ${i + 1}: ${data.data.id}`);
+      log.debug("Successfully uploaded file", { index: i + 1, id: data.data.id });
       return data.data.id as string;
     } catch (error) {
-      console.error(`Error uploading file ${i + 1} (${url}):`, error);
+      log.error("Error uploading file", error, { index: i + 1, url });
       throw error;
     }
   });
@@ -1363,13 +1352,14 @@ export async function uploadFilesToZyprus(
     if (result.status === "fulfilled") {
       fileIds.push(result.value);
     } else {
-      console.error("File upload failed:", result.reason);
+      log.error("File upload failed", result.reason);
     }
   }
 
-  console.log(
-    `File upload complete: ${fileIds.length}/${fileUrls.length} successful`
-  );
+  log.info("File upload complete", {
+    successful: fileIds.length,
+    total: fileUrls.length,
+  });
   return fileIds;
 }
 
@@ -1504,7 +1494,7 @@ export async function checkForDuplicates(
     });
 
     if (!response.ok) {
-      console.error(`Duplicate check failed: ${response.status}`);
+      log.error("Duplicate check failed", undefined, { status: response.status });
       return { exists: false, matches: [] };
     }
 
@@ -1540,7 +1530,7 @@ export async function checkForDuplicates(
       })),
     };
   } catch (error) {
-    console.error("Duplicate check error:", error);
+    log.error("Duplicate check error", error);
     return { exists: false, matches: [] };
   }
 }
@@ -1627,7 +1617,7 @@ export async function getListingFromZyprus(
     if (error instanceof ZyprusAPIError) {
       throw error;
     }
-    console.error("Failed to fetch listing from Zyprus:", error);
+    log.error("Failed to fetch listing from Zyprus", error, { type, id });
     return null;
   }
 }
@@ -1733,7 +1723,7 @@ export async function searchZyprusListings(
     if (error instanceof ZyprusAPIError) {
       throw error;
     }
-    console.error("Failed to search Zyprus listings:", error);
+    log.error("Failed to search Zyprus listings", error, { type, filters });
     return [];
   }
 }

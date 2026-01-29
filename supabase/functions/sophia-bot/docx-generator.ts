@@ -16,6 +16,7 @@ import {
   createReservationAgreement,
   parseReservationAgreementData,
 } from "./docx/templates/index.ts";
+import { logger, LogCategory } from "./utils/logger.ts";
 
 /**
  * DOCX Template Titles - Only these generate DOCX files
@@ -79,7 +80,7 @@ function isConfirmationMessage(text: string): boolean {
 const DECODED_LOGO: Uint8Array | null = (() => {
   try {
     if (!ZYPRUS_LOGO_BASE64 || ZYPRUS_LOGO_BASE64.length === 0) {
-      console.log("No logo data available");
+      logger.debug("No logo data available", { category: LogCategory.GENERAL });
       return null;
     }
     const binaryString = atob(ZYPRUS_LOGO_BASE64);
@@ -87,10 +88,10 @@ const DECODED_LOGO: Uint8Array | null = (() => {
     for (let i = 0; i < binaryString.length; i++) {
       array[i] = binaryString.charCodeAt(i);
     }
-    console.log("Pre-decoded Zyprus logo at module initialization");
+    logger.debug("Pre-decoded Zyprus logo at module initialization", { category: LogCategory.GENERAL });
     return array;
   } catch (error) {
-    console.warn("Failed to pre-decode logo at module init:", error);
+    logger.warn("Failed to pre-decode logo at module init", { category: LogCategory.GENERAL, error: String(error) });
     return null;
   }
 })();
@@ -135,7 +136,7 @@ function isDocxTemplateTitle(title: string): boolean {
 function isClarificationQuestion(response: string): boolean {
   // FIRST: Check if this is a completed reservation agreement - these should NOT be classified as clarifications
   if (isCompletedReservationAgreementDocument(response)) {
-    console.log("[DOCX] Detected completed reservation agreement, not a clarification");
+    logger.debug("[DOCX] Detected completed reservation agreement, not a clarification", { category: LogCategory.GENERAL });
     return false;
   }
 
@@ -184,7 +185,7 @@ function isClarificationQuestion(response: string): boolean {
   if (response.length < 1000) {
     for (const pattern of clarificationPatterns) {
       if (lower.includes(pattern)) {
-        console.log(`[DOCX] Clarification detected: "${pattern}"`);
+        logger.debug(`[DOCX] Clarification detected: "${pattern}"`, { category: LogCategory.GENERAL });
         return true;
       }
     }
@@ -193,7 +194,7 @@ function isClarificationQuestion(response: string): boolean {
   // Check for question marks in short responses
   const questionCount = (response.match(/\?/g) || []).length;
   if (questionCount >= 1 && response.length < 600) {
-    console.log(`[DOCX] Clarification detected: question mark in short response`);
+    logger.debug("[DOCX] Clarification detected: question mark in short response", { category: LogCategory.GENERAL });
     return true;
   }
 
@@ -214,55 +215,55 @@ export function isDocxTemplate(
   aiResponse: string,
   _conversationHistory?: Array<{role: string, parts: Array<{text: string}>}>
 ): boolean {
-  console.log(`[DOCX] Checking response (length: ${aiResponse.length})`);
+  logger.debug(`[DOCX] Checking response (length: ${aiResponse.length})`, { category: LogCategory.GENERAL });
 
   // STRICT CHECK 0: Short responses are NEVER DOCX
   if (aiResponse.length < 400) {
-    console.log("[DOCX] Too short -> TEXT");
+    logger.debug("[DOCX] Too short -> TEXT", { category: LogCategory.GENERAL });
     return false;
   }
 
   // STRICT CHECK 1: Clarification questions are NEVER DOCX
   if (isClarificationQuestion(aiResponse)) {
-    console.log("[DOCX] Clarification question -> TEXT");
+    logger.debug("[DOCX] Clarification question -> TEXT", { category: LogCategory.GENERAL });
     return false;
   }
 
   // STRICT CHECK 2: Confirmation messages are NEVER DOCX
   if (isConfirmationMessage(aiResponse)) {
-    console.log("[DOCX] Response is a confirmation message -> TEXT");
+    logger.debug("[DOCX] Response is a confirmation message -> TEXT", { category: LogCategory.GENERAL });
     return false;
   }
 
   // STRICT CHECK 3: Check if AI is requesting information first
   if (isRequestingInformation(aiResponse)) {
-    console.log("[DOCX] Response is requesting information -> TEXT");
+    logger.debug("[DOCX] Response is requesting information -> TEXT", { category: LogCategory.GENERAL });
     return false;
   }
 
   // NEW: Check if response contains placeholders
   if (containsPlaceholders(aiResponse)) {
-    console.log("[DOCX] Response contains placeholders -> TEXT");
+    logger.debug("[DOCX] Response contains placeholders -> TEXT", { category: LogCategory.GENERAL });
     return false;
   }
 
   // Rule 1: Subject line = email = TEXT
   if (aiResponse.includes("Subject:")) {
-    console.log("[DOCX] Has Subject: -> TEXT");
+    logger.debug("[DOCX] Has Subject: -> TEXT", { category: LogCategory.GENERAL });
     return false;
   }
 
   // Rule 2: Check title
   const title = extractTemplateTitle(aiResponse);
   if (title) {
-    console.log(`[DOCX] Extracted title: "${title}"`);
+    logger.debug(`[DOCX] Extracted title: "${title}"`, { category: LogCategory.GENERAL });
     if (isDocxTemplateTitle(title)) {
       // Even with matching title, check if it's requesting information
       if (isRequestingInformation(aiResponse) || containsPlaceholders(aiResponse)) {
-        console.log(`[DOCX] Title matches but requesting info/has placeholders -> TEXT`);
+        logger.debug("[DOCX] Title matches but requesting info/has placeholders -> TEXT", { category: LogCategory.GENERAL });
         return false;
       }
-      console.log(`[DOCX] Title "${title}" matches and has complete data -> DOCX`);
+      logger.debug(`[DOCX] Title "${title}" matches and has complete data -> DOCX`, { category: LogCategory.GENERAL });
       return true;
     }
   }
@@ -280,10 +281,10 @@ export function isDocxTemplate(
   if (viewingFormPatterns.some(p => p)) {
     // Check if it's actually requesting form information
     if (isRequestingInformation(aiResponse) || containsPlaceholders(aiResponse)) {
-      console.log("[DOCX] Viewing form pattern but requesting info/has placeholders -> TEXT");
+      logger.debug("[DOCX] Viewing form pattern but requesting info/has placeholders -> TEXT", { category: LogCategory.GENERAL });
       return false;
     }
-    console.log("[DOCX] Viewing form pattern with complete data -> DOCX");
+    logger.debug("[DOCX] Viewing form pattern with complete data -> DOCX", { category: LogCategory.GENERAL });
     return true;
   }
 
@@ -297,10 +298,10 @@ export function isDocxTemplate(
   if (reservationPatterns.some(p => p)) {
     // Check if it's actually requesting form information
     if (isRequestingInformation(aiResponse) || containsPlaceholders(aiResponse)) {
-      console.log("[DOCX] Reservation agreement pattern but requesting info/has placeholders -> TEXT");
+      logger.debug("[DOCX] Reservation agreement pattern but requesting info/has placeholders -> TEXT", { category: LogCategory.GENERAL });
       return false;
     }
-    console.log("[DOCX] Reservation agreement pattern with complete data -> DOCX");
+    logger.debug("[DOCX] Reservation agreement pattern with complete data -> DOCX", { category: LogCategory.GENERAL });
     return true;
   }
 
@@ -314,16 +315,16 @@ export function isDocxTemplate(
   if (marketingPatterns.some(p => p)) {
     // Check if it's actually requesting form information
     if (isRequestingInformation(aiResponse) || containsPlaceholders(aiResponse)) {
-      console.log("[DOCX] Marketing agreement pattern but requesting info/has placeholders -> TEXT");
+      logger.debug("[DOCX] Marketing agreement pattern but requesting info/has placeholders -> TEXT", { category: LogCategory.GENERAL });
       return false;
     }
-    console.log("[DOCX] Marketing agreement pattern with complete data -> DOCX");
+    logger.debug("[DOCX] Marketing agreement pattern with complete data -> DOCX", { category: LogCategory.GENERAL });
     return true;
   }
 
   // EARLY EXIT: If asking for information, ALWAYS return TEXT
   if (firstPart.includes("please provide") || firstPart.includes("i need the following") || firstPart.includes("which type")) {
-    console.log("[DOCX] Contains 'please provide' or question -> TEXT");
+    logger.debug("[DOCX] Contains 'please provide' or question -> TEXT", { category: LogCategory.GENERAL });
     return false;
   }
 
@@ -331,7 +332,7 @@ export function isDocxTemplate(
   // Only strict title/content matching above should trigger DOCX
 
   // Default: TEXT
-  console.log("[DOCX] No match -> TEXT");
+  logger.debug("[DOCX] No match -> TEXT", { category: LogCategory.GENERAL });
   return false;
 }
 
@@ -379,15 +380,15 @@ export async function createDocxFile(content: string, _filename: string = "docum
 
     // Use specialized Reservation Agreement template
     if (isReservationAgreement) {
-      console.log("[DOCX] Detected Reservation Agreement - using specialized template");
+      logger.debug("[DOCX] Detected Reservation Agreement - using specialized template", { category: LogCategory.GENERAL });
       const parsedData = parseReservationAgreementData(content);
       if (parsedData) {
-        console.log("[DOCX] Successfully parsed reservation agreement data");
+        logger.debug("[DOCX] Successfully parsed reservation agreement data", { category: LogCategory.GENERAL });
         const doc = createReservationAgreement(parsedData);
         const buffer = await Packer.toBuffer(doc);
         return new Uint8Array(buffer);
       } else {
-        console.warn("[DOCX] Failed to parse reservation agreement data - falling back to generic DOCX");
+        logger.warn("[DOCX] Failed to parse reservation agreement data - falling back to generic DOCX", { category: LogCategory.GENERAL });
       }
     }
 
@@ -413,7 +414,7 @@ export async function createDocxFile(content: string, _filename: string = "docum
           })
         );
       } catch (imageError) {
-        console.warn("[DOCX] Error adding image:", imageError);
+        logger.warn("[DOCX] Error adding image", { category: LogCategory.GENERAL, error: String(imageError) });
       }
     }
     
@@ -484,7 +485,7 @@ export async function createDocxFile(content: string, _filename: string = "docum
     return new Uint8Array(buffer);
     
   } catch (error) {
-    console.error("[DOCX] Error creating file:", error);
+    logger.error("[DOCX] Error creating file", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.GENERAL });
     // Minimal fallback
     const fallbackXml = `<?xml version="1.0" encoding="UTF-8"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">

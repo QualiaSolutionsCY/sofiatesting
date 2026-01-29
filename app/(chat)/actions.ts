@@ -9,6 +9,9 @@ import {
   getMessageById,
   updateChatVisiblityById,
 } from "@/lib/db/queries";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("chat:actions");
 
 export async function saveChatModelAsCookie(model: string) {
   const cookieStore = await cookies();
@@ -37,7 +40,7 @@ export async function deleteTrailingMessages({ id }: { id: string }) {
   const [message] = await getMessageById({ id });
 
   if (!message) {
-    console.warn(`[deleteTrailingMessages] Message not found: ${id}`);
+    logger.warn("deleteTrailingMessages - Message not found", { messageId: id });
     return;
   }
 

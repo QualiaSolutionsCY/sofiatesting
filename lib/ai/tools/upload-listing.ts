@@ -8,11 +8,14 @@ import {
   logListingUploadAttempt,
   updateListingStatus,
 } from "@/lib/db/queries";
+import { logger } from "@/lib/logger";
 import {
   isPermanentError,
   uploadToZyprusAPI,
   ZyprusAPIError,
 } from "@/lib/zyprus/client";
+
+const log = logger.ai.child("upload-listing");
 
 export const uploadListingTool = tool({
   description:
@@ -188,7 +191,7 @@ Your property is now live on zyprus.com!`,
         };
       }
     } catch (error) {
-      console.error("Error uploading listing:", error);
+      log.error("Error uploading listing", error);
       return {
         success: false,
         error: "Failed to process upload. Please try again.",

@@ -8,6 +8,8 @@
  * - UUID resolution for all reference fields
  */
 
+import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -172,7 +174,7 @@ export const getAccessToken = async (config: ZyprusConfig): Promise<string> => {
     return cachedToken.token;
   }
 
-  console.log("[Zyprus] Fetching new access token...");
+  logger.info("[Zyprus] Fetching new access token...", { category: LogCategory.ZYPRUS });
 
   const response = await fetch(`${config.apiUrl}/oauth/token`, {
     method: "POST",
@@ -189,7 +191,7 @@ export const getAccessToken = async (config: ZyprusConfig): Promise<string> => {
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("[Zyprus] Token error:", errorText);
+    logger.error("[Zyprus] Token error", new Error(errorText), { category: LogCategory.ZYPRUS, statusCode: response.status });
     throw new Error(`Failed to get access token: ${response.status}`);
   }
 
@@ -200,7 +202,7 @@ export const getAccessToken = async (config: ZyprusConfig): Promise<string> => {
     expiresAt: Date.now() + data.expires_in * 1000,
   };
 
-  console.log("[Zyprus] Access token obtained successfully");
+  logger.info("[Zyprus] Access token obtained successfully", { category: LogCategory.ZYPRUS });
   return data.access_token;
 };
 
@@ -226,7 +228,7 @@ const fetchTaxonomy = async (
     });
 
     if (!response.ok) {
-      console.error(`[Taxonomy] Failed to fetch ${vocabularyName}: ${response.status}`);
+      logger.error(`[Taxonomy] Failed to fetch ${vocabularyName}: ${response.status}`, undefined, { category: LogCategory.ZYPRUS });
       break;
     }
 
@@ -243,7 +245,7 @@ const fetchTaxonomy = async (
     nextUrl = data.links?.next?.href || null;
   }
 
-  console.log(`[Taxonomy] Loaded ${items.length} ${vocabularyName} terms`);
+  logger.debug(`[Taxonomy] Loaded ${items.length} ${vocabularyName} terms`, { category: LogCategory.CACHE });
   return items;
 };
 
@@ -264,7 +266,7 @@ const fetchLocations = async (
     });
 
     if (!response.ok) {
-      console.error(`[Taxonomy] Failed to fetch locations: ${response.status}`);
+      logger.error(`[Taxonomy] Failed to fetch locations: ${response.status}`, undefined, { category: LogCategory.ZYPRUS });
       break;
     }
 
@@ -281,7 +283,7 @@ const fetchLocations = async (
     nextUrl = data.links?.next?.href || null;
   }
 
-  console.log(`[Taxonomy] Loaded ${items.length} location nodes`);
+  logger.debug(`[Taxonomy] Loaded ${items.length} location nodes`, { category: LogCategory.CACHE });
   return items;
 };
 
@@ -302,7 +304,7 @@ const fetchUsers = async (
     });
 
     if (!response.ok) {
-      console.error(`[Taxonomy] Failed to fetch users: ${response.status}`);
+      logger.error(`[Taxonomy] Failed to fetch users: ${response.status}`, undefined, { category: LogCategory.ZYPRUS });
       break;
     }
 
@@ -321,7 +323,7 @@ const fetchUsers = async (
     nextUrl = data.links?.next?.href || null;
   }
 
-  console.log(`[Taxonomy] Loaded ${items.length} users`);
+  logger.debug(`[Taxonomy] Loaded ${items.length} users`, { category: LogCategory.CACHE });
   return items;
 };
 
@@ -331,11 +333,11 @@ export const loadTaxonomy = async (): Promise<TaxonomyCache> => {
   }
 
   if (taxonomyLoadPromise) {
-    console.log("[Taxonomy] Waiting for existing load operation...");
+    logger.debug("[Taxonomy] Waiting for existing load operation...", { category: LogCategory.CACHE });
     return taxonomyLoadPromise;
   }
 
-  console.log("[Taxonomy] Loading taxonomy data...");
+  logger.info("[Taxonomy] Loading taxonomy data...", { category: LogCategory.CACHE });
 
   taxonomyLoadPromise = (async () => {
     try {
@@ -377,7 +379,7 @@ export const loadTaxonomy = async (): Promise<TaxonomyCache> => {
         lastUpdated: Date.now(),
       };
 
-      console.log("[Taxonomy] Taxonomy loaded successfully");
+      logger.info("[Taxonomy] Taxonomy loaded successfully", { category: LogCategory.CACHE });
       return cache;
     } finally {
       taxonomyLoadPromise = null;
@@ -407,20 +409,20 @@ export const findLocationUuid = async (locationName: string): Promise<string> =>
         (loc) => loc.name.toLowerCase().includes(word)
       );
       if (match) {
-        console.log(`[Taxonomy] Partial match for "${locationName}": ${match.name}`);
+        logger.debug(`[Taxonomy] Partial match for "${locationName}": ${match.name}`, { category: LogCategory.ZYPRUS });
         return match.id;
       }
     }
 
     if (taxonomy.locations.length > 0) {
-      console.log(`[Taxonomy] Using first available location: ${taxonomy.locations[0].name}`);
+      logger.debug(`[Taxonomy] Using first available location: ${taxonomy.locations[0].name}`, { category: LogCategory.ZYPRUS });
       return taxonomy.locations[0].id;
     }
   } catch (error) {
-    console.error(`[Taxonomy] Error finding location:`, error);
+    logger.error("[Taxonomy] Error finding location", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
   }
 
-  console.log(`[Taxonomy] Using hardcoded default location UUID for: ${locationName}`);
+  logger.debug(`[Taxonomy] Using hardcoded default location UUID for: ${locationName}`, { category: LogCategory.ZYPRUS });
   return DEFAULT_LOCATION_UUID;
 };
 
@@ -462,15 +464,15 @@ export const findPropertyTypeUuid = async (typeName: string): Promise<string> =>
     if (partial) return partial.id;
 
     if (taxonomy.propertyTypes.length > 0) {
-      console.log(`[Taxonomy] Using first available property type: ${taxonomy.propertyTypes[0].name}`);
+      logger.debug(`[Taxonomy] Using first available property type: ${taxonomy.propertyTypes[0].name}`, { category: LogCategory.ZYPRUS });
       return taxonomy.propertyTypes[0].id;
     }
   } catch (error) {
-    console.error(`[Taxonomy] Error finding property type:`, error);
+    logger.error("[Taxonomy] Error finding property type", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
   }
 
   const fallbackUuid = PROPERTY_TYPE_FALLBACKS[normalized] || DEFAULT_PROPERTY_TYPE_UUID;
-  console.log(`[Taxonomy] Using hardcoded fallback property type UUID for: ${typeName}`);
+  logger.debug(`[Taxonomy] Using hardcoded fallback property type UUID for: ${typeName}`, { category: LogCategory.ZYPRUS });
   return fallbackUuid;
 };
 
@@ -488,14 +490,14 @@ export const findListingTypeUuid = async (type: "sale" | "rent"): Promise<string
     }
 
     if (taxonomy.listingTypes.length > 0) {
-      console.log(`[Taxonomy] Using first available listing type: ${taxonomy.listingTypes[0].name}`);
+      logger.debug(`[Taxonomy] Using first available listing type: ${taxonomy.listingTypes[0].name}`, { category: LogCategory.ZYPRUS });
       return taxonomy.listingTypes[0].id;
     }
   } catch (error) {
-    console.error(`[Taxonomy] Error finding listing type:`, error);
+    logger.error("[Taxonomy] Error finding listing type", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
   }
 
-  console.log(`[Taxonomy] Using hardcoded default listing type UUID`);
+  logger.debug("[Taxonomy] Using hardcoded default listing type UUID", { category: LogCategory.ZYPRUS });
   return DEFAULT_LISTING_TYPE_UUID;
 };
 
@@ -515,14 +517,14 @@ export const findPriceModifierUuid = async (modifier?: string): Promise<string> 
     }
 
     if (taxonomy.priceModifiers.length > 0) {
-      console.log(`[Taxonomy] Using first available price modifier: ${taxonomy.priceModifiers[0].name}`);
+      logger.debug(`[Taxonomy] Using first available price modifier: ${taxonomy.priceModifiers[0].name}`, { category: LogCategory.ZYPRUS });
       return taxonomy.priceModifiers[0].id;
     }
   } catch (error) {
-    console.error(`[Taxonomy] Error finding price modifier:`, error);
+    logger.error("[Taxonomy] Error finding price modifier", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
   }
 
-  console.log(`[Taxonomy] Using hardcoded default price modifier UUID`);
+  logger.debug("[Taxonomy] Using hardcoded default price modifier UUID", { category: LogCategory.ZYPRUS });
   return DEFAULT_PRICE_MODIFIER_UUID;
 };
 
@@ -558,20 +560,20 @@ export const findTitleDeedUuid = async (status?: string): Promise<string> => {
     }
 
     if (taxonomy.titleDeeds.length > 0) {
-      console.log(`[Taxonomy] Using first available title deed: ${taxonomy.titleDeeds[0].name}`);
+      logger.debug(`[Taxonomy] Using first available title deed: ${taxonomy.titleDeeds[0].name}`, { category: LogCategory.ZYPRUS });
       return taxonomy.titleDeeds[0].id;
     }
   } catch (error) {
-    console.error(`[Taxonomy] Error finding title deed:`, error);
+    logger.error("[Taxonomy] Error finding title deed", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
   }
 
-  console.log(`[Taxonomy] Using hardcoded default title deed UUID`);
+  logger.debug("[Taxonomy] Using hardcoded default title deed UUID", { category: LogCategory.ZYPRUS });
   return DEFAULT_TITLE_DEED_UUID;
 };
 
 export const findUserUuid = async (email: string): Promise<string> => {
   if (!email) {
-    console.log("[Taxonomy] No email provided, using SOPHIA_AI_UUID");
+    logger.debug("[Taxonomy] No email provided, using SOPHIA_AI_UUID", { category: LogCategory.ZYPRUS });
     return SOPHIA_AI_UUID;
   }
 
@@ -581,21 +583,21 @@ export const findUserUuid = async (email: string): Promise<string> => {
     const taxonomy = await loadTaxonomy();
     const user = taxonomy.users.find(u => u.email === normalizedEmail);
     if (user) {
-      console.log(`[Taxonomy] Found user UUID for ${normalizedEmail}: ${user.id}`);
+      logger.debug(`[Taxonomy] Found user UUID for ${normalizedEmail}: ${user.id}`, { category: LogCategory.ZYPRUS });
       return user.id;
     }
-    console.log(`[Taxonomy] User not found for ${normalizedEmail}, checking fallbacks`);
+    logger.debug(`[Taxonomy] User not found for ${normalizedEmail}, checking fallbacks`, { category: LogCategory.ZYPRUS });
   } catch (error) {
-    console.error(`[Taxonomy] Error finding user:`, error);
+    logger.error("[Taxonomy] Error finding user", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
   }
 
   const fallback = USER_FALLBACKS[normalizedEmail];
   if (fallback) {
-    console.log(`[Taxonomy] Using hardcoded fallback for ${normalizedEmail}`);
+    logger.debug(`[Taxonomy] Using hardcoded fallback for ${normalizedEmail}`, { category: LogCategory.ZYPRUS });
     return fallback;
   }
 
-  console.log(`[Taxonomy] Using SOPHIA_AI_UUID fallback for ${normalizedEmail}`);
+  logger.debug(`[Taxonomy] Using SOPHIA_AI_UUID fallback for ${normalizedEmail}`, { category: LogCategory.ZYPRUS });
   return SOPHIA_AI_UUID;
 };
 
@@ -915,7 +917,7 @@ const uploadSingleImage = async (
     // Download image
     const imageResponse = await fetch(url);
     if (!imageResponse.ok) {
-      console.error(`[Zyprus] Failed to download image ${index}: ${url}`);
+      logger.error(`[Zyprus] Failed to download image ${index}: ${url}`, undefined, { category: LogCategory.ZYPRUS });
       return null;
     }
 
@@ -943,18 +945,18 @@ const uploadSingleImage = async (
     );
 
     if (!uploadResponse.ok) {
-      console.error(`[Zyprus] Failed to upload image ${index}: ${uploadResponse.status}`);
+      logger.error(`[Zyprus] Failed to upload image ${index}: ${uploadResponse.status}`, undefined, { category: LogCategory.ZYPRUS });
       return null;
     }
 
     const uploadResult = await uploadResponse.json();
     if (uploadResult.data?.id) {
-      console.log(`[Zyprus] Uploaded image ${index + 1}`);
+      logger.debug(`[Zyprus] Uploaded image ${index + 1}`, { category: LogCategory.ZYPRUS });
       return uploadResult.data.id;
     }
     return null;
   } catch (error) {
-    console.error(`[Zyprus] Image upload error for ${url}:`, error);
+    logger.error(`[Zyprus] Image upload error for ${url}`, error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
     return null;
   }
 };
@@ -964,7 +966,7 @@ const uploadImages = async (
   token: string,
   config: ZyprusConfig
 ): Promise<string[]> => {
-  console.log(`[Zyprus] Uploading ${imageUrls.length} images in parallel...`);
+  logger.info(`[Zyprus] Uploading ${imageUrls.length} images in parallel...`, { category: LogCategory.ZYPRUS });
 
   const results = await Promise.all(
     imageUrls.map((url, index) => uploadSingleImage(url, index, token, config))
@@ -972,7 +974,7 @@ const uploadImages = async (
 
   const fileIds = results.filter((id): id is string => id !== null);
 
-  console.log(`[Zyprus] Successfully uploaded ${fileIds.length}/${imageUrls.length} images`);
+  logger.info(`[Zyprus] Successfully uploaded ${fileIds.length}/${imageUrls.length} images`, { category: LogCategory.ZYPRUS });
   return fileIds;
 };
 
@@ -982,7 +984,7 @@ export const createDraftListing = async (
   const config = getZyprusConfig();
   const token = await getAccessToken(config);
 
-  console.log("[Zyprus] Creating draft listing...");
+  logger.info("[Zyprus] Creating draft listing...", { category: LogCategory.ZYPRUS });
 
   const reviewerEmails: string[] = [];
   if (listing.reviewer1) reviewerEmails.push(listing.reviewer1);
@@ -1012,7 +1014,8 @@ export const createDraftListing = async (
     findPropertyViewUuids(listing.features || []),
   ]);
 
-  console.log(`[Zyprus] Resolved UUIDs:`, {
+  logger.debug("[Zyprus] Resolved UUIDs", {
+    category: LogCategory.ZYPRUS,
     listingType: listingTypeUuid,
     propertyType: propertyTypeUuid,
     priceModifier: priceModifierUuid,
@@ -1026,7 +1029,7 @@ export const createDraftListing = async (
   });
 
   const imageFileIds = await uploadImages(listing.images, token, config);
-  console.log(`[Zyprus] Uploaded ${imageFileIds.length} images`);
+  logger.debug(`[Zyprus] Uploaded ${imageFileIds.length} images`, { category: LogCategory.ZYPRUS });
 
   const payload = buildJsonApiPayload(
     listing,
@@ -1056,7 +1059,7 @@ export const createDraftListing = async (
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("[Zyprus] Create listing error:", errorText);
+    logger.error("[Zyprus] Create listing error", new Error(errorText), { category: LogCategory.ZYPRUS, statusCode: response.status });
     let errorDetail = "";
     try {
       const errorJson = JSON.parse(errorText);
@@ -1072,7 +1075,7 @@ export const createDraftListing = async (
   const result = await response.json();
   const listingId = result.data.id;
 
-  console.log(`[Zyprus] Created listing: ${listingId}`);
+  logger.info(`[Zyprus] Created listing: ${listingId}`, { category: LogCategory.ZYPRUS });
 
   return {
     listingId,
@@ -1108,7 +1111,7 @@ export const searchProperties = async (
   });
 
   if (!response.ok) {
-    console.error("[Zyprus] Search error:", response.status);
+    logger.error(`[Zyprus] Search error: ${response.status}`, undefined, { category: LogCategory.ZYPRUS });
     return [];
   }
 
