@@ -15,6 +15,7 @@ import { createDraftListing, getZyprusConfig, getAccessToken } from "../zyprus/c
 import { loadTaxonomy, findLocationUuid, findPropertyTypeUuid, getLocationsByRegion } from "../zyprus/taxonomy-cache.ts";
 import { clearPendingImages, getPendingImages } from "../services/pending-images.ts";
 import { logger, LogCategory } from "../utils/logger.ts";
+import { classifyError, getUserFriendlyMessage, ErrorType } from "../utils/error-mapper.ts";
 
 // In-memory upload lock to prevent parallel uploads from same user
 // Key: phone number, Value: timestamp of last upload attempt
@@ -106,16 +107,23 @@ export async function executeTool(
     }
   } catch (error) {
     if (error instanceof RejectionError) {
+      // RejectionError messages are already user-friendly
       return { error: error.message };
     }
-    // Enhanced error logging for debugging
+
+    // Classify and log the error
     const errorObj = error instanceof Error ? error : new Error(String(error));
+    const errorType = classifyError(errorObj);
+
     logger.error("Tool execution failed", errorObj, {
       category: LogCategory.TOOL,
       toolName: tool.name,
+      errorType,
     });
-    // Include more detail in the returned error for debugging
-    return { error: `Tool execution failed: ${errorObj.message}` };
+
+    // Return user-friendly message
+    const userMessage = getUserFriendlyMessage(errorType, `while ${tool.name}`);
+    return { error: userMessage };
   }
 }
 
@@ -477,15 +485,19 @@ async function handleCreatePropertyListing(
   // Zyprus API requires field_gallery_ to have at least 1 image
   if (validImages.length === 0) {
     const invalidDetails = invalidImages.length > 0
-      ? invalidImages.map((img) => `• ${img.url.substring(0, 50)}... - ${img.error}`).join('\n')
-      : "• No images were provided";
+      ? invalidImages.slice(0, 3).map((img) => `• ${img.error}`).join('\n')
+      : "";
+
     logger.error("No valid images after validation", undefined, {
       category: LogCategory.IMAGE,
       operation: "createPropertyListing",
       invalidCount: invalidImages.length,
     });
+
     return {
-      error: `None of the provided images could be uploaded. The Zyprus API requires at least 1 valid image.\n\n**Image issues:**\n${invalidDetails}\n\n**Tips:**\n• Send photos directly from your phone gallery\n• Use direct image URLs (ending in .jpg, .png, etc.)\n• Avoid webpage links like ibb.co sharing pages (use i.ibb.co direct links instead)`,
+      error: `None of the images could be uploaded.\n\n` +
+        (invalidDetails ? `Issues:\n${invalidDetails}\n\n` : "") +
+        `Please send photos directly from your phone gallery, or use direct image URLs.`,
     };
   }
 
@@ -609,11 +621,22 @@ async function handleCreatePropertyListing(
     });
   } catch (createError) {
     const err = createError instanceof Error ? createError : new Error(String(createError));
+    const errorType = classifyError(err);
+
     logger.error("Failed to create draft listing", err, {
       category: LogCategory.ZYPRUS,
       operation: "createPropertyListing",
+      errorType,
     });
-    return { error: `Failed to create listing on Zyprus: ${err.message}` };
+
+    // User-friendly message based on error type
+    if (errorType === ErrorType.NETWORK || errorType === ErrorType.TIMEOUT) {
+      return { error: "The property listing service is temporarily slow. Please try again in a moment." };
+    } else if (errorType === ErrorType.AUTH) {
+      return { error: "There's a configuration issue with the property system. Please contact support." };
+    } else {
+      return { error: "Unable to create the listing right now. Please try again shortly." };
+    }
   }
 
   // 14. Build success message
@@ -1040,7 +1063,11 @@ async function handleSendEmail(
         status: response.status,
         errorDetail: errorDetail.substring(0, 200),
       });
-      return { error: `Failed to send email: ${errorDetail}` };
+      return {
+        error: attachmentUrl
+          ? "Unable to send the email with attachment. Please try again."
+          : "Unable to send the email. Please try again in a moment.",
+      };
     }
 
     const result = JSON.parse(responseText);
@@ -1062,7 +1089,11 @@ async function handleSendEmail(
       category: LogCategory.TOOL,
       operation: "sendEmail",
     });
-    return { error: `Failed to send email: ${err.message}` };
+    return {
+      error: args.attachmentUrl
+        ? "Unable to send the email with attachment. Please try again."
+        : "Unable to send the email. Please try again in a moment.",
+    };
   }
 }
 
