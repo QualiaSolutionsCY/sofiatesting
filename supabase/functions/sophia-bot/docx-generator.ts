@@ -11,7 +11,7 @@
 
 import { Document, Packer, Paragraph, ImageRun, TextRun, AlignmentType } from "https://esm.sh/docx@8.5.0";
 import { ZYPRUS_LOGO_BASE64 } from "./prompts.ts";
-import { isRequestingInformation, containsPlaceholders } from "./utils/field-validator.ts";
+import { isRequestingInformation, containsPlaceholders, isCompletedReservationAgreementDocument } from "./utils/field-validator.ts";
 import {
   createReservationAgreement,
   parseReservationAgreementData,
@@ -133,6 +133,12 @@ function isDocxTemplateTitle(title: string): boolean {
  * These should NEVER be sent as DOCX
  */
 function isClarificationQuestion(response: string): boolean {
+  // FIRST: Check if this is a completed reservation agreement - these should NOT be classified as clarifications
+  if (isCompletedReservationAgreementDocument(response)) {
+    console.log("[DOCX] Detected completed reservation agreement, not a clarification");
+    return false;
+  }
+
   const lower = response.toLowerCase();
 
   // Clarification patterns - AI asking for more info

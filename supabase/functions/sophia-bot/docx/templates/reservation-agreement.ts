@@ -15,6 +15,11 @@ import {
   TextRun,
   AlignmentType,
   UnderlineType,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  BorderStyle,
 } from "https://esm.sh/docx@8.5.0";
 
 import { numberToWords } from "../../utils/number-to-words.ts";
@@ -375,100 +380,180 @@ export function createReservationAgreement(data: ReservationAgreementData): Docu
     })
   );
 
-  // SIGNATURE SECTION - EXACT match to reference template
+  // SIGNATURE SECTION - Using table for proper two-column layout
+  // Use NIL style with size 0 and white color to completely hide borders
+  const noBorders = {
+    top: { style: BorderStyle.NIL, size: 0, color: "FFFFFF" },
+    bottom: { style: BorderStyle.NIL, size: 0, color: "FFFFFF" },
+    left: { style: BorderStyle.NIL, size: 0, color: "FFFFFF" },
+    right: { style: BorderStyle.NIL, size: 0, color: "FFFFFF" },
+  };
 
-  // The Prospective Buyer: (left)                    WITNESSES (right)
+  // ===== THE PROSPECTIVE BUYER SECTION =====
   children.push(
-    new Paragraph({
-      children: [
-        new TextRun({ text: "The Prospective Buyer:                                                             WITNESSES", size: 22, font: "Times New Roman" }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        // Row 1: "The Prospective Buyer:" | "WITNESSES"
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              borders: noBorders,
+              children: [new Paragraph({
+                children: [new TextRun({ text: "The Prospective Buyer:", size: 22, font: "Times New Roman" })],
+              })],
+            }),
+            new TableCell({
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              borders: noBorders,
+              children: [new Paragraph({
+                children: [new TextRun({ text: "WITNESSES", size: 22, font: "Times New Roman" })],
+              })],
+            }),
+          ],
+        }),
+        // Row 2: Empty row for signature space
+        new TableRow({
+          children: [
+            new TableCell({ borders: noBorders, children: [new Paragraph({ text: "" })] }),
+            new TableCell({ borders: noBorders, children: [new Paragraph({ text: "" })] }),
+          ],
+        }),
+        // Row 3: Signature lines
+        new TableRow({
+          children: [
+            new TableCell({
+              borders: noBorders,
+              children: [new Paragraph({
+                children: [new TextRun({ text: "_________________________", size: 22, font: "Times New Roman" })],
+              })],
+            }),
+            new TableCell({
+              borders: noBorders,
+              children: [new Paragraph({
+                children: [new TextRun({ text: "_________________________", size: 22, font: "Times New Roman" })],
+              })],
+            }),
+          ],
+        }),
+        // Row 4: Buyer name | Name and I.D.:
+        ...data.buyers.map(buyer => new TableRow({
+          children: [
+            new TableCell({
+              borders: noBorders,
+              children: [new Paragraph({
+                children: [new TextRun({ text: `${buyer.fullName} ${buyer.idType}`, size: 22, font: "Times New Roman" })],
+              })],
+            }),
+            new TableCell({
+              borders: noBorders,
+              children: [new Paragraph({
+                children: [new TextRun({ text: "Name and I.D.:", size: 22, font: "Times New Roman" })],
+              })],
+            }),
+          ],
+        })),
       ],
-      spacing: { after: 200 },
     })
   );
 
-  // Empty line
-  children.push(new Paragraph({ text: "" }));
+  // Spacing after buyer section
+  children.push(new Paragraph({ text: "", spacing: { after: 300 } }));
 
-  // Signature line (one long line)
+  // ===== THE VENDOR SECTION =====
   children.push(
-    new Paragraph({
-      children: [new TextRun({ text: "__________________________________", size: 22, font: "Times New Roman" })],
-    })
-  );
-
-  // Buyer name + Name and I.D.: (for witness to fill)
-  for (const buyer of data.buyers) {
-    children.push(
-      new Paragraph({
-        children: [
-          new TextRun({ text: `${buyer.fullName}                                                                          Name and I.D.:`, size: 22, font: "Times New Roman" }),
-        ],
-        spacing: { after: 200 },
-      })
-    );
-  }
-
-  // Empty line before Vendor
-  children.push(new Paragraph({ text: "" }));
-
-  // The Vendor:
-  children.push(
-    new Paragraph({
-      children: [new TextRun({ text: "The Vendor:", size: 22, font: "Times New Roman" })],
-      spacing: { after: 200 },
-    })
-  );
-
-  // Empty line
-  children.push(new Paragraph({ text: "" }));
-
-  // Signature line
-  children.push(
-    new Paragraph({
-      children: [new TextRun({ text: "__________________________________", size: 22, font: "Times New Roman" })],
-    })
-  );
-
-  // Vendor name + Name and I.D.:
-  children.push(
-    new Paragraph({
-      children: [
-        new TextRun({ text: `${data.vendor.name}                                                                          Name and I.D.:`, size: 22, font: "Times New Roman" }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        // Row 1: "The Vendor:" | empty (no WITNESSES header repeated)
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              borders: noBorders,
+              children: [new Paragraph({
+                children: [new TextRun({ text: "The Vendor:", size: 22, font: "Times New Roman" })],
+              })],
+            }),
+            new TableCell({
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              borders: noBorders,
+              children: [new Paragraph({ text: "" })],
+            }),
+          ],
+        }),
+        // Row 2: Empty row for signature space
+        new TableRow({
+          children: [
+            new TableCell({ borders: noBorders, children: [new Paragraph({ text: "" })] }),
+            new TableCell({ borders: noBorders, children: [new Paragraph({ text: "" })] }),
+          ],
+        }),
+        // Row 3: Signature lines
+        new TableRow({
+          children: [
+            new TableCell({
+              borders: noBorders,
+              children: [new Paragraph({
+                children: [new TextRun({ text: "_________________________", size: 22, font: "Times New Roman" })],
+              })],
+            }),
+            new TableCell({
+              borders: noBorders,
+              children: [new Paragraph({
+                children: [new TextRun({ text: "_________________________", size: 22, font: "Times New Roman" })],
+              })],
+            }),
+          ],
+        }),
+        // Row 4: Vendor name | Name and I.D.:
+        new TableRow({
+          children: [
+            new TableCell({
+              borders: noBorders,
+              children: [new Paragraph({
+                children: [new TextRun({ text: data.vendor.name, size: 22, font: "Times New Roman" })],
+              })],
+            }),
+            new TableCell({
+              borders: noBorders,
+              children: [new Paragraph({
+                children: [new TextRun({ text: "Name and I.D.:", size: 22, font: "Times New Roman" })],
+              })],
+            }),
+          ],
+        }),
       ],
-      spacing: { after: 200 },
     })
   );
 
-  // Empty line before Estate Agent
-  children.push(new Paragraph({ text: "" }));
+  // Spacing after vendor section
+  children.push(new Paragraph({ text: "", spacing: { after: 300 } }));
 
-  // The Estate Agent:
+  // ===== THE ESTATE AGENT SECTION =====
   children.push(
     new Paragraph({
       children: [new TextRun({ text: "The Estate Agent:", size: 22, font: "Times New Roman" })],
-      spacing: { after: 200 },
     })
   );
 
-  // Empty line
+  // Extra space for signature
+  children.push(new Paragraph({ text: "" }));
   children.push(new Paragraph({ text: "" }));
 
-  // Shorter signature line for agent
   children.push(
     new Paragraph({
-      children: [new TextRun({ text: "_________________", size: 22, font: "Times New Roman" })],
+      children: [new TextRun({ text: "_________________________", size: 22, font: "Times New Roman" })],
     })
   );
 
-  // Agent name
   children.push(
     new Paragraph({
       children: [new TextRun({ text: agent.name, size: 22, font: "Times New Roman" })],
     })
   );
 
-  // For and on behalf of...
   children.push(
     new Paragraph({
       children: [new TextRun({ text: `For and on behalf of ${agent.company}`, size: 22, font: "Times New Roman" })],

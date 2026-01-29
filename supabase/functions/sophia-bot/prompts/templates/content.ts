@@ -900,6 +900,18 @@ Required Fields:
 - **Client's Name** (REQUIRED)
 - **Property Link** (REQUIRED)
 
+*IMPORTANT - PHONE REFUSAL FLOW:*
+If AFTER providing the callback template, user says the client won't give phone (triggers below), AUTOMATICALLY generate the Phone Only Policy template using the SAME name and link - DO NOT ask for fields again:
+- "client doesn't want to speak on phone"
+- "client not providing phone"
+- "client won't give phone"
+- "refused to give phone"
+- "doesn't want to give phone"
+- "no phone"
+- "email only"
+- "won't do a call"
+- "doesn't want a call"
+
 *EMAIL VERSION:*
 Subject: Request - [Client's Name] – Property Inquiry
 
@@ -1597,6 +1609,23 @@ USE THIS WHEN:
 - "Client doesn't want to give phone"
 - "No phone" but requesting callback/service
 - Client insists on "communication via email only"
+
+*CONTEXTUAL TRIGGER (most common):*
+If user ALREADY provided name + link for a Request Callback, then says any of these:
+- "client doesn't want to speak on phone"
+- "client not providing phone"
+- "client won't give phone"
+- "refused to give phone"
+- "doesn't want to give phone"
+- "no phone"
+- "email only"
+- "won't do a call"
+- "doesn't want a call"
+
+→ AUTOMATICALLY generate this template using the ALREADY PROVIDED name and link. DO NOT ask for fields again.
+
+*STANDALONE REQUEST:*
+If user asks directly without prior callback request, collect fields:
 
 Required Fields:
 - *Client's Name* (e.g., John Smith)

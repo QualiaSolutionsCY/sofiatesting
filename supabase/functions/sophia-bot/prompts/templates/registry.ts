@@ -127,9 +127,11 @@ function isCompletedReservationAgreement(content: string): boolean {
     return false;
   }
 
-  // Must have prospective buyer with passport info
+  // Must have prospective buyer with ID info (passport, Cyprus ID, UK ID, etc.)
+  // Accepts: "Cyprus ID: 123456", "Passport: AB123456", "ID: 123456", "UK Passport: 123456"
   const hasBuyerInfo = /prospective\s+buyer/i.test(content) &&
-                       (/passport[:\s]+[A-Z0-9]+/i.test(content) || /[A-Z]+\s+PASSPORT/i.test(content));
+                       (/(?:passport|id)[:\s]+[A-Z0-9]+/i.test(content) ||
+                        /[A-Z]+\s+(?:passport|id)[:\s]+[A-Z0-9]+/i.test(content));
 
   // Must have vendor
   const hasVendor = /vendor[:\s]+/i.test(content);
@@ -137,9 +139,10 @@ function isCompletedReservationAgreement(content: string): boolean {
   // Must have property registration
   const hasPropertyReg = /\d+\/\d+/i.test(content);
 
-  // Must have financial terms
-  const hasFinancials = /reservation\s+fee[:\s]+[€$]?\s*[\d,]+/i.test(content) &&
-                        /purchase\s+price[:\s]+[€$]?\s*[\d,]+/i.test(content);
+  // Must have financial terms (handle markdown bold **€6,000** format)
+  const contentNoMarkdown = content.replace(/\*\*/g, '');
+  const hasFinancials = /reservation\s+fee[:\s]+[€$]?\s*[\d,]+/i.test(contentNoMarkdown) &&
+                        /purchase\s+price[:\s]+[€$]?\s*[\d,]+/i.test(contentNoMarkdown);
 
   return hasBuyerInfo && hasVendor && hasPropertyReg && hasFinancials;
 }
