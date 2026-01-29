@@ -12,18 +12,18 @@ See: `.planning/PROJECT.md` (updated 2026-01-28)
 ## Current Position
 
 Phase: 8 of 9 (Prompt Consolidation)
-Plan: 2 of TBD complete (in progress)
+Plan: 3 of TBD complete (in progress)
 Status: In progress
-Last activity: 2026-01-29 — Completed 08-02 (Templates DB Migration)
+Last activity: 2026-01-29 — Completed 08-03 (Ownership & Conflict Detection)
 
-Progress: [████████░░] 80% (v1.0 complete + Phases 6-7 complete + 08-01,02 complete)
+Progress: [████████░░] 82% (v1.0 complete + Phases 6-7 complete + 08-01,02,03 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8 v1.1 plans
-- Average duration: ~5.6 min
-- Total execution time: ~45 min
+- Total plans completed: 9 v1.1 plans
+- Average duration: ~5.2 min
+- Total execution time: ~47 min
 
 **By Phase:**
 
@@ -31,9 +31,10 @@ Progress: [████████░░] 80% (v1.0 complete + Phases 6-7 compl
 |-------|-------|-------|----------|
 | 6 (complete) | 4 | ~24min | ~6min |
 | 7 (complete) | 3 | ~6min | ~2min |
-| 8 (in progress) | 2 | ~17min | ~8.5min |
+| 8 (in progress) | 3 | ~19min | ~6.3min |
 
 **Recent Trend:**
+- Plan 08-03: 2 min (ownership headers + conflict detection)
 - Plan 08-02: 13 min (templates DB migration with routing fixes)
 - Plan 08-01: 4 min (version tracking infrastructure)
 - Phase 7 COMPLETE - 2 min per plan average (exceptional velocity)
@@ -73,6 +74,9 @@ Recent decisions affecting current work:
 - [08-02]: Admin endpoints require /sophia-bot/ pathname prefix (Supabase structure)
 - [08-02]: Templates priority 80 (after cyprus_knowledge at 70)
 - [08-02]: Debug endpoints useful when admin secret not yet configured
+- [08-03]: Ownership headers on prompt files documenting DB as source of truth
+- [08-03]: Keyword-based conflict detection to catch multi-prompt contradictions
+- [08-03]: Informational conflicts require human review (not all duplicates are bugs)
 
 ### Pending Todos
 
@@ -93,10 +97,10 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-29
-Stopped at: Completed 08-02 (Templates DB Migration)
+Stopped at: Completed 08-03 (Ownership & Conflict Detection)
 Resume file: None
-Next action: Continue Phase 8 with remaining prompt migrations
+Next action: Continue Phase 8 (or plan next phase if 08 complete)
 
 ---
 
-*State snapshot: 2026-01-29 — Plan 08-02 complete, templates in DB with 8 active prompts total*
+*State snapshot: 2026-01-29 — Plan 08-03 complete, ownership docs + conflict detection in place*
