@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { Document, Packer } from "https://esm.sh/docx@8.5.0";
 import { ZYPRUS_LOGO_BASE64 } from "../_shared/prompts.ts";
-import { loadSystemPrompt, invalidateCache, getCacheStatus } from "./services/prompt-loader.ts";
+import { loadSystemPrompt, invalidateCache, getCacheStatus, rollbackPrompt, getPromptVersionHistory } from "./services/prompt-loader.ts";
 import { getHistory, addMessage, claimMessageForProcessing, saveLastDocument, getLastDocument } from "../_shared/db.ts";
 import { createDocxFile, isDocxTemplate, wasDocxTemplateRequested } from "./docx-generator.ts";
 import { detectDocxTemplateType } from "./docx/detector.ts";
@@ -2602,6 +2602,18 @@ Please respond with something like:
  *   - Use after editing prompts in Supabase Dashboard
  *   - Response: { success: true, message: string, timestamp: string }
  *
+ * POST /admin/prompts/rollback
+ *   - Rollback a prompt to a previous version
+ *   - Body: { "key": "identity", "version": 2, "reason": "bug in v3" }
+ *   - Creates new version with target content (append-only)
+ *   - Invalidates cache after rollback
+ *   - Response: { success: true, message: string, newVersion: number }
+ *
+ * GET /admin/prompts/history?key=identity
+ *   - Get version history for a prompt
+ *   - Returns array of versions with timestamps
+ *   - Response: { key: string, history: [{version, created_at, replaced_at, is_current}] }
+ *
  * GET /admin/cache/status
  *   - Returns cache diagnostic information
  *   - Useful for debugging cache issues
@@ -2612,6 +2624,14 @@ Please respond with something like:
  *
  * Usage:
  *   curl -X POST "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot/admin/prompts/invalidate" \
+ *     -H "x-admin-secret: your-secret-here"
+ *
+ *   curl -X POST "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot/admin/prompts/rollback" \
+ *     -H "x-admin-secret: your-secret-here" \
+ *     -H "Content-Type: application/json" \
+ *     -d '{"key": "identity", "version": 2, "reason": "bug in v3"}'
+ *
+ *   curl "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot/admin/prompts/history?key=identity" \
  *     -H "x-admin-secret: your-secret-here"
  *
  *   curl "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot/admin/cache/status" \
@@ -2657,6 +2677,14 @@ async function handleAdminRequest(req: Request, url: URL): Promise<Response> {
     return handleCacheInvalidate();
   }
 
+  if (url.pathname === "/sophia-bot/admin/prompts/rollback" && req.method === "POST") {
+    return handlePromptRollback(req);
+  }
+
+  if (url.pathname === "/sophia-bot/admin/prompts/history" && req.method === "GET") {
+    return handlePromptHistory(url);
+  }
+
   if (url.pathname === "/sophia-bot/admin/cache/status" && req.method === "GET") {
     return handleCacheStatus();
   }
@@ -2666,6 +2694,8 @@ async function handleAdminRequest(req: Request, url: URL): Promise<Response> {
     error: "Not Found",
     availableEndpoints: [
       "POST /sophia-bot/admin/prompts/invalidate",
+      "POST /sophia-bot/admin/prompts/rollback",
+      "GET /sophia-bot/admin/prompts/history?key=X",
       "GET /sophia-bot/admin/cache/status",
     ]
   }), {
@@ -2720,6 +2750,95 @@ function handleCacheStatus(): Response {
     },
     timestamp: new Date().toISOString(),
   }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+/**
+ * POST /admin/prompts/rollback
+ * Rollback a prompt to a previous version
+ *
+ * Request body:
+ * {
+ *   "key": "identity",           // Required: prompt key
+ *   "version": 2,                // Required: version to rollback to
+ *   "reason": "bug in v3"        // Required: reason for rollback
+ * }
+ */
+async function handlePromptRollback(req: Request): Promise<Response> {
+  try {
+    const body = await req.json();
+    const { key, version, reason } = body;
+
+    if (!key || typeof key !== "string") {
+      return new Response(
+        JSON.stringify({ success: false, error: "Missing or invalid 'key'" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!version || typeof version !== "number" || version < 1) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Missing or invalid 'version' (must be positive integer)" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!reason || typeof reason !== "string") {
+      return new Response(
+        JSON.stringify({ success: false, error: "Missing or invalid 'reason'" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    logger.info("Admin: Rollback requested", {
+      category: LogCategory.CACHE,
+      promptKey: key,
+      targetVersion: version,
+      reason,
+    });
+
+    const result = await rollbackPrompt(supabase, key, version, reason);
+
+    return new Response(JSON.stringify(result), {
+      status: result.success ? 200 : 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    logger.error("Admin: Rollback endpoint error", err as Error, {
+      category: LogCategory.CACHE,
+    });
+    return new Response(
+      JSON.stringify({ success: false, error: "Invalid request body" }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
+}
+
+/**
+ * GET /admin/prompts/history?key=identity
+ * Get version history for a prompt
+ */
+async function handlePromptHistory(url: URL): Promise<Response> {
+  const key = url.searchParams.get("key");
+
+  if (!key) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Missing 'key' query parameter" }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  const history = await getPromptVersionHistory(supabase, key);
+
+  logger.debug("Admin: Version history requested", {
+    category: LogCategory.CACHE,
+    promptKey: key,
+    versionCount: history.length,
+  });
+
+  return new Response(JSON.stringify({ key, history }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
