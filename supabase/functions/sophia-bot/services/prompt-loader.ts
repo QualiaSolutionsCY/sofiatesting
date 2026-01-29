@@ -11,10 +11,20 @@
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { logger, LogCategory } from "../utils/logger.ts";
 
-// Cache configuration
-// TEMP: Disabled cache for testing image batching fix (Jan 26, 2026)
-// Restore to 5 * 60 * 1000 after confirming fix works
-const CACHE_TTL_MS = 0; // 5 * 60 * 1000; // 5 minutes
+/**
+ * Cache TTL: 5 minutes
+ *
+ * Cache invalidation strategy:
+ * 1. Time-based: Cache expires after 5 minutes
+ * 2. Version-based: Cache invalidated if DB updated_at > cached version
+ * 3. Manual: Admin can POST to /admin/prompts/invalidate
+ *
+ * This dual-strategy ensures:
+ * - Performance: Most requests served from cache
+ * - Freshness: DB changes detected within seconds (version check)
+ * - Control: Admin can force refresh when needed
+ */
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 // In-memory cache
 let cachedPromptSections: Map<string, string> | null = null;
