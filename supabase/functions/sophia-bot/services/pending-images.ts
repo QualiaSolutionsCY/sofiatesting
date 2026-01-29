@@ -10,8 +10,9 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { logger, LogCategory } from "../utils/logger.ts";
+import { getContext } from "../utils/context.ts";
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -20,20 +21,38 @@ const EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 
 /**
  * Add images to pending queue for a user
+ * Now includes correlation ID for debugging
  */
-export async function addPendingImages(phoneNumber: string, imageUrls: string[]): Promise<void> {
+export async function addPendingImages(
+  phoneNumber: string,
+  imageUrls: string[],
+  correlationId?: string
+): Promise<void> {
   if (!imageUrls || imageUrls.length === 0) return;
+
+  // Get correlation ID from context if not provided
+  const ctx = getContext();
+  const corrId = correlationId || ctx.correlationId;
 
   logger.info("Adding images to pending queue", {
     category: LogCategory.IMAGE,
     operation: "addPendingImages",
+    correlationId: corrId,
     imageCount: imageUrls.length,
   });
 
-  const records = imageUrls.map(url => ({
-    phone_number: phoneNumber,
-    image_url: url,
-  }));
+  // Build records - correlation_id column may not exist yet
+  const records = imageUrls.map(url => {
+    const record: Record<string, unknown> = {
+      phone_number: phoneNumber,
+      image_url: url,
+    };
+    // Add correlation_id if available (column may not exist yet)
+    if (corrId) {
+      record.correlation_id = corrId;
+    }
+    return record;
+  });
 
   const { error } = await supabase
     .from("pending_images")
@@ -43,12 +62,14 @@ export async function addPendingImages(phoneNumber: string, imageUrls: string[])
     logger.error("Failed to add pending images", error, {
       category: LogCategory.IMAGE,
       operation: "addPendingImages",
+      correlationId: corrId,
       imageCount: imageUrls.length,
     });
   } else {
     logger.info("Successfully added pending images", {
       category: LogCategory.IMAGE,
       operation: "addPendingImages",
+      correlationId: corrId,
       imageCount: imageUrls.length,
     });
   }
@@ -59,6 +80,8 @@ export async function addPendingImages(phoneNumber: string, imageUrls: string[])
  * Also cleans up expired images (older than 1 hour)
  */
 export async function getPendingImages(phoneNumber: string): Promise<string[]> {
+  const ctx = getContext();
+
   // First, clean up expired images
   const expiryTime = new Date(Date.now() - EXPIRY_MS).toISOString();
 
@@ -78,6 +101,7 @@ export async function getPendingImages(phoneNumber: string): Promise<string[]> {
     logger.error("Failed to get pending images", error, {
       category: LogCategory.IMAGE,
       operation: "getPendingImages",
+      correlationId: ctx.correlationId,
     });
     return [];
   }
@@ -86,6 +110,7 @@ export async function getPendingImages(phoneNumber: string): Promise<string[]> {
   logger.info("Retrieved pending images", {
     category: LogCategory.IMAGE,
     operation: "getPendingImages",
+    correlationId: ctx.correlationId,
     imageCount: urls.length,
   });
 
