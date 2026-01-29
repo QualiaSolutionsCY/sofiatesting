@@ -5,32 +5,32 @@
 
 ## Milestones
 
-- ✅ **v1.0 Production Ready** - Phases 1-5 (shipped 2026-01-27, 93% complete)
-- 🚧 **v1.1 Reliability & Hardening** - Phases 6-9 (in progress)
+- **v1.0 Production Ready** - Phases 1-5 (shipped 2026-01-27, 93% complete)
+- **v1.1 Reliability & Hardening** - Phases 6-9 (in progress)
 
 ## Phase Overview
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 1 | SOPHIA Response Fixes | TMPL-01, TMPL-03, TMPL-04 | ✓ Complete |
-| 2 | DOCX Template Fixes | TMPL-02, TMPL-05, TMPL-06 | ✓ Complete |
-| 3 | Telegram Lead Routing | LEAD-01, LEAD-02, LEAD-03 | ✓ Complete |
-| 4 | Listing Upload Fixes | LIST-01 to LIST-05 | ✓ Complete |
+| 1 | SOPHIA Response Fixes | TMPL-01, TMPL-03, TMPL-04 | Complete |
+| 2 | DOCX Template Fixes | TMPL-02, TMPL-05, TMPL-06 | Complete |
+| 3 | Telegram Lead Routing | LEAD-01, LEAD-02, LEAD-03 | Complete |
+| 4 | Listing Upload Fixes | LIST-01 to LIST-05 | Complete |
 | 5 | WhatsApp Image Upload | LIST-06 | Carried to v1.1 |
-| 6 | Logging Foundation | LOG-01 to LOG-05, LIST-06 | ✓ Complete |
-| 7 | Cache Restoration | CACHE-01 to CACHE-05 | ✓ Complete |
-| 8 | Prompt Consolidation | PRMT-01 to PRMT-05 | Not started |
+| 6 | Logging Foundation | LOG-01 to LOG-05, LIST-06 | Complete |
+| 7 | Cache Restoration | CACHE-01 to CACHE-05 | Complete |
+| 8 | Prompt Consolidation | PRMT-01 to PRMT-05 | Planned |
 | 9 | Validation & Error Handling | ERR-01 to ERR-04, IMG-01 to IMG-03 | Not started |
 
 ---
 
 <details>
-<summary>✅ v1.0 Production Ready (Phases 1-5) - SHIPPED 2026-01-27</summary>
+<summary>v1.0 Production Ready (Phases 1-5) - SHIPPED 2026-01-27</summary>
 
 ## Phase 1: SOPHIA Response Fixes
 
 **Goal:** Clean up SOPHIA's response formatting and behavior
-**Status:** ✓ Complete
+**Status:** Complete
 **Plans:** 3/3 complete
 
 ### Requirements
@@ -48,7 +48,7 @@
 ## Phase 2: DOCX Template Fixes
 
 **Goal:** Fix and consolidate document templates
-**Status:** ✓ Complete
+**Status:** Complete
 **Plans:** 3/3 complete
 
 ### Requirements
@@ -66,7 +66,7 @@
 ## Phase 3: Telegram Lead Routing
 
 **Goal:** Fix "Others" group routing to use regional managers
-**Status:** ✓ Complete
+**Status:** Complete
 **Plans:** 1/1 complete
 
 ### Requirements
@@ -84,7 +84,7 @@
 ## Phase 4: Listing Upload Fixes
 
 **Goal:** Fix reviewer/owner assignment and My Notes population
-**Status:** ✓ Complete
+**Status:** Complete
 **Plans:** 2/2 complete
 
 ### Requirements
@@ -123,7 +123,7 @@ Carried to Phase 6 (v1.1) — integration and testing
 
 ---
 
-## 🚧 v1.1 Reliability & Hardening (In Progress)
+## v1.1 Reliability & Hardening (In Progress)
 
 **Milestone Goal:** Eliminate system fragility — consolidate prompts, validate images, improve cache management, harden error handling.
 
@@ -134,13 +134,15 @@ Carried to Phase 6 (v1.1) — integration and testing
 **Goal:** Establish structured logging with correlation IDs to enable debugging of all subsequent phases
 **Depends on:** Nothing (first phase of v1.1)
 **Requirements:** LOG-01, LOG-02, LOG-03, LOG-04, LOG-05, LIST-06
+**Status:** Complete
+**Completed:** 2026-01-28
 **Plans:** 4 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Logger enhancement with correlationId, category, context propagation
-- [ ] 06-02-PLAN.md — Migrate index.ts console.log (258 calls) to structured logger
-- [ ] 06-03-PLAN.md — Migrate secondary files (executor, client, image services)
-- [ ] 06-04-PLAN.md — Complete LIST-06 pending images integration
+- [x] 06-01-PLAN.md — Logger enhancement with correlationId, category, context propagation
+- [x] 06-02-PLAN.md — Migrate index.ts console.log (258 calls) to structured logger
+- [x] 06-03-PLAN.md — Migrate secondary files (executor, client, image services)
+- [x] 06-04-PLAN.md — Complete LIST-06 pending images integration
 
 ### Key Files
 - `supabase/functions/sophia-bot/utils/logger.ts` (structured logger, needs enhancement)
@@ -168,10 +170,9 @@ Medium — Logger infrastructure exists, needs enhancement and migration
 **Goal:** Restore production-safe caching with version-based invalidation and admin controls
 **Depends on:** Phase 6 (needs logging for debugging cache issues)
 **Requirements:** CACHE-01, CACHE-02, CACHE-03, CACHE-04, CACHE-05
-**Plans:** 3 plans
-
-**Status:** ✓ Complete
+**Status:** Complete
 **Completed:** 2026-01-29
+**Plans:** 3 plans
 
 Plans:
 - [x] 07-01-PLAN.md — Version checking using MAX(updated_at), migrate to structured logger
@@ -199,13 +200,21 @@ Low-Medium — Restore existing functionality with version checking
 **Goal:** Establish single source of truth for each prompt behavior, eliminating priority conflicts
 **Depends on:** Phase 7 (stable cache required for testing prompt changes)
 **Requirements:** PRMT-01, PRMT-02, PRMT-03, PRMT-04, PRMT-05
-**Plans:** TBD
+**Status:** Planned
+**Plans:** 4 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Schema versioning + prompt-loader updates (version, is_current columns)
+- [ ] 08-02-PLAN.md — Templates migration to DB (file-only to DB authoritative)
+- [ ] 08-03-PLAN.md — Ownership documentation + conflict detection script
+- [ ] 08-04-PLAN.md — Admin rollback API endpoint
 
 ### Key Files
 - `sophia_prompts` table (schema and data)
 - `supabase/functions/sophia-bot/prompts/` (all prompt files — document ownership)
 - `supabase/functions/sophia-bot/prompts/templates/content.ts` (migrate to DB)
 - `supabase/functions/sophia-bot/services/prompt-loader.ts` (versioning)
+- `scripts/check-prompt-conflicts.ts` (NEW: conflict detection)
 
 ### Success Criteria
 1. Each prompt behavior has a documented owner (either DB key or file, not both)
@@ -291,10 +300,10 @@ v1.1 (In Progress)
 | 5. WhatsApp Image Upload | v1.0 | 1/3 | Carried | - |
 | 6. Logging Foundation | v1.1 | 4/4 | Complete | 2026-01-28 |
 | 7. Cache Restoration | v1.1 | 3/3 | Complete | 2026-01-29 |
-| 8. Prompt Consolidation | v1.1 | 0/TBD | Not started | - |
+| 8. Prompt Consolidation | v1.1 | 0/4 | Planned | - |
 | 9. Validation & Error Handling | v1.1 | 0/TBD | Not started | - |
 
 ---
 
 *Roadmap created: 2026-01-23*
-*Last updated: 2026-01-29 — Phase 7 complete*
+*Last updated: 2026-01-29 — Phase 8 planned*
