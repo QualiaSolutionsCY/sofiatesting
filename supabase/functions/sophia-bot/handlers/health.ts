@@ -48,6 +48,7 @@ export async function handleHealthCheck(
   }
 
   // Check Zyprus API
+  // Note: /jsonapi returns 403 without auth, but that means the server is responding
   const zyprusUrl = Deno.env.get("ZYPRUS_API_URL");
   if (zyprusUrl) {
     try {
@@ -57,8 +58,11 @@ export async function handleHealthCheck(
         headers: { "User-Agent": "SophiaAI-HealthCheck" },
         signal: AbortSignal.timeout(5000),
       });
+      // 401/403 means the server is responding but we need auth - that's healthy
+      // Only mark degraded if 5xx or connection issues
+      const isHealthy = zResponse.ok || zResponse.status === 401 || zResponse.status === 403;
       checks.zyprus = {
-        status: zResponse.ok || zResponse.status === 401 ? "healthy" : "degraded",
+        status: isHealthy ? "healthy" : (zResponse.status >= 500 ? "unhealthy" : "degraded"),
         latencyMs: Date.now() - zStart,
       };
     } catch (err) {
@@ -88,16 +92,19 @@ export async function handleHealthCheck(
   }
 
   // Check WaSender API
+  // WaSender doesn't have a /health endpoint, so we check the main app URL
   const wasendKey = Deno.env.get("WASEND_API_KEY");
   if (wasendKey) {
     try {
       const wStart = Date.now();
-      const wResponse = await fetch("https://app.wasenderapi.com/api/v1/health", {
+      // Check the main WaSender app URL instead of non-existent health endpoint
+      const wResponse = await fetch("https://app.wasenderapi.com/", {
         method: "HEAD",
         signal: AbortSignal.timeout(5000),
       });
+      // 200 means site is up, which is healthy enough for us
       checks.wasender = {
-        status: wResponse.ok || wResponse.status === 401 ? "healthy" : "degraded",
+        status: wResponse.ok ? "healthy" : (wResponse.status >= 500 ? "unhealthy" : "degraded"),
         latencyMs: Date.now() - wStart,
       };
     } catch (err) {
