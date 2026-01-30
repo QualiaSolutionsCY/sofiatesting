@@ -345,9 +345,7 @@ Given: 540 m² plot, Density 1.2 (120%), Coverage 0.5 (50%), 3 floors
 - Number of 2-bed apartments (75m² each): 583 ÷ 75 = 7 apartments
 - Veranda allocation: 162 m² ÷ 7 units = ~23 m² covered veranda per unit
 
-Final apartment specification: 75 m² apartment + 23 m² covered veranda = 98 m² total per apartment
-
-**Therefore, in summary, you can build 7 apartments of: 75 m² apartment + 23 m² covered veranda each.**
+Therefore, on this plot it is possible to build 7 two-bedroom apartments, each with an approximate size of: 75 m² apartment + 23 m² covered veranda = 98 m² total per unit
 
 **Important:** This is indicative only. Please consult a qualified architect for detailed planning.
 

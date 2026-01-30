@@ -52,12 +52,24 @@ if (!RESEND_API_KEY) {
   });
 }
 
-// CORS headers for cross-origin requests
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Webhook-Signature, X-Request-ID",
-  "Access-Control-Max-Age": "86400",
+// CORS headers - restricted to admin endpoints only
+// Webhooks are server-to-server and don't need CORS
+// Admin endpoints are protected by secret header authentication
+const ALLOWED_ADMIN_ORIGINS = [
+  "https://supabase.com",
+  "https://vceeheaxcrhmpqueudqx.supabase.co",
+];
+
+const getCorsHeaders = (origin: string | null): Record<string, string> => {
+  // Only allow CORS for known admin origins
+  const allowedOrigin = origin && ALLOWED_ADMIN_ORIGINS.includes(origin) ? origin : "";
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Webhook-Signature, X-Request-ID, X-Admin-Secret",
+    "Access-Control-Max-Age": "86400",
+    "Vary": "Origin",
+  };
 };
 
 /**
@@ -66,9 +78,17 @@ const corsHeaders = {
 serve(async (req) => {
   const url = new URL(req.url);
 
-  // Handle CORS preflight requests
+  // Handle CORS preflight requests (only for admin endpoints)
+  const origin = req.headers.get("Origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    // Only respond to preflight for admin endpoints
+    if (url.pathname.startsWith("/sophia-bot/admin/")) {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+    // Webhooks don't need CORS - reject preflight
+    return new Response("Method not allowed", { status: 405 });
   }
 
   // Health check endpoint (unauthenticated)

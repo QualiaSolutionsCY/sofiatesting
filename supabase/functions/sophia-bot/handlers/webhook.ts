@@ -556,7 +556,12 @@ async function processRequest(
     }
 
     // Check for email sending intent
-    const updatedHistoryForEmail = await getHistory(userId);
+    // Build updated history by appending new messages to existing history (avoids redundant DB call)
+    const updatedHistoryForEmail = [
+      ...history,
+      { role: "user", parts: [{ text: userMessage }] },
+      { role: "model", parts: [{ text: aiResponse }] },
+    ];
     const emailIntent = detectEmailSendingIntent(
       aiResponse,
       updatedHistoryForEmail,
@@ -590,8 +595,8 @@ async function processRequest(
       return;
     }
 
-    const updatedHistory = await getHistory(userId);
-    let shouldSendAsDocx = !isInformational && isDocxTemplate(aiResponse, updatedHistory);
+    // Reuse the already-constructed history (avoids redundant DB call)
+    let shouldSendAsDocx = !isInformational && isDocxTemplate(aiResponse, updatedHistoryForEmail);
     const detectedTemplateType = detectTemplateType(userMessage);
 
     // Field validation checks
@@ -738,25 +743,31 @@ export async function handleWebhook(
   // Read raw body for signature verification
   const rawBody = await req.text();
 
-  // Verify webhook signature
-  if (WASEND_WEBHOOK_SECRET) {
-    const signature = extractSignatureHeader(req.headers);
+  // Verify webhook signature - FAIL-CLOSED if secret not configured
+  if (!WASEND_WEBHOOK_SECRET) {
+    logger.error("SECURITY: WASEND_WEBHOOK_SECRET not configured - rejecting webhook", undefined, {
+      category: LogCategory.WEBHOOK,
+      operation: "webhook_auth",
+    });
+    return new Response("Service Unavailable - webhook authentication not configured", { status: 503 });
+  }
 
-    if (signature) {
-      const isValid = await verifyWebhookSignature(
-        signature,
-        rawBody,
-        WASEND_WEBHOOK_SECRET
-      );
+  const signature = extractSignatureHeader(req.headers);
 
-      if (!isValid) {
-        logger.warn("Webhook signature verification failed", { operation: "webhook_auth" });
-        return new Response("Unauthorized", { status: 401 });
-      }
-    } else {
-      logger.warn("Webhook signature required but not provided", { operation: "webhook_auth" });
-      return new Response("Unauthorized", { status: 401 });
-    }
+  if (!signature) {
+    logger.warn("Webhook signature required but not provided", { operation: "webhook_auth" });
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const isValid = await verifyWebhookSignature(
+    signature,
+    rawBody,
+    WASEND_WEBHOOK_SECRET
+  );
+
+  if (!isValid) {
+    logger.warn("Webhook signature verification failed", { operation: "webhook_auth" });
+    return new Response("Unauthorized", { status: 401 });
   }
 
   // Parse payload

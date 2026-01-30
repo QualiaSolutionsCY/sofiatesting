@@ -225,6 +225,24 @@ mcp__plugin_supabase_supabase__execute_sql({
 })
 ```
 
+### Prompt Content Ownership (SINGLE SOURCE OF TRUTH)
+
+Each type of content belongs in exactly ONE place. Never duplicate.
+
+| Content Type | Owner Prompt | NOT In |
+|--------------|--------------|--------|
+| **Field collection** ("I'll create X. Please provide:") | `document_routing` | ~~templates~~ |
+| **Template output format** (what document looks like) | `templates` | - |
+| **Calculator formats** | `calculators` | - |
+| **Cyprus knowledge/facts** | `cyprus_knowledge` | - |
+| **Safety rules** | `safety_rules` | - |
+| **Upload behavior** | `property_upload` | - |
+
+**BEFORE editing any prompt:**
+```bash
+grep -rn "text to change" supabase/functions/sophia-bot/prompts/
+```
+
 ### DO NOT
 
 - Edit local `lib/ai/instructions/` files - NOT USED by live SOPHIA

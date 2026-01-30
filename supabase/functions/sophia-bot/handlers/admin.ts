@@ -13,6 +13,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { logger, LogCategory } from "../utils/logger.ts";
+import { constantTimeCompare } from "../utils/webhook-auth.ts";
 import {
   invalidateCache,
   getCacheStatus,
@@ -47,7 +48,8 @@ export async function handleAdminRequest(
     });
   }
 
-  if (providedSecret !== ADMIN_SECRET) {
+  // Use constant-time comparison to prevent timing attacks
+  if (!constantTimeCompare(providedSecret || "", ADMIN_SECRET)) {
     logger.warn("Admin endpoint unauthorized access attempt", {
       category: LogCategory.GENERAL,
       endpoint: url.pathname,

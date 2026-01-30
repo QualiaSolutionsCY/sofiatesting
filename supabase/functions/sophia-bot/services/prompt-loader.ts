@@ -159,6 +159,7 @@ async function getPromptSections(
 ): Promise<Map<string, string>> {
   const now = Date.now();
   let cacheMissReason: CacheMissReason | null = null;
+  let detectedDbVersion: string | null = null; // Track version from first check to avoid duplicate DB call
 
   // Check if cache exists
   if (!cachedPromptSections) {
@@ -172,13 +173,13 @@ async function getPromptSections(
 
     if (shouldCheckVersion) {
       lastVersionCheckTime = now;
-      const dbVersion = await getDatabaseVersion(supabase);
-      if (dbVersion && dbVersion !== cacheVersion) {
+      detectedDbVersion = await getDatabaseVersion(supabase);
+      if (detectedDbVersion && detectedDbVersion !== cacheVersion) {
         cacheMissReason = "version_mismatch";
         logger.info("Cache version mismatch detected", {
           category: LogCategory.CACHE,
           cachedVersion: cacheVersion?.substring(0, 19) ?? "none",
-          dbVersion: dbVersion.substring(0, 19),
+          dbVersion: detectedDbVersion.substring(0, 19),
         });
       }
     }
@@ -228,9 +229,9 @@ async function getPromptSections(
     });
   }
 
-  // After successful load, store the version
-  const dbVersion = await getDatabaseVersion(supabase);
-  cacheVersion = dbVersion;
+  // Store the version - reuse from version check if available, otherwise fetch
+  // This avoids a duplicate DB call when we already fetched the version during mismatch detection
+  cacheVersion = detectedDbVersion ?? await getDatabaseVersion(supabase);
 
   // Update cache
   cachedPromptSections = mergedPrompts;

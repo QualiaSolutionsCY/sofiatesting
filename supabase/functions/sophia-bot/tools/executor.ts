@@ -345,10 +345,12 @@ async function handleCreatePropertyListing(
     };
   }
 
-  // 5.1 SECURITY: Validate assignTo is a @zyprus.com email
+  // 5.1 SECURITY: Validate assignTo is a @zyprus.com email (exact domain match to prevent subdomain bypass)
   if (args.assignTo) {
     const assignToEmail = (args.assignTo as string).toLowerCase().trim();
-    if (!assignToEmail.endsWith("@zyprus.com")) {
+    const emailParts = assignToEmail.split("@");
+    // Must have exactly one @ and domain must be exactly zyprus.com (not a subdomain)
+    if (emailParts.length !== 2 || emailParts[1] !== "zyprus.com") {
       return {
         error: "Assignments must be to a @zyprus.com email address.",
       };

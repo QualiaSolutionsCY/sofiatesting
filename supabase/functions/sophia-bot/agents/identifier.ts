@@ -40,6 +40,7 @@ export function normalizePhone(phone: string): string {
 
 /**
  * Identify agent by their WhatsApp phone number
+ * Uses normalized phone matching to handle various formats
  */
 export async function identifyAgentByPhone(
   phone: string,
@@ -49,35 +50,58 @@ export async function identifyAgentByPhone(
   const supabase = createClient(supabaseUrl, supabaseKey);
   const normalized = normalizePhone(phone);
 
-  // Try exact match first (last 8 digits)
-  const { data, error } = await supabase
-    .from('agents')
-    .select('*')
-    .or(`mobile.ilike.%${normalized.slice(-8)}%,mobile.ilike.%${normalized}%`)
-    .limit(1)
-    .single();
-
-  if (error || !data) {
-    logger.debug(`[AgentIdentifier] No agent found for phone`, { category: LogCategory.DATABASE, normalized });
+  // Validate normalized phone contains only digits (defense in depth)
+  if (!/^\d+$/.test(normalized) || normalized.length < 6) {
+    logger.debug(`[AgentIdentifier] Invalid normalized phone`, { category: LogCategory.DATABASE });
     return null;
   }
 
-  logger.debug(`[AgentIdentifier] Found agent: ${data.full_name} (${data.region})`, { category: LogCategory.DATABASE });
+  // Try using the last 8 digits for matching (normalized is already digit-only, safe for filter)
+  const last8 = normalized.slice(-8);
 
-  return {
-    id: data.id,
-    fullName: data.full_name,
-    mobile: data.mobile,
-    communicationEmail: data.communication_email,
-    listingOwnerEmail: data.listing_owner_email,
-    region: data.region,
-    role: data.role,
-    canUpload: data.can_upload
-  };
+  // Use separate ilike queries to avoid filter injection with .or() string interpolation
+  // First try with last 8 digits
+  const { data: partialData, error: partialError } = await supabase
+    .from('agents')
+    .select('*')
+    .ilike('mobile', `%${last8}%`)
+    .limit(1)
+    .maybeSingle();
+
+  if (!partialError && partialData) {
+    logger.debug(`[AgentIdentifier] Found agent: ${partialData.full_name} (${partialData.region})`, { category: LogCategory.DATABASE });
+    return mapAgentData(partialData);
+  }
+
+  // Try with full normalized number
+  const { data: fullData, error: fullError } = await supabase
+    .from('agents')
+    .select('*')
+    .ilike('mobile', `%${normalized}%`)
+    .limit(1)
+    .maybeSingle();
+
+  if (!fullError && fullData) {
+    logger.debug(`[AgentIdentifier] Found agent: ${fullData.full_name} (${fullData.region})`, { category: LogCategory.DATABASE });
+    return mapAgentData(fullData);
+  }
+
+  logger.debug(`[AgentIdentifier] No agent found for phone`, { category: LogCategory.DATABASE, normalized });
+  return null;
+}
+
+/**
+ * Sanitize email input for use in filter queries
+ * Prevents filter injection by only allowing valid email characters
+ */
+function sanitizeEmailForFilter(email: string): string {
+  // Only allow alphanumeric, @, ., _, -, and +
+  return email.replace(/[^a-zA-Z0-9@._+-]/g, '').toLowerCase().trim();
 }
 
 /**
  * Get agent by email address
+ * Uses separate queries to avoid filter injection vulnerabilities
  */
 export async function getAgentByEmail(
   email: string,
@@ -86,26 +110,54 @@ export async function getAgentByEmail(
 ): Promise<Agent | null> {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  const { data, error } = await supabase
-    .from('agents')
-    .select('*')
-    .or(`communication_email.eq.${email},listing_owner_email.eq.${email}`)
-    .limit(1)
-    .single();
-
-  if (error || !data) {
+  // Sanitize email to prevent filter injection
+  const sanitizedEmail = sanitizeEmailForFilter(email);
+  if (!sanitizedEmail || !sanitizedEmail.includes('@')) {
+    logger.debug(`[AgentIdentifier] Invalid email format`, { category: LogCategory.DATABASE });
     return null;
   }
 
+  // Use separate queries to avoid filter injection with .or() string interpolation
+  // First try communication_email
+  const { data: commData, error: commError } = await supabase
+    .from('agents')
+    .select('*')
+    .eq('communication_email', sanitizedEmail)
+    .limit(1)
+    .maybeSingle();
+
+  if (!commError && commData) {
+    return mapAgentData(commData);
+  }
+
+  // Then try listing_owner_email
+  const { data: ownerData, error: ownerError } = await supabase
+    .from('agents')
+    .select('*')
+    .eq('listing_owner_email', sanitizedEmail)
+    .limit(1)
+    .maybeSingle();
+
+  if (!ownerError && ownerData) {
+    return mapAgentData(ownerData);
+  }
+
+  return null;
+}
+
+/**
+ * Map database row to Agent interface
+ */
+function mapAgentData(data: Record<string, unknown>): Agent {
   return {
-    id: data.id,
-    fullName: data.full_name,
-    mobile: data.mobile,
-    communicationEmail: data.communication_email,
-    listingOwnerEmail: data.listing_owner_email,
-    region: data.region,
-    role: data.role,
-    canUpload: data.can_upload
+    id: data.id as string,
+    fullName: data.full_name as string,
+    mobile: data.mobile as string,
+    communicationEmail: data.communication_email as string,
+    listingOwnerEmail: data.listing_owner_email as string,
+    region: data.region as Agent['region'],
+    role: data.role as Agent['role'],
+    canUpload: data.can_upload as boolean
   };
 }
 
@@ -129,15 +181,6 @@ export async function getAgentsByRegion(
     return [];
   }
 
-  return data.map(d => ({
-    id: d.id,
-    fullName: d.full_name,
-    mobile: d.mobile,
-    communicationEmail: d.communication_email,
-    listingOwnerEmail: d.listing_owner_email,
-    region: d.region,
-    role: d.role,
-    canUpload: d.can_upload
-  }));
+  return data.map((d: Record<string, unknown>) => mapAgentData(d));
 }
 

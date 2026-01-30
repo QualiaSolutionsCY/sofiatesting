@@ -65,7 +65,7 @@ export async function verifyWebhookSignature(
  * The comparison always processes the maximum length to avoid
  * leaking length information through timing.
  */
-function constantTimeCompare(a: string, b: string): boolean {
+export function constantTimeCompare(a: string, b: string): boolean {
   const maxLen = Math.max(a.length, b.length);
 
   // XOR the lengths first - this will be non-zero if lengths differ

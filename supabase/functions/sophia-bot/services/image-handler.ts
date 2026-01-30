@@ -157,6 +157,9 @@ function classifyImage(url: string): ImageClassification {
   return "unknown";
 }
 
+// Image validation timeout in milliseconds
+const IMAGE_VALIDATION_TIMEOUT_MS = 5000; // 5 seconds per image
+
 /**
  * Validate image URL is accessible and safe
  * Checks both security (SSRF) and accessibility
@@ -174,26 +177,41 @@ async function checkImageAccessibleWithError(url: string): Promise<{ valid: bool
       return { valid: false, error: `Security: ${securityCheck.error}` };
     }
 
-    // Try HEAD first, fall back to GET if HEAD fails (some servers like picsum don't support HEAD)
-    let response = await fetch(url, { method: "HEAD" });
-    if (!response.ok && response.status === 405) {
-      // HEAD not allowed, try GET with a range to minimize data transfer
-      response = await fetch(url, {
-        method: "GET",
-        headers: { Range: "bytes=0-1024" },
-      });
-    }
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), IMAGE_VALIDATION_TIMEOUT_MS);
 
-    if (!response.ok) {
-      return { valid: false, error: `HTTP ${response.status}: ${response.statusText}` };
-    }
+    try {
+      // Try HEAD first, fall back to GET if HEAD fails (some servers like picsum don't support HEAD)
+      let response = await fetch(url, { method: "HEAD", signal: controller.signal });
+      if (!response.ok && response.status === 405) {
+        // HEAD not allowed, try GET with a range to minimize data transfer
+        response = await fetch(url, {
+          method: "GET",
+          headers: { Range: "bytes=0-1024" },
+          signal: controller.signal,
+        });
+      }
 
-    const contentType = response.headers.get("content-type");
-    if (!contentType?.startsWith("image/")) {
-      return { valid: false, error: `Not an image (${contentType || "no content-type"})` };
-    }
+      clearTimeout(timeoutId);
 
-    return { valid: true, error: "" };
+      if (!response.ok) {
+        return { valid: false, error: `HTTP ${response.status}: ${response.statusText}` };
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType?.startsWith("image/")) {
+        return { valid: false, error: `Not an image (${contentType || "no content-type"})` };
+      }
+
+      return { valid: true, error: "" };
+    } catch (fetchErr) {
+      clearTimeout(timeoutId);
+      if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
+        return { valid: false, error: `Timeout after ${IMAGE_VALIDATION_TIMEOUT_MS}ms` };
+      }
+      throw fetchErr;
+    }
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     return { valid: false, error: `Fetch failed: ${errorMsg}` };
