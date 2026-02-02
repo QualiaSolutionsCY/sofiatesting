@@ -15,6 +15,7 @@ export interface Agent {
   region: 'paphos' | 'limassol' | 'larnaca' | 'nicosia' | 'famagusta' | 'all';
   role: 'management' | 'manager' | 'agent';
   canUpload: boolean;
+  landline?: string; // Office landline for CREA compliance
 }
 
 /**
@@ -157,7 +158,8 @@ function mapAgentData(data: Record<string, unknown>): Agent {
     listingOwnerEmail: data.listing_owner_email as string,
     region: data.region as Agent['region'],
     role: data.role as Agent['role'],
-    canUpload: data.can_upload as boolean
+    canUpload: data.can_upload as boolean,
+    landline: data.landline as string | undefined,
   };
 }
 

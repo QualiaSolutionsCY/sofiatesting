@@ -449,17 +449,22 @@ export function formatForWhatsApp(text: string): string {
 /**
  * Parses CREA wording response into 3 separate messages
  * Message 1: Intro text
- * Message 2: The actual CREA wording (copy-pasteable)
+ * Message 2: The actual CREA wording (copy-pasteable) - with agent's landline auto-populated
  * Message 3: Important note about landline
  */
-export function parseCREAResponse(text: string): string[] {
+export function parseCREAResponse(text: string, agentLandline?: string): string[] {
   const messages: string[] = [];
 
   // The CREA wording block that should be standalone
+  // Auto-populate agent's landline if available
+  const phoneLine = agentLandline
+    ? `+357 ${agentLandline}`
+    : `+357 (your land line) [optional]`;
+
   const creaBlock = `Licensed Real Estate Agency
 CREA Reg. No. 742 & CREA Lic. No. 378/E
 CSC Zyprus Property Group LTD
-+357 (your land line) [optional]`;
+${phoneLine}`;
 
   // Check if response contains the CREA block pattern
   const hasCreaCert = text.includes("Licensed Real Estate Agency") &&
@@ -488,8 +493,10 @@ CSC Zyprus Property Group LTD
 /**
  * Parses a template response into separate parts: Subject, Body, and Notes (if any)
  * Returns an array of message parts to be sent separately
+ * @param text - The AI response text
+ * @param agentLandline - Optional agent landline for CREA wording auto-population
  */
-export function parseTemplateResponse(text: string): string[] {
+export function parseTemplateResponse(text: string, agentLandline?: string): string[] {
   const messages: string[] = [];
 
   // Check for CREA wording response - split into 3 messages
@@ -498,8 +505,8 @@ export function parseTemplateResponse(text: string): string[] {
     (lowerText.includes("crea wording") || lowerText.includes("crea reg") || lowerText.includes("licensed real estate agency")) &&
     lowerText.includes("social media") || lowerText.includes("online") || lowerText.includes("property post")
   ) {
-    // This is a CREA wording response - split into 3 messages
-    const creaSplit = parseCREAResponse(text);
+    // This is a CREA wording response - split into 3 messages with agent's landline
+    const creaSplit = parseCREAResponse(text, agentLandline);
     if (creaSplit.length > 1) {
       return creaSplit;
     }
