@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { auth } from "@/app/(auth)/auth";
 import { db } from "@/lib/db/client";
 import { adminUserRole } from "@/lib/db/schema";
@@ -16,13 +16,13 @@ export type AdminCheckResult = {
  * Check if the current user has admin privileges
  * Returns user info if admin, or error details if not
  *
- * Security: Only users with explicit entries in adminUserRole table are granted access.
- * All other authenticated users are denied (fail-closed).
+ * Security: Only users with explicit active entries in admin_users table are granted access.
+ * Matches by email. All other authenticated users are denied (fail-closed).
  */
 export const checkAdminAuth = async (): Promise<AdminCheckResult> => {
   const session = await auth();
 
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !session?.user?.email) {
     return {
       isAdmin: false,
       userId: null,
@@ -34,11 +34,11 @@ export const checkAdminAuth = async (): Promise<AdminCheckResult> => {
   const userId = session.user.id;
 
   try {
-    // Check if user has explicit admin role
+    // Check if user has explicit admin role (matched by email in admin_users table)
     const adminRoles = await db
       .select()
       .from(adminUserRole)
-      .where(eq(adminUserRole.userId, userId))
+      .where(and(eq(adminUserRole.email, session.user.email), eq(adminUserRole.isActive, true)))
       .limit(1);
 
     if (adminRoles.length > 0) {

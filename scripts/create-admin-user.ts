@@ -29,11 +29,11 @@ async function createAdminUser(userEmail: string) {
     const foundUser = existingUser[0];
     console.log(`✅ Found user: ${foundUser.email} (${foundUser.id})`);
 
-    // Check if already admin
+    // Check if already admin (by email in admin_users table)
     const existingAdmin = await db
       .select()
       .from(adminUserRole)
-      .where(eq(adminUserRole.userId, foundUser.id))
+      .where(eq(adminUserRole.email, foundUser.email))
       .limit(1);
 
     if (existingAdmin && existingAdmin.length > 0) {
@@ -55,14 +55,15 @@ async function createAdminUser(userEmail: string) {
             whatsapp: { view: true, edit: true },
           },
         })
-        .where(eq(adminUserRole.userId, foundUser.id));
+        .where(eq(adminUserRole.email, foundUser.email));
 
       console.log("✅ Updated to superadmin!");
     } else {
       console.log("\n🔧 Creating superadmin role...");
 
       await db.insert(adminUserRole).values({
-        userId: foundUser.id,
+        email: foundUser.email,
+        name: foundUser.email,
         role: "superadmin",
         permissions: {
           agents: { view: true, create: true, edit: true, delete: true },
@@ -72,7 +73,6 @@ async function createAdminUser(userEmail: string) {
           users: { view: true, create: true, edit: true, delete: true },
           whatsapp: { view: true, edit: true },
         },
-        createdBy: foundUser.id,
       });
 
       console.log("✅ Superadmin role created!");

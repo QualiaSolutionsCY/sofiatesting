@@ -386,16 +386,17 @@ export type LandListing = InferSelectModel<typeof landListing>;
 // ADMIN PANEL TABLES
 // ===================================================================
 
-// Admin user roles and permissions
-export const adminUserRole = pgTable("AdminUserRole", {
-  userId: uuid("userId")
-    .primaryKey()
-    .notNull()
-    .references(() => user.id),
-  role: varchar("role", { length: 20 }).notNull(), // 'superadmin', 'admin', 'support', 'analyst'
+// Admin user roles and permissions (maps to live admin_users table)
+export const adminUserRole = pgTable("admin_users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull(),
+  name: text("name"),
+  role: text("role").notNull(), // 'superadmin', 'admin', 'support', 'analyst'
+  isActive: boolean("is_active").notNull().default(true),
   permissions: jsonb("permissions"), // granular permissions
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  createdBy: uuid("createdBy").references(() => user.id),
+  lastLogin: timestamp("last_login"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export type AdminUserRole = InferSelectModel<typeof adminUserRole>;
@@ -590,6 +591,8 @@ export const zyprusAgent = pgTable(
     role: varchar("role", { length: 50 }).notNull(), // CEO, Manager Limassol, Manager Paphos, Normal Agent, Listing Admin
     isActive: boolean("isActive").notNull().default(true),
     canReceiveLeads: boolean("canReceiveLeads").notNull().default(true), // Whether agent can receive forwarded leads
+    canUpload: boolean("canUpload").notNull().default(true), // Whether agent can upload property listings via SOPHIA
+    zyprusUserId: uuid("zyprusUserId"), // UUID from Zyprus platform for listing ownership assignment
     telegramUserId: varchar("telegramUserId", { length: 64 }), // Telegram user ID (string for compatibility)
     whatsappPhoneNumber: varchar("whatsappPhoneNumber", { length: 20 }), // For WhatsApp identification
     lastActiveAt: timestamp("lastActiveAt"),

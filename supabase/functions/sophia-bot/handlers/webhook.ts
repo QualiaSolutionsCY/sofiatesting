@@ -84,12 +84,59 @@ interface EmailSendingIntent {
  * Detects if AI response indicates it "sent" an email (hallucination)
  * Returns the extracted email details if detected
  */
-function detectEmailSendingIntent(
+async function detectEmailSendingIntent(
   aiResponse: string,
   conversationHistory: Array<{role: string, parts: Array<{text: string}>}>,
-  agentEmail?: string
-): EmailSendingIntent | null {
+  agentEmail?: string,
+  userId?: string
+): Promise<EmailSendingIntent | null> {
   logger.debug("Email detection: Starting email detection...", { category: LogCategory.WEBHOOK });
+
+  // Helper: find document content from conversation history
+  const findDocumentContent = (): { documentContent: string; subject: string } => {
+    let documentContent = "";
+    for (let j = conversationHistory.length - 1; j >= 0; j--) {
+      const msg = conversationHistory[j];
+      if (msg.role === "model") {
+        const text = msg.parts.map(p => p.text).join("");
+        if (text.includes("Subject:") || text.includes("Dear ") || text.length > 500) {
+          documentContent = text;
+          break;
+        }
+      }
+    }
+    let subject = "Document";
+    const subjectMatch = documentContent.match(/Subject:\s*(.+?)(?:\n|$)/i);
+    if (subjectMatch) subject = subjectMatch[1].trim();
+    return { documentContent, subject };
+  };
+
+  // Helper: get last document URL from DB (reliable) instead of regex on chat text
+  const findDocumentUrl = async (): Promise<string | undefined> => {
+    if (!userId) return undefined;
+    try {
+      const lastDoc = await getLastDocument(userId);
+      if (lastDoc) {
+        const docAge = Date.now() - new Date(lastDoc.created_at).getTime();
+        const MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
+        if (docAge < MAX_AGE_MS) {
+          logger.debug("Email detection: Found recent document in DB", {
+            category: LogCategory.WEBHOOK,
+            url: lastDoc.document_url?.substring(0, 80),
+            age: Math.round(docAge / 1000) + "s",
+          });
+          return lastDoc.document_url;
+        }
+        logger.debug("Email detection: Document too old, skipping", {
+          category: LogCategory.WEBHOOK,
+          age: Math.round(docAge / 1000) + "s",
+        });
+      }
+    } catch (err) {
+      logger.error("Email detection: Failed to fetch last document from DB", { error: err });
+    }
+    return undefined;
+  };
 
   // FIRST: Check for patterns without explicit email ("to your email", "to my email")
   if (agentEmail) {
@@ -106,32 +153,14 @@ function detectEmailSendingIntent(
       const match = aiResponse.match(pattern);
       if (match) {
         const documentType = match[1]?.trim() || "Document";
-
-        // Look for document content and URL
-        let documentContent = "";
-        let documentUrl = "";
-        for (let j = conversationHistory.length - 1; j >= 0; j--) {
-          const msg = conversationHistory[j];
-          if (msg.role === "model") {
-            const text = msg.parts.map(p => p.text).join("");
-            const urlMatch = text.match(/https:\/\/[^\s]+\.docx/i);
-            if (urlMatch) documentUrl = urlMatch[0];
-            if (text.includes("Subject:") || text.includes("Dear ") || text.length > 500) {
-              documentContent = text;
-              break;
-            }
-          }
-        }
-
-        let subject = documentType;
-        const subjectMatch = documentContent.match(/Subject:\s*(.+?)(?:\n|$)/i);
-        if (subjectMatch) subject = subjectMatch[1].trim();
+        const { documentContent, subject: extractedSubject } = findDocumentContent();
+        const documentUrl = await findDocumentUrl();
 
         return {
           recipientEmail: agentEmail,
-          subject: subject,
+          subject: extractedSubject !== "Document" ? extractedSubject : documentType,
           body: documentContent || `Please see the attached ${documentType}.`,
-          documentUrl: documentUrl || undefined,
+          documentUrl,
         };
       }
     }
@@ -151,32 +180,14 @@ function detectEmailSendingIntent(
     if (match) {
       const documentType = match[1]?.trim() || "Document";
       const email = match[2];
-
-      let documentContent = "";
-      let documentUrl = "";
-
-      for (let i = conversationHistory.length - 1; i >= 0; i--) {
-        const msg = conversationHistory[i];
-        if (msg.role === "model") {
-          const text = msg.parts.map(p => p.text).join("");
-          const urlMatch = text.match(/https:\/\/[^\s]+\.docx/i);
-          if (urlMatch) documentUrl = urlMatch[0];
-          if (text.includes("Subject:") || text.includes("Dear ") || text.length > 500) {
-            documentContent = text;
-            break;
-          }
-        }
-      }
-
-      let subject = `${documentType}`;
-      const subjectMatch = documentContent.match(/Subject:\s*(.+?)(?:\n|$)/i);
-      if (subjectMatch) subject = subjectMatch[1].trim();
+      const { documentContent, subject: extractedSubject } = findDocumentContent();
+      const documentUrl = await findDocumentUrl();
 
       return {
         recipientEmail: email,
-        subject: subject,
+        subject: extractedSubject !== "Document" ? extractedSubject : documentType,
         body: documentContent || `Please see the attached ${documentType}.`,
-        documentUrl: documentUrl || undefined,
+        documentUrl,
       };
     }
   }
@@ -510,10 +521,11 @@ async function processRequest(
       { role: "user", parts: [{ text: userMessage }] },
       { role: "model", parts: [{ text: aiResponse }] },
     ];
-    const emailIntent = detectEmailSendingIntent(
+    const emailIntent = await detectEmailSendingIntent(
       aiResponse,
       updatedHistoryForEmail,
-      identifiedAgent?.communicationEmail
+      identifiedAgent?.communicationEmail,
+      userId
     );
 
     if (emailIntent) {
@@ -546,6 +558,13 @@ async function processRequest(
     // Reuse the already-constructed history (avoids redundant DB call)
     let shouldSendAsDocx = !isInformational && isDocxTemplate(aiResponse, updatedHistoryForEmail);
     const detectedTemplateType = detectTemplateType(userMessage);
+
+    // SAFETY: Registration templates (containing "Dear XXXXXXXX" or "Subject:") are ALWAYS TEXT
+    // This prevents misrouting Advanced Seller Registration as Marketing Agreement DOCX
+    if (shouldSendAsDocx && (/Dear\s+X{6,}/i.test(aiResponse) || aiResponse.includes("Subject:"))) {
+      logger.info("[Webhook] Registration template detected in DOCX response - forcing TEXT", { category: LogCategory.GENERAL });
+      shouldSendAsDocx = false;
+    }
 
     // Field validation checks
     if (shouldSendAsDocx && isCollectingInformation(aiResponse)) {
@@ -702,16 +721,15 @@ export async function handleWebhook(
 
   const signature = extractSignatureHeader(req.headers);
 
-  // TODO: Re-enable signature verification after confirming WaSend HMAC format
-  // The verification was failing - WaSend may use a different algorithm or encoding
-  // Tracked as security technical debt - need to contact WaSend support
-  logger.info("Webhook signature debug", {
-    category: LogCategory.WEBHOOK,
-    operation: "webhook_auth",
-    hasSignature: !!signature,
-    signaturePreview: signature ? signature.substring(0, 20) + "..." : "none",
-    hasSecret: !!WASEND_WEBHOOK_SECRET,
-  });
+  const isValidSignature = await verifyWebhookSignature(signature, rawBody, WASEND_WEBHOOK_SECRET);
+  if (!isValidSignature) {
+    logger.error("SECURITY: Invalid webhook signature - rejecting request", undefined, {
+      category: LogCategory.WEBHOOK,
+      operation: "webhook_auth",
+      hasSignature: !!signature,
+    });
+    return new Response("Unauthorized", { status: 401 });
+  }
 
   // Parse payload
   let payload;

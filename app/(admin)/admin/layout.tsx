@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { auth } from "@/app/(auth)/auth";
 import { AdminHeader } from "@/components/admin/header";
@@ -9,18 +9,17 @@ import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("admin:layout");
 
-async function getAdminRole(userId: string) {
+async function getAdminRole(email: string) {
   try {
     const adminRole = await db
       .select()
       .from(adminUserRole)
-      .where(eq(adminUserRole.userId, userId))
+      .where(and(eq(adminUserRole.email, email), eq(adminUserRole.isActive, true)))
       .limit(1);
 
     return adminRole;
   } catch (error) {
     logger.error("Failed to fetch admin role", error);
-    // Return empty array to trigger default permissions
     return [];
   }
 }
@@ -36,15 +35,21 @@ export default async function AdminLayout({
     redirect("/login");
   }
 
-  // Check if user has admin role, otherwise grant default admin access
-  const adminRole = await getAdminRole(session.user.id);
+  // Check if user has an explicit admin role (matched by email in admin_users table)
+  const userEmail = session.user.email;
+  if (!userEmail) {
+    redirect("/");
+  }
 
-  // Grant all logged-in users admin access with default permissions
-  const userRole = adminRole.length > 0 ? adminRole[0].role : "admin";
-  const permissions =
-    adminRole.length > 0
-      ? (adminRole[0].permissions as Record<string, boolean> | null)
-      : null; // Grant full access by default (null permissions = no restrictions)
+  const adminRole = await getAdminRole(userEmail);
+
+  if (adminRole.length === 0) {
+    logger.warn("Unauthorized admin access attempt", { userId: session.user.id });
+    redirect("/");
+  }
+
+  const userRole = adminRole[0].role;
+  const permissions = adminRole[0].permissions as Record<string, boolean> | null;
 
   return (
     <div className="flex h-screen bg-background">
