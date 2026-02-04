@@ -1,3 +1,4 @@
+import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { Artifact } from "@/components/create-artifact";
 import { DiffView } from "@/components/diffview";
@@ -10,7 +11,8 @@ import {
   RedoIcon,
   UndoIcon,
 } from "@/components/icons";
-import { Editor } from "@/components/text-editor";
+
+const Editor = dynamic(() => import("@/components/text-editor").then((mod) => ({ default: mod.Editor })), { ssr: false });
 import type { Suggestion } from "@/lib/db/schema";
 import { getSuggestions } from "../actions";
 

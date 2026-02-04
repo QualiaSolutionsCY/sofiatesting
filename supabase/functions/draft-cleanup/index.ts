@@ -13,15 +13,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+const responseHeaders = {
+  "Content-Type": "application/json",
 };
 
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight
+  // No CORS needed - this is a server-to-server cron function
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { status: 405 });
   }
 
   try {
@@ -96,7 +95,7 @@ Deno.serve(async (req: Request) => {
         ...results,
       }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: responseHeaders,
         status: results.errors.length > 0 ? 207 : 200,
       }
     );
@@ -108,7 +107,7 @@ Deno.serve(async (req: Request) => {
         message: error instanceof Error ? error.message : "Unknown error",
       }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: responseHeaders,
         status: 500,
       }
     );

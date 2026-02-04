@@ -1,7 +1,8 @@
 "use client";
 
-import { debounce } from "lodash";
+import debounce from "lodash/debounce";
 import { Download, Mail, RefreshCw, Search, UserPlus } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AgentCreateModal } from "@/components/admin/agent-create-modal";
@@ -9,7 +10,8 @@ import {
   BulkDeactivateDialog,
   BulkSendInvitesDialog,
 } from "@/components/admin/bulk-action-dialogs";
-import { ImportAgentsModal } from "@/components/admin/import-agents-modal";
+
+const ImportAgentsModal = dynamic(() => import("@/components/admin/import-agents-modal").then((mod) => ({ default: mod.ImportAgentsModal })), { ssr: false });
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {

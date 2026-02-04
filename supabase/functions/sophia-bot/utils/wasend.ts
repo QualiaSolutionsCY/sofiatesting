@@ -22,9 +22,7 @@ export async function sendTextMessage(
 ): Promise<Response> {
   const sendUrl = `${WASEND_BASE_URL}/send-message`;
 
-  logger.info(`=== WASEND API CALL ===`, { category: LogCategory.GENERAL });
-  logger.info(`Sending text message to ${phoneNumber}, text length: ${text.length}`, { category: LogCategory.GENERAL });
-  logger.info(`WASEND_API_KEY set: ${!!WASEND_API_KEY}, length: ${WASEND_API_KEY?.length || 0}`, { category: LogCategory.GENERAL });
+  logger.info("WASEND API CALL: sending text message", { category: LogCategory.GENERAL, textLength: text.length });
 
   try {
     let sendRes = await fetch(sendUrl, {
@@ -96,7 +94,25 @@ export async function sendTextMessage(
 }
 
 /**
+ * Generates a unique filename with timestamp to prevent caching issues
+ * Format: BaseName_YYYYMMDD_HHMMSS_XXXX.docx
+ */
+export function generateUniqueFilename(baseFilename: string): string {
+  const now = new Date();
+  const timestamp = now.toISOString()
+    .replace(/[-:T]/g, '')
+    .replace(/\.\d{3}Z$/, '');
+  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+
+  // Extract base name without extension
+  const baseName = baseFilename.replace(/\.docx$/i, '');
+
+  return `${baseName}_${timestamp}_${random}.docx`;
+}
+
+/**
  * Uploads a DOCX file to Supabase Storage and returns the public URL
+ * Uses unique filenames to prevent caching issues between different documents
  */
 export async function uploadDocxToStorage(
   supabase: ReturnType<typeof createClient>,
@@ -104,12 +120,16 @@ export async function uploadDocxToStorage(
   filename: string
 ): Promise<string | null> {
   try {
+    // Generate unique filename to prevent cache collisions
+    const uniqueFilename = generateUniqueFilename(filename);
+
     // Upload to Supabase Storage in 'documents' bucket
     const { error } = await supabase.storage
       .from('documents')
-      .upload(`docx/${filename}`, docxContent, {
+      .upload(`docx/${uniqueFilename}`, docxContent, {
         contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        upsert: true
+        cacheControl: 'no-cache, no-store, must-revalidate',
+        upsert: false  // Don't overwrite - each document is unique
       });
 
     if (error) {
@@ -120,7 +140,7 @@ export async function uploadDocxToStorage(
     // Get public URL
     const { data: urlData } = supabase.storage
       .from('documents')
-      .getPublicUrl(`docx/${filename}`);
+      .getPublicUrl(`docx/${uniqueFilename}`);
 
     logger.info("Uploaded DOCX to Supabase Storage:" + String(urlData.publicUrl), { category: LogCategory.DATABASE });
     return urlData.publicUrl;
@@ -328,7 +348,7 @@ export function formatPhoneNumber(remoteJid: string | null): string | null {
   // If it's a LID (starts with numbers but isn't a phone number format)
   // LIDs are internal WhatsApp identifiers, not usable for sending
   if (number.includes("@") || number.length < 8) {
-    logger.info("Invalid phone format (possibly LID):" + String(number), { category: LogCategory.GENERAL });
+    logger.info("Invalid phone format (possibly LID)", { category: LogCategory.GENERAL });
     return null;
   }
 
@@ -343,12 +363,12 @@ export function formatPhoneNumber(remoteJid: string | null): string | null {
       if (digits && digits.length >= 8) {
         number = "+" + digits;
       } else {
-        logger.info("Could not extract valid phone number from:" + String(remoteJid), { category: LogCategory.GENERAL });
+        logger.info("Could not extract valid phone number from input", { category: LogCategory.GENERAL });
         return null;
       }
     }
   }
 
-  logger.info("Formatted phone number:" + String(number), { category: LogCategory.GENERAL });
+  logger.info("Phone number formatted successfully", { category: LogCategory.GENERAL });
   return number;
 }

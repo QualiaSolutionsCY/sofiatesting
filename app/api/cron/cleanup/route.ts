@@ -37,9 +37,11 @@ export async function GET(request: Request) {
     }
 
     const now = new Date();
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const results = {
       propertyListingsDeleted: 0,
       landListingsDeleted: 0,
+      retentionRowsDeleted: 0,
       errors: [] as string[],
     };
 
@@ -87,10 +89,38 @@ export async function GET(request: Request) {
       logger.error("Land listings cleanup error", error);
     }
 
+    // Data retention: delete rows older than 30 days from unbounded tables
+    const retentionTables = [
+      { table: "chat_history", column: "created_at" },
+      { table: "telegram_chat_history", column: "created_at" },
+      { table: "webhook_debug_logs", column: "created_at" },
+      { table: "webhook_health_logs", column: "created_at" },
+      { table: "whatsapp_analytics", column: "created_at" },
+      { table: "sophia_conversation_memory", column: "created_at" },
+      { table: "cleanup_logs", column: "created_at" },
+    ];
+
+    for (const { table, column } of retentionTables) {
+      try {
+        const result = await db.execute(
+          sql`DELETE FROM ${sql.identifier(table)} WHERE ${sql.identifier(column)} < ${thirtyDaysAgo}`
+        );
+        const count = typeof result === "object" && result !== null && "rowCount" in result
+          ? (result as { rowCount: number }).rowCount
+          : 0;
+        results.retentionRowsDeleted += count;
+      } catch (error) {
+        // Table may not exist yet - non-critical
+        const message = error instanceof Error ? error.message : "Unknown error";
+        results.errors.push(`Retention cleanup for ${table}: ${message}`);
+      }
+    }
+
     // Log cleanup summary
     logger.info("Cleanup completed", {
       propertyListingsDeleted: results.propertyListingsDeleted,
       landListingsDeleted: results.landListingsDeleted,
+      retentionRowsDeleted: results.retentionRowsDeleted,
     });
 
     if (results.errors.length > 0) {
