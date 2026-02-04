@@ -2,6 +2,9 @@ import { and, eq } from "drizzle-orm";
 import { auth } from "@/app/(auth)/auth";
 import { db } from "@/lib/db/client";
 import { adminUserRole } from "@/lib/db/schema";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("auth:admin");
 
 export type AdminRole = "superadmin" | "admin" | "support" | "analyst";
 
@@ -58,7 +61,7 @@ export const checkAdminAuth = async (): Promise<AdminCheckResult> => {
       error: "User does not have admin privileges",
     };
   } catch (error) {
-    console.error("[checkAdminAuth] Database error:", error);
+    logger.error("Database error checking admin status", error);
     // On database error, deny access (fail-closed)
     return {
       isAdmin: false,

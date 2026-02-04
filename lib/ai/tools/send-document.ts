@@ -1,8 +1,11 @@
 import { tool, type UIMessageStreamWriter } from "ai";
 import type { Session } from "next-auth";
 import { z } from "zod";
+import { createLogger } from "@/lib/logger";
 import type { ChatMessage } from "@/lib/types";
 import { generateUUID } from "@/lib/utils";
+
+const logger = createLogger("ai:send-document");
 
 type SendDocumentProps = {
   session: Session;
@@ -113,7 +116,7 @@ The tool will generate a DOCX document and show a form where the user can enter 
           message: `Document "${title}" has been generated. A form is now available for you to send it via email, WhatsApp, or download it directly.`,
         };
       } catch (error) {
-        console.error("[sendDocument] Error:", error);
+        logger.error("Document generation failed", error);
         return {
           id: documentId,
           title,

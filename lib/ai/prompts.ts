@@ -20,7 +20,7 @@ function loadCyprusKnowledgeUncached(): string {
     );
     return readFileSync(knowledgePath, "utf8");
   } catch (error) {
-    console.error("Failed to load Cyprus knowledge base:", error);
+    // Failed to load Cyprus knowledge base - return empty
     return "";
   }
 }
@@ -36,9 +36,7 @@ const loadCyprusKnowledge = async (): Promise<string> => {
     );
     return await cachedFn();
   } catch {
-    console.warn(
-      "[SOFIA] unstable_cache unavailable for knowledge, using uncached"
-    );
+    // unstable_cache unavailable for knowledge, using uncached
     return loadCyprusKnowledgeUncached();
   }
 };
@@ -97,9 +95,7 @@ const loadSophiaInstructions = async (): Promise<string> => {
     return await cachedFn();
   } catch {
     // Fallback to uncached version when incremental cache is unavailable
-    console.warn(
-      "[SOFIA] unstable_cache unavailable, using uncached prompt loader"
-    );
+    // unstable_cache unavailable, using uncached prompt loader
     return loadSophiaInstructionsUncached();
   }
 };

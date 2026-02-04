@@ -307,9 +307,7 @@ const loadFullInstructions = async (): Promise<string> => {
     );
     return await cachedFn();
   } catch {
-    console.warn(
-      "[SOFIA] unstable_cache unavailable for templates, using uncached"
-    );
+    // unstable_cache unavailable for templates, using uncached
     return loadFullInstructionsUncached();
   }
 };

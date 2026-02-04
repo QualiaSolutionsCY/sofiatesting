@@ -2,6 +2,9 @@ import { tool } from "ai";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import { getUserContext } from "@/lib/ai/context";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("ai:upload-land-listing");
 import {
   getLandListingById,
   getLandListingsByUserId,
@@ -154,7 +157,7 @@ export const uploadLandListingTool = tool({
           publishedAt: new Date(),
         });
 
-        console.log(`[LandUpload] Successfully uploaded in ${durationMs}ms`, {
+        logger.info(`Successfully uploaded in ${durationMs}ms`, {
           listingId: listing.id,
           zyprusId: result.listingId,
         });
@@ -176,7 +179,7 @@ Your land listing is now live on zyprus.com!`,
         const errorCode =
           uploadError instanceof ZyprusAPIError ? uploadError.code : "UNKNOWN";
 
-        console.error(`[LandUpload] Failed after ${durationMs}ms`, {
+        logger.error(`Upload failed after ${durationMs}ms`, {
           listingId: listing.id,
           errorCode,
           errorMessage,
@@ -196,7 +199,7 @@ Your land listing is now live on zyprus.com!`,
         };
       }
     } catch (error) {
-      console.error("Error uploading land listing:", error);
+      logger.error("Error uploading land listing", error);
       return {
         success: false,
         error: "Failed to process upload. Please try again.",

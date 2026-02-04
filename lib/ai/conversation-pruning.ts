@@ -35,9 +35,7 @@ export function getMaxConversationMessages(): number {
 
   // Validate: Must be at least 2 (first + last)
   if (Number.isNaN(parsed) || parsed < 2) {
-    console.warn(
-      `Invalid MAX_CONVERSATION_MESSAGES: ${envValue}, using default: ${DEFAULT_MAX_MESSAGES}`
-    );
+    // Invalid value, use default
     return DEFAULT_MAX_MESSAGES;
   }
 
@@ -74,12 +72,6 @@ export function pruneConversationHistory(
   // Combine: first message + recent messages
   const prunedMessages = [firstMessage, ...recentMessages];
 
-  // Log pruning for monitoring (development only)
-  if (process.env.NODE_ENV === "development") {
-    console.log(
-      `[Conversation Pruning] ${messages.length} → ${prunedMessages.length} messages (saved ${messages.length - prunedMessages.length})`
-    );
-  }
 
   return prunedMessages;
 }

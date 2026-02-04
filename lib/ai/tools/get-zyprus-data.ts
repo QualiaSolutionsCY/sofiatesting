@@ -1,5 +1,8 @@
 import { tool } from "ai";
 import { z } from "zod";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("ai:get-zyprus-data");
 import {
   forceRefreshCache,
   getAllIndoorFeatures,
@@ -362,7 +365,7 @@ export const getZyprusDataTool = tool({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-      console.error("Error fetching Zyprus taxonomy:", errorMessage);
+      logger.error("Error fetching Zyprus taxonomy", { errorMessage });
       return {
         success: false,
         error: `Failed to fetch data from zyprus.com: ${errorMessage}`,

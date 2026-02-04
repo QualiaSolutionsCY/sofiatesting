@@ -2,6 +2,9 @@ import { tool } from "ai";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import { getUserContext } from "@/lib/ai/context";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("ai:list-listings");
 import { getListingsByUserId } from "@/lib/db/queries";
 
 const STATUS_EMOJIS: Record<string, string> = {
@@ -77,7 +80,7 @@ export const listListingsTool = tool({
         message: `📋 **Your Property Listings** (${listings.length} total)\n\n${formatted}`,
       };
     } catch (error) {
-      console.error("Error listing properties:", error);
+      logger.error("Error listing properties", error);
       return {
         success: false,
         error: "Failed to retrieve listings",

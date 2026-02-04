@@ -1,10 +1,16 @@
-import { count, desc, eq, isNull } from "drizzle-orm";
+import { createClient } from "@supabase/supabase-js";
 import { Suspense } from "react";
 import { Card } from "@/components/ui/card";
+import { createLogger } from "@/lib/logger";
 import { Skeleton } from "@/components/ui/skeleton";
-import { db } from "@/lib/db/client";
-import { zyprusAgent } from "@/lib/db/schema";
 import { AgentsRegistryClient } from "./page-client";
+
+const logger = createLogger("admin:agents-registry");
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+);
 
 type PageProps = {
   searchParams: Promise<{
@@ -26,59 +32,115 @@ type SearchParams = {
   search?: string;
 };
 
+type AgentRow = {
+  id: string;
+  full_name: string;
+  mobile: string | null;
+  communication_email: string | null;
+  listing_owner_email: string | null;
+  region: string | null;
+  role: string | null;
+  can_upload: boolean;
+  telegram_user_id: number | null;
+  is_active: boolean;
+  can_receive_leads: boolean;
+  zyprus_user_id: string | null;
+  created_at: string;
+  updated_at: string | null;
+  whatsapp_phone_number: string | null;
+  last_active_at: string | null;
+  invite_sent_at: string | null;
+  invite_token: string | null;
+  notes: string | null;
+  user_id: string | null;
+};
+
 async function getAgentsData(searchParams: SearchParams) {
   const page = Number.parseInt(searchParams.page || "1", 10);
   const limit = Number.parseInt(searchParams.limit || "50", 10);
   const offset = (page - 1) * limit;
 
-  // Build where conditions
-  const conditions: ReturnType<typeof eq>[] = [];
-  if (searchParams.region) {
-    conditions.push(eq(zyprusAgent.region, searchParams.region));
+  try {
+    // Build query
+    let query = supabase
+      .from("agents")
+      .select("*", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (searchParams.region) {
+      query = query.eq("region", searchParams.region.toLowerCase());
+    }
+    if (searchParams.isActive !== undefined) {
+      query = query.eq("is_active", searchParams.isActive === "true");
+    }
+
+    const { data: agents, count, error } = await query;
+
+    if (error) {
+      logger.error("Error fetching agents", error);
+      return {
+        agents: [],
+        pagination: { page, limit, total: 0, totalPages: 0 },
+        metrics: { total: 0, active: 0, pending: 0 },
+      };
+    }
+
+    // Transform to match expected format
+    const transformedAgents = (agents as AgentRow[]).map((a) => ({
+      id: a.id,
+      userId: a.user_id,
+      fullName: a.full_name,
+      email: a.communication_email || "",
+      phoneNumber: a.mobile,
+      region: a.region ? a.region.charAt(0).toUpperCase() + a.region.slice(1) : "Unknown",
+      role: a.role || "agent",
+      isActive: a.is_active ?? true,
+      canReceiveLeads: a.can_receive_leads ?? true,
+      telegramUserId: a.telegram_user_id?.toString() || null,
+      whatsappPhoneNumber: a.whatsapp_phone_number,
+      lastActiveAt: a.last_active_at ? new Date(a.last_active_at) : null,
+      registeredAt: a.telegram_user_id ? new Date(a.created_at) : null,
+      inviteSentAt: a.invite_sent_at ? new Date(a.invite_sent_at) : null,
+      inviteToken: a.invite_token,
+      notes: a.notes,
+      createdAt: new Date(a.created_at),
+      updatedAt: a.updated_at ? new Date(a.updated_at) : new Date(a.created_at),
+    }));
+
+    // Get metrics
+    const { count: activeCount } = await supabase
+      .from("agents")
+      .select("*", { count: "exact", head: true })
+      .eq("is_active", true);
+
+    const { count: pendingCount } = await supabase
+      .from("agents")
+      .select("*", { count: "exact", head: true })
+      .is("telegram_user_id", null);
+
+    return {
+      agents: transformedAgents,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit),
+      },
+      metrics: {
+        total: count || 0,
+        active: activeCount || 0,
+        pending: pendingCount || 0,
+      },
+    };
+  } catch (error) {
+    logger.error("Error in getAgentsData", error);
+    return {
+      agents: [],
+      pagination: { page, limit, total: 0, totalPages: 0 },
+      metrics: { total: 0, active: 0, pending: 0 },
+    };
   }
-  if (searchParams.role) {
-    conditions.push(eq(zyprusAgent.role, searchParams.role));
-  }
-  if (searchParams.isActive !== undefined) {
-    conditions.push(eq(zyprusAgent.isActive, searchParams.isActive === "true"));
-  }
-
-  // Get agents
-  const agents = await db
-    .select()
-    .from(zyprusAgent)
-    .orderBy(desc(zyprusAgent.createdAt))
-    .limit(limit)
-    .offset(offset);
-
-  // Get total count
-  const [totalCount] = await db.select({ count: count() }).from(zyprusAgent);
-
-  // Get metrics
-  const [activeCount] = await db
-    .select({ count: count() })
-    .from(zyprusAgent)
-    .where(eq(zyprusAgent.isActive, true));
-
-  const [registeredCount] = await db
-    .select({ count: count() })
-    .from(zyprusAgent)
-    .where(isNull(zyprusAgent.registeredAt));
-
-  return {
-    agents,
-    pagination: {
-      page,
-      limit,
-      total: totalCount.count,
-      totalPages: Math.ceil(totalCount.count / limit),
-    },
-    metrics: {
-      total: totalCount.count,
-      active: activeCount.count,
-      pending: registeredCount.count,
-    },
-  };
 }
 
 export default async function AgentsRegistryPage({ searchParams }: PageProps) {

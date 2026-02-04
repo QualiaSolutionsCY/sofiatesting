@@ -69,6 +69,13 @@ import {
 } from "../templates/detection.ts";
 import { validateExternalUrl, safeFetch } from "../utils/url-validator.ts";
 import { maskEmailForLogging } from "../rules/index.ts";
+import {
+  trackMessageReceived,
+  trackMessageSent,
+  trackDocumentGenerated,
+  trackError,
+  createTimer,
+} from "../services/analytics.ts";
 
 const WASEND_WEBHOOK_SECRET = Deno.env.get("WASEND_WEBHOOK_SECRET");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
@@ -578,6 +585,7 @@ async function processRequest(
     if (shouldSendAsDocx) {
       // Send as DOCX file
       logger.info("Detected DOCX template - generating and sending as file attachment", { category: LogCategory.GENERAL });
+      trackDocumentGenerated(phoneNumber, detectedTemplateType || "unknown", identifiedAgent?.id);
 
       let filename = `document_${Date.now()}.docx`;
       const templateType = detectDocxTemplateType(aiResponse);
@@ -684,6 +692,7 @@ async function processRequest(
     }
   } catch (error) {
     logger.error("Error in processRequest: " + String(error), undefined, { category: LogCategory.GENERAL });
+    trackError(phoneNumber, "PROCESS_REQUEST_ERROR", String(error));
   }
 }
 
@@ -803,6 +812,16 @@ export async function handleWebhook(
     }
   }
 
+  // Track inbound message (fire-and-forget)
+  trackMessageReceived(phoneNumber, undefined, {
+    hasImages: imageUrls.length > 0,
+    imageCount: imageUrls.length,
+    messageLength: sanitizedMessage.length,
+  });
+
+  // Start response timer
+  const requestTimer = createTimer();
+
   // Process the request
   try {
     await processRequest(
@@ -814,8 +833,11 @@ export async function handleWebhook(
       phoneNumber,
       imageUrls
     );
+    // Track successful response
+    trackMessageSent(phoneNumber, requestTimer.end());
   } catch (err) {
     logger.error("processRequest failed: " + String(err), undefined, { category: LogCategory.GENERAL });
+    trackError(phoneNumber, "PROCESS_REQUEST_FAILED", String(err));
   }
 
   return new Response("OK", { status: 200 });

@@ -2,6 +2,9 @@ import { tool } from "ai";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import { getUserContext } from "@/lib/ai/context";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("ai:create-land-listing");
 import {
   createLandListing,
   updateListingDuplicateStatus,
@@ -278,7 +281,7 @@ export const createLandListingTool = tool({
         }
       } catch (err) {
         // Don't fail if duplicate check errors - just log and continue
-        console.warn("Duplicate check failed:", err);
+        logger.warn("Duplicate check failed", { error: err instanceof Error ? err.message : String(err) });
       }
 
       return {
@@ -311,7 +314,7 @@ ${duplicateWarning ? `${duplicateWarning}\n\n` : ""}Status: **Draft** (expires i
 Say "upload land listing" to publish to zyprus.com`,
       };
     } catch (error) {
-      console.error("Error creating land listing:", error);
+      logger.error("Error creating land listing", error);
       return {
         success: false,
         error: "Failed to create land listing. Please try again.",
