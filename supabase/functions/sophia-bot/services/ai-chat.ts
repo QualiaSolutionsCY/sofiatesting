@@ -341,6 +341,32 @@ export async function chat(
       };
     }
 
+    // SAFETY NET: Detect tool calls output as text (Gemini preview models sometimes do this)
+    // Pattern: {"action": "default_api:sendEmail", "action_input": "{ ... }"}
+    if ((!message?.tool_calls || message.tool_calls.length === 0) && message?.content) {
+      const content = typeof message.content === "string" ? message.content : "";
+      const textToolMatch = content.match(/\{\s*"action"\s*:\s*"(?:default_api:)?(\w+)"\s*,\s*"action_input"\s*:\s*"(.+?)"\s*\}/s);
+      if (textToolMatch) {
+        const toolName = textToolMatch[1];
+        let toolArgsStr = textToolMatch[2]
+          .replace(/\\"/g, '"')  // unescape quotes
+          .replace(/\\n/g, '\n');
+        try {
+          const toolArgs = JSON.parse(toolArgsStr);
+          logger.info(`[OpenRouter] Detected text-based tool call for ${toolName}, converting to proper tool call`, { category: LogCategory.GENERAL });
+          message.tool_calls = [{
+            id: `text_tool_${Date.now()}`,
+            type: "function",
+            function: { name: toolName, arguments: JSON.stringify(toolArgs) },
+          }];
+          // Clear the text content so it doesn't get sent to the user as raw JSON
+          message.content = "";
+        } catch (parseErr) {
+          logger.error(`[OpenRouter] Failed to parse text-based tool call: ${String(parseErr)}`, undefined, { category: LogCategory.GENERAL });
+        }
+      }
+    }
+
     // Check for tool calls
     if (message?.tool_calls && message.tool_calls.length > 0) {
       toolCallCount++;

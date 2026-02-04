@@ -19,6 +19,7 @@ coverage/
 # Environment files (keep .env.example committed)
 .env
 .env.local
+env/
 .env*.local
 .env.production
 .env.production.*

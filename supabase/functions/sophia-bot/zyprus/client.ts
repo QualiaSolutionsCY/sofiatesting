@@ -361,12 +361,13 @@ function buildJsonApiPayload(
     };
   }
 
-  // CRITICAL: Listing owner - the agent account where property is assigned
-  // Per meeting spec: "Listing Owner must match the agent mapping"
-  // This was MISSING before - causing listings to not show in correct agent's dashboard
-  relationships.field_listing_owner = {
-    data: { type: "user--user", id: listingOwnerUuid },
-  };
+  // NOTE: field_listing_owner does NOT exist on dev9.zyprus.com (verified Jan 2026)
+  // The API silently ignores unknown relationships. The `uid` field (set by API based on OAuth token)
+  // is what determines the listing author/owner on dev9.
+  // TODO: Re-enable if this field exists on production, or if dev9 schema is updated
+  // relationships.field_listing_owner = {
+  //   data: { type: "user--user", id: listingOwnerUuid },
+  // };
 
   // Property views (sea view, mountain view, etc.)
   // Per Postman spec: taxonomy_term--property_views
@@ -411,6 +412,9 @@ async function uploadSingleImage(
       return null;
     }
 
+    // P1 SECURITY: Maximum image size (10MB) to prevent DoS
+    const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+
     // Download image
     const imageResponse = await fetch(url);
     if (!imageResponse.ok) {
@@ -424,7 +428,38 @@ async function uploadSingleImage(
       return null;
     }
 
+    // P1 SECURITY: Check Content-Length header before downloading full content
+    const contentLength = imageResponse.headers.get("content-length");
+    if (contentLength) {
+      const sizeBytes = parseInt(contentLength, 10);
+      if (sizeBytes > MAX_IMAGE_SIZE_BYTES) {
+        logger.warn("Image exceeds maximum size limit - rejecting", {
+          category: LogCategory.ZYPRUS,
+          operation: "uploadSingleImage",
+          imageIndex: index,
+          sizeBytes,
+          maxSizeBytes: MAX_IMAGE_SIZE_BYTES,
+          urlPreview: url.substring(0, 100),
+        });
+        return null;
+      }
+    }
+
     const imageBlob = await imageResponse.blob();
+
+    // P1 SECURITY: Double-check actual blob size (Content-Length may be absent or incorrect)
+    if (imageBlob.size > MAX_IMAGE_SIZE_BYTES) {
+      logger.warn("Image blob exceeds maximum size limit - rejecting", {
+        category: LogCategory.ZYPRUS,
+        operation: "uploadSingleImage",
+        imageIndex: index,
+        actualSize: imageBlob.size,
+        maxSizeBytes: MAX_IMAGE_SIZE_BYTES,
+        urlPreview: url.substring(0, 100),
+      });
+      return null;
+    }
+
     const imageBuffer = await imageBlob.arrayBuffer();
 
     // Get filename from URL

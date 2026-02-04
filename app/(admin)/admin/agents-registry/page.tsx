@@ -1,16 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { Suspense } from "react";
+
+export const dynamic = "force-dynamic";
 import { Card } from "@/components/ui/card";
-import { createLogger } from "@/lib/logger";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentsRegistryClient } from "./page-client";
-
-const logger = createLogger("admin:agents-registry");
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
 
 type PageProps = {
   searchParams: Promise<{
@@ -55,97 +49,110 @@ type AgentRow = {
   user_id: string | null;
 };
 
+function getSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !key) {
+    throw new Error(
+      `Missing Supabase env vars: URL=${url ? "set" : "MISSING"}, KEY=${key ? "set" : "MISSING"}`
+    );
+  }
+
+  return createClient(url, key);
+}
+
 async function getAgentsData(searchParams: SearchParams) {
   const page = Number.parseInt(searchParams.page || "1", 10);
   const limit = Number.parseInt(searchParams.limit || "50", 10);
   const offset = (page - 1) * limit;
 
-  try {
-    // Build query
-    let query = supabase
-      .from("agents")
-      .select("*", { count: "exact" })
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
+  const supabase = getSupabaseClient();
 
-    if (searchParams.region) {
-      query = query.eq("region", searchParams.region.toLowerCase());
-    }
-    if (searchParams.isActive !== undefined) {
-      query = query.eq("is_active", searchParams.isActive === "true");
-    }
+  // Build query
+  let query = supabase
+    .from("agents")
+    .select("*", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
 
-    const { data: agents, count, error } = await query;
-
-    if (error) {
-      logger.error("Error fetching agents", error);
-      return {
-        agents: [],
-        pagination: { page, limit, total: 0, totalPages: 0 },
-        metrics: { total: 0, active: 0, pending: 0 },
-      };
-    }
-
-    // Transform to match expected format
-    const transformedAgents = (agents as AgentRow[]).map((a) => ({
-      id: a.id,
-      userId: a.user_id,
-      fullName: a.full_name,
-      email: a.communication_email || "",
-      phoneNumber: a.mobile,
-      region: a.region ? a.region.charAt(0).toUpperCase() + a.region.slice(1) : "Unknown",
-      role: a.role || "agent",
-      isActive: a.is_active ?? true,
-      canReceiveLeads: a.can_receive_leads ?? true,
-      telegramUserId: a.telegram_user_id?.toString() || null,
-      whatsappPhoneNumber: a.whatsapp_phone_number,
-      lastActiveAt: a.last_active_at ? new Date(a.last_active_at) : null,
-      registeredAt: a.telegram_user_id ? new Date(a.created_at) : null,
-      inviteSentAt: a.invite_sent_at ? new Date(a.invite_sent_at) : null,
-      inviteToken: a.invite_token,
-      notes: a.notes,
-      createdAt: new Date(a.created_at),
-      updatedAt: a.updated_at ? new Date(a.updated_at) : new Date(a.created_at),
-    }));
-
-    // Get metrics
-    const { count: activeCount } = await supabase
-      .from("agents")
-      .select("*", { count: "exact", head: true })
-      .eq("is_active", true);
-
-    const { count: pendingCount } = await supabase
-      .from("agents")
-      .select("*", { count: "exact", head: true })
-      .is("telegram_user_id", null);
-
-    return {
-      agents: transformedAgents,
-      pagination: {
-        page,
-        limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit),
-      },
-      metrics: {
-        total: count || 0,
-        active: activeCount || 0,
-        pending: pendingCount || 0,
-      },
-    };
-  } catch (error) {
-    logger.error("Error in getAgentsData", error);
-    return {
-      agents: [],
-      pagination: { page, limit, total: 0, totalPages: 0 },
-      metrics: { total: 0, active: 0, pending: 0 },
-    };
+  if (searchParams.region) {
+    query = query.eq("region", searchParams.region.toLowerCase());
   }
+  if (searchParams.isActive !== undefined) {
+    query = query.eq("is_active", searchParams.isActive === "true");
+  }
+
+  const { data: agents, count, error } = await query;
+
+  if (error) {
+    throw new Error(`Supabase query error: ${error.message} (code: ${error.code})`);
+  }
+
+  // Transform to match expected format
+  const transformedAgents = (agents as AgentRow[]).map((a) => ({
+    id: a.id,
+    userId: a.user_id,
+    fullName: a.full_name,
+    email: a.communication_email || "",
+    phoneNumber: a.mobile,
+    region: a.region ? a.region.charAt(0).toUpperCase() + a.region.slice(1) : "Unknown",
+    role: a.role || "agent",
+    isActive: a.is_active ?? true,
+    canReceiveLeads: a.can_receive_leads ?? true,
+    telegramUserId: a.telegram_user_id?.toString() || null,
+    whatsappPhoneNumber: a.whatsapp_phone_number,
+    lastActiveAt: a.last_active_at ? new Date(a.last_active_at) : null,
+    registeredAt: a.telegram_user_id ? new Date(a.created_at) : null,
+    inviteSentAt: a.invite_sent_at ? new Date(a.invite_sent_at) : null,
+    inviteToken: a.invite_token,
+    notes: a.notes,
+    createdAt: new Date(a.created_at),
+    updatedAt: a.updated_at ? new Date(a.updated_at) : new Date(a.created_at),
+  }));
+
+  // Get metrics
+  const { count: activeCount } = await supabase
+    .from("agents")
+    .select("*", { count: "exact", head: true })
+    .eq("is_active", true);
+
+  const { count: pendingCount } = await supabase
+    .from("agents")
+    .select("*", { count: "exact", head: true })
+    .is("telegram_user_id", null);
+
+  return {
+    agents: transformedAgents,
+    pagination: {
+      page,
+      limit,
+      total: count || 0,
+      totalPages: Math.ceil((count || 0) / limit),
+    },
+    metrics: {
+      total: count || 0,
+      active: activeCount || 0,
+      pending: pendingCount || 0,
+    },
+    error: null,
+  };
 }
 
 export default async function AgentsRegistryPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const data = await getAgentsData(params);
+
+  let data;
+  try {
+    data = await getAgentsData(params);
+  } catch {
+    data = {
+      agents: [],
+      pagination: { page: 1, limit: 50, total: 0, totalPages: 0 },
+      metrics: { total: 0, active: 0, pending: 0 },
+      error: null,
+    };
+  }
 
   return (
     <div className="space-y-6">

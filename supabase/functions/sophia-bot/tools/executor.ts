@@ -25,6 +25,32 @@ const uploadLocks = new Map<string, number>();
 const UPLOAD_LOCK_DURATION_MS = 30000; // 30 seconds
 
 /**
+ * Check if a URL points to a document file (DOCX, PDF, etc.)
+ * Used to filter out document URLs that AI might confuse as images
+ */
+function isDocumentUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const pathname = parsed.pathname.toLowerCase();
+    const docExtensions = ['.docx', '.pdf', '.doc', '.xlsx', '.xls', '.pptx', '.ppt'];
+
+    // Check pathname (ignoring query string)
+    if (docExtensions.some(ext => pathname.endsWith(ext))) {
+      return true;
+    }
+
+    // Check for document patterns in path
+    if (pathname.includes('/documents/') || pathname.includes('wordprocessingml')) {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Check if an upload lock exists for this agent (prevents parallel uploads)
  */
 function checkUploadLock(agentPhone: string): { locked: boolean; remainingSeconds?: number } {
@@ -380,7 +406,19 @@ async function handleCreatePropertyListing(
     });
 
     // Merge pending images with any direct URLs from tool arguments
-    const directUrls = (args.imageUrls as string[]) || [];
+    // Filter out document URLs (DOCX, PDF) that AI might confuse as images
+    const rawDirectUrls = (args.imageUrls as string[]) || [];
+    const directUrls = rawDirectUrls.filter(url => {
+      if (isDocumentUrl(url)) {
+        logger.warn("Filtered out document URL from imageUrls", {
+          category: LogCategory.IMAGE,
+          operation: "createPropertyListing",
+          urlPreview: url.substring(0, 100),
+        });
+        return false;
+      }
+      return true;
+    });
 
     if (pendingImages.length > 0) {
       logger.info("Using images from pending_images table", {
@@ -423,7 +461,9 @@ async function handleCreatePropertyListing(
       total: imageUrls.length,
     });
   } else {
-    imageUrls = (args.imageUrls as string[]) || [];
+    // Filter out document URLs using shared helper
+    const rawUrls = (args.imageUrls as string[]) || [];
+    imageUrls = rawUrls.filter(url => !isDocumentUrl(url));
     logger.info("No agent phone - using AI-provided URLs", {
       category: LogCategory.IMAGE,
       operation: "createPropertyListing",
@@ -658,7 +698,8 @@ async function handleCreatePropertyListing(
 
     // CRITICAL: Clear pending images after successful upload
     // This prevents the same images from being used in the next listing
-    await clearPendingImages(agent.mobile);
+    // Use agentPhone (cleaned format) to match how images were stored
+    await clearPendingImages(agentPhone);
     logger.info("Cleared pending images after successful upload", {
       category: LogCategory.IMAGE,
     });

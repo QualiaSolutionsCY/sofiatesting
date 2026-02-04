@@ -1,14 +1,53 @@
-import { desc, eq } from "drizzle-orm";
+import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db/client";
-import { agentChatSession, zyprusAgent } from "@/lib/db/schema";
 import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("api:admin:agents:id");
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+);
+
+const transformAgent = (a: Record<string, unknown>) => ({
+  id: a.id,
+  userId: a.user_id ?? null,
+  fullName: a.full_name,
+  email: (a.communication_email as string) || "",
+  phoneNumber: a.mobile ?? null,
+  region: a.region
+    ? (a.region as string).charAt(0).toUpperCase() +
+      (a.region as string).slice(1)
+    : "Unknown",
+  role: (a.role as string) || "agent",
+  isActive: a.is_active ?? true,
+  canReceiveLeads: a.can_receive_leads ?? true,
+  canUpload: a.can_upload ?? true,
+  telegramUserId: a.telegram_user_id?.toString() || null,
+  whatsappPhoneNumber: a.whatsapp_phone_number ?? null,
+  zyprusUserId: a.zyprus_user_id ?? null,
+  landline: a.landline ?? null,
+  listingOwnerEmail: a.listing_owner_email ?? null,
+  lastActiveAt: a.last_active_at
+    ? new Date(a.last_active_at as string)
+    : null,
+  registeredAt: a.telegram_user_id
+    ? new Date(a.created_at as string)
+    : null,
+  inviteSentAt: a.invite_sent_at
+    ? new Date(a.invite_sent_at as string)
+    : null,
+  inviteToken: a.invite_token ?? null,
+  notes: a.notes ?? null,
+  createdAt: new Date(a.created_at as string),
+  updatedAt: a.updated_at
+    ? new Date(a.updated_at as string)
+    : new Date(a.created_at as string),
+});
+
 /**
  * GET /api/admin/agents/[id]
- * Get agent details including activity statistics
+ * Get agent details
  */
 export async function GET(
   _request: NextRequest,
@@ -17,63 +56,29 @@ export async function GET(
   try {
     const { id } = await context.params;
 
-    // Get agent
-    const [agent] = await db
-      .select()
-      .from(zyprusAgent)
-      .where(eq(zyprusAgent.id, id))
-      .limit(1);
+    const { data: agent, error } = await supabase
+      .from("agents")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-    if (!agent) {
+    if (error || !agent) {
       return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     }
 
-    // Get recent chat sessions
-    const sessions = await db
-      .select()
-      .from(agentChatSession)
-      .where(eq(agentChatSession.agentId, id))
-      .orderBy(desc(agentChatSession.startedAt))
-      .limit(10);
-
-    // Calculate aggregate statistics
-    const stats = {
-      totalSessions: sessions.length,
-      totalMessages: sessions.reduce(
-        (sum, s) => sum + (s.messageCount || 0),
-        0
-      ),
-      totalDocuments: sessions.reduce(
-        (sum, s) => sum + (s.documentCount || 0),
-        0
-      ),
-      totalCalculations: sessions.reduce(
-        (sum, s) => sum + (s.calculatorCount || 0),
-        0
-      ),
-      totalListings: sessions.reduce(
-        (sum, s) => sum + (s.listingCount || 0),
-        0
-      ),
-      totalTokens: sessions.reduce(
-        (sum, s) => sum + (s.totalTokensUsed || 0),
-        0
-      ),
-      totalCost: sessions.reduce(
-        (sum, s) => sum + Number(s.totalCostUsd || 0),
-        0
-      ),
-      platformBreakdown: {
-        web: sessions.filter((s) => s.platform === "web").length,
-        telegram: sessions.filter((s) => s.platform === "telegram").length,
-        whatsapp: sessions.filter((s) => s.platform === "whatsapp").length,
-      },
-    };
-
     return NextResponse.json({
-      agent,
-      stats,
-      recentSessions: sessions,
+      agent: transformAgent(agent),
+      stats: {
+        totalSessions: 0,
+        totalMessages: 0,
+        totalDocuments: 0,
+        totalCalculations: 0,
+        totalListings: 0,
+        totalTokens: 0,
+        totalCost: 0,
+        platformBreakdown: { web: 0, telegram: 0, whatsapp: 0 },
+      },
+      recentSessions: [],
     });
   } catch (error) {
     logger.error("Error fetching agent", error);
@@ -100,25 +105,26 @@ export async function PUT(
     const body = await request.json();
 
     // Check if agent exists
-    const [existing] = await db
-      .select()
-      .from(zyprusAgent)
-      .where(eq(zyprusAgent.id, id))
-      .limit(1);
+    const { data: existing, error: findError } = await supabase
+      .from("agents")
+      .select("id, communication_email")
+      .eq("id", id)
+      .single();
 
-    if (!existing) {
+    if (findError || !existing) {
       return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     }
 
     // If email is being changed, check for conflicts
-    if (body.email && body.email !== existing.email) {
-      const [emailConflict] = await db
-        .select()
-        .from(zyprusAgent)
-        .where(eq(zyprusAgent.email, body.email.toLowerCase()))
+    if (body.email && body.email !== existing.communication_email) {
+      const { data: conflict } = await supabase
+        .from("agents")
+        .select("id")
+        .eq("communication_email", body.email.toLowerCase())
+        .neq("id", id)
         .limit(1);
 
-      if (emailConflict) {
+      if (conflict && conflict.length > 0) {
         return NextResponse.json(
           { error: "Another agent already has this email" },
           { status: 409 }
@@ -126,19 +132,40 @@ export async function PUT(
       }
     }
 
-    // Update agent
-    const [updated] = await db
-      .update(zyprusAgent)
-      .set({
-        ...body,
-        email: body.email ? body.email.toLowerCase() : undefined,
-        updatedAt: new Date(),
-      })
-      .where(eq(zyprusAgent.id, id))
-      .returning();
+    // Map camelCase body fields to snake_case DB columns
+    const updateData: Record<string, unknown> = {};
+    if (body.fullName !== undefined) updateData.full_name = body.fullName;
+    if (body.email !== undefined)
+      updateData.communication_email = body.email.toLowerCase();
+    if (body.phoneNumber !== undefined) updateData.mobile = body.phoneNumber;
+    if (body.region !== undefined)
+      updateData.region = body.region.toLowerCase();
+    if (body.role !== undefined) updateData.role = body.role;
+    if (body.isActive !== undefined) updateData.is_active = body.isActive;
+    if (body.canReceiveLeads !== undefined)
+      updateData.can_receive_leads = body.canReceiveLeads;
+    if (body.canUpload !== undefined) updateData.can_upload = body.canUpload;
+    if (body.listingOwnerEmail !== undefined)
+      updateData.listing_owner_email = body.listingOwnerEmail;
+    if (body.landline !== undefined) updateData.landline = body.landline;
+
+    const { data: updated, error } = await supabase
+      .from("agents")
+      .update(updateData)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      logger.error("Error updating agent", error);
+      return NextResponse.json(
+        { error: "Failed to update agent", details: error.message },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
-      agent: updated,
+      agent: transformAgent(updated),
       message: "Agent updated successfully",
     });
   } catch (error) {
@@ -164,29 +191,19 @@ export async function DELETE(
   try {
     const { id } = await context.params;
 
-    // Check if agent exists
-    const [existing] = await db
+    const { data: deactivated, error } = await supabase
+      .from("agents")
+      .update({ is_active: false })
+      .eq("id", id)
       .select()
-      .from(zyprusAgent)
-      .where(eq(zyprusAgent.id, id))
-      .limit(1);
+      .single();
 
-    if (!existing) {
+    if (error || !deactivated) {
       return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     }
 
-    // Soft delete by setting isActive to false
-    const [deactivated] = await db
-      .update(zyprusAgent)
-      .set({
-        isActive: false,
-        updatedAt: new Date(),
-      })
-      .where(eq(zyprusAgent.id, id))
-      .returning();
-
     return NextResponse.json({
-      agent: deactivated,
+      agent: transformAgent(deactivated),
       message: "Agent deactivated successfully",
     });
   } catch (error) {

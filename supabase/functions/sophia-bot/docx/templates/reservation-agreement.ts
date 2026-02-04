@@ -46,10 +46,11 @@ export interface VendorInfo {
 }
 
 /**
- * Property information - single description string
+ * Property information - single line format
+ * Example: "Cynthiana Complex Flat No. 105, Agios Theodoros, Paphos (Registration No 0/1547)"
  */
 export interface PropertyInfo {
-  description: string;
+  description: string;        // Full formatted description including flat no and registration
 }
 
 /**
@@ -69,6 +70,7 @@ export interface ReservationAgreementData {
   dateReceived?: string;
   buyers: BuyerInfo[];
   vendor: VendorInfo;
+  vendors?: VendorInfo[];
   property: PropertyInfo;
   financial: FinancialTerms;
   reservationPeriodDays?: number;
@@ -99,7 +101,7 @@ export const ZYPRUS_DEFAULTS = {
 /**
  * Get the EXACT refund clause from reference templates
  */
-function getRefundClause(hasLoan: boolean, hasVat: boolean, reservationFee: string): string {
+function getRefundClause(hasLoan: boolean, hasVat: boolean, _reservationFee: string): string {
   const base = `In the event that the purchase fails to materialize, due to the Vendor's fault, and/or the property does not have clean land registry search (i.e. mortgages etc.) and/or is not free of any encumbrances and/or legal charges whatsoever`;
 
   // NO LOAN, NO VAT
@@ -131,13 +133,20 @@ export function createReservationAgreement(data: ReservationAgreementData): Docu
   const contractDays = data.contractDeadlineDays || 40;
   const reservationFeeFormatted = `€${data.financial.reservationFee.toLocaleString()}`;
 
-  // Build buyer string: "Name Cyprus ID: 123456"
+  // Resolve vendors array (use vendors[] if available, fall back to single vendor)
+  const allVendors = data.vendors && data.vendors.length > 0
+    ? data.vendors
+    : [data.vendor];
+
+  // Build buyer string: "Name Cyprus ID: 123456 and Name2 Cyprus ID: 789012"
   const buyerStr = data.buyers
     .map((b) => `${b.fullName} ${b.idType}: ${b.idNumber}`)
     .join(" and ");
 
-  // Build vendor string: "Name Cyprus ID: 123456"
-  const vendorStr = `${data.vendor.name} ${data.vendor.idType}: ${data.vendor.idNumber}`;
+  // Build vendor string: "Name Cyprus ID: 123456 and Name2 Cyprus ID: 789012"
+  const vendorStr = allVendors
+    .map((v) => `${v.name} ${v.idType}: ${v.idNumber}`)
+    .join(" and ");
 
   // Agreement date
   const dateStr = data.agreementDate || formatDate(new Date());
@@ -194,11 +203,11 @@ export function createReservationAgreement(data: ReservationAgreementData): Docu
     })
   );
 
-  // Property Details
+  // Property Details - single line with flat no and registration
   children.push(
     new Paragraph({
       children: [
-        new TextRun({ text: "Property Details: ", bold: true, size: 22, font: "Times New Roman" }),
+        new TextRun({ text: "Property: ", bold: true, size: 22, font: "Times New Roman" }),
         new TextRun({ text: data.property.description, size: 22, font: "Times New Roman" }),
       ],
       spacing: { after: 200 },
@@ -390,147 +399,108 @@ export function createReservationAgreement(data: ReservationAgreementData): Docu
     right: { style: BorderStyle.NIL, size: 0, color: "FFFFFF" },
   };
 
-  // ===== THE PROSPECTIVE BUYER SECTION =====
-  children.push(
-    new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [
-        // Row 1: "The Prospective Buyer:" | "WITNESSES"
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: 50, type: WidthType.PERCENTAGE },
-              borders: noBorders,
-              children: [new Paragraph({
-                children: [new TextRun({ text: "The Prospective Buyer:", size: 22, font: "Times New Roman" })],
-              })],
-            }),
-            new TableCell({
-              width: { size: 50, type: WidthType.PERCENTAGE },
-              borders: noBorders,
-              children: [new Paragraph({
-                children: [new TextRun({ text: "WITNESSES", size: 22, font: "Times New Roman" })],
-              })],
-            }),
-          ],
-        }),
-        // Row 2: Empty row for signature space
-        new TableRow({
-          children: [
-            new TableCell({ borders: noBorders, children: [new Paragraph({ text: "" })] }),
-            new TableCell({ borders: noBorders, children: [new Paragraph({ text: "" })] }),
-          ],
-        }),
-        // Row 3: Signature lines
-        new TableRow({
-          children: [
-            new TableCell({
-              borders: noBorders,
-              children: [new Paragraph({
-                children: [new TextRun({ text: "_________________________", size: 22, font: "Times New Roman" })],
-              })],
-            }),
-            new TableCell({
-              borders: noBorders,
-              children: [new Paragraph({
-                children: [new TextRun({ text: "_________________________", size: 22, font: "Times New Roman" })],
-              })],
-            }),
-          ],
-        }),
-        // Row 4: Buyer name | Name and I.D.:
-        ...data.buyers.map(buyer => new TableRow({
-          children: [
-            new TableCell({
-              borders: noBorders,
-              children: [new Paragraph({
-                children: [new TextRun({ text: `${buyer.fullName} ${buyer.idType}`, size: 22, font: "Times New Roman" })],
-              })],
-            }),
-            new TableCell({
-              borders: noBorders,
-              children: [new Paragraph({
-                children: [new TextRun({ text: "Name and I.D.:", size: 22, font: "Times New Roman" })],
-              })],
-            }),
-          ],
-        })),
-      ],
-    })
-  );
+  // ===== BUYER AND VENDOR SIGNATURES SIDE BY SIDE =====
+  // Determine how many signature rows needed (max of buyers, vendors)
+  const maxParties = Math.max(data.buyers.length, allVendors.length);
 
-  // Spacing after buyer section
-  children.push(new Paragraph({ text: "", spacing: { after: 300 } }));
+  const signatureRows: TableRow[] = [];
 
-  // ===== THE VENDOR SECTION =====
-  children.push(
-    new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [
-        // Row 1: "The Vendor:" | empty (no WITNESSES header repeated)
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: 50, type: WidthType.PERCENTAGE },
-              borders: noBorders,
-              children: [new Paragraph({
-                children: [new TextRun({ text: "The Vendor:", size: 22, font: "Times New Roman" })],
-              })],
-            }),
-            new TableCell({
-              width: { size: 50, type: WidthType.PERCENTAGE },
-              borders: noBorders,
-              children: [new Paragraph({ text: "" })],
-            }),
-          ],
+  // Row 1: Headers
+  signatureRows.push(
+    new TableRow({
+      children: [
+        new TableCell({
+          width: { size: 50, type: WidthType.PERCENTAGE },
+          borders: noBorders,
+          children: [new Paragraph({
+            children: [new TextRun({ text: `The Prospective Buyer${data.buyers.length > 1 ? "s" : ""}:`, size: 22, font: "Times New Roman" })],
+          })],
         }),
-        // Row 2: Empty row for signature space
-        new TableRow({
-          children: [
-            new TableCell({ borders: noBorders, children: [new Paragraph({ text: "" })] }),
-            new TableCell({ borders: noBorders, children: [new Paragraph({ text: "" })] }),
-          ],
-        }),
-        // Row 3: Signature lines
-        new TableRow({
-          children: [
-            new TableCell({
-              borders: noBorders,
-              children: [new Paragraph({
-                children: [new TextRun({ text: "_________________________", size: 22, font: "Times New Roman" })],
-              })],
-            }),
-            new TableCell({
-              borders: noBorders,
-              children: [new Paragraph({
-                children: [new TextRun({ text: "_________________________", size: 22, font: "Times New Roman" })],
-              })],
-            }),
-          ],
-        }),
-        // Row 4: Vendor name | Name and I.D.:
-        new TableRow({
-          children: [
-            new TableCell({
-              borders: noBorders,
-              children: [new Paragraph({
-                children: [new TextRun({ text: data.vendor.name, size: 22, font: "Times New Roman" })],
-              })],
-            }),
-            new TableCell({
-              borders: noBorders,
-              children: [new Paragraph({
-                children: [new TextRun({ text: "Name and I.D.:", size: 22, font: "Times New Roman" })],
-              })],
-            }),
-          ],
+        new TableCell({
+          width: { size: 50, type: WidthType.PERCENTAGE },
+          borders: noBorders,
+          children: [new Paragraph({
+            children: [new TextRun({ text: `The Vendor${allVendors.length > 1 ? "s" : ""}:`, size: 22, font: "Times New Roman" })],
+          })],
         }),
       ],
     })
   );
 
-  // Spacing after vendor section
+  // One signature block per party (matched left/right)
+  for (let i = 0; i < maxParties; i++) {
+    const buyer = data.buyers[i];
+    const vendor = allVendors[i];
+
+    // Empty row for signature space
+    signatureRows.push(
+      new TableRow({
+        children: [
+          new TableCell({ borders: noBorders, children: [new Paragraph({ text: "" })] }),
+          new TableCell({ borders: noBorders, children: [new Paragraph({ text: "" })] }),
+        ],
+      })
+    );
+    signatureRows.push(
+      new TableRow({
+        children: [
+          new TableCell({ borders: noBorders, children: [new Paragraph({ text: "" })] }),
+          new TableCell({ borders: noBorders, children: [new Paragraph({ text: "" })] }),
+        ],
+      })
+    );
+
+    // Signature lines
+    signatureRows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            borders: noBorders,
+            children: [new Paragraph({
+              children: [new TextRun({ text: buyer ? "_________________________" : "", size: 22, font: "Times New Roman" })],
+            })],
+          }),
+          new TableCell({
+            borders: noBorders,
+            children: [new Paragraph({
+              children: [new TextRun({ text: vendor ? "_________________________" : "", size: 22, font: "Times New Roman" })],
+            })],
+          }),
+        ],
+      })
+    );
+
+    // Names under signature lines
+    signatureRows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            borders: noBorders,
+            children: [new Paragraph({
+              children: [new TextRun({ text: buyer ? buyer.fullName : "", size: 22, font: "Times New Roman" })],
+            })],
+          }),
+          new TableCell({
+            borders: noBorders,
+            children: [new Paragraph({
+              children: [new TextRun({ text: vendor ? vendor.name : "", size: 22, font: "Times New Roman" })],
+            })],
+          }),
+        ],
+      })
+    );
+  }
+
+  children.push(
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: signatureRows,
+    })
+  );
+
+  // Spacing after parties section
   children.push(new Paragraph({ text: "", spacing: { after: 300 } }));
+  children.push(new Paragraph({ text: "" }));
 
   // ===== THE ESTATE AGENT SECTION =====
   children.push(
@@ -558,6 +528,43 @@ export function createReservationAgreement(data: ReservationAgreementData): Docu
   children.push(
     new Paragraph({
       children: [new TextRun({ text: `For and on behalf of ${agent.company}`, size: 22, font: "Times New Roman" })],
+      spacing: { after: 400 },
+    })
+  );
+
+  children.push(new Paragraph({ text: "" }));
+
+  // ===== WITNESSES SECTION - Always exactly 2 =====
+  children.push(
+    new Paragraph({
+      children: [new TextRun({ text: "WITNESSES", bold: true, underline: { type: UnderlineType.SINGLE }, size: 22, font: "Times New Roman" })],
+      spacing: { after: 200 },
+    })
+  );
+
+  // Witness 1
+  children.push(new Paragraph({ text: "" }));
+  children.push(
+    new Paragraph({
+      children: [new TextRun({ text: "1. _________________________", size: 22, font: "Times New Roman" })],
+    })
+  );
+  children.push(
+    new Paragraph({
+      children: [new TextRun({ text: "   Name and I.D.:", size: 22, font: "Times New Roman" })],
+      spacing: { after: 300 },
+    })
+  );
+
+  // Witness 2
+  children.push(
+    new Paragraph({
+      children: [new TextRun({ text: "2. _________________________", size: 22, font: "Times New Roman" })],
+    })
+  );
+  children.push(
+    new Paragraph({
+      children: [new TextRun({ text: "   Name and I.D.:", size: 22, font: "Times New Roman" })],
     })
   );
 
@@ -578,122 +585,457 @@ function formatDate(date: Date): string {
 }
 
 /**
+ * Cyprus districts (main cities)
+ */
+const CYPRUS_DISTRICTS = ['paphos', 'pafos', 'limassol', 'larnaca', 'nicosia', 'famagusta'];
+
+/**
+ * Cyprus areas/villages/neighborhoods
+ */
+const CYPRUS_AREAS = [
+  'tala', 'universal', 'chloraka', 'geroskipou', 'kato paphos', 'konia',
+  'coral bay', 'peyia', 'kissonerga', 'emba', 'mesogi', 'tremithousa',
+  'yeroskipou', 'agios tychonas', 'agios theodoros', 'germasogeia', 'mouttayiaka',
+  'strovolos', 'engomi', 'lakatamia', 'latsia', 'aglantzia', 'acropolis',
+  'paralimni', 'ayia napa', 'protaras', 'sotira', 'derynia',
+  'pegeia', 'polis', 'latchi', 'neo chorio', 'argaka', 'pomos',
+  'oroklini', 'pervolia', 'kiti', 'livadia', 'aradippou', 'dromolaxia',
+  'parekklisia', 'pyrgos', 'mouttagiaka', 'erimi', 'episkopi', 'kolossi',
+  'ypsonas', 'zakaki', 'agios athanasios', 'mesa geitonia', 'polemidia',
+  'souni-zanakia', 'souni', 'zanakia',
+  'tsada', 'kamares', 'anarita', 'kouklia', 'mandria', 'aphrodite hills',
+];
+
+/**
+ * Complex/building name indicators
+ */
+const COMPLEX_INDICATORS = ['court', 'complex', 'tower', 'building', 'residence', 'residences', 'gardens', 'heights', 'village', 'park', 'plaza', 'house', 'villas', 'apartments'];
+
+/**
+ * Property type keywords to remove when we have a specific unit number
+ */
+const PROPERTY_TYPES = ['apartment', 'flat', 'house', 'townhouse', 'villa', 'bungalow', 'penthouse', 'maisonette', 'studio', 'duplex', 'plot', 'land'];
+
+/**
+ * Capitalize first letter of each word
+ */
+function titleCase(str: string): string {
+  return str.replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/**
+ * Format property description into single line format
+ *
+ * Target format:
+ * "Registration No. 0/1567 Konia, Paphos (Maroula Court, Flat No. 105)"
+ *
+ * Input examples:
+ * - "apartment with registration no 0/1567 konia paphos maroula court flat no 105"
+ * - "0/1547 townhouse cynthiana complex agios theodoros, paphos flat no 105"
+ * - "Flat No. 103, Cynthiana Complex, Tala, Paphos reg no 0/1234"
+ */
+function formatPropertyDescription(rawInput: string): string {
+  if (!rawInput || rawInput.length < 3) {
+    return "Property as described";
+  }
+
+  logger.debug("[formatPropertyDescription] Input:", { raw: rawInput });
+
+  // Clean the input - remove common prefixes and connectors
+  let input = rawInput
+    .toLowerCase()
+    .replace(/^property\s+(with\s+)?/i, '')
+    .replace(/^title\s+deed\s+/i, '')
+    .replace(/\bsituated\s+in\b/gi, '')
+    .replace(/\bwith\s+registration\s+number\b/gi, '')
+    .replace(/\bwith\s+reg\s*(?:no\.?)?\b/gi, '')
+    .replace(/\bwith\b/gi, '') // Remove standalone "with"
+    .replace(/\bin\s+(?=[a-z])/gi, '')
+    .trim();
+
+  // Extract registration number (format: X/XXXX like 0/1234 or 1/12345)
+  let regNumber: string | null = null;
+  const regMatch = input.match(/(?:reg(?:istration)?\.?\s*(?:no\.?|number)?\s*)?(\d+\/\d+)/i);
+  if (regMatch) {
+    regNumber = regMatch[1];
+    input = input
+      .replace(/reg(?:istration)?\.?\s*(?:no\.?|number)?\s*\d+\/\d+/gi, '')
+      .replace(regNumber, '')
+      .trim();
+  }
+
+  // Extract flat/unit/house number pattern
+  // Supports: "flat no 105", "flat no. 105", "flat number 105", "flat 105", "unit 5b", "townhousenumber 10b"
+  let flatInfo = "";
+  const flatNoMatch = input.match(/\b(flat|unit|apt|apartment|house|townhouse|villa|bungalow|penthouse|maisonette)\s*(?:no\.?|number)?\s*(\d+\s*[A-Za-z]?|\d+-?[A-Za-z])/i);
+  if (flatNoMatch) {
+    const flatNum = flatNoMatch[2].replace(/\s+/g, '').toUpperCase();
+    const flatType = flatNoMatch[1].charAt(0).toUpperCase() + flatNoMatch[1].slice(1).toLowerCase();
+    flatInfo = `${flatType} No. ${flatNum}`;
+    // Remove from input
+    input = input.replace(flatNoMatch[0], ' ').trim();
+  }
+
+  // Clean up and normalize whitespace
+  input = input.replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+
+  // Check for multi-word areas BEFORE splitting into individual words
+  // This handles "agios theodoros", "kato paphos", "coral bay", etc.
+  let area = "";
+  for (const multiWordArea of CYPRUS_AREAS.filter(a => a.includes(' '))) {
+    const regex = new RegExp(`\\b${multiWordArea}\\b`, 'i');
+    if (regex.test(input)) {
+      area = titleCase(multiWordArea);
+      input = input.replace(regex, ' ').trim();
+      break;
+    }
+  }
+
+  // Split into words
+  const words = input.split(/\s+/).filter(w => w.length > 0);
+
+  // Identify district (Paphos, Limassol, etc.)
+  let district = "";
+  const remainingWords: string[] = [];
+
+  for (const word of words) {
+    const wordLower = word.toLowerCase();
+    if (CYPRUS_DISTRICTS.includes(wordLower)) {
+      district = titleCase(word);
+    } else {
+      remainingWords.push(word);
+    }
+  }
+
+  // Identify single-word area (Konia, Tala, etc.) if not already found
+  const afterAreaWords: string[] = [];
+
+  for (const word of remainingWords) {
+    const wordLower = word.toLowerCase();
+    if (!area && CYPRUS_AREAS.includes(wordLower)) {
+      area = titleCase(word);
+    } else {
+      afterAreaWords.push(word);
+    }
+  }
+
+  // Identify complex name (contains court, complex, tower, etc.)
+  // Build complex name from consecutive words that form a complex
+  let complexName = "";
+  const finalWords: string[] = [];
+  let complexWords: string[] = [];
+  let foundComplexIndicator = false;
+
+  for (const word of afterAreaWords) {
+    const wordLower = word.toLowerCase();
+
+    // Skip standalone property types when we have a flat number
+    if (flatInfo && PROPERTY_TYPES.includes(wordLower)) {
+      continue;
+    }
+
+    if (COMPLEX_INDICATORS.includes(wordLower)) {
+      foundComplexIndicator = true;
+      complexWords.push(titleCase(word));
+    } else if (foundComplexIndicator) {
+      // Word after complex indicator - add to final words
+      finalWords.push(word);
+    } else {
+      // Potential complex name word (before indicator)
+      complexWords.push(titleCase(word));
+    }
+  }
+
+  // If we found a complex indicator, complexWords contains the full complex name
+  if (foundComplexIndicator) {
+    complexName = complexWords.join(' ');
+  } else {
+    // No complex found, put words back
+    finalWords.push(...complexWords.map(w => w.toLowerCase()));
+  }
+
+  // Build location string: "Area, District" or just "District"
+  let location = "";
+  if (area && district) {
+    location = `${area}, ${district}`;
+  } else if (district) {
+    location = district;
+  } else if (area) {
+    location = area;
+  }
+
+  // Build building info (complex + flat)
+  const buildingParts: string[] = [];
+  if (complexName) buildingParts.push(complexName);
+  if (flatInfo) buildingParts.push(flatInfo);
+  const buildingInfo = buildingParts.join(', ');
+
+  logger.debug("[formatPropertyDescription] Parsed:", {
+    regNumber,
+    location,
+    complexName,
+    flatInfo,
+    buildingInfo,
+  });
+
+  // Format: "Registration No. 0/1567 Konia, Paphos (Maroula Court, Flat No. 105)"
+  let description: string;
+  if (regNumber && location && buildingInfo) {
+    description = `Registration No. ${regNumber} ${location} (${buildingInfo})`;
+  } else if (regNumber && location) {
+    description = `Registration No. ${regNumber} ${location}`;
+  } else if (regNumber && buildingInfo) {
+    description = `Registration No. ${regNumber} (${buildingInfo})`;
+  } else if (regNumber) {
+    description = `Registration No. ${regNumber}`;
+  } else if (buildingInfo && location) {
+    // No parentheses when no registration number
+    description = `${buildingInfo}, ${location}`;
+  } else if (location) {
+    description = location;
+  } else if (buildingInfo) {
+    description = buildingInfo;
+  } else {
+    // Fallback: title case the original input
+    description = titleCase(rawInput);
+  }
+
+  logger.debug("[formatPropertyDescription] Output:", { description });
+  return description.replace(/,\s*$/, '').replace(/\(\s*\)/g, '').trim();
+}
+
+/**
  * Parse AI response to extract reservation agreement data
- * VERY forgiving parser - handles any format the AI might output
+ *
+ * Expected input format from SOPHIA (based on field collection):
+ * 1. Prospective buyer's full name, ID type, and ID number (e.g., Giorgos Ioannou Cyprus ID: 945119)
+ * 2. Vendor's full name, ID type, and ID number (e.g., Maria Panagiotou Cyprus ID: 989050)
+ * 3. Full property description (e.g., A plot with registration number 0/9029, situated in Mouttayiaka, Limassol)
+ * 4. Reservation fee amount (e.g., €10,000)
+ * 5. Purchase price (e.g., €435,000)
+ * 6. LOAN yes/no
+ * 7. VAT yes/no
  */
 export function parseReservationAgreementData(response: string): ReservationAgreementData | null {
   try {
     logger.debug("[ReservationAgreement] Parsing response", { length: response.length });
 
-    // Extract LOAN/VAT flags
-    const hasLoanClause = /loan/i.test(response) && /yes/i.test(response);
-    const hasVatClause = /vat/i.test(response) && /yes/i.test(response);
+    // Clean response - remove markdown bold markers
+    const cleanResponse = response.replace(/\*\*/g, '');
+
+    // Extract LOAN/VAT flags - look for explicit yes/no answers
+    // Pattern: "LOAN" followed by "Yes" or "No" (or vice versa)
+    const loanSection = cleanResponse.match(/loan[:\s]*(yes|no)|(?:does.*involve.*loan)[:\s]*(yes|no)|(yes|no)[,\s]*(?:loan|mortgage)/i);
+    const hasLoanClause = loanSection ? /yes/i.test(loanSection[0]) : false;
+
+    const vatSection = cleanResponse.match(/vat[:\s]*(yes|no)|(?:vat.*clause)[:\s]*(yes|no)|(yes|no)[,\s]*(?:vat)/i);
+    const hasVatClause = vatSection ? /yes/i.test(vatSection[0]) : false;
+
     logger.debug("[ReservationAgreement] Flags", { hasLoan: hasLoanClause, hasVat: hasVatClause });
 
-    // BUYER: Extract any name after "Prospective Buyer"
-    let buyerName = "";
-    let buyerIdType = "Cyprus ID";
-    let buyerIdNumber = "";
+    // BUYERS: Parse multiple buyers separated by "and"
+    // Format: "Name1 Cyprus ID: 123456 and Name2 Cyprus ID: 789012"
+    const buyers: BuyerInfo[] = [];
 
-    // Try to get buyer name - very forgiving
-    const buyerMatch = response.match(/Prospective\s+Buyer[:\s]*([A-Za-z][A-Za-z\s]*)/i);
-    if (buyerMatch) {
-      buyerName = buyerMatch[1].trim().split('\n')[0].trim(); // Take first line only
-    }
+    // First, find the buyer section
+    const buyerLineMatch = cleanResponse.match(/Prospective\s+Buyer[:\s]*([^\n]+)/i);
+    if (buyerLineMatch) {
+      const buyerLine = buyerLineMatch[1].trim();
+      logger.debug("[ReservationAgreement] Buyer line:", { buyerLine });
 
-    // Try to get first ID number after buyer section
-    const firstIdMatch = response.match(/(?:Cyprus\s+)?(?:ID|PASSPORT)[:\s]*(\d+)/i);
-    if (firstIdMatch) {
-      buyerIdNumber = firstIdMatch[1];
-      if (/passport/i.test(response.substring(0, response.indexOf(firstIdMatch[0]) + 50))) {
-        buyerIdType = "Cyprus Passport";
-      }
-    }
+      // Split by " and " to get individual buyers
+      const buyerSegments = buyerLine.split(/\s+and\s+/i);
 
-    logger.debug("[ReservationAgreement] Buyer", { name: buyerName, idType: buyerIdType, idNumber: buyerIdNumber });
+      for (const segment of buyerSegments) {
+        const trimmedSegment = segment.trim();
+        if (!trimmedSegment) continue;
 
-    if (!buyerName || !buyerIdNumber) {
-      // Last resort - just grab any name-like text
-      const anyNameMatch = response.match(/Buyer[:\s]*([A-Z][a-z]+\s+[A-Z][a-z]+)/);
-      if (anyNameMatch) buyerName = anyNameMatch[1];
-      const anyIdMatch = response.match(/(\d{5,})/);
-      if (anyIdMatch) buyerIdNumber = anyIdMatch[1];
-    }
+        // Try to parse "Name IDType: IDNumber" format
+        // Captures country/nationality before Passport/ID (e.g., "Jordan Passport", "American Passport", "British ID")
+        const parsed = trimmedSegment.match(/^([A-Za-z][A-Za-z\s]+?)\s+((?:[A-Za-z]+\s+)?(?:Passport|ID)|Cyprus\s+ID|UK\s+Passport)[:\s]*([A-Z0-9]+)/i);
 
-    if (!buyerName) {
-      logger.debug("[ReservationAgreement] No buyer name found");
-      return null;
-    }
-
-    const buyers: BuyerInfo[] = [{
-      fullName: buyerName,
-      idType: buyerIdType,
-      idNumber: buyerIdNumber || "000000",
-    }];
-
-    // VENDOR: Extract name after "Vendor"
-    let vendorName = "";
-    let vendorIdType = "Cyprus ID";
-    let vendorIdNumber = "";
-
-    const vendorMatch = response.match(/Vendor[:\s]*([A-Za-z][A-Za-z\s]*?)(?=\n|Cyprus|ID|PASSPORT|Property)/i);
-    if (vendorMatch) {
-      vendorName = vendorMatch[1].trim();
-    }
-
-    // Get vendor ID - look for ID after vendor section
-    const vendorSection = response.match(/Vendor[:\s]*([^]*?)(?=Property\s+Details)/i);
-    if (vendorSection) {
-      const vendorIdMatch = vendorSection[1].match(/(?:Cyprus\s+)?(?:ID|PASSPORT)[:\s]*(\d+)/i);
-      if (vendorIdMatch) {
-        vendorIdNumber = vendorIdMatch[1];
-        if (/passport/i.test(vendorSection[1])) {
-          vendorIdType = "Cyprus Passport";
+        if (parsed) {
+          buyers.push({
+            fullName: parsed[1].trim(),
+            idType: parsed[2].trim(),
+            idNumber: parsed[3].trim(),
+          });
+        } else {
+          // Try simpler format: "Name IDNumber" (assuming Cyprus ID)
+          const simpleParsed = trimmedSegment.match(/^([A-Za-z][A-Za-z\s]+?)\s+(\d{5,})/);
+          if (simpleParsed) {
+            buyers.push({
+              fullName: simpleParsed[1].trim(),
+              idType: "Cyprus ID",
+              idNumber: simpleParsed[2].trim(),
+            });
+          } else {
+            // Just take the name
+            const nameOnly = trimmedSegment.split(/\s+\d/)[0].trim();
+            if (nameOnly && nameOnly.length > 2) {
+              buyers.push({
+                fullName: nameOnly,
+                idType: "Cyprus ID",
+                idNumber: "000000",
+              });
+            }
+          }
         }
       }
     }
 
-    logger.debug("[ReservationAgreement] Vendor", { name: vendorName, idType: vendorIdType, idNumber: vendorIdNumber });
+    logger.debug("[ReservationAgreement] Buyers parsed:", { count: buyers.length, buyers });
 
-    if (!vendorName) {
-      // Fallback
-      const anyVendorMatch = response.match(/Vendor[:\s]*([A-Z][a-z]+)/);
-      if (anyVendorMatch) vendorName = anyVendorMatch[1];
-    }
-
-    if (!vendorName) {
-      logger.debug("[ReservationAgreement] No vendor name found");
+    if (buyers.length === 0) {
+      logger.debug("[ReservationAgreement] No buyers found");
       return null;
     }
 
-    const vendor: VendorInfo = {
-      name: vendorName,
-      idType: vendorIdType,
-      idNumber: vendorIdNumber || "000000",
+    // VENDORS: Parse multiple vendors separated by "and" (same logic as buyers)
+    const vendors: VendorInfo[] = [];
+
+    const vendorLineMatch = cleanResponse.match(/Vendor[:\s]*([^\n]+)/i);
+    if (vendorLineMatch) {
+      const vendorLine = vendorLineMatch[1].trim();
+      logger.debug("[ReservationAgreement] Vendor line:", { vendorLine });
+
+      // Split by " and " to get individual vendors
+      const vendorSegments = vendorLine.split(/\s+and\s+/i);
+
+      for (const segment of vendorSegments) {
+        const trimmedSegment = segment.trim();
+        if (!trimmedSegment) continue;
+
+        // Try to parse "Name IDType: IDNumber" format
+        // Captures country/nationality before Passport/ID (e.g., "Jordan Passport", "American Passport")
+        const parsed = trimmedSegment.match(/^([A-Za-z][A-Za-z\s]+?)\s+((?:[A-Za-z]+\s+)?(?:Passport|ID)|Cyprus\s+ID|UK\s+Passport)[:\s]*([A-Z0-9]+)/i);
+
+        if (parsed) {
+          vendors.push({
+            name: parsed[1].trim(),
+            idType: parsed[2].trim(),
+            idNumber: parsed[3].trim(),
+          });
+        } else {
+          // Try simpler format: "Name IDNumber"
+          const simpleParsed = trimmedSegment.match(/^([A-Za-z][A-Za-z\s]+?)\s+(\d{5,})/);
+          if (simpleParsed) {
+            vendors.push({
+              name: simpleParsed[1].trim(),
+              idType: "Cyprus ID",
+              idNumber: simpleParsed[2].trim(),
+            });
+          } else {
+            // Just take the name
+            const nameOnly = trimmedSegment.split(/\s+(Cyprus|Passport|ID|\d)/i)[0].trim();
+            if (nameOnly && nameOnly.length > 2) {
+              const idMatch = trimmedSegment.match(/(?:Cyprus\s+ID|Passport|ID)[:\s]*([A-Z0-9]+)/i);
+              vendors.push({
+                name: nameOnly,
+                idType: "Cyprus ID",
+                idNumber: idMatch ? idMatch[1] : "000000",
+              });
+            }
+          }
+        }
+      }
+    }
+
+    logger.debug("[ReservationAgreement] Vendors parsed:", { count: vendors.length, vendors });
+
+    if (vendors.length === 0) {
+      logger.debug("[ReservationAgreement] No vendors found");
+      return null;
+    }
+
+    // Primary vendor for backward compat
+    const vendor: VendorInfo = vendors[0];
+
+    // PROPERTY: Extract and FORMAT property description
+    let rawPropertyDesc = "";
+
+    // Try multiple patterns to extract property description
+    const propertyPatterns = [
+      // Pattern 1: "Property Details: ..." until "Reservation Fee" or numbered item
+      /Property\s+(?:Details|Description)[:\s]*([^]*?)(?=\n\s*(?:\d+\.|Reservation\s+Fee|Purchase\s+Price|Loan|VAT))/i,
+      // Pattern 2: "Property Details: ..." until end of line or next section
+      /Property\s+(?:Details|Description)[:\s]*(.+?)(?=\n\n|\nReservation|\nPurchase|$)/is,
+      // Pattern 3: Just get whatever follows "Property Details:"
+      /Property\s+(?:Details|Description)[:\s]*(.+)/i,
+      // Pattern 4: "Property:" followed by description
+      /Property[:\s]+([^\n]+)/i,
+    ];
+
+    for (const pattern of propertyPatterns) {
+      const match = cleanResponse.match(pattern);
+      if (match && match[1]) {
+        rawPropertyDesc = match[1].trim()
+          .replace(/\n+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (rawPropertyDesc && rawPropertyDesc.length > 5) {
+          break;
+        }
+      }
+    }
+
+    // Clean up property description - remove any trailing field markers
+    rawPropertyDesc = rawPropertyDesc
+      .replace(/\s*Reservation\s+Fee.*$/i, '')
+      .replace(/\s*Purchase\s+Price.*$/i, '')
+      .replace(/\s*\d+\.\s*.*$/i, '')
+      .trim();
+
+    // FORMAT the property description as single line with location outside parentheses
+    const formattedDescription = formatPropertyDescription(rawPropertyDesc);
+
+    logger.debug("[ReservationAgreement] Property", {
+      raw: rawPropertyDesc,
+      formatted: formattedDescription,
+    });
+
+    const property: PropertyInfo = {
+      description: formattedDescription,
     };
 
-    // PROPERTY: Extract description - take everything after "Property Details:" until next field
-    let propertyDesc = "Property as described";
-    const propertyMatch = response.match(/Property\s+Details[:\s]*([^]*?)(?=Reservation\s+Fee|Purchase\s+Price|$)/i);
-    if (propertyMatch) {
-      propertyDesc = propertyMatch[1].trim().split('\n')[0].trim() || propertyDesc;
-    }
-    logger.debug("[ReservationAgreement] Property", { preview: propertyDesc.substring(0, 50) });
-
-    const property: PropertyInfo = { description: propertyDesc };
-
-    // FINANCIAL: Extract amounts - be very forgiving
+    // FINANCIAL: Extract amounts
     let reservationFee = 5000; // default
     let purchasePrice = 300000; // default
 
-    const reservationMatch = response.match(/Reservation\s+Fee[:\s]*[€$]?\s*([\d,]+)/i);
-    if (reservationMatch) {
-      reservationFee = parseInt(reservationMatch[1].replace(/,/g, ""), 10) || 5000;
+    // Reservation fee patterns
+    const reservationPatterns = [
+      /Reservation\s+Fee[:\s]*[€$]?\s*([\d,]+)/i,
+      /Reservation[:\s]*[€$]\s*([\d,]+)/i,
+      /Fee[:\s]*[€$]\s*([\d,]+)/i,
+    ];
+
+    for (const pattern of reservationPatterns) {
+      const match = cleanResponse.match(pattern);
+      if (match) {
+        const parsed = parseInt(match[1].replace(/,/g, ""), 10);
+        if (parsed > 0) {
+          reservationFee = parsed;
+          break;
+        }
+      }
     }
 
-    const purchaseMatch = response.match(/Purchase\s+Price[:\s]*[€$]?\s*([\d,]+)/i);
-    if (purchaseMatch) {
-      purchasePrice = parseInt(purchaseMatch[1].replace(/,/g, ""), 10) || 300000;
+    // Purchase price patterns
+    const purchasePatterns = [
+      /Purchase\s+Price[:\s]*[€$]?\s*([\d,]+)/i,
+      /Price[:\s]*[€$]\s*([\d,]+)/i,
+      /Total[:\s]*[€$]\s*([\d,]+)/i,
+    ];
+
+    for (const pattern of purchasePatterns) {
+      const match = cleanResponse.match(pattern);
+      if (match) {
+        const parsed = parseInt(match[1].replace(/,/g, ""), 10);
+        if (parsed > 0) {
+          purchasePrice = parsed;
+          break;
+        }
+      }
     }
 
     logger.debug("[ReservationAgreement] Financial", { reservationFee, purchasePrice });
@@ -706,9 +1048,9 @@ export function parseReservationAgreementData(response: string): ReservationAgre
     };
 
     logger.debug("[ReservationAgreement] PARSE SUCCESS:", {
-      buyer: buyers[0].fullName,
-      vendor: vendor.name,
-      property: propertyDesc.substring(0, 30),
+      buyers: buyers.map(b => `${b.fullName} ${b.idType}: ${b.idNumber}`),
+      vendors: vendors.map(v => `${v.name} ${v.idType}: ${v.idNumber}`),
+      property: formattedDescription.substring(0, 80),
       loan: hasLoanClause,
       vat: hasVatClause,
     });
@@ -716,6 +1058,7 @@ export function parseReservationAgreementData(response: string): ReservationAgre
     return {
       buyers,
       vendor,
+      vendors,
       property,
       financial,
       hasLoanClause,

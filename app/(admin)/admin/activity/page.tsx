@@ -1,8 +1,8 @@
 // Prevent static generation - this page needs real-time data
 export const dynamic = "force-dynamic";
 
+import { createClient } from "@supabase/supabase-js";
 import { format, formatDistanceToNow } from "date-fns";
-import { and, desc, eq, gt, or } from "drizzle-orm";
 import { Smartphone, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -14,36 +14,70 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { db } from "@/lib/db/client";
-import { agentExecutionLog, zyprusAgent } from "@/lib/db/schema";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+);
 
 async function getActivityData() {
-  // 1. Get Online Agents (active in last 15 minutes)
-  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+  // 1. Get Online Agents (active in last 15 minutes) - checking whatsapp_analytics instead
+  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
 
-  const onlineAgents = await db
-    .select()
-    .from(zyprusAgent)
-    .where(gt(zyprusAgent.lastActiveAt, fifteenMinutesAgo))
-    .orderBy(desc(zyprusAgent.lastActiveAt));
+  // Since we don't have last_active_at populated, we'll show recently active agents from whatsapp_analytics
+  const { data: recentActivity } = await supabase
+    .from("whatsapp_analytics")
+    .select("agent_id, phone_number, created_at")
+    .gte("created_at", fifteenMinutesAgo)
+    .order("created_at", { ascending: false });
 
-  // 2. Get Recent WhatsApp Messages
-  const recentMessages = await db
-    .select()
-    .from(agentExecutionLog)
-    .where(
-      and(
-        eq(agentExecutionLog.agentType, "whatsapp"),
-        or(
-          eq(agentExecutionLog.action, "message_received"),
-          eq(agentExecutionLog.action, "message_sent")
-        )
-      )
-    )
-    .orderBy(desc(agentExecutionLog.timestamp))
+  // Get unique agent IDs from recent activity
+  const activeAgentIds = [...new Set((recentActivity || []).map(a => a.agent_id).filter(Boolean))];
+
+  let onlineAgents: Array<{
+    id: string;
+    fullName: string;
+    email: string;
+    role: string | null;
+    region: string | null;
+    lastActiveAt: string | null;
+  }> = [];
+
+  if (activeAgentIds.length > 0) {
+    const { data: agents } = await supabase
+      .from("agents")
+      .select("id, full_name, communication_email, region, role")
+      .in("id", activeAgentIds);
+
+    onlineAgents = (agents || []).map((a) => ({
+      id: a.id,
+      fullName: a.full_name,
+      email: a.communication_email || "",
+      role: a.role,
+      region: a.region,
+      lastActiveAt: recentActivity?.find(r => r.agent_id === a.id)?.created_at || null,
+    }));
+  }
+
+  // 2. Get Recent WhatsApp Messages from whatsapp_analytics
+  const { data: recentMessages } = await supabase
+    .from("whatsapp_analytics")
+    .select("*")
+    .in("event_type", ["message_received", "message_sent", "tool_call"])
+    .order("created_at", { ascending: false })
     .limit(50);
 
-  return { onlineAgents, recentMessages };
+  const formattedMessages = (recentMessages || []).map((msg) => ({
+    id: msg.id,
+    action: msg.event_type,
+    timestamp: msg.created_at,
+    metadata: {
+      from: msg.phone_number,
+      message: msg.tool_name || msg.template_name || msg.event_type,
+    },
+  }));
+
+  return { onlineAgents, recentMessages: formattedMessages };
 }
 
 export default async function ActivityPage() {
@@ -145,7 +179,7 @@ export default async function ActivityPage() {
               ) : (
                 <div className="space-y-4">
                   {recentMessages.map((msg) => {
-                    const metadata = msg.metadata as any;
+                    const metadata = msg.metadata as { from?: string; message?: string };
                     const isReceived = msg.action === "message_received";
 
                     return (

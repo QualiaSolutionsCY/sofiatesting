@@ -1,12 +1,19 @@
-import { format, subDays } from "date-fns";
-import { count, desc, eq, isNull } from "drizzle-orm";
+import { createClient } from "@supabase/supabase-js";
+import { format } from "date-fns";
+
+export const dynamic = "force-dynamic";
 import {
   Activity,
+  ArrowRight,
+  Building2,
   CheckCircle2,
+  FileEdit,
+  MessageSquare,
   UserCheck,
   UserPlus,
   Users,
 } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/app/(auth)/auth";
 import { DistributionChart, OverviewChart } from "@/components/admin/charts";
@@ -19,30 +26,45 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { db } from "@/lib/db/client";
-import { systemHealthLog, zyprusAgent } from "@/lib/db/schema";
 import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("admin:dashboard");
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+);
+
+type AgentRow = {
+  id: string;
+  full_name: string;
+  communication_email: string | null;
+  region: string | null;
+  is_active: boolean;
+  telegram_user_id: number | null;
+  created_at: string;
+};
+
 async function getDashboardStats() {
   try {
-    // 1. Agent Stats
-    const [totalCount] = await db.select({ count: count() }).from(zyprusAgent);
-    const [activeCount] = await db
-      .select({ count: count() })
-      .from(zyprusAgent)
-      .where(eq(zyprusAgent.isActive, true));
-    const [pendingCount] = await db
-      .select({ count: count() })
-      .from(zyprusAgent)
-      .where(isNull(zyprusAgent.registeredAt));
+    // 1. Agent Stats - Total
+    const { count: totalCount } = await supabase
+      .from("agents")
+      .select("*", { count: "exact", head: true });
 
-    // 2. Recent Activity (Last 7 days)
-    const _sevenDaysAgo = subDays(new Date(), 7);
+    // Active agents
+    const { count: activeCount } = await supabase
+      .from("agents")
+      .select("*", { count: "exact", head: true })
+      .eq("is_active", true);
 
-    // Mocking activity data for chart (since we might not have enough real data yet)
-    // In a real scenario, we would aggregate `agentExecutionLog` by day
+    // Pending (no telegram_user_id)
+    const { count: pendingCount } = await supabase
+      .from("agents")
+      .select("*", { count: "exact", head: true })
+      .is("telegram_user_id", null);
+
+    // 2. Activity data (mock for now)
     const activityData = [
       { name: "Mon", total: Math.floor(Math.random() * 50) + 10 },
       { name: "Tue", total: Math.floor(Math.random() * 50) + 10 },
@@ -54,34 +76,43 @@ async function getDashboardStats() {
     ];
 
     // 3. Regional Distribution
-    const regionalStats = await db
-      .select({
-        name: zyprusAgent.region,
-        value: count(),
-      })
-      .from(zyprusAgent)
-      .groupBy(zyprusAgent.region)
-      .orderBy(desc(count()));
+    const { data: agents } = await supabase
+      .from("agents")
+      .select("region");
 
-    // 4. System Health (Latest logs)
-    const healthLogs = await db
-      .select()
-      .from(systemHealthLog)
-      .orderBy(desc(systemHealthLog.timestamp))
-      .limit(5);
+    const regionCounts: Record<string, number> = {};
+    for (const agent of agents || []) {
+      const region = agent.region || "unknown";
+      regionCounts[region] = (regionCounts[region] || 0) + 1;
+    }
+    const regionalStats = Object.entries(regionCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    // 4. System Health (empty for now - table may not exist)
+    const healthLogs: Array<{ id: string; service: string; status: string; timestamp: string }> = [];
 
     // 5. Recent Agents
-    const recentAgents = await db
-      .select()
-      .from(zyprusAgent)
-      .orderBy(desc(zyprusAgent.createdAt))
+    const { data: recentAgentsData } = await supabase
+      .from("agents")
+      .select("id, full_name, communication_email, region, is_active, created_at")
+      .order("created_at", { ascending: false })
       .limit(5);
+
+    const recentAgents = (recentAgentsData as AgentRow[] || []).map((a) => ({
+      id: a.id,
+      fullName: a.full_name,
+      email: a.communication_email || "",
+      region: a.region,
+      isActive: a.is_active,
+      createdAt: a.created_at,
+    }));
 
     return {
       agents: {
-        total: totalCount.count,
-        active: activeCount.count,
-        pending: pendingCount.count,
+        total: totalCount || 0,
+        active: activeCount || 0,
+        pending: pendingCount || 0,
       },
       activityData,
       regionalStats,
@@ -90,7 +121,6 @@ async function getDashboardStats() {
     };
   } catch (error) {
     logger.error("Failed to fetch dashboard stats", error);
-    // Return default values to allow page to render
     return {
       agents: { total: 0, active: 0, pending: 0 },
       activityData: [
@@ -187,6 +217,105 @@ export default async function AdminDashboardPage() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Link href="/admin/prompts">
+          <Card className="h-full cursor-pointer transition-all hover:border-primary hover:shadow-md">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-purple-100 p-2 dark:bg-purple-900">
+                  <FileEdit className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Prompts Editor</CardTitle>
+                  <CardDescription className="text-xs">
+                    Edit SOPHIA&apos;s behavior
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="flex items-center justify-between text-muted-foreground text-sm">
+                <span>8 prompt sections</span>
+                <ArrowRight className="h-4 w-4" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/admin/agents-registry">
+          <Card className="h-full cursor-pointer transition-all hover:border-primary hover:shadow-md">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-blue-100 p-2 dark:bg-blue-900">
+                  <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Agents Registry</CardTitle>
+                  <CardDescription className="text-xs">
+                    Manage agent permissions
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="flex items-center justify-between text-muted-foreground text-sm">
+                <span>{stats.agents.total} agents</span>
+                <ArrowRight className="h-4 w-4" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/admin/listings">
+          <Card className="h-full cursor-pointer transition-all hover:border-primary hover:shadow-md">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-green-100 p-2 dark:bg-green-900">
+                  <Building2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Listings Review</CardTitle>
+                  <CardDescription className="text-xs">
+                    Review draft listings
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="flex items-center justify-between text-muted-foreground text-sm">
+                <span>Property uploads</span>
+                <ArrowRight className="h-4 w-4" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/chat">
+          <Card className="h-full cursor-pointer transition-all hover:border-primary hover:shadow-md">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-orange-100 p-2 dark:bg-orange-900">
+                  <MessageSquare className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Chat with SOPHIA</CardTitle>
+                  <CardDescription className="text-xs">
+                    Test AI assistant
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="flex items-center justify-between text-muted-foreground text-sm">
+                <span>Web interface</span>
+                <ArrowRight className="h-4 w-4" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* Charts Section */}

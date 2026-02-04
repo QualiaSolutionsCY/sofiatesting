@@ -41,18 +41,11 @@ export async function addPendingImages(
     imageCount: imageUrls.length,
   });
 
-  // Build records - correlation_id column may not exist yet
-  const records = imageUrls.map(url => {
-    const record: Record<string, unknown> = {
-      phone_number: phoneNumber,
-      image_url: url,
-    };
-    // Add correlation_id if available (column may not exist yet)
-    if (corrId) {
-      record.correlation_id = corrId;
-    }
-    return record;
-  });
+  // Build records - only include columns that exist in the table
+  const records = imageUrls.map(url => ({
+    phone_number: phoneNumber,
+    image_url: url,
+  }));
 
   const { error } = await supabase
     .from("pending_images")
@@ -75,22 +68,39 @@ export async function addPendingImages(
   }
 }
 
+// Track last cleanup time to avoid per-request cleanup overhead
+let lastCleanupTime = 0;
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
 /**
- * Get all pending images for a user (accumulated across multiple webhook calls)
- * Also cleans up expired images (older than 1 hour)
+ * Clean up expired images - called periodically, not on every request
  */
-export async function getPendingImages(phoneNumber: string): Promise<string[]> {
-  const ctx = getContext();
+async function cleanupExpiredImages(): Promise<void> {
+  const now = Date.now();
+  // Only cleanup every 5 minutes to reduce database load
+  if (now - lastCleanupTime < CLEANUP_INTERVAL_MS) {
+    return;
+  }
+  lastCleanupTime = now;
 
-  // First, clean up expired images
-  const expiryTime = new Date(Date.now() - EXPIRY_MS).toISOString();
-
+  const expiryTime = new Date(now - EXPIRY_MS).toISOString();
   await supabase
     .from("pending_images")
     .delete()
     .lt("created_at", expiryTime);
+}
 
-  // Now get all pending images for this user
+/**
+ * Get all pending images for a user (accumulated across multiple webhook calls)
+ * Cleanup runs periodically (every 5 min) to reduce per-request overhead
+ */
+export async function getPendingImages(phoneNumber: string): Promise<string[]> {
+  const ctx = getContext();
+
+  // Periodic cleanup (non-blocking, fire and forget)
+  cleanupExpiredImages().catch(() => {});
+
+  // Get all pending images for this user
   const { data, error } = await supabase
     .from("pending_images")
     .select("image_url")

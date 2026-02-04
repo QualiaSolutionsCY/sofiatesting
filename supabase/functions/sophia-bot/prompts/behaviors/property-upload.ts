@@ -49,7 +49,31 @@ When user says "create listing", "upload property", "I want to add a property":
 - Owner email - ALWAYS capture if provided
 - Features: pool, garden, sea view, air conditioning, parking, storeroom, office, gym, etc.
 - Special notes for the review team - ALWAYS capture verbatim if provided
-- assignTo (for management): If user says "assign to Diana" or "assign to diana@zyprus.com", PASS AS assignTo
+- **assignTo**: If user says "assign to [name]", convert to email and PASS AS assignTo
+  - Agent name → email mapping:
+    - Evelina → evelina@zyprus.com
+    - Diana → diana@zyprus.com
+    - Michelle → michelle@zyprus.com
+    - Demetra → demetra@zyprus.com
+    - Lauren → listings@zyprus.com
+    - Charalambos → csc@zyprus.com
+    - Azinas/Marios Azinas → azinas@zyprus.com
+    - Marios Polyviou → marios@zyprus.com
+    - Maria → maria@zyprus.com
+    - Christos → christos@zyprus.com
+    - Dimitris → dimitris@zyprus.com
+    - Susan → susan@zyprus.com
+    - Victoria → victoria@zyprus.com
+    - Brendan → brendan@zyprus.com
+    - Natalia → natalia.larnaca@zyprus.com
+    - Lysandros → larnaca@zyprus.com
+    - Ivan → nicosia@zyprus.com
+    - Narine → famagusta@zyprus.com
+    - Nick → nick@zyprus.com
+    - Olga → olga@zyprus.com
+    - Philippos → philippos@zyprus.com
+    - Olha → olha@zyprus.com
+  - MUST pass email format (e.g., "Assign to Evelina" → assignTo: "evelina@zyprus.com")
 
 **CRITICAL: Never omit optional information the user provides. If user gives owner email, special notes, veranda sizes, or assignment instructions - you MUST include them in the tool call.**
 

@@ -11,27 +11,24 @@
 
 import { Document, Packer, Paragraph, ImageRun, TextRun, AlignmentType } from "https://esm.sh/docx@8.5.0";
 import { ZYPRUS_LOGO_BASE64 } from "./prompts.ts";
-import { isRequestingInformation, containsPlaceholders, isCompletedReservationAgreementDocument } from "./utils/field-validator.ts";
+import { isRequestingInformation, containsPlaceholders } from "./utils/field-validator.ts";
 import {
   createReservationAgreement,
   parseReservationAgreementData,
+  createMarketingAgreement,
+  parseMarketingAgreementData,
 } from "./docx/templates/index.ts";
 import { logger, LogCategory } from "./utils/logger.ts";
 
-/**
- * DOCX Template Titles - Only these generate DOCX files
- */
-const DOCX_TEMPLATE_TITLES = [
-  "viewing form",
-  "standard viewing form",
-  "advanced viewing form",
-  "advanced viewing/introduction form",
-  "property reservation agreement",
-  "property reservation",
-  "reservation agreement",
-  "marketing agreement",
-  "non-exclusive marketing agreement",
-];
+// Import from centralized modules
+import {
+  extractTemplateTitle as centralizedExtractTitle,
+  isDocxTemplateTitle as centralizedIsDocxTitle,
+} from "./templates/registry.ts";
+import {
+  isClarificationQuestion as centralizedIsClarification,
+  isConfirmationMessage as centralizedIsConfirmation,
+} from "./templates/detection.ts";
 
 /**
  * Font settings
@@ -44,35 +41,7 @@ const FONTS = {
   },
 };
 
-/**
- * Checks if a response is a confirmation message (not actual document content)
- * These should ALWAYS be sent as text, never as DOCX
- */
-function isConfirmationMessage(text: string): boolean {
-  // Patterns that indicate this is a confirmation, not document content
-  const confirmationPatterns = [
-    /i have sent/i,
-    /i['']ve sent/i,
-    /has been sent/i,
-    /successfully sent/i,
-    /email sent/i,
-    /document sent/i,
-    /sent to .+@.+\..+/i,
-    /please check your inbox/i,
-    /don['']t forget to/i,
-  ];
-
-  // If the message is short and contains confirmation patterns
-  if (text.length < 500) {
-    for (const pattern of confirmationPatterns) {
-      if (pattern.test(text)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
+// isConfirmationMessage imported from templates/detection.ts as centralizedIsConfirmation
 
 /**
  * PERFORMANCE: Pre-decode logo at module initialization (cold start)
@@ -96,110 +65,11 @@ const DECODED_LOGO: Uint8Array | null = (() => {
   }
 })();
 
-/**
- * Extract template title from AI response
- */
-function extractTemplateTitle(response: string): string | null {
-  const lines = response.trim().split('\n');
-  
-  for (let i = 0; i < Math.min(5, lines.length); i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    
-    // Check for bold header: **Title**
-    const boldMatch = line.match(/^\*\*([^*]+)\*\*$/);
-    if (boldMatch) {
-      return boldMatch[1].trim();
-    }
-    
-    // Check for plain title
-    if (line.match(/^[A-Z][a-zA-Z\s\/\-]+$/) && line.length < 50) {
-      return line;
-    }
-  }
-  
-  return null;
-}
-
-/**
- * Check if title matches a DOCX template
- */
-function isDocxTemplateTitle(title: string): boolean {
-  const normalized = title.toLowerCase().trim();
-  return DOCX_TEMPLATE_TITLES.some(t => normalized.includes(t));
-}
-
-/**
- * Check if response is a clarification question (asking user for info)
- * These should NEVER be sent as DOCX
- */
-function isClarificationQuestion(response: string): boolean {
-  // FIRST: Check if this is a completed reservation agreement - these should NOT be classified as clarifications
-  if (isCompletedReservationAgreementDocument(response)) {
-    logger.debug("[DOCX] Detected completed reservation agreement, not a clarification", { category: LogCategory.GENERAL });
-    return false;
-  }
-
-  const lower = response.toLowerCase();
-
-  // Clarification patterns - AI asking for more info
-  const clarificationPatterns = [
-    "please provide",
-    "please specify",
-    "i'll create",
-    "i will create",
-    "i'll generate",
-    "i will generate",
-    "i'll prepare",
-    "i will prepare",
-    "could you provide",
-    "could you specify",
-    "can you provide",
-    "can you specify",
-    "i need the following",
-    "please share",
-    "what is the",
-    "what are the",
-    "which property",
-    "to proceed",
-    "to generate this",
-    "to create this",
-    "would you like",
-    "do you want",
-    "do you need",
-    "which one",
-    "which type",
-    "which would you",
-    "please choose",
-    "please select",
-    "let me know which",
-    "let me know if",
-    " or the ",
-    "standard or advanced",
-    "here are the options",
-    "here's what i can",
-    "here is what i can",
-  ];
-
-  // Check if response is short and contains clarification patterns
-  if (response.length < 1000) {
-    for (const pattern of clarificationPatterns) {
-      if (lower.includes(pattern)) {
-        logger.debug(`[DOCX] Clarification detected: "${pattern}"`, { category: LogCategory.GENERAL });
-        return true;
-      }
-    }
-  }
-
-  // Check for question marks in short responses
-  const questionCount = (response.match(/\?/g) || []).length;
-  if (questionCount >= 1 && response.length < 600) {
-    logger.debug("[DOCX] Clarification detected: question mark in short response", { category: LogCategory.GENERAL });
-    return true;
-  }
-
-  return false;
-}
+// Use centralized functions from templates/
+const extractTemplateTitle = centralizedExtractTitle;
+const isDocxTemplateTitle = centralizedIsDocxTitle;
+const isClarificationQuestion = centralizedIsClarification;
+const isConfirmationMessage = centralizedIsConfirmation;
 
 /**
  * Determines if an AI response should be sent as a DOCX file
@@ -250,6 +120,12 @@ export function isDocxTemplate(
   // Rule 1: Subject line = email = TEXT
   if (aiResponse.includes("Subject:")) {
     logger.debug("[DOCX] Has Subject: -> TEXT", { category: LogCategory.GENERAL });
+    return false;
+  }
+
+  // Rule 1.5: Registration templates (contain "Dear XXXXXXXX") are ALWAYS TEXT
+  if (/Dear\s+X{6,}/i.test(aiResponse)) {
+    logger.debug("[DOCX] Contains 'Dear XXXXXXXX' registration pattern -> TEXT", { category: LogCategory.GENERAL });
     return false;
   }
 
@@ -306,11 +182,12 @@ export function isDocxTemplate(
   }
 
   // Marketing Agreement detection - multiple patterns
+  // IMPORTANT: "between" + "csc zyprus" + "agent" is too broad - matches registration emails
   const marketingPatterns = [
-    firstPart.includes("marketing agreement"),
-    firstPart.includes("non-exclusive") && firstPart.includes("agreement"),
-    firstPart.includes("between") && firstPart.includes("csc zyprus") && firstPart.includes("agent"),
-    firstPart.includes("seller") && firstPart.includes("agent may advertise"),
+    firstPart.includes("marketing agreement") && !firstPart.includes("subject:"),
+    firstPart.includes("non-exclusive") && firstPart.includes("agreement") && !firstPart.includes("subject:"),
+    firstPart.includes("between") && firstPart.includes("csc zyprus") && firstPart.includes("agent may advertise"),
+    firstPart.includes("terms and conditions for property listing"),
   ];
   if (marketingPatterns.some(p => p)) {
     // Check if it's actually requesting form information
@@ -378,6 +255,13 @@ export async function createDocxFile(content: string, _filename: string = "docum
       content.toLowerCase().includes("reservation agreement") ||
       (content.toLowerCase().includes("property reservation") && content.toLowerCase().includes("prospective buyer"));
 
+    // Check if this is a Marketing Agreement - use specialized template (NO LOGO)
+    // IMPORTANT: Do NOT match registration templates that mention CSC Zyprus + seller
+    const contentLower = content.toLowerCase();
+    const isMarketingAgreement = (contentLower.includes("marketing agreement") && !contentLower.includes("subject:") && !/Dear\s+X{6,}/i.test(content)) ||
+      (contentLower.includes("non-exclusive") && contentLower.includes("agreement") && !contentLower.includes("subject:")) ||
+      (contentLower.includes("terms and conditions for property listing") && contentLower.includes("representation"));
+
     // Use specialized Reservation Agreement template
     if (isReservationAgreement) {
       logger.debug("[DOCX] Detected Reservation Agreement - using specialized template", { category: LogCategory.GENERAL });
@@ -389,6 +273,36 @@ export async function createDocxFile(content: string, _filename: string = "docum
         return new Uint8Array(buffer);
       } else {
         logger.warn("[DOCX] Failed to parse reservation agreement data - falling back to generic DOCX", { category: LogCategory.GENERAL });
+      }
+    }
+
+    // Use specialized Marketing Agreement template (NO LOGO - NEVER fall back to generic)
+    if (isMarketingAgreement) {
+      logger.debug("[DOCX] Detected Marketing Agreement - using specialized template (no logo)", { category: LogCategory.GENERAL });
+      // Extract agent name from content if available
+      const agentMatch = content.match(/represented by\s+([A-Za-z\s]+?)(?:\.|,|\n)/i);
+      const agentName = agentMatch ? agentMatch[1].trim() : "Charalambos Pitros";
+
+      const parsedData = parseMarketingAgreementData(content, agentName);
+      if (parsedData) {
+        logger.debug("[DOCX] Successfully parsed marketing agreement data", { category: LogCategory.GENERAL });
+        const doc = createMarketingAgreement(parsedData);
+        const buffer = await Packer.toBuffer(doc);
+        return new Uint8Array(buffer);
+      } else {
+        // CRITICAL FIX: Even if parsing fails, use clean template with placeholders
+        // NEVER fall back to generic DOCX (which adds logo)
+        logger.warn("[DOCX] Failed to parse marketing agreement data - using template with placeholders (no logo)", { category: LogCategory.GENERAL });
+        const fallbackData = {
+          agreementDate: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+          sellerFullName: "[Seller's Name]",
+          propertyRegistration: "[Property Registration]",
+          marketingPrice: "[Price]",
+          agentName: agentName,
+        };
+        const doc = createMarketingAgreement(fallbackData);
+        const buffer = await Packer.toBuffer(doc);
+        return new Uint8Array(buffer);
       }
     }
 
@@ -430,7 +344,7 @@ export async function createDocxFile(content: string, _filename: string = "docum
       const parts: TextRun[] = [];
       const boldRegex = /\*\*(.*?)\*\*/g;
       let lastIndex = 0;
-      let match;
+      let match: RegExpExecArray | null;
       
       while ((match = boldRegex.exec(line)) !== null) {
         if (match.index > lastIndex) {

@@ -1,12 +1,50 @@
-import { randomBytes } from "node:crypto";
-import { and, desc, eq, ilike, or, type SQL } from "drizzle-orm";
+import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { checkAdminAuth, hasMinimumRole } from "@/lib/auth/admin";
-import { db } from "@/lib/db/client";
-import { zyprusAgent } from "@/lib/db/schema";
 import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("api:admin:agents");
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+);
+
+/**
+ * Transform a raw agents row from Supabase into the camelCase format
+ * expected by the admin panel client components.
+ */
+const transformAgent = (a: Record<string, unknown>) => ({
+  id: a.id,
+  userId: a.user_id ?? null,
+  fullName: a.full_name,
+  email: (a.communication_email as string) || "",
+  phoneNumber: a.mobile ?? null,
+  region: a.region
+    ? (a.region as string).charAt(0).toUpperCase() +
+      (a.region as string).slice(1)
+    : "Unknown",
+  role: (a.role as string) || "agent",
+  isActive: a.is_active ?? true,
+  canReceiveLeads: a.can_receive_leads ?? true,
+  telegramUserId: a.telegram_user_id?.toString() || null,
+  whatsappPhoneNumber: a.whatsapp_phone_number ?? null,
+  lastActiveAt: a.last_active_at
+    ? new Date(a.last_active_at as string)
+    : null,
+  registeredAt: a.telegram_user_id
+    ? new Date(a.created_at as string)
+    : null,
+  inviteSentAt: a.invite_sent_at
+    ? new Date(a.invite_sent_at as string)
+    : null,
+  inviteToken: a.invite_token ?? null,
+  notes: a.notes ?? null,
+  createdAt: new Date(a.created_at as string),
+  updatedAt: a.updated_at
+    ? new Date(a.updated_at as string)
+    : new Date(a.created_at as string),
+});
 
 /**
  * GET /api/admin/agents
@@ -42,53 +80,48 @@ export async function GET(request: NextRequest) {
     const limit = Number.parseInt(searchParams.get("limit") || "50", 10);
     const offset = (page - 1) * limit;
 
-    // Build WHERE clause
-    const conditions: SQL[] = [];
+    // Build query
+    let query = supabase
+      .from("agents")
+      .select("*", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (region) {
-      conditions.push(eq(zyprusAgent.region, region));
+      query = query.eq("region", region.toLowerCase());
     }
 
     if (role) {
-      conditions.push(eq(zyprusAgent.role, role));
+      query = query.eq("role", role);
     }
 
-    if (isActive !== null) {
-      conditions.push(eq(zyprusAgent.isActive, isActive === "true"));
+    if (isActive !== null && isActive !== undefined) {
+      query = query.eq("is_active", isActive === "true");
     }
 
     if (search) {
-      const searchCondition = or(
-        ilike(zyprusAgent.fullName, `%${search}%`),
-        ilike(zyprusAgent.email, `%${search}%`)
+      query = query.or(
+        `full_name.ilike.%${search}%,communication_email.ilike.%${search}%`
       );
-      if (searchCondition) {
-        conditions.push(searchCondition);
-      }
     }
 
-    // Execute query with pagination
-    const agents = await db
-      .select()
-      .from(zyprusAgent)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(zyprusAgent.createdAt))
-      .limit(limit)
-      .offset(offset);
+    const { data: agents, count, error } = await query;
 
-    // Get total count for pagination
-    const [{ count }] = await db
-      .select({ count: db.$count(zyprusAgent) })
-      .from(zyprusAgent)
-      .where(conditions.length > 0 ? and(...conditions) : undefined);
+    if (error) {
+      logger.error("Error fetching agents", error);
+      return NextResponse.json(
+        { error: "Failed to fetch agents", details: error.message },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
-      agents,
+      agents: (agents || []).map(transformAgent),
       pagination: {
         page,
         limit,
-        total: Number(count),
-        totalPages: Math.ceil(Number(count) / limit),
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit),
       },
     });
   } catch (error) {
@@ -149,43 +182,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const email = body.email.toLowerCase();
+
     // Check if email already exists
-    const existing = await db
-      .select()
-      .from(zyprusAgent)
-      .where(eq(zyprusAgent.email, body.email.toLowerCase()))
+    const { data: existing } = await supabase
+      .from("agents")
+      .select("id")
+      .eq("communication_email", email)
       .limit(1);
 
-    if (existing.length > 0) {
+    if (existing && existing.length > 0) {
       return NextResponse.json(
         { error: "Agent with this email already exists" },
         { status: 409 }
       );
     }
 
-    // Generate invite token
-    const inviteToken = randomBytes(32).toString("hex");
-
     // Create agent
-    const [agent] = await db
-      .insert(zyprusAgent)
-      .values({
-        fullName: body.fullName,
-        email: body.email.toLowerCase(),
-        phoneNumber: body.phoneNumber || null,
-        region: body.region,
+    const { data: agent, error } = await supabase
+      .from("agents")
+      .insert({
+        full_name: body.fullName,
+        communication_email: email,
+        listing_owner_email: email,
+        mobile: body.phoneNumber || "",
+        region: body.region.toLowerCase(),
         role: body.role,
-        isActive: body.isActive ?? true,
-        notes: body.notes || null,
-        inviteToken,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        is_active: body.isActive ?? true,
       })
-      .returning();
+      .select()
+      .single();
+
+    if (error) {
+      logger.error("Error creating agent", error);
+      return NextResponse.json(
+        { error: "Failed to create agent", details: error.message },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json(
       {
-        agent,
+        agent: transformAgent(agent),
         message: "Agent created successfully",
       },
       { status: 201 }

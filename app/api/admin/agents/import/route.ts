@@ -1,11 +1,14 @@
-import { randomBytes } from "node:crypto";
+import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { read, utils } from "xlsx";
-import { db } from "@/lib/db/client";
-import { zyprusAgent } from "@/lib/db/schema";
 import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("api:admin:agents:import");
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+);
 
 type AgentRow = {
   "Fulla Name": string;
@@ -15,7 +18,7 @@ type AgentRow = {
   Role: string;
 };
 
-function normalizePhoneNumber(phone: string | number): string {
+const normalizePhoneNumber = (phone: string | number): string => {
   if (typeof phone === "number") {
     const phoneStr = phone.toString();
     if (phoneStr.startsWith("357")) {
@@ -34,11 +37,11 @@ function normalizePhoneNumber(phone: string | number): string {
   }
 
   return cleaned;
-}
+};
 
-function normalizeEmail(email: string): string {
+const normalizeEmail = (email: string): string => {
   return email.trim().toLowerCase();
-}
+};
 
 /**
  * POST /api/admin/agents/import
@@ -87,19 +90,20 @@ export async function POST(request: NextRequest) {
     // Transform and validate data
     const agents = rawData
       .filter((row) => row["Fulla Name"] && row["Email use to communicate"])
-      .map((row) => ({
-        fullName: row["Fulla Name"].trim(),
-        email: normalizeEmail(row["Email use to communicate"]),
-        phoneNumber: row["Mobile Phone"]
-          ? normalizePhoneNumber(row["Mobile Phone"])
-          : null,
-        region: row.Region.trim(),
-        role: row.Role.trim(),
-        isActive: true,
-        inviteToken: randomBytes(32).toString("hex"),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }));
+      .map((row) => {
+        const email = normalizeEmail(row["Email use to communicate"]);
+        return {
+          full_name: row["Fulla Name"].trim(),
+          communication_email: email,
+          listing_owner_email: email,
+          mobile: row["Mobile Phone"]
+            ? normalizePhoneNumber(row["Mobile Phone"])
+            : "",
+          region: row.Region.trim().toLowerCase(),
+          role: row.Role.trim(),
+          is_active: true,
+        };
+      });
 
     if (agents.length === 0) {
       return NextResponse.json(
@@ -112,10 +116,10 @@ export async function POST(request: NextRequest) {
     const emailSet = new Set<string>();
     const duplicatesInBatch: string[] = [];
     for (const agent of agents) {
-      if (emailSet.has(agent.email)) {
-        duplicatesInBatch.push(agent.email);
+      if (emailSet.has(agent.communication_email)) {
+        duplicatesInBatch.push(agent.communication_email);
       } else {
-        emailSet.add(agent.email);
+        emailSet.add(agent.communication_email);
       }
     }
 
@@ -129,20 +133,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Insert agents (batch insert)
-    const inserted = await db
-      .insert(zyprusAgent)
-      .values(agents)
-      .returning({ id: zyprusAgent.id, email: zyprusAgent.email })
-      .catch((error) => {
-        // Handle unique constraint violations
-        if (error.message?.includes("unique constraint")) {
-          throw new Error(
-            "One or more agents already exist with the provided emails"
-          );
-        }
-        throw error;
-      });
+    // Insert agents
+    const { data: inserted, error } = await supabase
+      .from("agents")
+      .insert(agents)
+      .select("id, communication_email");
+
+    if (error) {
+      if (error.message?.includes("unique") || error.message?.includes("duplicate")) {
+        return NextResponse.json(
+          {
+            error:
+              "One or more agents already exist with the provided emails",
+          },
+          { status: 409 }
+        );
+      }
+      logger.error("Error importing agents", error);
+      return NextResponse.json(
+        { error: "Failed to import agents", details: error.message },
+        { status: 500 }
+      );
+    }
 
     // Regional breakdown
     const regionCounts = agents.reduce(
@@ -164,8 +176,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        message: `Successfully imported ${inserted.length} agents`,
-        imported: inserted.length,
+        message: `Successfully imported ${(inserted || []).length} agents`,
+        imported: (inserted || []).length,
         breakdown: {
           byRegion: regionCounts,
           byRole: roleCounts,

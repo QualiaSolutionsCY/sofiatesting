@@ -1,8 +1,8 @@
 // Prevent static generation - this page needs real-time data
 export const dynamic = "force-dynamic";
 
+import { createClient } from "@supabase/supabase-js";
 import { format } from "date-fns";
-import { eq } from "drizzle-orm";
 import {
   ArrowLeft,
   Calendar,
@@ -24,30 +24,81 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { db } from "@/lib/db/client";
-import { zyprusAgent } from "@/lib/db/schema";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+);
 
 type PageProps = {
   params: Promise<{ id: string }>;
 };
 
-async function getAgentDetails(id: string) {
-  const [agent] = await db
-    .select()
-    .from(zyprusAgent)
-    .where(eq(zyprusAgent.id, id));
+type AgentRow = {
+  id: string;
+  full_name: string;
+  mobile: string | null;
+  communication_email: string | null;
+  region: string | null;
+  role: string | null;
+  is_active: boolean;
+  telegram_user_id: number | null;
+  created_at: string;
+};
 
-  if (!agent) {
+async function getAgentDetails(id: string) {
+  const { data: agent, error } = await supabase
+    .from("agents")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error || !agent) {
     return null;
   }
 
-  // Get recent logs for this agent (mocked if no logs yet)
-  // In real implementation:
-  // const logs = await db.select().from(agentExecutionLog).where(eq(agentExecutionLog.userId, agent.userId)).orderBy(desc(agentExecutionLog.timestamp)).limit(10);
+  const a = agent as AgentRow;
 
-  const logs: any[] = []; // Placeholder
+  // Get activity stats from whatsapp_analytics
+  const { count: chatCount } = await supabase
+    .from("whatsapp_analytics")
+    .select("*", { count: "exact", head: true })
+    .eq("agent_id", id);
 
-  return { agent, logs };
+  const { count: docCount } = await supabase
+    .from("whatsapp_analytics")
+    .select("*", { count: "exact", head: true })
+    .eq("agent_id", id)
+    .eq("event_type", "document_generated");
+
+  const { count: listingCount } = await supabase
+    .from("whatsapp_analytics")
+    .select("*", { count: "exact", head: true })
+    .eq("agent_id", id)
+    .eq("event_type", "property_listed");
+
+  const transformedAgent = {
+    id: a.id,
+    fullName: a.full_name,
+    email: a.communication_email || "",
+    phoneNumber: a.mobile,
+    region: a.region ? a.region.charAt(0).toUpperCase() + a.region.slice(1) : "Unknown",
+    role: a.role || "agent",
+    isActive: a.is_active ?? true,
+    telegramUserId: a.telegram_user_id?.toString() || null,
+    whatsappPhoneNumber: a.mobile, // Using mobile as WhatsApp number
+    createdAt: a.created_at,
+  };
+
+  return {
+    agent: transformedAgent,
+    stats: {
+      chats: chatCount || 0,
+      documents: docCount || 0,
+      listings: listingCount || 0,
+    },
+    logs: [],
+  };
 }
 
 export default async function AgentDetailsPage({ params }: PageProps) {
@@ -58,7 +109,7 @@ export default async function AgentDetailsPage({ params }: PageProps) {
     notFound();
   }
 
-  const { agent, logs } = data;
+  const { agent, stats, logs } = data;
 
   return (
     <div className="space-y-6 p-8 pt-6">
@@ -149,17 +200,17 @@ export default async function AgentDetailsPage({ params }: PageProps) {
             </CardHeader>
             <CardContent className="grid grid-cols-3 gap-4">
               <div className="rounded-lg border bg-muted/50 p-4 text-center">
-                <div className="font-bold text-2xl">0</div>
+                <div className="font-bold text-2xl">{stats.chats}</div>
                 <div className="text-muted-foreground text-xs">Total Chats</div>
               </div>
               <div className="rounded-lg border bg-muted/50 p-4 text-center">
-                <div className="font-bold text-2xl">0</div>
+                <div className="font-bold text-2xl">{stats.documents}</div>
                 <div className="text-muted-foreground text-xs">
                   Documents Generated
                 </div>
               </div>
               <div className="rounded-lg border bg-muted/50 p-4 text-center">
-                <div className="font-bold text-2xl">0</div>
+                <div className="font-bold text-2xl">{stats.listings}</div>
                 <div className="text-muted-foreground text-xs">
                   Properties Listed
                 </div>

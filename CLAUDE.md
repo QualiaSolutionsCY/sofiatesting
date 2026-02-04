@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## CRITICAL: Current Architecture
 
-**READ THIS FIRST - DO NOT ASSUME VERCEL**
+**READ THIS FIRST**
 
 ### Supabase Project (LIVE)
 | Key | Value |
@@ -22,10 +22,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **WhatsApp Bot (Sophia)** | Supabase Edge Function `sophia-bot` | LIVE |
 | **Telegram Bot** | Supabase Edge Functions | **DISABLED** |
 | **AI Proxy (ai-chat)** | Supabase Edge Functions | LIVE |
-| **Web App (Next.js)** | NOT DEPLOYED | Future |
+| **Web App (Next.js)** | Vercel | LIVE |
 | **Database** | Supabase PostgreSQL | LIVE |
 
-**THERE IS NO VERCEL DEPLOYMENT. NEVER SUGGEST VERCEL.**
+### Vercel Project (LIVE)
+| Key | Value |
+|-----|-------|
+| **Project Name** | `sofiatesting` |
+| **Production URL** | https://sofiatesting.vercel.app |
+| **Admin Panel** | https://sofiatesting.vercel.app/admin |
+| **Deploy Command** | `vercel --prod` |
 
 ### Telegram Bot Toggle
 
@@ -214,6 +220,103 @@ Then deploy again.
 | Updated DB but local file shows old text | DB and file out of sync | Always update BOTH to prevent future confusion |
 | Template changes not working | `templates` content is in FILES not DB | Edit `prompts/templates/content.ts` directly |
 | Behavior only partially changed | Multiple prompts contain variations of the same rule | Search + grep ALL prompts, consolidate instructions in ONE place |
+| **AI keeps using OLD format despite all updates** | **Chat history has examples of old format - AI copies pattern** | **CLEAR chat_history table for the user (see below)** |
+
+---
+
+### ⚠️ CRITICAL: Chat History Pattern Copying
+
+**This is the #1 reason prompt changes don't take effect immediately.**
+
+When SOPHIA responds, she receives the full conversation history. If previous messages contain the OLD format, the AI will copy that pattern even with updated prompts.
+
+**Example (Feb 2026):**
+```
+Problem: Rental registration kept showing old 4-field format instead of new 3-field numbered format
+
+Root cause:
+- DB prompt was updated correctly ✓
+- File was updated correctly ✓
+- Cache was disabled ✓
+- BUT: Chat history had 10+ examples of old format
+- AI saw old pattern in history and copied it
+
+Fix: Cleared chat_history for that user
+```
+
+**ALWAYS clear chat history after prompt changes:**
+
+```sql
+-- Find and clear chat history for testing user
+DELETE FROM chat_history
+WHERE user_id = (
+  SELECT DISTINCT user_id
+  FROM chat_history
+  WHERE created_at >= NOW() - INTERVAL '1 hour'
+  LIMIT 1
+);
+
+-- Or clear ALL recent history (use carefully)
+DELETE FROM chat_history WHERE created_at >= NOW() - INTERVAL '2 hours';
+```
+
+---
+
+### 🚀 INSTANT PROMPT EDIT - Complete Checklist
+
+Use this for ANY template or behavior change:
+
+```
+□ 1. SEARCH for the text you want to change
+   SELECT key, LEFT(content, 500) FROM sophia_prompts
+   WHERE content ILIKE '%keyword%' AND is_active = true;
+
+□ 2. UPDATE the database prompt (DB takes precedence)
+   UPDATE sophia_prompts
+   SET content = REPLACE(content, 'old text', 'new text'), updated_at = NOW()
+   WHERE key = 'document_routing' AND is_active = true AND is_current = true;
+
+   -- OR for field collection changes, update document_routing key
+
+□ 3. UPDATE the file fallback (keep in sync)
+   Edit: supabase/functions/sophia-bot/prompts/behaviors/document-routing.ts
+
+□ 4. VERIFY cache is disabled (should already be 0 for testing)
+   Check: prompt-loader.ts → CACHE_TTL_MS = 0
+
+□ 5. DEPLOY edge function
+   supabase functions deploy sophia-bot --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
+
+□ 6. CLEAR chat history (CRITICAL!)
+   DELETE FROM chat_history WHERE created_at >= NOW() - INTERVAL '1 hour';
+
+□ 7. TEST on WhatsApp with fresh conversation
+
+□ 8. VERIFY new format appears in chat_history table
+   SELECT parts FROM chat_history WHERE role = 'model' ORDER BY created_at DESC LIMIT 1;
+```
+
+### Field Collection Prompts Location
+
+All "Please provide:" field collection prompts are in `document_routing`:
+
+| Template Type | Trigger Phrases | DB Key |
+|--------------|-----------------|--------|
+| Rental Registration | "rental", "rental registration" | `document_routing` |
+| Standard Seller | "standard", "standard registration" | `document_routing` |
+| Seller with Marketing | "with marketing", "marketing agreement" | `document_routing` |
+| Advanced Seller | "advanced", "advanced registration" | `document_routing` |
+| Bank Registration | "bank registration" | `document_routing` |
+| Developer Registration | "developer registration" | `document_routing` |
+| Viewing Forms | "viewing form", "standard viewing form" | `document_routing` |
+| Reservation Agreement | "reservation", "reservation agreement" | `document_routing` |
+| Request Callback | "request callback", "callback" | `document_routing` |
+
+**To change what fields SOPHIA asks for ANY template:**
+1. Edit `document_routing` in DB
+2. Edit `document-routing.ts` file
+3. Clear chat history
+4. Test
 
 ### Checking Current Prompt State
 
@@ -252,6 +355,7 @@ grep -rn "text to change" supabase/functions/sophia-bot/prompts/
 - Assume file changes go live - Must deploy Edge Function
 - Forget about the 5-minute cache when testing
 - Make changes without searching ALL prompts first
+- **Forget to clear chat_history after prompt changes** - AI copies old patterns!
 
 ### DO
 
@@ -261,7 +365,9 @@ grep -rn "text to change" supabase/functions/sophia-bot/prompts/
 - Update BOTH DB and files to stay in sync
 - Bypass cache when testing: `CACHE_TTL_MS = 0`
 - Deploy: `supabase functions deploy sophia-bot --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx`
+- **CLEAR chat_history table after prompt changes** (AI copies patterns from history!)
 - Test on actual WhatsApp before declaring success
+- Verify new format in `chat_history` table after testing
 - Re-enable cache after testing confirmed working
 
 ---
@@ -308,6 +414,28 @@ grep -rn "text to change" supabase/functions/sophia-bot/prompts/
 - ✅ `field_ai_draft_own_reference_id` - Auto-generated reference: `SOPHIA-YYYYMMDD-HHMMSS-TYP`
 - ✅ `field_property_views` - Sea View, Mountain View, etc. now properly populated
 - Files modified: `zyprus/client.ts`, `zyprus/taxonomy-cache.ts`
+
+**Reviewer Assignment Rules (Jan 30, 2026):**
+- ✅ FOR SALE (Paphos/Limassol/Larnaca/Nicosia): Reviewer 1 = Lauren (listings@zyprus.com), Reviewer 2 = regional office
+- ✅ FOR SALE (Famagusta): Reviewer 1 = requestfamagusta@zyprus.com, Reviewer 2 = NONE
+- ✅ FOR RENT: Reviewer 1 = agent who sent it, Reviewer 2 = NONE
+- ✅ Michelle Rentals: Reviewer 1 = demetra@zyprus.com (special case - joint account with her mother)
+- ✅ Charalambos/Lauren cannot upload rentals (rejected with message)
+- Files: `rules/reviewer-assignment.ts`, `zyprus/taxonomy-cache.ts`
+
+**✅ Regional Office Accounts (Fixed Jan 30, 2026)**
+- All regional accounts now have `zyprus_user_id` in agents table
+- UUIDs found via Zyprus API by searching usernames: limassol, larnaca, nicosia, famagusta
+- Paphos has no separate user - uses Azinas's UUID as fallback
+- Reviewer 2 now properly assigned for all FOR SALE listings
+
+| Regional Email | Zyprus UUID | Username |
+|----------------|-------------|----------|
+| requestpaphos@zyprus.com | c8e05e2a-56e6-4d1f-9a20-31235feaec54 | (azinas) |
+| requestlimassol@zyprus.com | c82d28cd-8167-4a2a-9ae8-8168015869c3 | limassol |
+| requestlarnaca@zyprus.com | f889a6dc-0973-44b2-b10c-0d681f84f560 | larnaca |
+| requestnicosia@zyprus.com | 630cc4fd-d2c7-410a-821d-b0a9adfae4ea | nicosia |
+| requestfamagusta@zyprus.com | 7e33cdcd-709d-4fc0-8682-0075dde55964 | famagusta |
 
 **Description Format (Comprehensive Itemized - Jan 16, 2026):**
 - ✅ Now generates **itemized bullet lists** matching Zyprus website style

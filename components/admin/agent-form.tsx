@@ -67,6 +67,9 @@ export function AgentForm({
       role: "Normal Agent",
       isActive: true,
       notes: "",
+      canUpload: true,
+      canReceiveLeads: true,
+      zyprusUserId: "",
     },
   });
 
@@ -211,6 +214,78 @@ export function AgentForm({
                   onCheckedChange={field.onChange}
                 />
               </FormControl>
+            </FormItem>
+          )}
+        />
+
+        {/* Permissions Section */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium text-muted-foreground">
+            Permissions
+          </h3>
+
+          {/* Can Upload Listings */}
+          <FormField
+            control={form.control}
+            name="canUpload"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base">Can Upload Listings</FormLabel>
+                  <FormDescription>
+                    Allow agent to upload property listings via SOPHIA
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          {/* Can Receive Leads */}
+          <FormField
+            control={form.control}
+            name="canReceiveLeads"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base">Can Receive Leads</FormLabel>
+                  <FormDescription>
+                    Include in lead forwarding rotation for their region
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {/* Zyprus Integration */}
+        <FormField
+          control={form.control}
+          name="zyprusUserId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Zyprus User ID</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription>
+                UUID from Zyprus platform for listing ownership assignment
+              </FormDescription>
+              <FormMessage />
             </FormItem>
           )}
         />

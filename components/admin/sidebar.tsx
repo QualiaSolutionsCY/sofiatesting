@@ -6,6 +6,7 @@ import {
   Building2,
   Calculator,
   Database,
+  FileEdit,
   FileText,
   LayoutDashboard,
   Settings,
@@ -44,6 +45,12 @@ const navigationItems = [
     href: "/admin/listings",
     icon: Building2,
     requiredPermission: null,
+  },
+  {
+    name: "Prompts",
+    href: "/admin/prompts",
+    icon: FileEdit,
+    requiredPermission: "manage_prompts",
   },
   {
     name: "Execution Logs",

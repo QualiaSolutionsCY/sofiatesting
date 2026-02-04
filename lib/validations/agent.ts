@@ -27,6 +27,10 @@ export const agentSchema = z.object({
   ),
   isActive: z.boolean(),
   notes: z.string().optional().or(z.literal("")),
+  // New permission fields
+  canUpload: z.boolean(),
+  canReceiveLeads: z.boolean(),
+  zyprusUserId: z.string().optional().or(z.literal("")),
 });
 
 export type AgentFormData = z.infer<typeof agentSchema>;

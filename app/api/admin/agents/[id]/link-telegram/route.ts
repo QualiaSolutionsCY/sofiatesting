@@ -1,19 +1,19 @@
-import { and, eq, sql } from "drizzle-orm";
+import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db/client";
-import { zyprusAgent } from "@/lib/db/schema";
 import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("api:admin:agents:link-telegram");
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+);
 
 /**
  * POST /api/admin/agents/[id]/link-telegram
  * Link Telegram account to agent
  *
- * Body:
- * {
- *   telegramUserId: number (Telegram user ID)
- * }
+ * Body: { telegramUserId: number }
  */
 export async function POST(
   request: NextRequest,
@@ -31,52 +31,53 @@ export async function POST(
     }
 
     // Check if agent exists
-    const [agent] = await db
-      .select()
-      .from(zyprusAgent)
-      .where(eq(zyprusAgent.id, id))
-      .limit(1);
+    const { data: agent, error: findError } = await supabase
+      .from("agents")
+      .select("id")
+      .eq("id", id)
+      .single();
 
-    if (!agent) {
+    if (findError || !agent) {
       return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     }
 
-    // Check if this Telegram ID is already linked to another agent
-    const [existingLink] = await db
-      .select()
-      .from(zyprusAgent)
-      .where(
-        and(
-          eq(zyprusAgent.telegramUserId, body.telegramUserId),
-          sql`${zyprusAgent.id} != ${id}`
-        )
-      )
+    // Check if Telegram ID is already linked to another agent
+    const { data: existing } = await supabase
+      .from("agents")
+      .select("id, full_name, communication_email")
+      .eq("telegram_user_id", body.telegramUserId)
+      .neq("id", id)
       .limit(1);
 
-    if (existingLink) {
+    if (existing && existing.length > 0) {
       return NextResponse.json(
         {
           error: "This Telegram account is already linked to another agent",
           linkedAgent: {
-            id: existingLink.id,
-            name: existingLink.fullName,
-            email: existingLink.email,
+            id: existing[0].id,
+            name: existing[0].full_name,
+            email: existing[0].communication_email,
           },
         },
         { status: 409 }
       );
     }
 
-    // Link Telegram account
-    const [updated] = await db
-      .update(zyprusAgent)
-      .set({
-        telegramUserId: body.telegramUserId,
-        lastActiveAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(zyprusAgent.id, id))
-      .returning();
+    // Link Telegram
+    const { data: updated, error } = await supabase
+      .from("agents")
+      .update({ telegram_user_id: body.telegramUserId })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      logger.error("Error linking Telegram", error);
+      return NextResponse.json(
+        { error: "Failed to link Telegram account", details: error.message },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       agent: updated,
@@ -105,16 +106,14 @@ export async function DELETE(
   try {
     const { id } = await context.params;
 
-    const [updated] = await db
-      .update(zyprusAgent)
-      .set({
-        telegramUserId: null,
-        updatedAt: new Date(),
-      })
-      .where(eq(zyprusAgent.id, id))
-      .returning();
+    const { data: updated, error } = await supabase
+      .from("agents")
+      .update({ telegram_user_id: null })
+      .eq("id", id)
+      .select()
+      .single();
 
-    if (!updated) {
+    if (error || !updated) {
       return NextResponse.json({ error: "Agent not found" }, { status: 404 });
     }
 

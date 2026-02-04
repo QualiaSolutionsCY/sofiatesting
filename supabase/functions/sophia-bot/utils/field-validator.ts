@@ -1,140 +1,31 @@
 /**
- * Field validation utilities for SOPHIA bot document generation
- * Ensures all required fields are present before generating DOCX files
+ * Field Validation Utilities for SOPHIA Bot
+ *
+ * This module provides field validation for document generation.
+ * Detection functions are imported from the centralized templates module.
+ *
+ * NEW CODE SHOULD IMPORT DETECTION FUNCTIONS DIRECTLY FROM:
+ * - ../templates/detection.ts
  */
 
 import { logger, LogCategory } from "./logger.ts";
 
-/**
- * Checks if the AI response contains placeholders or missing data
- * NOTE: Signature lines (___________) are intentional and NOT placeholders
- */
-export function containsPlaceholders(content: string): boolean {
-  const lowerContent = content.toLowerCase();
+// Re-export detection functions from centralized module for backward compatibility
+export {
+  isCompletedReservationAgreement as isCompletedReservationAgreementDocument,
+  isCompletedViewingForm as isCompletedViewingFormDocument,
+  isCompletedMarketingAgreement as isCompletedMarketingAgreementDocument,
+  containsPlaceholders,
+  isClarificationQuestion,
+} from "../templates/detection.ts";
 
-  // Check for XXXXXXXX placeholders (real placeholder indicator)
-  if (/XXXXXXX+/g.test(content)) {
-    logger.debug("[Field Validator] Found XXXXXXXX placeholder");
-    return true;
-  }
-
-  // Check for [FIELD_NAME] style placeholders - but not signature lines
-  // Only match if inside brackets with uppercase words
-  const bracketPlaceholders = content.match(/\[[A-Z][A-Z_\s]+\]/g) || [];
-  // Filter out legitimate bracketed content
-  const realPlaceholders = bracketPlaceholders.filter(p =>
-    !p.includes('Reg.') &&
-    !p.includes('License') &&
-    p.length > 3
-  );
-  if (realPlaceholders.length > 0) {
-    logger.debug("[Field Validator] Found bracket placeholders:", realPlaceholders);
-    return true;
-  }
-
-  // Check for {{placeholder}} style
-  if (/\{\{[\w\s_]+\}\}/g.test(content)) {
-    logger.debug("[Field Validator] Found mustache placeholder");
-    return true;
-  }
-
-  // Check for common placeholder words (but not signature-related)
-  const placeholderWords = [
-    'placeholder',
-    'insert here',
-    'to be filled',
-    'to be provided',
-    'fill in the',
-    '[blank]',
-    '(blank)',
-  ];
-
-  for (const word of placeholderWords) {
-    if (lowerContent.includes(word)) {
-      logger.debug("[Field Validator] Found placeholder word:", word);
-      return true;
-    }
-  }
-
-  // NOTE: We intentionally do NOT flag:
-  // - _______________ (signature lines - these are intentional in viewing forms)
-  // - Name: _________ (signature fields - users sign these)
-
-  return false;
-}
-
-/**
- * Checks if content looks like a completed viewing form document
- * Viewing forms have specific structure with "Herein, I" and ID/passport info
- */
-function isCompletedViewingFormDocument(content: string): boolean {
-  const lowerContent = content.toLowerCase();
-  
-  // Must have the "Herein, I" opening
-  if (!lowerContent.includes('herein, i')) {
-    return false;
-  }
-  
-  // Must have confirmation language
-  if (!lowerContent.includes('confirm that') && !lowerContent.includes('have been shown')) {
-    return false;
-  }
-  
-  // Must have an ID/passport pattern - check multiple formats
-  // Format 1: "with ID A123456" or "with id 123456"
-  // Format 2: "Passport/ID Number: 123456" or "ID/Passport: A123456"
-  // Format 3: "ID Number: 123456" or "Passport Number: ABC123"
-  const hasIdPattern = 
-    /with\s+id\s+[A-Z0-9]+/i.test(content) ||
-    /passport\/id\s*(number)?:?\s*[A-Z0-9]+/i.test(content) ||
-    /id\/passport:?\s*[A-Z0-9]+/i.test(content) ||
-    /(id|passport)\s*(number)?:?\s*[A-Z0-9]{5,}/i.test(content);
-  
-  if (!hasIdPattern) {
-    return false;
-  }
-  
-  // Should have property-related content
-  const hasPropertyContent = 
-    lowerContent.includes('property') ||
-    lowerContent.includes('registration') ||
-    lowerContent.includes('immovable');
-  
-  return hasPropertyContent;
-}
-
-/**
- * Checks if content looks like a completed marketing agreement document
- */
-function isCompletedMarketingAgreementDocument(content: string): boolean {
-  const lowerContent = content.toLowerCase();
-
-  // NEW FORMAT: Terms and Conditions for Property Listing
-  const hasNewFormat =
-    lowerContent.includes('terms and conditions for property listing') &&
-    lowerContent.includes('representation') &&
-    lowerContent.includes('agency fees');
-
-  // OLD FORMAT: Marketing Agreement with "between" clause
-  const hasOldFormat =
-    (lowerContent.includes('this agreement made on') ||
-     lowerContent.includes('marketing agreement')) &&
-    lowerContent.includes('between');
-
-  if (!hasNewFormat && !hasOldFormat) {
-    return false;
-  }
-
-  // Must have registration number pattern OR seller details
-  const hasRegNumber = /reg\.?\s*no\.?\s*\d+\/\d+/i.test(content) ||
-                       /registration:?\s*\d+\/\d+/i.test(content) ||
-                       /property:\s*reg/i.test(content);
-
-  // Must have a real seller name (not placeholder)
-  const hasSellerName = /seller:\s*[A-Z][a-z]+\s+[A-Z][a-z]+/i.test(content);
-
-  return hasRegNumber || hasSellerName;
-}
+// Import for internal use
+import {
+  isCompletedReservationAgreement,
+  isCompletedViewingForm,
+  isCompletedMarketingAgreement,
+  containsPlaceholders as checkPlaceholders,
+} from "../templates/detection.ts";
 
 /**
  * Checks if the AI response is requesting information from the user
@@ -144,18 +35,18 @@ export function isRequestingInformation(content: string): boolean {
   const lowerContent = content.toLowerCase();
 
   // FIRST: Check if this looks like a completed document
-  if (isCompletedViewingFormDocument(content)) {
-    logger.debug("[Field Validator] Detected completed viewing form, not requesting info");
+  if (isCompletedViewingForm(content)) {
+    logger.debug("[Field Validator] Detected completed viewing form, not requesting info", { category: LogCategory.GENERAL });
     return false;
   }
 
-  if (isCompletedMarketingAgreementDocument(content)) {
-    logger.debug("[Field Validator] Detected completed marketing agreement, not requesting info");
+  if (isCompletedMarketingAgreement(content)) {
+    logger.debug("[Field Validator] Detected completed marketing agreement, not requesting info", { category: LogCategory.GENERAL });
     return false;
   }
 
-  if (isCompletedReservationAgreementDocument(content)) {
-    logger.debug("[Field Validator] Detected completed reservation agreement, not requesting info");
+  if (isCompletedReservationAgreement(content)) {
+    logger.debug("[Field Validator] Detected completed reservation agreement, not requesting info", { category: LogCategory.GENERAL });
     return false;
   }
 
@@ -181,7 +72,7 @@ export function isRequestingInformation(content: string): boolean {
   // Check for request patterns
   for (const pattern of requestPatterns) {
     if (pattern.test(lowerContent)) {
-      logger.debug("[Field Validator] Found request pattern");
+      logger.debug("[Field Validator] Found request pattern", { category: LogCategory.GENERAL });
       return true;
     }
   }
@@ -189,23 +80,21 @@ export function isRequestingInformation(content: string): boolean {
   // Check for multiple questions (indicates gathering information)
   const questionMarks = (content.match(/\?/g) || []).length;
   if (questionMarks >= 2) {
-    logger.debug("[Field Validator] Multiple questions detected");
+    logger.debug("[Field Validator] Multiple questions detected", { category: LogCategory.GENERAL });
     return true;
   }
 
   // Check for bullet point lists requesting information
   // IMPORTANT: Exclude markdown bold headers (** **) from being counted as bullets
-  // First, remove all markdown bold patterns to avoid false positives
   const contentWithoutBold = content.replace(/\*\*[^*]+\*\*/g, '');
-  
+
   // Now count actual bullet points (not markdown bold)
-  // Match: • bullet, - bullet, * bullet (but not ** which is bold)
   const bulletListCount = (contentWithoutBold.match(/^[•\-]\s*[\w\s]+:/gm) || []).length +
                           (contentWithoutBold.match(/^\*\s+[\w\s]+:/gm) || []).length;
-  
+
   if (bulletListCount >= 3 && content.length < 800) {
     // Short response with multiple bullet points = likely requesting info
-    logger.debug("[Field Validator] Bullet list requesting info (count: " + bulletListCount + ")");
+    logger.debug("[Field Validator] Bullet list requesting info (count: " + bulletListCount + ")", { category: LogCategory.GENERAL });
     return true;
   }
 
@@ -217,12 +106,10 @@ export function isRequestingInformation(content: string): boolean {
  */
 function validateViewingFormFields(content: string): boolean {
   // FIRST: If this looks like a completed viewing form document, it's valid
-  if (isCompletedViewingFormDocument(content)) {
-    logger.debug("[Field Validator] Viewing form passes completed document check");
+  if (isCompletedViewingForm(content)) {
+    logger.debug("[Field Validator] Viewing form passes completed document check", { category: LogCategory.GENERAL });
     return true;
   }
-
-  const lowerContent = content.toLowerCase();
 
   // Required fields for viewing forms - more flexible patterns
   const requiredPatterns = [
@@ -258,46 +145,12 @@ function validateViewingFormFields(content: string): boolean {
 }
 
 /**
- * Checks if content looks like a completed reservation agreement document
- */
-export function isCompletedReservationAgreementDocument(content: string): boolean {
-  const lowerContent = content.toLowerCase();
-
-  // Must have reservation agreement structure
-  if (!lowerContent.includes('property reservation') && !lowerContent.includes('reservation agreement')) {
-    return false;
-  }
-
-  // Must have prospective buyer with ID info (passport, Cyprus ID, UK ID, etc.)
-  // Accepts: "Cyprus ID: 123456", "Passport: AB123456", "ID: 123456", "UK Passport: 123456"
-  const hasBuyerInfo = /prospective\s+buyer/i.test(content) &&
-                       (/(?:passport|id)[:\s]+[A-Z0-9]+/i.test(content) ||
-                        /[A-Z]+\s+(?:passport|id)[:\s]+[A-Z0-9]+/i.test(content));
-
-  // Must have vendor
-  const hasVendor = /vendor[:\s]+/i.test(content);
-
-  // Must have property registration
-  const hasPropertyReg = /\d+\/\d+/i.test(content);
-
-  // Must have financial terms (handle markdown bold **€6,000** format)
-  // Strip ** before checking amounts
-  const contentNoMarkdown = content.replace(/\*\*/g, '');
-  const hasFinancials = /reservation\s+fee[:\s]+[€$]?\s*[\d,]+/i.test(contentNoMarkdown) &&
-                        /purchase\s+price[:\s]+[€$]?\s*[\d,]+/i.test(contentNoMarkdown);
-
-  logger.debug(`[Field Validator] Reservation check: buyer=${hasBuyerInfo}, vendor=${hasVendor}, reg=${hasPropertyReg}, financials=${hasFinancials}`, { category: LogCategory.GENERAL });
-
-  return hasBuyerInfo && hasVendor && hasPropertyReg && hasFinancials;
-}
-
-/**
  * Validates if all required fields are present for a reservation agreement
  */
 function validateReservationAgreementFields(content: string): boolean {
   // FIRST: If this looks like a completed reservation agreement, it's valid
-  if (isCompletedReservationAgreementDocument(content)) {
-    logger.debug("[Field Validator] Reservation agreement passes completed document check");
+  if (isCompletedReservationAgreement(content)) {
+    logger.debug("[Field Validator] Reservation agreement passes completed document check", { category: LogCategory.GENERAL });
     return true;
   }
 
@@ -342,7 +195,7 @@ export function hasAllRequiredFields(aiResponse: string, templateType?: string):
   const lowerResponse = aiResponse.toLowerCase();
 
   // First, check if it contains placeholders
-  if (containsPlaceholders(aiResponse)) {
+  if (checkPlaceholders(aiResponse)) {
     return false;
   }
 
@@ -369,7 +222,7 @@ export function hasAllRequiredFields(aiResponse: string, templateType?: string):
     return validateReservationAgreementFields(aiResponse);
   }
   // For other templates, just check for placeholders and information requests
-  return !containsPlaceholders(aiResponse) && !isRequestingInformation(aiResponse);
+  return !checkPlaceholders(aiResponse) && !isRequestingInformation(aiResponse);
 }
 
 /**
@@ -380,15 +233,15 @@ export function isCollectingInformation(content: string): boolean {
   const lowerContent = content.toLowerCase();
 
   // FIRST: Check if this looks like a completed document
-  if (isCompletedViewingFormDocument(content)) {
+  if (isCompletedViewingForm(content)) {
     return false;
   }
 
-  if (isCompletedMarketingAgreementDocument(content)) {
+  if (isCompletedMarketingAgreement(content)) {
     return false;
   }
 
-  if (isCompletedReservationAgreementDocument(content)) {
+  if (isCompletedReservationAgreement(content)) {
     return false;
   }
 
@@ -414,4 +267,3 @@ export function isCollectingInformation(content: string): boolean {
   // If 2 or more indicators are present, it's likely collecting information
   return matchCount >= 2;
 }
-

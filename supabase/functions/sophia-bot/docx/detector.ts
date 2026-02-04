@@ -1,19 +1,37 @@
 /**
- * DOCX Template Detection
+ * DOCX Template Detection - Thin Wrapper
  *
- * Determines if an AI response should be sent as a DOCX file attachment
- * or as a text message. Only 4 specific templates are DOCX:
+ * This module re-exports detection functions from the centralized
+ * templates/detection.ts module for backward compatibility.
  *
- * - Standard Viewing Form (Template 09)
- * - Advanced Viewing Form (Template 10)
- * - Property Reservation Agreement (Template 11)
- * - Non-Exclusive Marketing Agreement (Template 15)
- *
- * All other templates are sent as TEXT messages.
+ * NEW CODE SHOULD IMPORT DIRECTLY FROM:
+ * - ../templates/detection.ts (for detection functions)
+ * - ../templates/registry.ts (for template definitions)
  */
 
-import { shouldSendAsDocx, extractTemplateTitle } from "../prompts/templates/registry.ts";
 import { logger, LogCategory } from "../utils/logger.ts";
+import { shouldSendAsDocx as centralizedShouldSendAsDocx } from "../templates/detection.ts";
+
+// Re-export all detection functions from centralized module
+export {
+  shouldSendAsDocx,
+  isClarificationQuestion,
+  isCompletedReservationAgreement,
+  isCompletedViewingForm,
+  isCompletedMarketingAgreement,
+  isConfirmationMessage,
+  containsPlaceholders,
+  detectDocxTemplateType,
+  wasDocxTemplateRequested,
+  type DocxTemplateType,
+} from "../templates/detection.ts";
+
+// Re-export registry functions
+export {
+  extractTemplateTitle,
+  isDocxTemplateTitle,
+  DOCX_TEMPLATE_TITLES,
+} from "../templates/registry.ts";
 
 /**
  * Minimum content requirements for a valid DOCX document
@@ -66,14 +84,15 @@ export function hasValidDocumentContent(response: string): boolean {
 
 /**
  * Main detection function - determines if response should be DOCX
- * 
+ * This is a wrapper around shouldSendAsDocx for backward compatibility
+ *
  * @param aiResponse - The AI's response text
- * @param conversationHistory - Optional conversation history for context
+ * @param _conversationHistory - Optional conversation history for context (unused but kept for API compatibility)
  * @returns boolean - true if should send as DOCX, false for TEXT
  */
 export function isDocxTemplate(
   aiResponse: string,
-  conversationHistory?: Array<{role: string, parts: Array<{text: string}>}>
+  _conversationHistory?: Array<{role: string, parts: Array<{text: string}>}>
 ): boolean {
   // Step 1: Check if response has Subject: line -> always TEXT (it's an email)
   if (aiResponse.includes("Subject:")) {
@@ -87,99 +106,6 @@ export function isDocxTemplate(
     return false;
   }
 
-  // Step 3: Use the registry to determine if this is a DOCX template
-  const isDocx = shouldSendAsDocx(aiResponse);
-
-  const title = extractTemplateTitle(aiResponse);
-  logger.debug(`[DOCX Detector] Title: "${title}", Is DOCX: ${isDocx}`, { category: LogCategory.GENERAL });
-
-  return isDocx;
+  // Step 3: Use the centralized detection
+  return centralizedShouldSendAsDocx(aiResponse);
 }
-
-/**
- * Check if a DOCX template was requested based on conversation history
- * Useful for detecting when AI failed to generate proper document content
- */
-export function wasDocxTemplateRequested(
-  conversationHistory?: Array<{role: string, parts: Array<{text: string}>}>
-): boolean {
-  if (!conversationHistory || conversationHistory.length === 0) {
-    return false;
-  }
-  
-  const allMessages = conversationHistory
-    .map(msg => msg.parts.map(p => p.text).join(" "))
-    .join(" ")
-    .toLowerCase();
-  
-  // Check for explicit DOCX template requests
-  const docxKeywords = [
-    "viewing form",
-    "standard viewing",
-    "advanced viewing",
-    "reservation agreement",
-    "property reservation",
-    "non-exclusive",
-    "non exclusive",
-    "marketing agreement",
-    "signature document",
-    "template 09",
-    "template 10",
-    "template 11",
-    "template 15",
-  ];
-  
-  return docxKeywords.some(keyword => allMessages.includes(keyword));
-}
-
-/**
- * Detect specific DOCX template type from response content
- * Returns the template identifier for specialized generation
- */
-export type DocxTemplateType =
-  | "viewing-form-single"
-  | "viewing-form-multiple"
-  | "viewing-form-advanced"
-  | "reservation-agreement"
-  | "marketing-non-exclusive"
-  | "unknown";
-
-export function detectDocxTemplateType(response: string): DocxTemplateType {
-  const lower = response.toLowerCase();
-  const first500 = lower.substring(0, 500);
-  
-  // Viewing Forms
-  if (first500.includes("viewing form") || first500.includes("herein, i")) {
-    // Check for advanced (has legal paragraph)
-    if (lower.includes("exclusive representative") || 
-        lower.includes("monetary compensation") ||
-        lower.includes("commission fee")) {
-      // Check for multiple people
-      if (lower.includes("and i ") && (lower.match(/with id/gi) || []).length > 1) {
-        return "viewing-form-multiple"; // Advanced with multiple people would need separate template
-      }
-      return "viewing-form-advanced";
-    }
-    
-    // Check for multiple people (standard)
-    if (lower.includes("and i ") && (lower.match(/with id/gi) || []).length > 1) {
-      return "viewing-form-multiple";
-    }
-    
-    return "viewing-form-single";
-  }
-  
-  // Reservation Agreement
-  if (first500.includes("reservation agreement") || first500.includes("property reservation agreement") || first500.includes("property reservation")) {
-    return "reservation-agreement";
-  }
-
-  // Marketing Agreement (Non-Exclusive)
-  if (first500.includes("marketing agreement") ||
-      (first500.includes("non-exclusive") && lower.includes("agent may advertise"))) {
-    return "marketing-non-exclusive";
-  }
-
-  return "unknown";
-}
-
