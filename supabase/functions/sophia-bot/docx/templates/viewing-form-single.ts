@@ -51,7 +51,7 @@ export function createViewingFormSingle(
   
   const children: Paragraph[] = [];
   
-  // Logo - preserve aspect ratio (Zyprus logo is approximately 3:1 ratio)
+  // Logo - preserve aspect ratio (Zyprus logo is approximately 4:1 ratio)
   if (logoData && logoData.length > 0) {
     children.push(
       new Paragraph({
@@ -59,8 +59,8 @@ export function createViewingFormSingle(
           new ImageRun({
             data: logoData,
             transformation: {
-              width: 180,
-              height: 92,
+              width: 200,
+              height: 50,
             },
             type: "png",
           }),
