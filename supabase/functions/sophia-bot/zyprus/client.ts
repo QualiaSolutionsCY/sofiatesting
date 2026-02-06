@@ -32,8 +32,12 @@ export interface ListingData {
   locationUuid?: string;
   bedrooms: number;
   bathrooms: number;
+  kitchens?: number; // Number of kitchens (default 1)
+  livingRooms?: number; // Number of living rooms (default 1)
   coveredArea: number;
   plotSize?: number;
+  coveredVeranda?: number; // Covered veranda sqm
+  uncoveredVeranda?: number; // Uncovered veranda sqm
   description: string;
   myNotes: string;
   aiNotes?: string;
@@ -49,6 +53,9 @@ export interface ListingData {
   floor?: string;
   potentialDuplicate?: boolean;
   aiMessage?: string | null;
+  priceNegotiable?: boolean; // Default true (negotiable)
+  isNewBuild?: boolean; // New build property
+  parkingType?: "covered" | "open" | "garage" | "carport" | "none";
   // For Own Reference ID format: Owner - {Agent} - {Seller} - {Phone} - {Email}
   agentName?: string;
   ownerName?: string;
@@ -134,7 +141,8 @@ export async function getAccessToken(config: ZyprusConfig): Promise<string> {
       status: response.status,
       errorPreview: errorText.substring(0, 200),
     });
-    throw new Error(`Failed to get access token: ${response.status}`);
+    // Generic error message - don't expose OAuth token flow details to users
+    throw new Error("Unable to connect to property system. Please try again later.");
   }
 
   const data = await response.json();
@@ -244,6 +252,8 @@ function buildJsonApiPayload(
     field_price: listing.price,
     field_no_bedrooms: listing.bedrooms,
     field_no_bathrooms: listing.bathrooms,
+    field_no_kitchens: listing.kitchens ?? 1, // Default to 1 kitchen
+    field_no_living_rooms: listing.livingRooms ?? 1, // Default to 1 living room
     field_covered_area: listing.coveredArea,
     body: {
       value: listing.description,
@@ -253,7 +263,8 @@ function buildJsonApiPayload(
     field_ai_assistant_notes: listing.aiNotes || "",
     field_ai_generated: true,
     field_ai_state: "draft",
-    field_negotiable: true,
+    // Price negotiable: default TRUE unless explicitly set to false
+    field_negotiable: listing.priceNegotiable !== false,
     // Own Reference ID: Owner - {Agent} - {Seller} - {Phone} - Reg No.{Reg}
     field_own_reference_id: ownReferenceId,
     field_ai_draft_own_reference_id: ownReferenceId,
@@ -262,6 +273,12 @@ function buildJsonApiPayload(
   // Optional fields
   if (listing.plotSize) {
     attributes.field_land_size = listing.plotSize; // API field is field_land_size, not field_plot_size
+  }
+  if (listing.coveredVeranda) {
+    attributes.field_covered_veranda = listing.coveredVeranda;
+  }
+  if (listing.uncoveredVeranda) {
+    attributes.field_uncovered_veranda = listing.uncoveredVeranda;
   }
   if (listing.yearBuilt) {
     attributes.field_year_built = listing.yearBuilt;
@@ -274,6 +291,10 @@ function buildJsonApiPayload(
   }
   if (listing.aiMessage) {
     attributes.field_ai_message = listing.aiMessage;
+  }
+  // New build flag
+  if (listing.isNewBuild) {
+    attributes.field_new_build = true;
   }
 
   // Coordinates - Full object format per Postman spec
@@ -683,13 +704,15 @@ export async function createDraftListing(
     } catch {
       errorDetail = errorText.substring(0, 200);
     }
-    logClassifiedError("Failed to create Zyprus listing", new Error(`Failed to create listing (${response.status}): ${errorDetail || "Unknown error"}`), {
+    // Log full error details internally for debugging
+    logClassifiedError("Failed to create Zyprus listing", new Error(`API error: ${response.status} - ${errorDetail || "Unknown error"}`), {
       category: LogCategory.ZYPRUS,
       operation: "createDraftListing",
       status: response.status,
       errorDetail,
     });
-    throw new Error(`Failed to create listing (${response.status}): ${errorDetail || "Unknown error"}`);
+    // Return generic error to user (don't expose internal API details)
+    throw new Error("Unable to create listing. Please try again or contact support.");
   }
 
   const result = await response.json();

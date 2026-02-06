@@ -1,9 +1,19 @@
 /**
  * Zyprus DOCX Styles
- * 
+ *
  * Branding constants and styling for generated DOCX documents.
  * Matches the HTML viewing forms exactly.
  */
+
+// Re-export property formatter from shared utility (single source of truth)
+export {
+  formatPropertyDescription,
+  CYPRUS_DISTRICTS,
+  CYPRUS_AREAS,
+  COMPLEX_INDICATORS,
+  PROPERTY_TYPES,
+  titleCase,
+} from "../utils/property-formatter.ts";
 
 /**
  * Zyprus brand colors
@@ -36,14 +46,14 @@ export const FONTS = {
   
   /** Font sizes in half-points (Word uses half-points) */
   SIZES: {
-    /** Body text: 14px = 11pt = 22 half-points */
-    BODY: 22,
-    /** Title: 18px = 13.5pt = 27 half-points */
-    TITLE: 27,
-    /** Small text: 12px = 9pt = 18 half-points */
-    SMALL: 18,
-    /** Field labels: 14px = 11pt = 22 half-points */
-    LABEL: 22,
+    /** Body text: 12pt = 24 half-points */
+    BODY: 24,
+    /** Title: 14pt = 28 half-points */
+    TITLE: 28,
+    /** Small text: 10pt = 20 half-points */
+    SMALL: 20,
+    /** Field labels: 12pt = 24 half-points */
+    LABEL: 24,
   },
 } as const;
 
@@ -137,4 +147,7 @@ export function formatDate(date: Date = new Date()): string {
   const year = date.getFullYear();
   return `${day}/${month}/${year}`;
 }
+
+// Note: formatPropertyDescription and related constants are now imported from ../utils/property-formatter.ts
+// This keeps styles.ts focused on styling while the property formatter logic lives in one place.
 

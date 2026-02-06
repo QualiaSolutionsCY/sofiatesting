@@ -203,6 +203,20 @@ async function detectEmailSendingIntent(
 }
 
 /**
+ * Sanitize email subject to prevent header injection attacks.
+ * Removes newlines (which could inject headers), header-like patterns,
+ * and limits length.
+ */
+function sanitizeEmailSubject(subject: string): string {
+  return subject
+    .replace(/[\r\n]/g, " ") // Remove newlines (header injection vector)
+    .replace(/^(to|cc|bcc|from|subject|reply-to|content-type):/gi, "") // Remove header-like patterns
+    .replace(/\s+/g, " ") // Normalize whitespace
+    .slice(0, 200) // Reasonable length limit
+    .trim();
+}
+
+/**
  * Sends an email via Resend API
  */
 async function sendEmailViaResend(
@@ -241,7 +255,7 @@ async function sendEmailViaResend(
     const emailPayload: Record<string, unknown> = {
       from: "SOPHIA <sofia@zyprus.com>",
       to: intent.recipientEmail,
-      subject: intent.subject,
+      subject: sanitizeEmailSubject(intent.subject),
       html: htmlBody,
     };
 
