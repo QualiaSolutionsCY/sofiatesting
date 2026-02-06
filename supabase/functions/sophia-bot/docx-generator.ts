@@ -17,6 +17,12 @@ import {
   parseReservationAgreementData,
   createMarketingAgreement,
   parseMarketingAgreementData,
+  createViewingFormSingle,
+  parseViewingFormSingleData,
+  createViewingFormAdvanced,
+  parseViewingFormAdvancedData,
+  createViewingFormMultiple,
+  parseViewingFormMultipleData,
 } from "./docx/templates/index.ts";
 import { logger, LogCategory } from "./utils/logger.ts";
 
@@ -36,8 +42,8 @@ import {
 const FONTS = {
   PRIMARY: "Calibri",
   SIZES: {
-    BODY: 22,  // 11pt in half-points
-    TITLE: 27, // 13.5pt
+    BODY: 24,  // 12pt in half-points
+    TITLE: 28, // 14pt
   },
 };
 
@@ -304,6 +310,65 @@ export async function createDocxFile(content: string, _filename: string = "docum
         const buffer = await Packer.toBuffer(doc);
         return new Uint8Array(buffer);
       }
+    }
+
+    // Check if this is a Viewing Form - use specialized templates
+    const isViewingForm = contentLower.includes("viewing form") ||
+      (contentLower.includes("herein, i") && contentLower.includes("confirm that") && contentLower.includes("registry details"));
+
+    if (isViewingForm) {
+      logger.debug("[DOCX] Detected Viewing Form - using specialized template", { category: LogCategory.GENERAL });
+
+      // Determine if it's advanced (has legal text OR title says "advanced" OR mentions "digitally")
+      const isAdvanced = contentLower.includes("exclusive representative") ||
+        contentLower.includes("liability") ||
+        contentLower.includes("bypassing our agency") ||
+        contentLower.includes("commission fee") ||
+        contentLower.includes("advanced viewing") ||
+        contentLower.includes("viewing and/or digitally");
+
+      // Try advanced form first (has legal paragraph)
+      if (isAdvanced) {
+        const parsedAdvanced = parseViewingFormAdvancedData(content);
+        if (parsedAdvanced) {
+          logger.debug(`[DOCX] Parsed advanced viewing form with ${parsedAdvanced.persons.length} person(s)`, { category: LogCategory.GENERAL });
+          const doc = createViewingFormAdvanced(parsedAdvanced, DECODED_LOGO || undefined);
+          const buffer = await Packer.toBuffer(doc);
+          return new Uint8Array(buffer);
+        }
+        // Advanced parsing failed — try multiple parser but still use advanced template
+        const parsedMultiAdvanced = parseViewingFormMultipleData(content);
+        if (parsedMultiAdvanced && parsedMultiAdvanced.persons.length > 0) {
+          logger.debug(`[DOCX] Using advanced template with ${parsedMultiAdvanced.persons.length} person(s) from multiple parser`, { category: LogCategory.GENERAL });
+          const doc = createViewingFormAdvanced({
+            date: parsedMultiAdvanced.date,
+            persons: parsedMultiAdvanced.persons,
+            property: parsedMultiAdvanced.property,
+          }, DECODED_LOGO || undefined);
+          const buffer = await Packer.toBuffer(doc);
+          return new Uint8Array(buffer);
+        }
+      }
+
+      // Try multiple persons form (standard only)
+      const parsedMultiple = parseViewingFormMultipleData(content);
+      if (parsedMultiple && parsedMultiple.persons.length > 1) {
+        logger.debug(`[DOCX] Parsed multiple viewing form with ${parsedMultiple.persons.length} persons`, { category: LogCategory.GENERAL });
+        const doc = createViewingFormMultiple(parsedMultiple, DECODED_LOGO || undefined);
+        const buffer = await Packer.toBuffer(doc);
+        return new Uint8Array(buffer);
+      }
+
+      // Try single person form
+      const parsedSingle = parseViewingFormSingleData(content);
+      if (parsedSingle) {
+        logger.debug("[DOCX] Parsed single viewing form", { category: LogCategory.GENERAL });
+        const doc = createViewingFormSingle(parsedSingle, DECODED_LOGO || undefined);
+        const buffer = await Packer.toBuffer(doc);
+        return new Uint8Array(buffer);
+      }
+
+      logger.warn("[DOCX] Failed to parse viewing form data - falling back to generic DOCX", { category: LogCategory.GENERAL });
     }
 
     const paragraphs: Paragraph[] = [];

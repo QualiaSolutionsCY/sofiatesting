@@ -518,13 +518,11 @@ export function detectDocxTemplateType(response: string): DocxTemplateType {
   // Viewing Forms
   if (first500.includes("viewing form") || first500.includes("herein, i")) {
     // Check for advanced (has legal paragraph)
+    // Advanced template supports both single and multiple people
     if (lower.includes("exclusive representative") ||
         lower.includes("monetary compensation") ||
-        lower.includes("commission fee")) {
-      // Check for multiple people
-      if (lower.includes("and i ") && (lower.match(/with id/gi) || []).length > 1) {
-        return "viewing-form-multiple";
-      }
+        lower.includes("commission fee") ||
+        lower.includes("viewing and/or digitally")) {
       return "viewing-form-advanced";
     }
 

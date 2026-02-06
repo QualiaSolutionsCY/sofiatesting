@@ -343,6 +343,16 @@ async function processRequest(
               const advancedData = parseViewingFormAdvancedData(aiResponse);
               if (advancedData) {
                 docxDoc = createViewingFormAdvanced(advancedData, logoData);
+              } else {
+                // Fallback: try multiple parser and still use advanced template
+                const multipleAsAdvanced = parseViewingFormMultipleData(aiResponse);
+                if (multipleAsAdvanced) {
+                  docxDoc = createViewingFormAdvanced({
+                    date: multipleAsAdvanced.date,
+                    persons: multipleAsAdvanced.persons,
+                    property: multipleAsAdvanced.property,
+                  }, logoData);
+                }
               }
               break;
             }

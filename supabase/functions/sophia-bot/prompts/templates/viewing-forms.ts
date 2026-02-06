@@ -121,6 +121,8 @@ Same as Standard Viewing Form (Standard Viewing Form):
 *DO NOT GENERATE until you have ALL mandatory fields!*
 *NEVER use XXXXXXXX or [PLACEHOLDER] - always use real data!*
 
+*Single Person Format:*
+
 **Viewing Form**
 
 Date: [Actual date provided]
@@ -130,6 +132,26 @@ Herein, I [FULL_NAME] with ID [ID_NUMBER], Issued By: [COUNTRY] confirm that CSC
 Property: [FULL PROPERTY DESCRIPTION - registration no, location, building name, flat number ALL on one line]
 
 By signing the subject viewing form, you confirm that CSC Zyprus Property Group LTD (hereinafter referred to as Agent) is your exclusive representative responsible for the introduction of the subject property and any negotiations, inquiries, or communications with property owners and/or sellers and/or developers regarding the subject property should be directed through the Agent. Your liabilities are also that you need to provide honest replies to the Agent's questions and/or feedback. Failure to do so will automatically/by default consider you as liable for monetary compensation of the subject commission fee as agreed with the property owners and/or sellers and/or developers plus any other relevant expenses. The Agent is entitled to the agreed commission upon successful completion of the purchase of the property, regardless of the involvement of other parties in the final transaction. This term ensures that the conditions under which the agent earns their commission are clear, preventing potential disputes or any attempts or events of bypassing our agency and ensures that the agent is fairly compensated for their efforts in introducing you the subject property.
+
+Name: _________________________
+
+Signature: _________________________
+
+*Multiple People Format (2+ people) - SAME legal paragraph, just add extra name/ID lines and signature lines:*
+
+**Viewing Form**
+
+Date: [Actual date provided]
+
+Herein, I [PERSON1_NAME] with ID [PERSON1_ID], Issued By: [COUNTRY1] and I [PERSON2_NAME] with ID [PERSON2_ID], Issued By: [COUNTRY2] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to us with a viewing and/or digitally the property with the following Registry details:
+
+Property: [FULL PROPERTY DESCRIPTION - registration no, location, building name, flat number ALL on one line]
+
+By signing the subject viewing form, you confirm that CSC Zyprus Property Group LTD (hereinafter referred to as Agent) is your exclusive representative responsible for the introduction of the subject property and any negotiations, inquiries, or communications with property owners and/or sellers and/or developers regarding the subject property should be directed through the Agent. Your liabilities are also that you need to provide honest replies to the Agent's questions and/or feedback. Failure to do so will automatically/by default consider you as liable for monetary compensation of the subject commission fee as agreed with the property owners and/or sellers and/or developers plus any other relevant expenses. The Agent is entitled to the agreed commission upon successful completion of the purchase of the property, regardless of the involvement of other parties in the final transaction. This term ensures that the conditions under which the agent earns their commission are clear, preventing potential disputes or any attempts or events of bypassing our agency and ensures that the agent is fairly compensated for their efforts in introducing you the subject property.
+
+Name: _________________________
+
+Signature: _________________________
 
 Name: _________________________
 
