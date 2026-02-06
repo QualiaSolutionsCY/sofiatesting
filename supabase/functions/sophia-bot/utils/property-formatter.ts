@@ -69,6 +69,8 @@ export const CYPRUS_AREAS = [
   "souni-zanakia",
   "souni",
   "zanakia",
+  "amathounta",
+  "amathus",
   // Nicosia District
   "strovolos",
   "engomi",
@@ -228,12 +230,16 @@ export function formatPropertyDescription(rawInput: string): string {
   }
 
   // Identify single-word area (Konia, Tala, etc.) if not already found
+  // If area already set (from multi-word match), capture as sub-area (e.g., Amathounta)
+  let subArea = "";
   const afterAreaWords: string[] = [];
 
   for (const word of remainingWords) {
     const wordLower = word.toLowerCase();
     if (!area && CYPRUS_AREAS.includes(wordLower as typeof CYPRUS_AREAS[number])) {
       area = titleCase(word);
+    } else if (area && !subArea && CYPRUS_AREAS.includes(wordLower as typeof CYPRUS_AREAS[number])) {
+      subArea = titleCase(word);
     } else {
       afterAreaWords.push(word);
     }
@@ -271,15 +277,12 @@ export function formatPropertyDescription(rawInput: string): string {
     complexName = complexWords.join(" ");
   }
 
-  // Build location string: "Area, District" or just "District"
-  let location = "";
-  if (area && district) {
-    location = `${area}, ${district}`;
-  } else if (district) {
-    location = district;
-  } else if (area) {
-    location = area;
-  }
+  // Build location string: "SubArea, Area, District" or "Area, District" or just "District"
+  const locationParts: string[] = [];
+  if (subArea) locationParts.push(subArea);
+  if (area) locationParts.push(area);
+  if (district) locationParts.push(district);
+  const location = locationParts.join(", ");
 
   // Build building info (complex + flat)
   const buildingParts: string[] = [];

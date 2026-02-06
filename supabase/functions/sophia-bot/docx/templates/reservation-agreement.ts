@@ -607,15 +607,27 @@ export function parseReservationAgreementData(response: string): ReservationAgre
     // Clean response - remove markdown bold markers
     const cleanResponse = response.replace(/\*\*/g, '');
 
-    // Extract LOAN/VAT flags - look for explicit yes/no answers
-    // Pattern: "LOAN" followed by "Yes" or "No" (or vice versa)
-    const loanSection = cleanResponse.match(/loan[:\s]*(yes|no)|(?:does.*involve.*loan)[:\s]*(yes|no)|(yes|no)[,\s]*(?:loan|mortgage)/i);
-    const hasLoanClause = loanSection ? /yes/i.test(loanSection[0]) : false;
+    // Extract LOAN/VAT flags
+    // Priority 1: Structured HTML comment format <!-- Loan: Yes, VAT: No -->
+    // Priority 2: Individual field detection (simplified, no cross-field matching)
+    let hasLoanClause = false;
+    let hasVatClause = false;
 
-    const vatSection = cleanResponse.match(/vat[:\s]*(yes|no)|(?:vat.*clause)[:\s]*(yes|no)|(yes|no)[,\s]*(?:vat)/i);
-    const hasVatClause = vatSection ? /yes/i.test(vatSection[0]) : false;
+    const commentMatch = cleanResponse.match(/<!--[^>]*?loan[:\s]*(yes|no)[^>]*?vat[:\s]*(yes|no)[^>]*?-->/i);
+    if (commentMatch) {
+      hasLoanClause = /yes/i.test(commentMatch[1]);
+      hasVatClause = /yes/i.test(commentMatch[2]);
+      logger.debug("[ReservationAgreement] Flags from comment", { hasLoan: hasLoanClause, hasVat: hasVatClause });
+    } else {
+      // Fallback: match "loan: yes/no" and "vat: yes/no" individually
+      // Use capture group [1] to avoid false positives from surrounding text
+      const loanMatch = cleanResponse.match(/\bloan[:\s]*(yes|no)/i);
+      hasLoanClause = loanMatch ? /yes/i.test(loanMatch[1]) : false;
 
-    logger.debug("[ReservationAgreement] Flags", { hasLoan: hasLoanClause, hasVat: hasVatClause });
+      const vatMatch = cleanResponse.match(/\bvat[:\s]*(yes|no)/i);
+      hasVatClause = vatMatch ? /yes/i.test(vatMatch[1]) : false;
+      logger.debug("[ReservationAgreement] Flags from regex fallback", { hasLoan: hasLoanClause, hasVat: hasVatClause });
+    }
 
     // BUYERS: Parse multiple buyers separated by "and"
     // Format: "Name1 Cyprus ID: 123456 and Name2 Cyprus ID: 789012"

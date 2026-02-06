@@ -59,21 +59,23 @@ For multiple people, clearly label each person:
 - *Person 2 ID:* [Second Person's ID]
 - *Person 2 Issued By:* [Second Person's Issuer]
 
+*IMPORTANT - PROPERTY LINE FORMAT:*
+The property details MUST be on a single "Property:" line that includes ALL details: registration number, location, building/complex name, flat/unit number.
+Examples:
+- Property: registration no 0/1457, Dimos Kato Polemidia, Agios Varnavas, Limassol, Arion Court, Flat No. 105
+- Property: registration no 0/1567, Konia, Paphos, Maroula Court, Flat No. 201
+- Property: registration no 5678, Tala, Paphos
+NEVER split property details into separate Registration No/District/Municipality/Locality lines. ALWAYS combine into ONE "Property:" line.
+
 *Single Person Format:*
 
 **Viewing Form**
 
 Date: [DATE]
 
-Herein, I…………………………………………………………… with ID……………………. Issued By: confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to me with a viewing the property with the following Registry details
+Herein, I [FULL_NAME] with ID [ID_NUMBER] Issued By: [COUNTRY] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to me with a viewing the property with the following Registry details:
 
-Registration No.: [REGISTRATION_NO]
-
-District: [DISTRICT]
-
-Municipality: [MUNICIPALITY]
-
-Locality: [LOCALITY]
+Property: [FULL PROPERTY DESCRIPTION - registration no, location, building name, flat number ALL on one line]
 
 Name: _________________________
 
@@ -85,17 +87,9 @@ Signature: _________________________
 
 Date: [DATE]
 
-Herein, I…………………………………………………………… with ID……………………. Issued By:
-and I…………………………………………………………… with ID……………………. Issued By:
-confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to us with a viewing the property with the following Registry details
+Herein, I [PERSON1_NAME] with ID [PERSON1_ID] Issued By: [COUNTRY1] and I [PERSON2_NAME] with ID [PERSON2_ID] Issued By: [COUNTRY2] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to us with a viewing the property with the following Registry details:
 
-Registration No.: [REGISTRATION_NO]
-
-District: [DISTRICT]
-
-Municipality: [MUNICIPALITY]
-
-Locality: [LOCALITY]
+Property: [FULL PROPERTY DESCRIPTION - registration no, location, building name, flat number ALL on one line]
 
 Name: _________________________
 
@@ -131,15 +125,9 @@ Same as Standard Viewing Form (Standard Viewing Form):
 
 Date: [Actual date provided]
 
-Herein, I…………………………………………………………… with ID……………………., Issued By: ……………………………… .confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to me with a viewing and/or digitally the property with the following Registry details:
+Herein, I [FULL_NAME] with ID [ID_NUMBER], Issued By: [COUNTRY] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to me with a viewing and/or digitally the property with the following Registry details:
 
-Registration No.: [REGISTRATION_NO]
-
-District: [DISTRICT]
-
-Municipality: [MUNICIPALITY]
-
-Locality: [LOCALITY]
+Property: [FULL PROPERTY DESCRIPTION - registration no, location, building name, flat number ALL on one line]
 
 By signing the subject viewing form, you confirm that CSC Zyprus Property Group LTD (hereinafter referred to as Agent) is your exclusive representative responsible for the introduction of the subject property and any negotiations, inquiries, or communications with property owners and/or sellers and/or developers regarding the subject property should be directed through the Agent. Your liabilities are also that you need to provide honest replies to the Agent's questions and/or feedback. Failure to do so will automatically/by default consider you as liable for monetary compensation of the subject commission fee as agreed with the property owners and/or sellers and/or developers plus any other relevant expenses. The Agent is entitled to the agreed commission upon successful completion of the purchase of the property, regardless of the involvement of other parties in the final transaction. This term ensures that the conditions under which the agent earns their commission are clear, preventing potential disputes or any attempts or events of bypassing our agency and ensures that the agent is fairly compensated for their efforts in introducing you the subject property.
 
@@ -176,10 +164,12 @@ You MUST collect ALL of these fields before generating the reservation agreement
 
 3. *Property Details*:
    - FULL PROPERTY DESCRIPTION as a single sentence
-   - *IMPORTANT - PROPERTY ORDER*: ALWAYS use this order: Registration No. → Location (village, city) → Building/Flat info
-   - WITH registration: "Registration No. 0/9029, Mouttayiaka, Limassol" or "Registration No. 0/1456, Souni-Zanakia, Limassol, Pertridio Building Apartment No. 105"
+   - *CRITICAL*: Include ALL location parts EXACTLY as provided by the user. If the user gives a neighborhood (e.g., "Amathounta"), municipality (e.g., "Agios Athanasios"), and district (e.g., "Limassol"), include ALL of them. NEVER drop any location component.
+   - *IMPORTANT - PROPERTY ORDER*: ALWAYS use this order: Registration No. → Location (neighborhood, village/municipality, district) → Building/Flat info
+   - WITH registration: "Registration No. 0/9029, Mouttayiaka, Limassol" or "Registration No. 0/1456, Amathounta, Agios Athanasios, Limassol, Arion Court Flat No. 107"
    - WITHOUT registration (description only): "Arion Court, Flat No. 105, Mesa Geitonia, Limassol" — still put location AFTER building
    - NEVER put building/flat info before location!
+   - NEVER drop neighborhood/area names even if you don't recognize them — always include exactly what the user provided
    - Include: property type, registration number, plot/unit number, sheet/plan if applicable, location
 
 4. *Reservation Fee* - Amount in EUR (auto-convert to words)
