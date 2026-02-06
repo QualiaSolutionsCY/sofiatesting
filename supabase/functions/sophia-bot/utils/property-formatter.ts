@@ -71,6 +71,10 @@ export const CYPRUS_AREAS = [
   "zanakia",
   "amathounta",
   "amathus",
+  "linopetra",
+  "potamos germasogeias",
+  "kato polemidia",
+  "agios nikolaos",
   // Nicosia District
   "strovolos",
   "engomi",
@@ -139,18 +143,12 @@ export function titleCase(str: string): string {
 }
 
 /**
- * Smart property description formatter - extracts reg number, location, building name, flat number
- * from a raw string. Used by all document templates.
+ * Smart property description formatter - extracts reg number, location, building name, flat number,
+ * sheet/plan, block, and plot info from a raw string. Used by all document templates.
  *
- * Target format:
- * "Registration No. 0/1567 Konia, Paphos (Maroula Court, Flat No. 105)"
- *
- * Input examples:
- * - "apartment with registration no 0/1567 konia paphos maroula court flat no 105"
- * - "0/1547 townhouse cynthiana complex agios theodoros, paphos flat no 105"
- * - "Flat No. 103, Cynthiana Complex, Tala, Paphos reg no 0/1234"
- *
- * Output: "Registration No. 0/1567 Konia, Paphos (Maroula Court, Flat No. 105)"
+ * Output formats:
+ * Apartment: "Registration No. 0/1567, Konia, Paphos (Maroula Court, Flat No. 105)"
+ * Land/Plot: "Registration No. 0/1346, Sheet/Plan 44/55, Block 0, Plot No. 122, Amathounta, Agios Athanasios, Limassol"
  */
 export function formatPropertyDescription(rawInput: string): string {
   if (!rawInput || rawInput.length < 3) {
@@ -170,6 +168,7 @@ export function formatPropertyDescription(rawInput: string): string {
     .trim();
 
   // Extract registration number (format: X/XXXX like 0/1234 or 1/12345)
+  // Must appear near "reg" prefix OR be the first number/slash pattern
   let regNumber: string | null = null;
   const regMatch = input.match(
     /(?:reg(?:istration)?\.?\s*(?:no\.?|number)?\s*)?(\d+\/\d+)/i
@@ -182,20 +181,38 @@ export function formatPropertyDescription(rawInput: string): string {
       .trim();
   }
 
-  // Extract flat/unit/house number pattern
-  // Supports: "flat no 105", "flat no. 105", "flat number 105", "flat 105", "unit 5b", "townhousenumber 10b"
-  let flatInfo = "";
-  const flatNoMatch = input.match(
-    /\b(flat|unit|apt|apartment|house|townhouse|villa|bungalow|penthouse|maisonette)\s*(?:no\.?|number)?\s*(\d+\s*[A-Za-z]?|\d+-?[A-Za-z])/i
+  // Extract sheet/plan pattern: "sheet/plan 44/55", "sheet plan 44/55", "sheet 44/55"
+  let sheetPlanInfo = "";
+  const sheetMatch = input.match(
+    /\bsheet\s*\/?\s*plan\s*(\d+\s*\/?\s*\d*)/i
   );
-  if (flatNoMatch) {
-    const flatNum = flatNoMatch[2].replace(/\s+/g, "").toUpperCase();
-    const flatType =
-      flatNoMatch[1].charAt(0).toUpperCase() +
-      flatNoMatch[1].slice(1).toLowerCase();
-    flatInfo = `${flatType} No. ${flatNum}`;
-    // Remove from input
-    input = input.replace(flatNoMatch[0], " ").trim();
+  if (sheetMatch) {
+    const spNum = sheetMatch[1].replace(/\s+/g, "");
+    sheetPlanInfo = `Sheet/Plan ${spNum}`;
+    input = input.replace(sheetMatch[0], " ").trim();
+  }
+
+  // Extract block pattern: "block 0", "block 12"
+  let blockInfo = "";
+  const blockMatch = input.match(/\bblock\s+(\d+)/i);
+  if (blockMatch) {
+    blockInfo = `Block ${blockMatch[1]}`;
+    input = input.replace(blockMatch[0], " ").trim();
+  }
+
+  // Extract flat/unit/plot number pattern
+  // Supports: "flat no 105", "plot no 122", "unit 5b", etc.
+  let unitInfo = "";
+  const unitMatch = input.match(
+    /\b(flat|unit|apt|apartment|house|townhouse|villa|bungalow|penthouse|maisonette|plot)\s*(?:no\.?|number)?\s*(\d+\s*[A-Za-z]?|\d+-?[A-Za-z])/i
+  );
+  if (unitMatch) {
+    const unitNum = unitMatch[2].replace(/\s+/g, "").toUpperCase();
+    const unitType =
+      unitMatch[1].charAt(0).toUpperCase() +
+      unitMatch[1].slice(1).toLowerCase();
+    unitInfo = `${unitType} No. ${unitNum}`;
+    input = input.replace(unitMatch[0], " ").trim();
   }
 
   // Clean up and normalize whitespace
@@ -229,17 +246,16 @@ export function formatPropertyDescription(rawInput: string): string {
     }
   }
 
-  // Identify single-word area (Konia, Tala, etc.) if not already found
-  // If area already set (from multi-word match), capture as sub-area (e.g., Amathounta)
-  let subArea = "";
+  // Identify single-word areas - collect all recognized areas
+  const additionalAreas: string[] = [];
   const afterAreaWords: string[] = [];
 
   for (const word of remainingWords) {
     const wordLower = word.toLowerCase();
     if (!area && CYPRUS_AREAS.includes(wordLower as typeof CYPRUS_AREAS[number])) {
       area = titleCase(word);
-    } else if (area && !subArea && CYPRUS_AREAS.includes(wordLower as typeof CYPRUS_AREAS[number])) {
-      subArea = titleCase(word);
+    } else if (CYPRUS_AREAS.includes(wordLower as typeof CYPRUS_AREAS[number])) {
+      additionalAreas.push(titleCase(word));
     } else {
       afterAreaWords.push(word);
     }
@@ -255,8 +271,8 @@ export function formatPropertyDescription(rawInput: string): string {
   for (const word of afterAreaWords) {
     const wordLower = word.toLowerCase();
 
-    // Skip standalone property types when we have a flat number
-    if (flatInfo && PROPERTY_TYPES.includes(wordLower as typeof PROPERTY_TYPES[number])) {
+    // Skip standalone property types when we have a unit number
+    if (unitInfo && PROPERTY_TYPES.includes(wordLower as typeof PROPERTY_TYPES[number])) {
       continue;
     }
 
@@ -277,36 +293,36 @@ export function formatPropertyDescription(rawInput: string): string {
     complexName = complexWords.join(" ");
   }
 
-  // Build location string: "SubArea, Area, District" or "Area, District" or just "District"
+  // Build location string from all area parts + district
   const locationParts: string[] = [];
-  if (subArea) locationParts.push(subArea);
+  locationParts.push(...additionalAreas);
   if (area) locationParts.push(area);
   if (district) locationParts.push(district);
   const location = locationParts.join(", ");
 
-  // Build building info (complex + flat)
-  const buildingParts: string[] = [];
-  if (complexName) buildingParts.push(complexName);
-  if (flatInfo) buildingParts.push(flatInfo);
-  const buildingInfo = buildingParts.join(", ");
+  // Build description parts (comma-separated)
+  const descParts: string[] = [];
+  if (regNumber) descParts.push(`Registration No. ${regNumber}`);
+  if (sheetPlanInfo) descParts.push(sheetPlanInfo);
+  if (blockInfo) descParts.push(blockInfo);
+  // Unit info outside parentheses only when no complex name
+  if (unitInfo && !complexName) descParts.push(unitInfo);
+  if (location) descParts.push(location);
 
-  // Format: "Registration No. 0/1567 Konia, Paphos (Maroula Court, Flat No. 105)"
+  // Build final description
   let description: string;
-  if (regNumber && location && buildingInfo) {
-    description = `Registration No. ${regNumber} ${location} (${buildingInfo})`;
-  } else if (regNumber && location) {
-    description = `Registration No. ${regNumber} ${location}`;
-  } else if (regNumber && buildingInfo) {
-    description = `Registration No. ${regNumber} (${buildingInfo})`;
-  } else if (regNumber) {
-    description = `Registration No. ${regNumber}`;
-  } else if (buildingInfo && location) {
-    // No parentheses when no registration number
-    description = `${buildingInfo}, ${location}`;
+  if (descParts.length > 0 && complexName && unitInfo) {
+    description = `${descParts.join(", ")} (${complexName}, ${unitInfo})`;
+  } else if (descParts.length > 0 && complexName) {
+    description = `${descParts.join(", ")} (${complexName})`;
+  } else if (descParts.length > 0) {
+    description = descParts.join(", ");
+  } else if (complexName && unitInfo) {
+    description = `${complexName}, ${unitInfo}`;
+  } else if (complexName) {
+    description = complexName;
   } else if (location) {
     description = location;
-  } else if (buildingInfo) {
-    description = buildingInfo;
   } else {
     // Fallback: title case the original input
     description = titleCase(rawInput);
