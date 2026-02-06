@@ -6,6 +6,25 @@
 import { getAccessToken, getZyprusConfig } from "./client.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { logger, LogCategory } from "../utils/logger.ts";
+import {
+  SOPHIA_AI_UUID,
+  USER_FALLBACKS,
+  AGENT_NAME_MAP,
+  REGION_LOCATIONS,
+  DEFAULT_LOCATION_UUID,
+  DEFAULT_PROPERTY_TYPE_UUID,
+  DEFAULT_LISTING_TYPE_UUID,
+  DEFAULT_PRICE_MODIFIER_UUID,
+  DEFAULT_TITLE_DEED_UUID,
+  PROPERTY_TYPE_FALLBACKS,
+  INDOOR_FEATURE_FALLBACKS,
+  OUTDOOR_FEATURE_FALLBACKS,
+  VIEW_FALLBACKS,
+  INDOOR_FEATURE_ALIASES,
+  OUTDOOR_FEATURE_ALIASES,
+  OPPOSITE_MODIFIERS,
+  TAXONOMY_CACHE_TTL_MS,
+} from "../config/business-rules.ts";
 
 // Supabase client for agent lookups
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -70,7 +89,7 @@ export interface TaxonomyCache {
 
 // In-memory cache
 let cache: TaxonomyCache | null = null;
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+const CACHE_TTL = TAXONOMY_CACHE_TTL_MS;
 
 // P2 PERFORMANCE: Singleton promise to prevent cache stampede
 let taxonomyLoadPromise: Promise<TaxonomyCache> | null = null;
@@ -375,75 +394,14 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
 /**
  * Find location UUID by name
  * MANDATORY field - always returns a valid UUID
- * Default UUID from test: 7dbc931e-90eb-4b89-9ac8-b5e593831cf8 (Acropolis, Strovolos)
  *
  * IMPROVED: Scores matches prioritizing exact location name matches
  * e.g., "Peyia, Paphos" should match "Peyia" not "Kato Paphos" even though both are in Paphos
  */
 export async function findLocationUuid(locationName: string): Promise<string> {
-  // HARDCODED FALLBACK - Acropolis, Strovolos (known working UUID)
-  const DEFAULT_LOCATION_UUID = "7dbc931e-90eb-4b89-9ac8-b5e593831cf8";
-
-  // HARDCODED LOCATION UUIDs for common locations that need exact matching
-  // These take priority over fuzzy matching to prevent "Peyia" matching "Coral Bay"
-  const LOCATION_FALLBACKS: Record<string, string> = {
-    // Paphos region - TODO: Get actual UUIDs from API
-    "peyia": "PEYIA-UUID-PLACEHOLDER",
-    "pegeia": "PEYIA-UUID-PLACEHOLDER", // Alternative spelling
-    "tala": "TALA-UUID-PLACEHOLDER",
-    "coral bay": "CORAL-BAY-UUID-PLACEHOLDER",
-    "chloraka": "CHLORAKA-UUID-PLACEHOLDER",
-    "kato paphos": "KATO-PAPHOS-UUID-PLACEHOLDER",
-    "paphos": "PAPHOS-UUID-PLACEHOLDER",
-    // Limassol region
-    "agios tychonas": "AGIOS-TYCHONAS-UUID-PLACEHOLDER",
-    "germasogeia": "GERMASOGEIA-UUID-PLACEHOLDER",
-    "limassol": "LIMASSOL-UUID-PLACEHOLDER",
-  };
-
   // Check for exact location match in hardcoded fallbacks FIRST
   const normalizedInput = locationName.toLowerCase().trim();
   const firstWord = normalizedInput.split(/[\s,]+/)[0];
-
-  // Try exact match on first word (the specific location)
-  if (LOCATION_FALLBACKS[firstWord] && !LOCATION_FALLBACKS[firstWord].includes("PLACEHOLDER")) {
-    logger.debug(`[Taxonomy] Using hardcoded location for "${firstWord}": ${LOCATION_FALLBACKS[firstWord]}`);
-    return LOCATION_FALLBACKS[firstWord];
-  }
-
-  // Known locations within each region - used to determine if a location is IN a region
-  // This helps give bonus to locations that are IN the detected region, not just
-  // locations whose NAME contains the region name
-  const REGION_LOCATIONS: Record<string, string[]> = {
-    paphos: [
-      "paphos", "pafos", "tala", "peyia", "chloraka", "kato paphos", "coral bay", "polis",
-      "geroskipou", "pegeia", "kissonerga", "emba", "tremithousa", "mesa chorio",
-      "kamares", "mandria", "kouklia", "letymvou", "tsada", "mesogi", "koloni",
-      "universal", "anavargos", "konia", "tomb of kings", "sea caves"
-    ],
-    limassol: [
-      "limassol", "lemesos", "germasogeia", "agios tychonas", "potamos", "mesa geitonia",
-      "zakaki", "columbia", "tourist area", "pareklisia", "pissouri", "erimi",
-      "episkopi", "pyrgos", "parekklisia", "mouttagiaka", "agios athanasios",
-      "trachoni", "panthea", "ypsonas", "kato polemidia", "polemidia", "agios nikolaos",
-      "agia fyla", "omonia", "neapolis", "linopetra", "agios ioannis", "ayios tychonas"
-    ],
-    larnaca: [
-      "larnaca", "larnaka", "oroklini", "pervolia", "livadia", "dekelia", "dhekelia",
-      "kamares", "aradippou", "meneou", "dromolaxia", "kiti", "tersefanou", "perivolia",
-      "chrysopolitissa"
-    ],
-    nicosia: [
-      "nicosia", "lefkosia", "strovolos", "lakatamia", "engomi", "aglantzia",
-      "dasoupoli", "makedonitissa", "kaimakli", "pallouriotissa", "latsia",
-      "geri", "dali", "tseri", "kokkinotrimithia", "deftera", "acropolis"
-    ],
-    famagusta: [
-      "famagusta", "ammochostos", "paralimni", "protaras", "ayia napa", "agia napa",
-      "deryneia", "sotira", "frenaros", "liopetri", "xylofagou", "vrysoulles",
-      "cape greco", "kapparis"
-    ],
-  };
 
   try {
     const taxonomy = await loadTaxonomy();
@@ -589,26 +547,9 @@ export async function findLocationUuid(locationName: string): Promise<string> {
 
 /**
  * Find property type UUID by name
- * Now includes a hardcoded fallback for common types if API lookup fails
+ * Uses hardcoded fallbacks from config for common types if API lookup fails
  */
 export async function findPropertyTypeUuid(typeName: string): Promise<string> {
-  // HARDCODED FALLBACK UUIDs for common property types (from dev9.zyprus.com)
-  // These UUIDs are verified to work on dev9.zyprus.com
-  const PROPERTY_TYPE_FALLBACKS: Record<string, string> = {
-    apartment: "e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44",
-    villa: "76b4fa8e-de7e-4232-85ac-869dca3620f4",
-    house: "76b4fa8e-de7e-4232-85ac-869dca3620f4", // same as villa
-    "detached house": "76b4fa8e-de7e-4232-85ac-869dca3620f4", // same as villa
-    "detached villa": "76b4fa8e-de7e-4232-85ac-869dca3620f4", // same as villa
-    "semi-detached": "76b4fa8e-de7e-4232-85ac-869dca3620f4", // same as villa
-    studio: "e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44", // same as apartment
-    penthouse: "e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44", // same as apartment
-    bungalow: "76b4fa8e-de7e-4232-85ac-869dca3620f4", // same as villa
-    maisonette: "e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44", // same as apartment
-    townhouse: "76b4fa8e-de7e-4232-85ac-869dca3620f4", // same as villa
-  };
-  const DEFAULT_PROPERTY_TYPE_UUID = "e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44"; // Apartment
-
   const normalized = typeName.toLowerCase().trim();
   logger.debug(`[Taxonomy] Finding property type UUID for: "${typeName}" (normalized: "${normalized}")`);
 
@@ -688,12 +629,9 @@ export async function findPropertyTypeUuid(typeName: string): Promise<string> {
 
 /**
  * Find listing type UUID (sale/rent)
- * Default UUID from API spec (For Sale): 8f187816-a888-4cda-a937-1cee84b9c0ee
+ * Uses DEFAULT_LISTING_TYPE_UUID from config as fallback
  */
 export async function findListingTypeUuid(type: "sale" | "rent"): Promise<string> {
-  // HARDCODED FALLBACK from Zyprus API spec (For Sale)
-  const DEFAULT_LISTING_TYPE_UUID = "8f187816-a888-4cda-a937-1cee84b9c0ee";
-
   try {
     const taxonomy = await loadTaxonomy();
 
@@ -787,12 +725,9 @@ export async function getLocationsByRegion(region: string): Promise<TaxonomyItem
  * Find price modifier UUID
  * Production: "Plus VAT", "No VAT", "VAT Included"
  * Dev API: ['Price', 'Guide Price', 'Offers in region of', 'Offers over', 'Negotiable']
- * Default UUID from API spec: ab39af2d-c8f5-4971-9fa5-2df6822ab9a9
+ * Uses DEFAULT_PRICE_MODIFIER_UUID from config as fallback
  */
 export async function findPriceModifierUuid(modifier?: string): Promise<string> {
-  // HARDCODED FALLBACK from Zyprus API spec
-  const DEFAULT_PRICE_MODIFIER_UUID = "ab39af2d-c8f5-4971-9fa5-2df6822ab9a9";
-
   try {
     const taxonomy = await loadTaxonomy();
 
@@ -828,12 +763,9 @@ export async function findPriceModifierUuid(modifier?: string): Promise<string> 
  * Find title deed UUID
  * Production: "Title Deed", "Final Approval", "Share of Land"
  * Dev API: ['Available', 'Not Available', 'On Application', 'Not Display']
- * Default UUID from API spec: 5c553db1-e53d-46a2-b609-093d17e75a7a
+ * Uses DEFAULT_TITLE_DEED_UUID from config as fallback
  */
 export async function findTitleDeedUuid(status?: string): Promise<string> {
-  // HARDCODED FALLBACK from Zyprus API spec
-  const DEFAULT_TITLE_DEED_UUID = "5c553db1-e53d-46a2-b609-093d17e75a7a";
-
   try {
     const taxonomy = await loadTaxonomy();
 
@@ -882,85 +814,6 @@ export async function findTitleDeedUuid(status?: string): Promise<string> {
   logger.debug(`[Taxonomy] Using hardcoded default title deed UUID`);
   return DEFAULT_TITLE_DEED_UUID;
 }
-
-/**
- * SOPHIA AI user UUID - used as fallback when user lookup fails
- */
-const SOPHIA_AI_UUID = "7026c7a3-1ef0-419f-9957-15a8c161b614";
-
-/**
- * Agent email to name mapping for lookup by name when email lookup fails
- * Names based on Zyprus username conventions (usually first name or email prefix)
- */
-const AGENT_NAME_MAP: Record<string, string[]> = {
-  // Paphos agents
-  "evelina@zyprus.com": ["evelina", "evelina neophytou"],
-  "marios@zyprus.com": ["marios", "marios polyviou"],
-  "dimitris@zyprus.com": ["dimitris", "dimitris panayiotou"],
-  "paphos@zyprus.com": ["azinas", "marios azinas"],
-  "azinas@zyprus.com": ["azinas", "marios azinas"],
-
-  // Limassol agents
-  "limassol@zyprus.com": ["michelle", "michelle longridge"],
-  "michelle@zyprus.com": ["michelle", "michelle longridge"],
-  "diana@zyprus.com": ["diana", "diana kultaseva"],
-  "maria@zyprus.com": ["maria", "maria georgiou"],
-  "demetra@zyprus.com": ["demetra", "demetra papademetriou"],
-  "christos@zyprus.com": ["christos", "christos minterides"],
-  "daga@zyprus.com": ["daga", "daga lawicka"],
-  "danae@zyprus.com": ["danae", "danae pirou"],
-  "eleni@zyprus.com": ["eleni", "eleni iordanidou"],
-  "oz@zyprus.com": ["oz", "olesya", "olesya zheyko"],
-  "victoria@zyprus.com": ["victoria", "victoria roberts"],
-  "brendan@zyprus.com": ["brendan", "brendan haddad"],
-  "susan@zyprus.com": ["susan", "susan taylor"],
-
-  // Larnaca agents
-  "larnaca@zyprus.com": ["lysandros", "lysandros ioanni"],
-  "natalia.larnaca@zyprus.com": ["natalia", "natalia komarova"],
-  "olha@zyprus.com": ["olha", "olha shevchuk"],
-
-  // Nicosia agents
-  "nicosia@zyprus.com": ["ivan", "ivan kazakov"],
-  "niki@zyprus.com": ["niki", "mir", "mir fathi"],
-  "marisa@zyprus.com": ["marisa", "marisa konstantinou"],
-  "philippos@zyprus.com": ["philippos", "philippos chrysostomou"],
-
-  // Famagusta agents
-  "famagusta@zyprus.com": ["narine", "narine akopyan"],
-  "nick@zyprus.com": ["nick", "nick kokotsis"],
-  "olga@zyprus.com": ["olga", "olga matushkina"],
-
-  // Management
-  "csc@zyprus.com": ["charalambos", "csc"],
-  "listings@zyprus.com": ["lauren", "listings"],
-};
-
-/**
- * Hardcoded fallback UUIDs for known Zyprus staff
- * Used when API user lookup fails (API doesn't expose mail attribute on dev9)
- * UUIDs retrieved by matching usernames to display_name/name attributes
- */
-const USER_FALLBACKS: Record<string, string> = {
-  // Found by username match in dev9.zyprus.com user list
-  "listings@zyprus.com": "0caa9a75-362a-4156-b11b-b52839243b74", // Lauren (username: listings)
-  "michelle@zyprus.com": "dc2688d2-0ea1-4c13-b03d-3309ee8de6a4", // Michelle
-  "limassol@zyprus.com": "dc2688d2-0ea1-4c13-b03d-3309ee8de6a4", // Michelle (via limassol@)
-  "demetra@zyprus.com": "b72a0f7c-62d8-4f69-89f3-aaebee31676a", // Demetra
-  "azinas@zyprus.com": "c8e05e2a-56e6-4d1f-9a20-31235feaec54", // Azinas
-  "paphos@zyprus.com": "c8e05e2a-56e6-4d1f-9a20-31235feaec54", // Azinas (via paphos@)
-
-  // Regional request accounts - not found in dev9, using SOPHIA_AI_UUID
-  "requestpaphos@zyprus.com": SOPHIA_AI_UUID,
-  "requestlimassol@zyprus.com": SOPHIA_AI_UUID,
-  "requestlarnaca@zyprus.com": SOPHIA_AI_UUID,
-  "requestnicosia@zyprus.com": SOPHIA_AI_UUID,
-  "requestfamagusta@zyprus.com": SOPHIA_AI_UUID,
-
-  // Management
-  "charalambos@zyprus.com": "71ac4784-238f-45b2-ac15-5f74200601ce", // Charalambos Emiliou
-  "csc@zyprus.com": "71ac4784-238f-45b2-ac15-5f74200601ce", // Charalambos (via csc@)
-};
 
 /**
  * Find user UUID by email address
@@ -1064,112 +917,7 @@ export async function findUserUuids(emails: string[]): Promise<string[]> {
   return uuids;
 }
 
-/**
- * HARDCODED FEATURE FALLBACK UUIDs
- * These ensure features are ALWAYS matched correctly even if API lookup fails
- * UUIDs verified from dev9.zyprus.com taxonomy endpoints
- */
-
-// Indoor Features - taxonomy_term--indoor_property_views
-const INDOOR_FEATURE_FALLBACKS: Record<string, string> = {
-  "air conditioning": "f577829f-8cbe-4ba8-9ce8-e67a30b6fe76",
-  "basement": "a1b2c3d4-basement-uuid-placeholder",  // TODO: Get from API
-  "cctv system": "a1b2c3d4-cctv-uuid-placeholder",   // TODO: Get from API
-  "central heating": "4f2523f7-9fde-4390-b532-c0da52644632",
-  "underfloor heating": "a1b2c3d4-ufh-uuid-placeholder",  // TODO: Get real UUID from API - using placeholder to skip
-  "conference room": "a1b2c3d4-conf-uuid-placeholder", // TODO: Get from API
-  "covered parking": "432ac572-ed64-4107-a818-19a8a22c5371",
-  "electrical appliances": "a1b2c3d4-elec-uuid-placeholder", // TODO: Get from API
-  "elevator": "a1b2c3d4-elev-uuid-placeholder",      // TODO: Get from API
-  "fire alarm system": "a1b2c3d4-fire-uuid-placeholder", // TODO: Get from API
-  "fireplace": "a1b2c3d4-firep-uuid-placeholder",    // TODO: Get from API
-  "fitted kitchen": "a1b2c3d4-fitk-uuid-placeholder", // TODO: Get from API
-  "fly screens": "a1b2c3d4-flys-uuid-placeholder",   // TODO: Get from API
-  "furnished": "a1b2c3d4-furn-uuid-placeholder",     // TODO: Get from API
-  "guest toilet": "5e2a90da-6836-444b-8d72-a5f810d3a9e5",
-  "internal pool": "a1b2c3d4-intpool-uuid-placeholder", // TODO: Get from API
-  "jacuzzi": "a1b2c3d4-jacuzzi-uuid-placeholder",    // TODO: Get from API
-  "male and female w/c": "a1b2c3d4-mfwc-uuid-placeholder", // TODO: Get from API
-  "master bed": "a1b2c3d4-mbed-uuid-placeholder",    // TODO: Get from API
-  "mezzanine": "a1b2c3d4-mezz-uuid-placeholder",     // TODO: Get from API
-  "open-plan": "a1b2c3d4-openplan-uuid-placeholder", // TODO: Get from API
-  "pet friendly": "a1b2c3d4-petf-uuid-placeholder",  // TODO: Get from API
-  "playroom": "a1b2c3d4-playr-uuid-placeholder",     // TODO: Get from API
-  "pressurised water system": "a1b2c3d4-press-uuid-placeholder", // TODO: Get from API
-  "utility room": "a1b2c3d4-util-uuid-placeholder",  // TODO: Get from API
-  "water heater": "a1b2c3d4-waterh-uuid-placeholder", // TODO: Get from API
-};
-
-// Outdoor Features - taxonomy_term--outdoor_property_features
-const OUTDOOR_FEATURE_FALLBACKS: Record<string, string> = {
-  "barbecue area": "a1b2c3d4-bbq-uuid-placeholder",  // TODO: Get from API
-  "bore hole": "a1b2c3d4-bore-uuid-placeholder",     // TODO: Get from API
-  "communal pool": "a1b2c3d4-compool-uuid-placeholder", // TODO: Get from API
-  "double garage": "a1b2c3d4-dgarage-uuid-placeholder", // TODO: Get from API
-  "electric shutters": "a1b2c3d4-elecshut-uuid-placeholder", // TODO: Get from API
-  "heated swimming pool": "a1b2c3d4-heatpool-uuid-placeholder", // TODO: Get from API
-  "irrigation system": "a1b2c3d4-irrig-uuid-placeholder", // TODO: Get from API
-  "landscape garden": "a1b2c3d4-landg-uuid-placeholder", // TODO: Get from API
-  "on street parking": "695d4e05-83df-4345-8f03-911302e96784",  // Verified
-  "outdoor shower": "a1b2c3d4-outshower-uuid-placeholder", // TODO: Get from API
-  "photovoltaic system": "cf0e9658-bd22-4d8d-988e-b579f7139c1a", // Verified
-  "private pool": "c3f02ad5-4275-4cb5-acaa-359673e2b0ac", // Verified
-  "roof garden": "a1b2c3d4-roofg-uuid-placeholder",  // TODO: Get from API
-  "single garage": "a1b2c3d4-sgarage-uuid-placeholder", // TODO: Get from API
-  "solar system": "a1b2c3d4-solar-uuid-placeholder", // TODO: Get from API
-  "standard garden": "a1b2c3d4-stdg-uuid-placeholder", // TODO: Get from API
-  "uncovered parking": "695d4e05-83df-4345-8f03-911302e96784", // Verified
-  "no pool": "a1b2c3d4-nopool-uuid-placeholder",     // TODO: Get from API
-};
-
-// Property Views - taxonomy_term--property_views
-const VIEW_FALLBACKS: Record<string, string> = {
-  "sea view": "a1b2c3d4-seaview-uuid-placeholder",   // TODO: Get from API
-  "mountain view": "a1b2c3d4-mtnview-uuid-placeholder", // TODO: Get from API
-  "city view": "a1b2c3d4-cityview-uuid-placeholder", // TODO: Get from API
-  "garden view": "a1b2c3d4-gardenview-uuid-placeholder", // TODO: Get from API
-  "green area view": "a1b2c3d4-greenview-uuid-placeholder", // TODO: Get from API
-  "pool view": "a1b2c3d4-poolview-uuid-placeholder", // TODO: Get from API
-  "panoramic view": "a1b2c3d4-panview-uuid-placeholder", // TODO: Get from API
-};
-
-// NOTE: Feature categorization is now done inline in findIndoorFeatureUuids/findOutdoorFeatureUuids
-// using explicit lists of indoor-only and outdoor-only features for better accuracy
-
-/**
- * FEATURE ALIASES - Maps common user terms to Zyprus taxonomy terms
- * Handles variations like "swimming pool" -> "private pool"
- */
-const OUTDOOR_FEATURE_ALIASES: Record<string, string[]> = {
-  "private pool": ["swimming pool", "pool", "private swimming pool"],
-  "communal pool": ["shared pool", "common pool"],
-  "landscape garden": ["landscaped garden", "landscaping"],
-  "standard garden": ["basic garden", "simple garden", "garden"],
-  "roof garden": ["rooftop garden", "terrace garden"],
-  "photovoltaic system": ["pv system", "photovoltaic", "pv panels", "solar panels"],
-  "solar system": ["solar water heater", "solar panels", "solar"],
-  "double garage": ["2 car garage", "two car garage"],
-  "single garage": ["1 car garage", "one car garage", "garage"],
-  "irrigation system": ["irrigation", "sprinkler system", "sprinklers"],
-  "barbecue area": ["bbq", "bbq area", "barbecue", "barbeque"],
-  "electric shutters": ["electric blinds", "motorized shutters"],
-  "cul-de-sac": ["cul de sac", "culdesac", "dead end", "dead-end street"],
-};
-
-const INDOOR_FEATURE_ALIASES: Record<string, string[]> = {
-  "air conditioning": ["ac", "a/c", "aircon", "air con"],
-  "central heating": ["central heat"],
-  "underfloor heating": ["under floor heating", "floor heating", "radiant floor", "heated floors", "ufh"],
-  "fitted kitchen": ["built-in kitchen", "modern kitchen"],
-  "covered parking": ["indoor parking", "garage parking"],
-  "guest toilet": ["guest wc", "powder room", "guest bathroom", "second bathroom", "2nd bathroom"],
-  "electrical appliances": ["appliances", "white goods"],
-  "fly screens": ["flyscreen", "fly screen", "insect screens", "mosquito screens"],
-  "water heater": ["boiler", "hot water"],
-  "open-plan": ["open plan", "openplan", "open layout"],
-  "utility room": ["laundry room", "laundry", "storage room", "storeroom", "store room"],
-  "master bed": ["master bedroom", "master suite", "en-suite", "ensuite"],
-};
+// NOTE: Feature fallbacks, aliases, and modifiers are now imported from config/business-rules.ts
 
 /**
  * Resolve user input to canonical taxonomy term using aliases
@@ -1272,24 +1020,6 @@ export async function findIndoorFeatureUuids(featureNames: string[], bathrooms?:
   logger.debug(`[Taxonomy] Found ${uuids.length} indoor feature UUIDs`);
   return uuids;
 }
-
-/**
- * OPPOSITE MODIFIERS - words that negate each other
- * If input contains one modifier and taxonomy contains the opposite, REJECT the match
- * e.g., "covered parking" should NOT match "uncovered parking"
- */
-const OPPOSITE_MODIFIERS: Array<[string, string]> = [
-  ["covered", "uncovered"],
-  ["private", "communal"],
-  ["private", "shared"],
-  ["indoor", "outdoor"],
-  ["heated", "unheated"],
-  ["furnished", "unfurnished"],
-  ["separate", "shared"],
-  ["single", "double"],
-  ["front", "rear"],
-  ["open", "closed"],
-];
 
 /**
  * Check if input and taxonomy term have contradictory modifiers

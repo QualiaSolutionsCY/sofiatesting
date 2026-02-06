@@ -15,6 +15,7 @@
 | 5 | Extract EmailService | ✅ Done | Created `services/email-service.ts`, webhook.ts: 859→557 lines (35% reduction) |
 | 6 | Parallel Taxonomy Pagination | ✅ Done | All 3 fetch functions now use parallel pagination |
 | 7 | Conditional Pending Images | ✅ Done | Only fetches when message contains property/upload/image keywords |
+| 8 | Create Configuration Module | ✅ Done | Created `config/business-rules.ts` - centralized 20+ constants from 3 files |
 
 ---
 

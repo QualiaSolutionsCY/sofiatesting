@@ -18,11 +18,11 @@ import { logger, LogCategory } from "../utils/logger.ts";
 import { classifyError, getUserFriendlyMessage, ErrorType } from "../utils/error-mapper.ts";
 import { trackToolUsed, trackPropertyUploaded, trackDocumentGenerated, createTimer } from "../services/analytics.ts";
 import { getLastDocument } from "../../_shared/db.ts";
+import { DEFAULT_COORDINATES, UPLOAD_LOCK_DURATION_MS } from "../config/business-rules.ts";
 
 // In-memory upload lock to prevent parallel uploads from same user
 // Key: phone number, Value: timestamp of last upload attempt
 const uploadLocks = new Map<string, number>();
-const UPLOAD_LOCK_DURATION_MS = 30000; // 30 seconds
 
 /**
  * Check if a URL points to a document file (DOCX, PDF, etc.)
@@ -254,85 +254,6 @@ async function handleCreatePropertyListing(
 
   const location = args.location as string;
   const listingType = args.listingType as "sale" | "rent";
-
-  // Default city coordinates for Cyprus locations (fallback if AI doesn't provide coordinates)
-  // Note: These are approximate area centers, not exact addresses
-  const DEFAULT_COORDINATES: Record<string, { lat: number; lon: number }> = {
-    // Main cities
-    "limassol": { lat: 34.6841, lon: 33.0413 },
-    "paphos": { lat: 34.7720, lon: 32.4297 },
-    "pafos": { lat: 34.7720, lon: 32.4297 },
-    "nicosia": { lat: 35.1856, lon: 33.3823 },
-    "larnaca": { lat: 34.9229, lon: 33.6233 },
-    "famagusta": { lat: 35.1174, lon: 33.9417 },
-    "ammochostos": { lat: 35.1174, lon: 33.9417 },
-    // Paphos district
-    "peyia": { lat: 34.8846, lon: 32.3859 },
-    "pegeia": { lat: 34.8846, lon: 32.3859 },
-    "tala": { lat: 34.8475, lon: 32.4297 },
-    "chloraka": { lat: 34.7933, lon: 32.4083 },
-    "kato paphos": { lat: 34.7542, lon: 32.4139 },
-    "paphos city center": { lat: 34.7750, lon: 32.4220 },
-    "paphos city centre": { lat: 34.7750, lon: 32.4220 },
-    "paphos city": { lat: 34.7750, lon: 32.4220 },
-    "paphos town": { lat: 34.7750, lon: 32.4220 },
-    "coral bay": { lat: 34.8409, lon: 32.3547 },
-    "polis": { lat: 35.0347, lon: 32.4275 },
-    "kissonerga": { lat: 34.8178, lon: 32.3897 },
-    "geroskipou": { lat: 34.7589, lon: 32.4542 },
-    "emba": { lat: 34.8039, lon: 32.4339 },
-    "kamares": { lat: 34.8550, lon: 32.4400 },  // Kamares in Paphos area
-    "sea caves": { lat: 34.8975, lon: 32.3267 },
-    "tomb of kings": { lat: 34.7697, lon: 32.4039 },
-    "universal": { lat: 34.7750, lon: 32.4167 },
-    // Limassol district
-    "germasogeia": { lat: 34.6970, lon: 33.0870 },
-    "potamos germasogeias": { lat: 34.6970, lon: 33.0870 },
-    "mesa geitonia": { lat: 34.6850, lon: 33.0600 },
-    "agios tychonas": { lat: 34.7150, lon: 33.1283 },
-    "agios athanasios": { lat: 34.6917, lon: 33.0417 },
-    "panthea": { lat: 34.6933, lon: 33.0383 },
-    "tourist area": { lat: 34.6900, lon: 33.0700 },
-    "columbia": { lat: 34.6880, lon: 33.0550 },
-    "zakaki": { lat: 34.6650, lon: 33.0100 },
-    "mouttagiaka": { lat: 34.7083, lon: 33.1017 },
-    "pareklisia": { lat: 34.7253, lon: 33.1556 },
-    "pissouri": { lat: 34.6667, lon: 32.6983 },
-    "episkopi": { lat: 34.6667, lon: 32.8867 },
-    "erimi": { lat: 34.6683, lon: 32.9150 },
-    "pyrgos": { lat: 34.7083, lon: 33.1817 },
-    "limassol marina": { lat: 34.6700, lon: 33.0433 },
-    "old town limassol": { lat: 34.6750, lon: 33.0417 },
-    // Larnaca district
-    "oroklini": { lat: 34.9603, lon: 33.6353 },
-    "pervolia": { lat: 34.8317, lon: 33.5767 },
-    "livadia": { lat: 34.9500, lon: 33.6267 },
-    "dekelia": { lat: 35.0000, lon: 33.7200 },
-    "dhekelia": { lat: 35.0000, lon: 33.7200 },
-    "aradippou": { lat: 34.9500, lon: 33.5833 },
-    "meneou": { lat: 34.8517, lon: 33.5833 },
-    "kiti": { lat: 34.8500, lon: 33.5667 },
-    // Nicosia district
-    "strovolos": { lat: 35.1367, lon: 33.3353 },
-    "engomi": { lat: 35.1600, lon: 33.3517 },
-    "lakatamia": { lat: 35.1167, lon: 33.3000 },
-    "aglantzia": { lat: 35.1533, lon: 33.3767 },
-    "latsia": { lat: 35.1017, lon: 33.3633 },
-    "geri": { lat: 35.0833, lon: 33.4000 },
-    "dali": { lat: 35.0217, lon: 33.4217 },
-    "tseri": { lat: 35.0667, lon: 33.3233 },
-    "acropolis": { lat: 35.1450, lon: 33.3400 },
-    // Famagusta district
-    "paralimni": { lat: 35.0385, lon: 33.9823 },
-    "ayia napa": { lat: 34.9869, lon: 34.0028 },
-    "agia napa": { lat: 34.9869, lon: 34.0028 },
-    "protaras": { lat: 35.0112, lon: 34.0583 },
-    "deryneia": { lat: 35.0633, lon: 33.9567 },
-    "sotira": { lat: 35.0350, lon: 33.9283 },
-    "frenaros": { lat: 35.0517, lon: 33.9017 },
-    "kapparis": { lat: 35.0500, lon: 34.0167 },
-    "cape greco": { lat: 34.9667, lon: 34.0833 },
-  };
 
   // 3. Validate regional access
   const regionResult = validateRegionalAccess(agent, location);
@@ -603,7 +524,15 @@ async function handleCreatePropertyListing(
     areaDescription: args.areaDescription as string | undefined,
   });
 
-  // 11. Generate My Notes (with listing owner and reviewer - NOT "SOPHIA AI")
+  // 11. Build AI message content (for My Notes - includes how listing was created)
+  let aiMessageContent: string | null = null;
+  if (duplicates.isDuplicate) {
+    aiMessageContent = generateDuplicateWarning(duplicates.potentialMatches);
+  } else if (args.specialNotes) {
+    aiMessageContent = `Agent notes: ${args.specialNotes}`;
+  }
+
+  // 12. Generate My Notes (with listing owner, reviewer, AI message - all in one place)
   const myNotes = generateMyNotes(
     {
       name: args.ownerName as string,
@@ -618,6 +547,12 @@ async function handleCreatePropertyListing(
       listingOwner: reviewers.listingOwner,
       reviewer1: reviewers.reviewer1,
       reviewer2: reviewers.reviewer2 || undefined,
+      // NEW: Pass AI message, listing type, property type, and features to My Notes
+      aiMessage: aiMessageContent || undefined,
+      listingType,
+      propertyType: args.propertyType as string,
+      keyFeatures: args.features as string[] | undefined,
+      registrationNumber: args.registrationNumber as string | undefined,
     }
   );
 
@@ -629,7 +564,7 @@ async function handleCreatePropertyListing(
     containsSophiaAI: myNotes.toLowerCase().includes("sophia ai"),
   });
 
-  // 12. Generate AI Notes
+  // 13. Generate AI Notes (separate field for AI understanding)
   const aiNotes = generateAIAssistantNotes(
     `${listingType === "rent" ? "Rental" : "Sale"} listing from WhatsApp`,
     args.propertyType as string,
@@ -637,7 +572,7 @@ async function handleCreatePropertyListing(
     args.specialNotes as string | undefined
   );
 
-  // 13. Create the listing
+  // 14. Create the listing
   logger.info("Creating draft listing", {
     category: LogCategory.ZYPRUS,
     operation: "createPropertyListing",
@@ -648,15 +583,7 @@ async function handleCreatePropertyListing(
   });
   let result;
   try {
-    // Build aiMessage: include duplicate warning OR user's special notes
-    let aiMessageContent: string | null = null;
-    if (duplicates.isDuplicate) {
-      aiMessageContent = generateDuplicateWarning(duplicates.potentialMatches);
-    } else if (args.specialNotes) {
-      // Per Lauren feedback Jan 2026: Include user's notes in AI Message field
-      aiMessageContent = `Agent notes: ${args.specialNotes}`;
-    }
-
+    // NOTE: aiMessageContent already built above (step 11) and passed to My Notes
     result = await createDraftListing({
     listingType,
     propertyType: args.propertyType as string,
@@ -665,8 +592,12 @@ async function handleCreatePropertyListing(
     locationUuid, // Always valid - findLocationUuid now always returns a UUID
     bedrooms: args.bedrooms as number,
     bathrooms: args.bathrooms as number,
+    kitchens: args.kitchens as number | undefined,
+    livingRooms: args.livingRooms as number | undefined,
     coveredArea: args.coveredArea as number,
     plotSize: args.plotSize as number | undefined,
+    coveredVeranda: args.coveredVeranda as number | undefined,
+    uncoveredVeranda: args.uncoveredVeranda as number | undefined,
     description,
     myNotes,
     aiNotes,
@@ -681,6 +612,10 @@ async function handleCreatePropertyListing(
     floor: args.floor as string | undefined,
     potentialDuplicate: duplicates.isDuplicate,
     aiMessage: aiMessageContent,
+    // New fields (Feb 2026)
+    priceNegotiable: args.priceNegotiable as boolean | undefined,
+    isNewBuild: args.isNewBuild as boolean | undefined,
+    parkingType: args.parkingType as "covered" | "open" | "garage" | "carport" | "none" | undefined,
     // For Own Reference ID: Owner - {Agent} - {Seller} - {Phone} - {Email}
     agentName: agent.fullName,
     ownerName: args.ownerName as string,

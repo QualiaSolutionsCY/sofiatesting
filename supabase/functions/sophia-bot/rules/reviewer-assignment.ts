@@ -4,6 +4,7 @@
  */
 
 import { Agent } from "../agents/identifier.ts";
+import { REGIONAL_EMAILS } from "../config/business-rules.ts";
 
 export interface ReviewerAssignment {
   reviewer1: string;
@@ -18,15 +19,6 @@ export class RejectionError extends Error {
     this.name = "RejectionError";
   }
 }
-
-// Regional office emails
-const REGIONAL_EMAILS: Record<string, string> = {
-  paphos: "requestpaphos@zyprus.com",
-  limassol: "requestlimassol@zyprus.com",
-  larnaca: "requestlarnaca@zyprus.com",
-  nicosia: "requestnicosia@zyprus.com",
-  famagusta: "requestfamagusta@zyprus.com",
-};
 
 /**
  * Assign reviewers based on property type, region, and agent
