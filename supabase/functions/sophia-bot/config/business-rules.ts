@@ -326,8 +326,11 @@ export const INDOOR_FEATURE_ALIASES: Record<string, string[]> = {
 // TIMING & CACHE SETTINGS
 // =============================================================================
 
-/** Taxonomy cache TTL in milliseconds (1 hour) */
+/** Taxonomy cache TTL - fresh data (1 hour) */
 export const TAXONOMY_CACHE_TTL_MS = 60 * 60 * 1000;
+
+/** Taxonomy stale TTL - serve stale while refreshing in background (2 hours) */
+export const TAXONOMY_STALE_TTL_MS = 2 * 60 * 60 * 1000;
 
 /** Upload lock duration to prevent parallel uploads (30 seconds) */
 export const UPLOAD_LOCK_DURATION_MS = 30000;

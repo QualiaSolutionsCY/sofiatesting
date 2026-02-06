@@ -16,6 +16,7 @@
 | 6 | Parallel Taxonomy Pagination | ✅ Done | All 3 fetch functions now use parallel pagination |
 | 7 | Conditional Pending Images | ✅ Done | Only fetches when message contains property/upload/image keywords |
 | 8 | Create Configuration Module | ✅ Done | Created `config/business-rules.ts` - centralized 20+ constants from 3 files |
+| 9 | Stale-While-Revalidate for Taxonomy | ✅ Done | Returns stale cache immediately, refreshes in background (1h fresh, 2h stale) |
 
 ---
 

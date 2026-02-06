@@ -24,6 +24,7 @@ import {
   OUTDOOR_FEATURE_ALIASES,
   OPPOSITE_MODIFIERS,
   TAXONOMY_CACHE_TTL_MS,
+  TAXONOMY_STALE_TTL_MS,
 } from "../config/business-rules.ts";
 
 // Supabase client for agent lookups
@@ -89,10 +90,14 @@ export interface TaxonomyCache {
 
 // In-memory cache
 let cache: TaxonomyCache | null = null;
-const CACHE_TTL = TAXONOMY_CACHE_TTL_MS;
+const CACHE_TTL = TAXONOMY_CACHE_TTL_MS;      // 1 hour - fresh
+const STALE_TTL = TAXONOMY_STALE_TTL_MS;      // 2 hours - serve stale while refreshing
 
 // P2 PERFORMANCE: Singleton promise to prevent cache stampede
 let taxonomyLoadPromise: Promise<TaxonomyCache> | null = null;
+
+// Background refresh flag to prevent multiple concurrent background refreshes
+let isBackgroundRefreshing = false;
 
 /**
  * Parse taxonomy items from API response
@@ -320,21 +325,103 @@ async function fetchUsers(
 }
 
 /**
- * Load all taxonomy data with stampede protection
+ * Refresh taxonomy data in background (fire-and-forget)
+ * Used by stale-while-revalidate pattern
  */
-export async function loadTaxonomy(): Promise<TaxonomyCache> {
-  // Return cache if valid
-  if (cache && Date.now() - cache.lastUpdated < CACHE_TTL) {
-    return cache;
+async function refreshTaxonomyInBackground(): Promise<void> {
+  if (isBackgroundRefreshing) {
+    logger.debug("[Taxonomy] Background refresh already in progress, skipping", { category: LogCategory.CACHE });
+    return;
   }
 
+  isBackgroundRefreshing = true;
+  logger.info("[Taxonomy] Starting background refresh...", { category: LogCategory.CACHE });
+
+  try {
+    const config = getZyprusConfig();
+    const token = await getAccessToken(config);
+
+    const [
+      locations,
+      propertyTypes,
+      listingTypes,
+      priceModifiers,
+      titleDeeds,
+      features,
+      indoorFeatures,
+      outdoorFeatures,
+      propertyViews,
+      users,
+    ] = await Promise.all([
+      fetchLocations(token, config.apiUrl),
+      fetchTaxonomy("property_type", token, config.apiUrl),
+      fetchTaxonomy("listing_type", token, config.apiUrl),
+      fetchTaxonomy("price_modifier", token, config.apiUrl),
+      fetchTaxonomy("title_deed", token, config.apiUrl),
+      fetchTaxonomy("property_features", token, config.apiUrl),
+      fetchTaxonomy("indoor_property_views", token, config.apiUrl),
+      fetchTaxonomy("outdoor_property_features", token, config.apiUrl),
+      fetchTaxonomy("property_views", token, config.apiUrl),
+      fetchUsers(token, config.apiUrl),
+    ]);
+
+    cache = {
+      locations,
+      propertyTypes,
+      listingTypes,
+      priceModifiers,
+      titleDeeds,
+      features,
+      indoorFeatures,
+      outdoorFeatures,
+      propertyViews,
+      users,
+      lastUpdated: Date.now(),
+    };
+
+    logger.info("[Taxonomy] Background refresh completed", { category: LogCategory.CACHE });
+  } catch (err) {
+    logger.error("[Taxonomy] Background refresh failed", err instanceof Error ? err : new Error(String(err)), { category: LogCategory.CACHE });
+  } finally {
+    isBackgroundRefreshing = false;
+  }
+}
+
+/**
+ * Load all taxonomy data with stale-while-revalidate pattern
+ *
+ * - Fresh (< CACHE_TTL): Return cache immediately
+ * - Stale (CACHE_TTL < age < STALE_TTL): Return cache immediately, refresh in background
+ * - Expired (> STALE_TTL): Block and refresh
+ */
+export async function loadTaxonomy(): Promise<TaxonomyCache> {
+  const now = Date.now();
+
+  if (cache) {
+    const cacheAge = now - cache.lastUpdated;
+
+    // Fresh cache - return immediately
+    if (cacheAge < CACHE_TTL) {
+      return cache;
+    }
+
+    // Stale but usable - return immediately and refresh in background
+    if (cacheAge < STALE_TTL) {
+      logger.debug("[Taxonomy] Serving stale cache, refreshing in background", { category: LogCategory.CACHE });
+      // Fire-and-forget background refresh
+      refreshTaxonomyInBackground().catch(() => {});
+      return cache;
+    }
+  }
+
+  // No cache or expired - need to do blocking refresh
   // P2 PERFORMANCE: Prevent cache stampede - only one concurrent fetch
   if (taxonomyLoadPromise) {
     logger.debug("[Taxonomy] Waiting for existing load operation...", { category: LogCategory.CACHE });
     return taxonomyLoadPromise;
   }
 
-  logger.info("[Taxonomy] Loading taxonomy data...", { category: LogCategory.CACHE });
+  logger.info("[Taxonomy] Loading taxonomy data (blocking)...", { category: LogCategory.CACHE });
 
   // Create singleton promise for this load operation
   taxonomyLoadPromise = (async () => {
