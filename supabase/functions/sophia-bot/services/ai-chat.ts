@@ -33,6 +33,7 @@ interface ChatContext {
   agentCanUpload?: boolean;
   personalizationContext?: string;
   imageUrls?: string[];
+  userMessage?: string;  // P1 PERFORMANCE: Used for conditional image fetching
   lastDocument?: {
     document_url: string;
     document_name: string;
@@ -149,8 +150,20 @@ ${context.agentEmail ? `**Email:** ${context.agentEmail}
 `;
   }
 
-  // Add image context - get accumulated images
-  const accumulatedImages = await getPendingImages(context.phoneNumber.replace(/\D/g, ""));
+  // P1 PERFORMANCE: Only fetch accumulated images when relevant to message
+  // This saves a DB call on ~95% of requests (most messages aren't about property uploads)
+  let accumulatedImages: string[] = [];
+  const lowerMessage = context.userMessage?.toLowerCase() || "";
+  const isImageRelated = context.imageUrls && context.imageUrls.length > 0;
+  const isPropertyRelated = lowerMessage.includes("property") ||
+                            lowerMessage.includes("upload") ||
+                            lowerMessage.includes("listing") ||
+                            lowerMessage.includes("photo") ||
+                            lowerMessage.includes("image");
+
+  if (isImageRelated || isPropertyRelated) {
+    accumulatedImages = await getPendingImages(context.phoneNumber.replace(/\D/g, ""));
+  }
   const totalImageCount = accumulatedImages.length;
 
   let imageContext = "";

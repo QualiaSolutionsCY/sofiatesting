@@ -76,132 +76,227 @@ const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 let taxonomyLoadPromise: Promise<TaxonomyCache> | null = null;
 
 /**
- * Fetch taxonomy terms from Zyprus API
+ * Parse taxonomy items from API response
+ */
+function parseTaxonomyItems(data: { data?: Array<Record<string, unknown>> }): TaxonomyItem[] {
+  const items: TaxonomyItem[] = [];
+  for (const item of data.data || []) {
+    const attrs = item.attributes as Record<string, unknown> | undefined;
+    const rels = item.relationships as Record<string, { data?: Array<{ id: string }> | { id: string } }> | undefined;
+    items.push({
+      id: item.id as string,
+      name: (attrs?.name as string) || (attrs?.title as string) || "",
+      parentId: Array.isArray(rels?.parent?.data) ? rels.parent.data[0]?.id : undefined,
+    });
+  }
+  return items;
+}
+
+/**
+ * Fetch taxonomy terms from Zyprus API with PARALLEL pagination
+ * P1 PERFORMANCE: Fetches first page to get count, then remaining pages in parallel
  */
 async function fetchTaxonomy(
   vocabularyName: string,
   token: string,
   apiUrl: string
 ): Promise<TaxonomyItem[]> {
-  const items: TaxonomyItem[] = [];
-  let nextUrl = `${apiUrl}/jsonapi/taxonomy_term/${vocabularyName}?page[limit]=50`;
+  const baseUrl = `${apiUrl}/jsonapi/taxonomy_term/${vocabularyName}`;
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.api+json",
+    "User-Agent": "SophiaAI",
+  };
+  const PAGE_SIZE = 50;
 
-  while (nextUrl) {
-    const response = await fetch(nextUrl, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.api+json",
-        "User-Agent": "SophiaAI",
-      },
-    });
+  // Fetch first page to get total count
+  const firstResponse = await fetch(`${baseUrl}?page[limit]=${PAGE_SIZE}`, { headers });
 
-    if (!response.ok) {
-      logger.error(`[Taxonomy] Failed to fetch ${vocabularyName}: ${response.status}`, undefined, { category: LogCategory.ZYPRUS });
-      break;
-    }
-
-    const data = await response.json();
-
-    for (const item of data.data || []) {
-      items.push({
-        id: item.id,
-        name: item.attributes?.name || item.attributes?.title || "",
-        parentId: item.relationships?.parent?.data?.[0]?.id,
-      });
-    }
-
-    // Get next page
-    nextUrl = data.links?.next?.href || null;
+  if (!firstResponse.ok) {
+    logger.error(`[Taxonomy] Failed to fetch ${vocabularyName}: ${firstResponse.status}`, undefined, { category: LogCategory.ZYPRUS });
+    return [];
   }
 
-  logger.debug(`[Taxonomy] Loaded ${items.length} ${vocabularyName} terms`);
+  const firstData = await firstResponse.json();
+  const items = parseTaxonomyItems(firstData);
+
+  // Check if there are more pages
+  const totalCount = firstData.meta?.count;
+  if (!totalCount || totalCount <= PAGE_SIZE) {
+    logger.debug(`[Taxonomy] Loaded ${items.length} ${vocabularyName} terms (single page)`);
+    return items;
+  }
+
+  // Calculate remaining pages and fetch in parallel
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const remainingPages = totalPages - 1;
+
+  if (remainingPages > 0) {
+    const pagePromises = Array.from({ length: remainingPages }, (_, i) =>
+      fetch(`${baseUrl}?page[limit]=${PAGE_SIZE}&page[offset]=${(i + 1) * PAGE_SIZE}`, { headers })
+        .then(res => res.ok ? res.json() : null)
+        .catch(() => null)
+    );
+
+    const pageResults = await Promise.all(pagePromises);
+    for (const pageData of pageResults) {
+      if (pageData) {
+        items.push(...parseTaxonomyItems(pageData));
+      }
+    }
+  }
+
+  logger.debug(`[Taxonomy] Loaded ${items.length} ${vocabularyName} terms (${totalPages} pages parallel)`);
+  return items;
+}
+
+/**
+ * Parse location items from API response (different structure than taxonomy)
+ */
+function parseLocationItems(data: { data?: Array<Record<string, unknown>> }): TaxonomyItem[] {
+  const items: TaxonomyItem[] = [];
+  for (const item of data.data || []) {
+    const attrs = item.attributes as Record<string, unknown> | undefined;
+    const rels = item.relationships as Record<string, { data?: { id: string } }> | undefined;
+    items.push({
+      id: item.id as string,
+      name: (attrs?.title as string) || (attrs?.name as string) || "",
+      parentId: rels?.field_town?.data?.id,
+    });
+  }
   return items;
 }
 
 /**
  * Fetch locations from Zyprus API (node--location, NOT taxonomy_term)
  * CRITICAL: Locations are nodes, not taxonomy terms per Postman spec
+ * P1 PERFORMANCE: Uses parallel pagination
  */
 async function fetchLocations(
   token: string,
   apiUrl: string
 ): Promise<TaxonomyItem[]> {
-  const items: TaxonomyItem[] = [];
-  let nextUrl = `${apiUrl}/jsonapi/node/location?page[limit]=50`;
+  const baseUrl = `${apiUrl}/jsonapi/node/location`;
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.api+json",
+    "User-Agent": "SophiaAI",
+  };
+  const PAGE_SIZE = 50;
 
-  while (nextUrl) {
-    const response = await fetch(nextUrl, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.api+json",
-        "User-Agent": "SophiaAI",
-      },
-    });
+  // Fetch first page to get total count
+  const firstResponse = await fetch(`${baseUrl}?page[limit]=${PAGE_SIZE}`, { headers });
 
-    if (!response.ok) {
-      logger.error(`[Taxonomy] Failed to fetch locations: ${response.status}`, undefined, { category: LogCategory.ZYPRUS });
-      break;
-    }
-
-    const data = await response.json();
-
-    for (const item of data.data || []) {
-      items.push({
-        id: item.id,
-        name: item.attributes?.title || item.attributes?.name || "",
-        parentId: item.relationships?.field_town?.data?.id,
-      });
-    }
-
-    // Get next page
-    nextUrl = data.links?.next?.href || null;
+  if (!firstResponse.ok) {
+    logger.error(`[Taxonomy] Failed to fetch locations: ${firstResponse.status}`, undefined, { category: LogCategory.ZYPRUS });
+    return [];
   }
 
-  logger.debug(`[Taxonomy] Loaded ${items.length} location nodes`);
+  const firstData = await firstResponse.json();
+  const items = parseLocationItems(firstData);
+
+  // Check if there are more pages
+  const totalCount = firstData.meta?.count;
+  if (!totalCount || totalCount <= PAGE_SIZE) {
+    logger.debug(`[Taxonomy] Loaded ${items.length} location nodes (single page)`);
+    return items;
+  }
+
+  // Calculate remaining pages and fetch in parallel
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const remainingPages = totalPages - 1;
+
+  if (remainingPages > 0) {
+    const pagePromises = Array.from({ length: remainingPages }, (_, i) =>
+      fetch(`${baseUrl}?page[limit]=${PAGE_SIZE}&page[offset]=${(i + 1) * PAGE_SIZE}`, { headers })
+        .then(res => res.ok ? res.json() : null)
+        .catch(() => null)
+    );
+
+    const pageResults = await Promise.all(pagePromises);
+    for (const pageData of pageResults) {
+      if (pageData) {
+        items.push(...parseLocationItems(pageData));
+      }
+    }
+  }
+
+  logger.debug(`[Taxonomy] Loaded ${items.length} location nodes (${totalPages} pages parallel)`);
+  return items;
+}
+
+/**
+ * Parse user items from API response
+ */
+function parseUserItems(data: { data?: Array<Record<string, unknown>> }): UserItem[] {
+  const items: UserItem[] = [];
+  for (const item of data.data || []) {
+    const attrs = item.attributes as Record<string, string | undefined> | undefined;
+    if (attrs?.mail) {
+      items.push({
+        id: item.id as string,
+        email: attrs.mail.toLowerCase(),
+        name: attrs.display_name || attrs.name || "",
+      });
+    }
+  }
   return items;
 }
 
 /**
  * Fetch users from Zyprus API for reviewer/owner assignment
+ * P1 PERFORMANCE: Uses parallel pagination
  */
 async function fetchUsers(
   token: string,
   apiUrl: string
 ): Promise<UserItem[]> {
-  const items: UserItem[] = [];
-  let nextUrl = `${apiUrl}/jsonapi/user/user?filter[status]=1&page[limit]=50`;
+  const baseUrl = `${apiUrl}/jsonapi/user/user`;
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.api+json",
+    "User-Agent": "SophiaAI",
+  };
+  const PAGE_SIZE = 50;
 
-  while (nextUrl) {
-    const response = await fetch(nextUrl, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.api+json",
-        "User-Agent": "SophiaAI",
-      },
-    });
+  // Fetch first page to get total count
+  const firstResponse = await fetch(`${baseUrl}?filter[status]=1&page[limit]=${PAGE_SIZE}`, { headers });
 
-    if (!response.ok) {
-      logger.error(`[Taxonomy] Failed to fetch users: ${response.status}`, undefined, { category: LogCategory.ZYPRUS });
-      break;
-    }
-
-    const data = await response.json();
-
-    for (const item of data.data || []) {
-      if (item.attributes?.mail) {
-        items.push({
-          id: item.id,
-          email: item.attributes.mail.toLowerCase(),
-          name: item.attributes.display_name || item.attributes.name || "",
-        });
-      }
-    }
-
-    // Get next page
-    nextUrl = data.links?.next?.href || null;
+  if (!firstResponse.ok) {
+    logger.error(`[Taxonomy] Failed to fetch users: ${firstResponse.status}`, undefined, { category: LogCategory.ZYPRUS });
+    return [];
   }
 
-  logger.debug(`[Taxonomy] Loaded ${items.length} users`);
+  const firstData = await firstResponse.json();
+  const items = parseUserItems(firstData);
+
+  // Check if there are more pages
+  const totalCount = firstData.meta?.count;
+  if (!totalCount || totalCount <= PAGE_SIZE) {
+    logger.debug(`[Taxonomy] Loaded ${items.length} users (single page)`);
+    return items;
+  }
+
+  // Calculate remaining pages and fetch in parallel
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const remainingPages = totalPages - 1;
+
+  if (remainingPages > 0) {
+    const pagePromises = Array.from({ length: remainingPages }, (_, i) =>
+      fetch(`${baseUrl}?filter[status]=1&page[limit]=${PAGE_SIZE}&page[offset]=${(i + 1) * PAGE_SIZE}`, { headers })
+        .then(res => res.ok ? res.json() : null)
+        .catch(() => null)
+    );
+
+    const pageResults = await Promise.all(pagePromises);
+    for (const pageData of pageResults) {
+      if (pageData) {
+        items.push(...parseUserItems(pageData));
+      }
+    }
+  }
+
+  logger.debug(`[Taxonomy] Loaded ${items.length} users (${totalPages} pages parallel)`);
   return items;
 }
 

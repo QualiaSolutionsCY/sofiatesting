@@ -2,7 +2,19 @@
 
 **Generated:** 2026-02-06
 **From:** Comprehensive 5-Agent Review (Code Quality, Security, Architecture, Performance, Test Coverage)
-**Status:** Ready for Implementation
+**Status:** In Progress
+
+## Progress Tracker
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 1 | Extract formatPropertyDescription | ✅ Done | Created `utils/property-formatter.ts`, removed ~230 lines duplication |
+| 2 | Lazy Load DOCX Library | ⏸️ Deferred | Requires deeper refactoring of template imports |
+| 3 | Sanitize Email Subjects | ✅ Done | Added `sanitizeEmailSubject()` in webhook.ts |
+| 4 | Generic Zyprus API Errors | ✅ Done | Internal errors logged, generic message to user |
+| 5 | Extract EmailService | ✅ Done | Created `services/email-service.ts`, webhook.ts: 859→557 lines (35% reduction) |
+| 6 | Parallel Taxonomy Pagination | ✅ Done | All 3 fetch functions now use parallel pagination |
+| 7 | Conditional Pending Images | ✅ Done | Only fetches when message contains property/upload/image keywords |
 
 ---
 
