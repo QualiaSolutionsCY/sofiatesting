@@ -80,7 +80,7 @@ export function Chat({
   } = useChat<ChatMessage>({
     id,
     messages: initialMessages,
-    experimental_throttle: 100,
+    experimental_throttle: 10, // Reduced from 100ms for smoother typewriter effect
     generateId: generateUUID,
     transport: new DefaultChatTransport({
       api: "/api/chat",
