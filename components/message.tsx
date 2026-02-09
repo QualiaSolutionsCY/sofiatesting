@@ -303,7 +303,7 @@ export const PreviewMessage = memo(
   }
 );
 
-export const ThinkingMessage = () => {
+export const ThinkingMessage = ({ hasReasoning = false }: { hasReasoning?: boolean }) => {
   const role = "assistant";
 
   return (
@@ -336,7 +336,7 @@ export const ThinkingMessage = () => {
                 <div className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground" />
               </div>
               <span className="text-muted-foreground text-sm">
-                SOFIA is thinking...
+                {hasReasoning ? "SOFIA is writing..." : "SOFIA is thinking..."}
               </span>
             </div>
           </div>

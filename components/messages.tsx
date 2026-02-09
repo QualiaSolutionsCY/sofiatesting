@@ -23,6 +23,31 @@ type MessagesProps = {
   selectedModelId: string;
 };
 
+// Helper to determine if we should show the thinking indicator
+function shouldShowThinking(messages: ChatMessage[]): { show: boolean; hasReasoning: boolean } {
+  if (messages.length === 0) return { show: false, hasReasoning: false };
+
+  const lastMessage = messages[messages.length - 1];
+
+  // If last message is from user, show thinking (waiting for assistant)
+  if (lastMessage.role === "user") return { show: true, hasReasoning: false };
+
+  // If last message is from assistant, check if it has any visible text content
+  // We want to keep showing thinking if the assistant message only has reasoning
+  // but no actual response text yet
+  if (lastMessage.role === "assistant") {
+    const hasReasoning = lastMessage.parts.some(
+      (part) => part.type === "reasoning"
+    );
+    const hasTextContent = lastMessage.parts.some(
+      (part) => part.type === "text" && part.text && part.text.trim().length > 0
+    );
+    return { show: !hasTextContent, hasReasoning };
+  }
+
+  return { show: false, hasReasoning: false };
+}
+
 function PureMessages({
   chatId,
   status,
@@ -91,7 +116,14 @@ function PureMessages({
           ))}
 
           <AnimatePresence mode="wait">
-            {status === "submitted" && <ThinkingMessage key="thinking" />}
+            {(status === "submitted" || status === "streaming") &&
+              messages.length > 0 &&
+              shouldShowThinking(messages).show && (
+              <ThinkingMessage
+                key="thinking"
+                hasReasoning={shouldShowThinking(messages).hasReasoning}
+              />
+            )}
           </AnimatePresence>
 
           <div
