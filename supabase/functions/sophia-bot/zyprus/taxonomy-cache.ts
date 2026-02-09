@@ -482,17 +482,19 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
  * Find location UUID by name
  * MANDATORY field - always returns a valid UUID
  *
- * IMPROVED: Scores matches prioritizing exact location name matches
- * e.g., "Peyia, Paphos" should match "Peyia" not "Kato Paphos" even though both are in Paphos
+ * CRITICAL FIX FOR DISTRICT DISAMBIGUATION:
+ * When a district is explicitly specified (e.g., "Neapoli, Limassol"),
+ * we MUST prioritize locations that are in that district over locations
+ * with the same name in other districts.
+ *
+ * e.g., "Neapoli, Limassol" should match "Neapoli" in Limassol district,
+ * NOT "Neapoli" in Nicosia district.
  */
 export async function findLocationUuid(locationName: string): Promise<string> {
-  // Check for exact location match in hardcoded fallbacks FIRST
-  const normalizedInput = locationName.toLowerCase().trim();
-  const firstWord = normalizedInput.split(/[\s,]+/)[0];
+  const normalized = locationName.toLowerCase().trim();
 
   try {
     const taxonomy = await loadTaxonomy();
-    const normalized = locationName.toLowerCase().trim();
 
     // Try exact match first
     const exact = taxonomy.locations.find(
@@ -503,92 +505,121 @@ export async function findLocationUuid(locationName: string): Promise<string> {
       return exact.id;
     }
 
-    // Extract words from input (filter short words like "in", "of", etc.)
+    // Extract words from input (filter short words)
     const words = normalized.split(/[\s,]+/).filter(w => w.length > 2);
 
-    // CRITICAL: Try to find a location that EXACTLY matches the FIRST word
-    // This handles "Peyia, Paphos" -> should match "Peyia" not "Coral Bay"
-    if (words.length > 0) {
-      const firstWord = words[0];
-      const exactFirstWordMatch = taxonomy.locations.find(
-        (loc) => loc.name.toLowerCase() === firstWord ||
-                 loc.name.toLowerCase().split(/[\s,]+/)[0] === firstWord
-      );
-      if (exactFirstWordMatch) {
-        logger.debug(`[Taxonomy] Exact first-word match for "${locationName}": ${exactFirstWordMatch.name}`);
-        return exactFirstWordMatch.id;
-      }
+    if (words.length === 0) {
+      // No meaningful words, use default
+      logger.debug(`[Taxonomy] No meaningful words in "${locationName}", using default`);
+      return DEFAULT_LOCATION_UUID;
     }
 
-    // Detect region from input - check if ANY word matches a location in a region
-    let detectedRegion: string | null = null;
+    // CRITICAL: Detect the EXPLICITLY SPECIFIED district from input
+    // This is the district name that appears AFTER the comma or as one of the words
+    let specifiedDistrict: string | null = null;
     for (const [region, locationsList] of Object.entries(REGION_LOCATIONS)) {
-      if (words.some(w => locationsList.some(loc => loc.includes(w) || w.includes(loc)))) {
-        detectedRegion = region;
-        logger.debug(`[Taxonomy] Detected region "${region}" from input: ${locationName}`);
+      // Check if any region name or aliases appear in the input
+      const regionAliases = [region, ...locationsList];
+      if (words.some(w => regionAliases.some(alias =>
+        w === alias || w.includes(alias) || alias.includes(w)
+      ))) {
+        specifiedDistrict = region;
+        logger.debug(`[Taxonomy] Explicitly specified district "${region}" in input: ${locationName}`);
         break;
       }
     }
 
-    // Score all locations by how many input words they match
-    const scoredMatches: Array<{ location: TaxonomyItem; score: number; matchedWords: string[]; bonusReason: string }> = [];
+    // The FIRST word is usually the specific location (e.g., "Neapoli" in "Neapoli, Limassol")
+    const firstWord = words[0];
 
-    // The FIRST word is usually the specific location (e.g., "Tala" in "Tala, Paphos")
-    // Later words are usually the region/city (e.g., "Paphos")
-    const firstWord = words.length > 0 ? words[0] : "";
+    // Score all locations by multiple factors
+    const scoredMatches: Array<{ location: TaxonomyItem; score: number; matchedWords: string[]; bonusReason: string }> = [];
 
     for (const loc of taxonomy.locations) {
       const locNameLower = loc.name.toLowerCase();
       const locWords = locNameLower.split(/[\s,]+/).filter(w => w.length > 1);
       const matchedWords: string[] = [];
+      let score = 0;
       let bonusReason = "";
 
-      // Check each input word
+      // Check each input word for matches in the location name
       for (const word of words) {
-        // Check if this word appears in the location name
         if (locNameLower.includes(word)) {
           matchedWords.push(word);
-        }
-      }
-
-      if (matchedWords.length > 0) {
-        let score = 0;
-
-        // Strong bonus for exact word match (not substring)
-        // e.g., "peyia" should strongly match "Peyia" but not as strongly match "Peyia Village"
-        for (const word of matchedWords) {
+          // Exact word match gets more points than substring
           if (locWords.includes(word)) {
-            score += 3; // Strong bonus for exact word match
+            score += 5; // Strong bonus for exact word match
             bonusReason += `exact:${word} `;
           } else {
             score += 1; // Weaker bonus for substring match
           }
         }
+      }
 
-        // CRITICAL: Strong bonus if location contains the FIRST word of input
-        // This prioritizes "Tala" over "Kato Paphos" when input is "Tala, Paphos"
-        // The first word is the specific location, not the region
-        if (firstWord && locNameLower.includes(firstWord)) {
-          score += 10; // Strong bonus for matching the specific location name
-          bonusReason += `first-word:${firstWord} `;
+      if (matchedWords.length === 0) {
+        continue; // Skip locations with no matches
+      }
+
+      // CRITICAL: Strong bonus for matching the FIRST word (the specific location)
+      // "Neapoli" should match "Neapoli" in the specified district
+      if (firstWord && locNameLower.includes(firstWord)) {
+        score += 20; // Very strong bonus for matching the specific location name
+        bonusReason += `first-word:${firstWord} `;
+      }
+
+      // CRITICAL FIX: District-aware scoring
+      // If user specified a district, heavily penalize locations NOT in that district
+      if (specifiedDistrict) {
+        const regionLocs = REGION_LOCATIONS[specifiedDistrict] || [];
+
+        // Check if this location is in the specified district
+        // A location is in a district if its name OR its parent's name matches district locations
+        const locationIsInDistrict = locWords.some(locWord =>
+          regionLocs.some(regLoc => locWord.includes(regLoc) || regLoc.includes(locWord))
+        );
+
+        if (locationIsInDistrict) {
+          score += 30; // HUGE bonus for being in the specified district
+          bonusReason += `district-match:${specifiedDistrict} `;
+        } else {
+          // Check if location is in a DIFFERENT district
+          let locationInOtherDistrict: string | null = null;
+          for (const [otherRegion, otherLocs] of Object.entries(REGION_LOCATIONS)) {
+            if (otherRegion === specifiedDistrict) continue;
+            if (locWords.some(locWord => otherLocs.some(otherLoc =>
+              locWord.includes(otherLoc) || otherLoc.includes(locWord)
+            ))) {
+              locationInOtherDistrict = otherRegion;
+              break;
+            }
+          }
+
+          // HEAVY PENALTY for locations in the wrong district
+          if (locationInOtherDistrict) {
+            score -= 50; // Massive penalty for wrong district
+            bonusReason += `WRONG-DISTRICT:${locationInOtherDistrict} `;
+            logger.debug(`[Taxonomy] Penalizing "${loc.name}" - in ${locationInOtherDistrict}, user wants ${specifiedDistrict}`);
+          }
         }
+      }
 
-        // Region bonus: Give bonus if this location is IN the detected region
-        // We check if any of the location's words match our REGION_LOCATIONS list
-        if (detectedRegion) {
-          const regionLocs = REGION_LOCATIONS[detectedRegion] || [];
+      // Region bonus: Give moderate bonus if this location is in a detected region (when no explicit district)
+      if (!specifiedDistrict) {
+        for (const [region, locationsList] of Object.entries(REGION_LOCATIONS)) {
+          const regionLocs = locationsList;
           const locationIsInRegion = locWords.some(locWord =>
             regionLocs.some(regLoc => locWord.includes(regLoc) || regLoc.includes(locWord))
           );
 
           if (locationIsInRegion) {
-            score += 2; // Bonus for being in the detected region
-            bonusReason += `region:${detectedRegion} `;
+            score += 5; // Moderate bonus for being in any region
+            bonusReason += `region:${region} `;
+            break; // Only count one region bonus
           }
         }
-
-        scoredMatches.push({ location: loc, score, matchedWords, bonusReason });
       }
+
+      scoredMatches.push({ location: loc, score, matchedWords, bonusReason });
     }
 
     // Sort by score descending, return best match
@@ -600,17 +631,17 @@ export async function findLocationUuid(locationName: string): Promise<string> {
       // Log top 3 alternatives for debugging
       for (let i = 1; i < Math.min(4, scoredMatches.length); i++) {
         const alt = scoredMatches[i];
-        logger.debug(`[Taxonomy] Alternative ${i}: ${alt.location.name} (score: ${alt.score})`);
+        logger.debug(`[Taxonomy] Alternative ${i}: ${alt.location.name} (score: ${alt.score}, ${alt.bonusReason})`);
       }
 
       return best.location.id;
     }
 
     // Fallback: try to find a general location in the detected region
-    if (detectedRegion && taxonomy.locations.length > 0) {
-      // Try to find a location that contains the region name (e.g., "Limassol" for limassol region)
+    if (specifiedDistrict && taxonomy.locations.length > 0) {
+      // Try to find a location that contains the region name
       const regionFallback = taxonomy.locations.find(loc =>
-        loc.name.toLowerCase().includes(detectedRegion)
+        loc.name.toLowerCase().includes(specifiedDistrict)
       );
       if (regionFallback) {
         logger.debug(`[Taxonomy] Using region fallback for "${locationName}": ${regionFallback.name}`);
