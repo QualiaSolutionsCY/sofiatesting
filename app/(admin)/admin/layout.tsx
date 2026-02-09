@@ -38,13 +38,20 @@ export default async function AdminLayout({
   // Check if user has an explicit admin role (matched by email in admin_users table)
   const userEmail = session.user.email;
   if (!userEmail) {
+    logger.error("No email in session", { userId: session.user.id });
     redirect("/");
   }
+
+  logger.info("Admin access attempt", { email: userEmail, userId: session.user.id });
 
   const adminRole = await getAdminRole(userEmail);
 
   if (adminRole.length === 0) {
-    logger.warn("Unauthorized admin access attempt", { userId: session.user.id });
+    logger.warn("Unauthorized admin access attempt", {
+      userId: session.user.id,
+      email: userEmail,
+      adminRoleExists: adminRole.length
+    });
     redirect("/");
   }
 

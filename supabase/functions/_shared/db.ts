@@ -330,3 +330,119 @@ export const clearLastDocument = async (userId: string): Promise<void> => {
     operation: "clearLastDocument",
   });
 };
+
+// =====================================================
+// Listing Upload Tracking (for publication notifications)
+// =====================================================
+
+/**
+ * Track a successfully uploaded listing for later notification when published.
+ * Table: listing_uploads (see SQL at bottom of this file)
+ */
+export const trackListingUpload = async (
+  zyprusListingId: string,
+  agentPhone: string,
+  agentName: string,
+  propertyTitle: string,
+  listingUrl: string,
+): Promise<void> => {
+  const supabase = getSupabaseAdmin();
+
+  const { error } = await supabase.from("listing_uploads").insert([
+    {
+      zyprus_listing_id: zyprusListingId,
+      agent_phone: agentPhone,
+      agent_name: agentName,
+      property_title: propertyTitle,
+      listing_url: listingUrl,
+      status: "draft",
+    },
+  ]);
+
+  if (error) {
+    // Non-critical — don't fail the upload over tracking
+    logger.error("Error tracking listing upload", error, {
+      category: LogCategory.DATABASE,
+      operation: "trackListingUpload",
+      zyprusListingId,
+    });
+  }
+};
+
+/**
+ * Get all draft listings that haven't been checked recently.
+ * Used by the polling function to avoid hammering the API.
+ */
+export const getPendingListingUploads = async (): Promise<Array<{
+  id: string;
+  zyprus_listing_id: string;
+  agent_phone: string;
+  agent_name: string;
+  property_title: string;
+  listing_url: string;
+  created_at: string;
+}>> => {
+  const supabase = getSupabaseAdmin();
+
+  // Only check listings that are still "draft" and were uploaded at least 5 min ago
+  // (gives reviewer time to publish before we start polling)
+  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from("listing_uploads")
+    .select("id, zyprus_listing_id, agent_phone, agent_name, property_title, listing_url, created_at")
+    .eq("status", "draft")
+    .lt("created_at", fiveMinAgo)
+    .order("created_at", { ascending: true })
+    .limit(20);
+
+  if (error || !data) {
+    return [];
+  }
+
+  return data;
+};
+
+/**
+ * Mark a listing as published (notification sent).
+ */
+export const markListingPublished = async (id: string): Promise<void> => {
+  const supabase = getSupabaseAdmin();
+
+  await supabase
+    .from("listing_uploads")
+    .update({ status: "published", notified_at: new Date().toISOString() })
+    .eq("id", id);
+};
+
+/**
+ * Mark a listing as expired (still draft after 30 days — stop checking).
+ */
+export const markListingExpired = async (id: string): Promise<void> => {
+  const supabase = getSupabaseAdmin();
+
+  await supabase
+    .from("listing_uploads")
+    .update({ status: "expired" })
+    .eq("id", id);
+};
+
+/*
+ * SQL to create the listing_uploads table:
+ *
+ * CREATE TABLE IF NOT EXISTS listing_uploads (
+ *   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+ *   zyprus_listing_id TEXT NOT NULL,
+ *   agent_phone TEXT NOT NULL,
+ *   agent_name TEXT NOT NULL,
+ *   property_title TEXT NOT NULL,
+ *   listing_url TEXT NOT NULL,
+ *   status TEXT NOT NULL DEFAULT 'draft',  -- draft, published, expired
+ *   notified_at TIMESTAMPTZ,
+ *   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+ *   UNIQUE(zyprus_listing_id)
+ * );
+ *
+ * CREATE INDEX idx_listing_uploads_status ON listing_uploads(status);
+ * CREATE INDEX idx_listing_uploads_created ON listing_uploads(created_at);
+ */

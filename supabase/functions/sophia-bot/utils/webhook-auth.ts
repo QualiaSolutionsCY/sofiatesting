@@ -4,57 +4,35 @@
  * Verifies WaSend webhook signatures to prevent unauthorized
  * webhook calls from attackers.
  *
- * WaSend uses HMAC-SHA256 for webhook signature verification.
+ * WaSend uses simple signature verification where the X-Webhook-Signature
+ * header contains the webhook secret directly (NOT an HMAC hash).
+ * See: https://wasenderapi.com/help/messaging/using-webhooks
  */
-
-import { logger, LogCategory, ErrorCategory } from "./logger.ts";
 
 /**
  * Verifies the webhook signature from WaSend
  *
- * @param signature - The signature from X-Wasend-Signature header
- * @param body - The raw request body as string
+ * WaSend uses a simple signature verification where the X-Webhook-Signature
+ * header contains the webhook secret directly (NOT an HMAC hash).
+ * See: https://wasenderapi.com/help/messaging/using-webhooks
+ *
+ * @param signature - The signature from X-Webhook-Signature header
+ * @param _body - The raw request body (unused - WaSend doesn't hash the body)
  * @param secret - The webhook secret configured in WaSend dashboard
- * @returns true if signature is valid, false otherwise
+ * @returns true if signature matches secret, false otherwise
  */
 export async function verifyWebhookSignature(
   signature: string | null,
-  body: string,
+  _body: string,
   secret: string
 ): Promise<boolean> {
   if (!signature || !secret) {
     return false;
   }
 
-  try {
-    // Create HMAC-SHA256 signature using Web Crypto API (Deno compatible)
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(secret);
-    const messageData = encoder.encode(body);
-
-    // Import the secret key
-    const key = await crypto.subtle.importKey(
-      "raw",
-      keyData,
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"]
-    );
-
-    // Sign the message
-    const signatureBuffer = await crypto.subtle.sign("HMAC", key, messageData);
-
-    // Convert to hex string
-    const expectedSignature = Array.from(new Uint8Array(signatureBuffer))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-
-    // Constant-time comparison to prevent timing attacks
-    return constantTimeCompare(signature, expectedSignature);
-  } catch (err) {
-    logger.error("Webhook signature verification error", err as Error, { category: LogCategory.WEBHOOK, errorCategory: ErrorCategory.AUTH });
-    return false;
-  }
+  // WaSend sends the secret directly as the signature header
+  // Use constant-time comparison to prevent timing attacks
+  return constantTimeCompare(signature, secret);
 }
 
 /**

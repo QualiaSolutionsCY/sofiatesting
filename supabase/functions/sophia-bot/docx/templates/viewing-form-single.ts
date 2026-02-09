@@ -12,14 +12,9 @@ import {
   ImageRun,
   AlignmentType,
   UnderlineType,
-  BorderStyle,
-  Table,
-  TableRow,
-  TableCell,
-  WidthType,
 } from "https://esm.sh/docx@8.5.0";
 
-import { COLORS, FONTS, SPACING, COMPANY, LOGO, createSignatureLine, formatDate } from "../styles.ts";
+import { FONTS, SPACING, COMPANY, createSignatureLine, formatDate, formatPropertyDescription } from "../styles.ts";
 import { logger, LogCategory } from "../../utils/logger.ts";
 
 /**
@@ -37,6 +32,7 @@ export interface ViewingFormSingleData {
     district: string;
     municipality: string;
     locality: string;
+    rawDescription?: string;
   };
 }
 
@@ -51,7 +47,7 @@ export function createViewingFormSingle(
   
   const children: Paragraph[] = [];
   
-  // Logo - preserve aspect ratio (Zyprus logo is approximately 4:1 ratio)
+  // Logo - preserve aspect ratio (Zyprus logo is 1960x1005, ~2:1 ratio)
   if (logoData && logoData.length > 0) {
     children.push(
       new Paragraph({
@@ -60,7 +56,7 @@ export function createViewingFormSingle(
             data: logoData,
             transformation: {
               width: 200,
-              height: 50,
+              height: 103,
             },
             type: "png",
           }),
@@ -71,7 +67,7 @@ export function createViewingFormSingle(
     );
   }
   
-  // Title: "Viewing Form" - centered, underlined
+  // Title: "Viewing Form" - centered, bold, underlined
   children.push(
     new Paragraph({
       children: [
@@ -87,7 +83,7 @@ export function createViewingFormSingle(
       spacing: { after: SPACING.TITLE_AFTER },
     })
   );
-  
+
   // Date line
   children.push(
     new Paragraph({
@@ -104,140 +100,41 @@ export function createViewingFormSingle(
           font: FONTS.PRIMARY,
         }),
       ],
-      spacing: { after: SPACING.DATE_AFTER },
+      spacing: { after: SPACING.TITLE_AFTER },
     })
   );
-  
-  // Declaration paragraph
+
+  // Declaration paragraph - no bold on names/IDs/company (matches reference doc)
   children.push(
     new Paragraph({
       children: [
         new TextRun({
-          text: "Herein, I ",
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: data.person.fullName,
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: " with ID ",
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: data.person.idNumber,
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: " Issued By: ",
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: data.person.issuedBy,
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: ` confirm that `,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: COMPANY.FULL_REFERENCE,
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: ", has introduced to me with a viewing the property with the following Registry details",
+          text: `Herein, I ${data.person.fullName} with ID ${data.person.idNumber} Issued By: ${data.person.issuedBy} confirm that ${COMPANY.FULL_REFERENCE}, has introduced to me with a viewing the property with the following Registry details:`,
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
       ],
-      spacing: { after: SPACING.PARAGRAPH_AFTER, line: SPACING.LINE_HEIGHT },
+      spacing: { after: SPACING.PARAGRAPH_AFTER, line: 366 },
     })
   );
-  
-  // Property details - Registration No
+
+  // Property line - uses smart parser (handles building names, flat numbers)
+  const rawProp = data.property.rawDescription || [
+    data.property.registrationNo ? `registration no ${data.property.registrationNo}` : '',
+    data.property.municipality, data.property.district, data.property.locality,
+  ].filter(Boolean).join(" ");
+  const propertyDescription = formatPropertyDescription(rawProp);
   children.push(
     new Paragraph({
       children: [
         new TextRun({
-          text: "Registration No.: ",
+          text: "Property: ",
           bold: true,
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
         new TextRun({
-          text: data.property.registrationNo,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-      spacing: { after: 120 },
-    })
-  );
-  
-  // Property details - District
-  children.push(
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: "District: ",
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: data.property.district,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-      spacing: { after: 120 },
-    })
-  );
-  
-  // Property details - Municipality
-  children.push(
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: "Municipality: ",
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: data.property.municipality,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
-      spacing: { after: 120 },
-    })
-  );
-  
-  // Property details - Locality
-  children.push(
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: "Locality: ",
-          bold: true,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-        new TextRun({
-          text: data.property.locality,
+          text: propertyDescription,
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
@@ -245,8 +142,11 @@ export function createViewingFormSingle(
       spacing: { after: SPACING.SIGNATURE_BEFORE },
     })
   );
-  
-  // Signature section - Name
+
+  // Empty line before signatures
+  children.push(new Paragraph({ text: "", spacing: { after: 200 } }));
+
+  // Signature - Name
   children.push(
     new Paragraph({
       children: [
@@ -257,16 +157,16 @@ export function createViewingFormSingle(
           font: FONTS.PRIMARY,
         }),
         new TextRun({
-          text: createSignatureLine(30),
+          text: createSignatureLine(20),
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
       ],
-      spacing: { after: SPACING.PARAGRAPH_AFTER },
+      spacing: { after: 400 },
     })
   );
-  
-  // Signature section - Signature
+
+  // Signature - Signature
   children.push(
     new Paragraph({
       children: [
@@ -277,12 +177,12 @@ export function createViewingFormSingle(
           font: FONTS.PRIMARY,
         }),
         new TextRun({
-          text: createSignatureLine(28),
+          text: createSignatureLine(18),
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
       ],
-      spacing: { after: SPACING.PARAGRAPH_AFTER },
+      spacing: { after: 400 },
     })
   );
   
@@ -303,18 +203,21 @@ export function parseViewingFormSingleData(response: string): ViewingFormSingleD
 
     // Extract person details using regex
     // IMPORTANT: issuedBy must stop at "confirm" to avoid capturing duplicate company text
-    const personMatch = cleanResponse.match(/(?:Herein,?\s*I\s+)([^,]+?)(?:\s+with\s+ID\s+)([^\s,]+)(?:\s+Issued\s+By:?\s*)([A-Za-z]+)(?:\s+confirm)?/i);
+    const personMatch = cleanResponse.match(/(?:Herein,?\s*I\s+)([^,]+?)(?:\s+with\s+ID\s+)([^\s,]+)(?:,?\s+Issued\s+By:?\s*)([A-Za-z]+)(?:\s+confirm)?/i);
 
-    // Extract property details (handle any remaining markdown)
+    // Capture full "Property:" line for smart formatting (includes building name, flat no)
+    // IMPORTANT: Must anchor to line start and require colon to avoid matching "Property" in company name
+    const propertyLineMatch = cleanResponse.match(/^Property:\s*(.+)/im);
+
+    // Also extract structured fields as fallback
     const regNoMatch = cleanResponse.match(/Registration\s*No\.?:?\s*\*?\s*([^\n,*]+)/i);
     const districtMatch = cleanResponse.match(/District:?\s*\*?\s*([^\n,*]+)/i);
     const municipalityMatch = cleanResponse.match(/Municipality:?\s*\*?\s*([^\n,*]+)/i);
     const localityMatch = cleanResponse.match(/Locality:?\s*\*?\s*([^\n,*]+)/i);
 
-    // Extract date (handle any remaining markdown)
     const dateMatch = cleanResponse.match(/Date:?\s*\*?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
 
-    if (!personMatch || !regNoMatch) {
+    if (!personMatch || (!regNoMatch && !propertyLineMatch)) {
       logger.debug("[ViewingFormSingle] Could not parse required fields from response", { category: LogCategory.GENERAL });
       return null;
     }
@@ -327,10 +230,11 @@ export function parseViewingFormSingleData(response: string): ViewingFormSingleD
         issuedBy: personMatch[3].trim(),
       },
       property: {
-        registrationNo: regNoMatch[1].trim(),
+        registrationNo: regNoMatch ? regNoMatch[1].trim() : "",
         district: districtMatch ? districtMatch[1].trim() : "",
         municipality: municipalityMatch ? municipalityMatch[1].trim() : "",
         locality: localityMatch ? localityMatch[1].trim() : "",
+        rawDescription: propertyLineMatch ? propertyLineMatch[1].trim() : undefined,
       },
     };
   } catch (error) {

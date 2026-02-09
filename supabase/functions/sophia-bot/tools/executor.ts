@@ -3,7 +3,7 @@
  * Executes tool calls from OpenRouter and returns results
  */
 
-import { Agent } from "../agents/identifier.ts";
+import { Agent, getAgentsByRegion, getAgentByEmail } from "../agents/identifier.ts";
 import { validateRegionalAccess, determineRegion } from "../rules/region-validator.ts";
 import { assignReviewers, needsAssignmentInput, RejectionError } from "../rules/reviewer-assignment.ts";
 import { handleSpecialCases, handleUnknownSender, validateRequiredFields, getMissingFieldsMessage } from "../rules/special-cases.ts";
@@ -14,14 +14,15 @@ import { processImages, validateImages, generateImageWarnings, hasEnoughImages }
 import { createDraftListing, getZyprusConfig, getAccessToken } from "../zyprus/client.ts";
 import { loadTaxonomy, findLocationUuid, findPropertyTypeUuid, getLocationsByRegion } from "../zyprus/taxonomy-cache.ts";
 import { clearPendingImages, getPendingImages } from "../services/pending-images.ts";
+import { extractFromBazaraki as extractBazarakiListing, isBazarakiUrl, formatBazarakiSummary } from "../services/bazaraki-scraper.ts";
 import { logger, LogCategory } from "../utils/logger.ts";
 import { classifyError, getUserFriendlyMessage, ErrorType } from "../utils/error-mapper.ts";
 import { trackToolUsed, trackPropertyUploaded, trackDocumentGenerated, createTimer } from "../services/analytics.ts";
-import { getLastDocument } from "../../_shared/db.ts";
+import { getLastDocument, trackListingUpload } from "../../_shared/db.ts";
 import { DEFAULT_COORDINATES, UPLOAD_LOCK_DURATION_MS } from "../config/business-rules.ts";
 
-// In-memory upload lock to prevent parallel uploads from same user
-// Key: phone number, Value: timestamp of last upload attempt
+// In-memory upload lock to prevent duplicate uploads of the same property
+// Key: property fingerprint (agent+location+price+owner), Value: timestamp
 const uploadLocks = new Map<string, number>();
 
 /**
@@ -51,10 +52,26 @@ function isDocumentUrl(url: string): boolean {
 }
 
 /**
- * Check if an upload lock exists for this agent (prevents parallel uploads)
+ * Build a property fingerprint for upload lock deduplication.
+ * Combines agent identity with property-specific fields so the same agent
+ * can upload different properties back-to-back, but duplicate submissions
+ * of the same property are still blocked.
  */
-function checkUploadLock(agentPhone: string): { locked: boolean; remainingSeconds?: number } {
-  const lastUpload = uploadLocks.get(agentPhone);
+function buildPropertyFingerprint(
+  agentKey: string,
+  args: Record<string, unknown>
+): string {
+  const location = ((args.location as string) || "").toLowerCase().trim();
+  const price = String(args.price || "");
+  const owner = ((args.ownerName as string) || "").toLowerCase().trim();
+  return `${agentKey}:${location}:${price}:${owner}`;
+}
+
+/**
+ * Check if an upload lock exists for this property (prevents duplicate uploads)
+ */
+function checkUploadLock(lockKey: string): { locked: boolean; remainingSeconds?: number } {
+  const lastUpload = uploadLocks.get(lockKey);
   if (!lastUpload) {
     return { locked: false };
   }
@@ -66,15 +83,15 @@ function checkUploadLock(agentPhone: string): { locked: boolean; remainingSecond
   }
 
   // Lock expired, remove it
-  uploadLocks.delete(agentPhone);
+  uploadLocks.delete(lockKey);
   return { locked: false };
 }
 
 /**
- * Set upload lock for this agent
+ * Set upload lock for this property
  */
-function setUploadLock(agentPhone: string): void {
-  uploadLocks.set(agentPhone, Date.now());
+function setUploadLock(lockKey: string): void {
+  uploadLocks.set(lockKey, Date.now());
 }
 
 export interface ToolResult {
@@ -138,6 +155,14 @@ export async function executeTool(
 
       case "calculateCapitalGains":
         result = handleCalculateCapitalGains(tool.arguments);
+        break;
+
+      case "getRegionalAgents":
+        result = await handleGetRegionalAgents(tool.arguments);
+        break;
+
+      case "extractFromBazaraki":
+        result = await handleExtractFromBazaraki(tool.arguments);
         break;
 
       case "sendEmail":
@@ -225,10 +250,13 @@ async function handleCreatePropertyListing(
     agentRegion: agent.region,
   });
 
-  // 1.5 CRITICAL: Check upload lock to prevent parallel uploads (e.g., when user sends multiple photos)
-  const lockCheck = checkUploadLock(agent.mobile || agent.fullName);
+  // 1.5 CRITICAL: Check upload lock to prevent duplicate uploads of the same property
+  // Uses property fingerprint (agent+location+price+owner) so different properties can upload in parallel
+  const agentKey = agent.mobile || agent.fullName;
+  const propertyLockKey = buildPropertyFingerprint(agentKey, args);
+  const lockCheck = checkUploadLock(propertyLockKey);
   if (lockCheck.locked) {
-    logger.warn("Upload blocked by lock - parallel upload in progress", {
+    logger.warn("Upload blocked by lock - duplicate upload in progress", {
       category: LogCategory.TOOL,
       operation: "createPropertyListing",
       agentName: agent.fullName,
@@ -236,12 +264,12 @@ async function handleCreatePropertyListing(
     });
     return {
       needsInput: true,
-      question: `I'm already processing an upload for this property. Please wait ${lockCheck.remainingSeconds} seconds before trying again, or if you'd like to upload a different property, please let me know.`,
+      question: `I'm already processing an upload for this property. Please wait ${lockCheck.remainingSeconds} seconds before trying again.`,
     };
   }
 
-  // Set lock immediately to prevent parallel webhook calls
-  setUploadLock(agent.mobile || agent.fullName);
+  // Set lock immediately to prevent duplicate webhook calls for same property
+  setUploadLock(propertyLockKey);
 
   // 2. Validate required fields
   const validation = validateRequiredFields(args);
@@ -311,6 +339,30 @@ async function handleCreatePropertyListing(
     propertyRegion,
     args.assignTo as string | undefined
   );
+
+  // 6b. Resolve listing owner name for Reference ID
+  // When assignTo is provided (management assigns to specific agent), look up that agent's name
+  let listingOwnerName = agent.fullName;
+  if (args.assignTo && reviewers.listingOwner !== agent.communicationEmail) {
+    try {
+      const assignedAgent = await getAgentByEmail(
+        reviewers.listingOwner,
+        supabaseUrl,
+        supabaseKey
+      );
+      if (assignedAgent) {
+        listingOwnerName = assignedAgent.fullName;
+        logger.info("Resolved listing owner name from assignTo", {
+          category: LogCategory.TOOL,
+          operation: "createPropertyListing",
+          listingOwnerName,
+          listingOwnerEmail: reviewers.listingOwner,
+        });
+      }
+    } catch {
+      // Non-critical — fall back to requesting agent name
+    }
+  }
 
   // 7. Process images (sync classification)
   // CRITICAL FIX: Fetch images from pending_images table instead of trusting AI-provided URLs
@@ -400,7 +452,7 @@ async function handleCreatePropertyListing(
   if (!imageCheck.enough) {
     return {
       needsInput: true,
-      question: `I need at least ${imageCheck.required} images for a ${args.propertyType}. You've provided ${imageCheck.provided}. Please send more photos.`,
+      question: `I need at least ${imageCheck.required} ${imageCheck.required === 1 ? "image" : "images"} for a ${args.propertyType}. You've provided ${imageCheck.provided}. Please send more photos.`,
     };
   }
 
@@ -455,17 +507,51 @@ async function handleCreatePropertyListing(
     });
   }
 
-  // 9a. Resolve coordinates for Google Maps link in My Notes
+  // 9a. Capture the raw Google Maps URL (passed directly by the agent)
+  const locationUrl = args.locationUrl as string | undefined;
+
+  // 9a.5 CRITICAL: Include Google Maps URL in AI message for Zyprus website display
+  // The locationUrl is also in myNotes, but agents need it in field_ai_message for visibility
+  let aiMessageContent: string | null = null;
+  if (duplicates.isDuplicate) {
+    aiMessageContent = generateDuplicateWarning(duplicates.potentialMatches);
+  } else if (args.specialNotes) {
+    aiMessageContent = `Agent notes: ${args.specialNotes}`;
+  }
+
+  // Add Google Maps URL to AI message (appears in AI Notes field on Zyprus website)
+  if (locationUrl) {
+    if (aiMessageContent) {
+      aiMessageContent += `\n\nLocation: ${locationUrl}`;
+    } else {
+      aiMessageContent = `Location: ${locationUrl}`;
+    }
+  }
+
+  // 9b. Resolve coordinates — from args, from Google Maps URL, or from defaults
   const resolvedCoordinates = (args.coordinates as { lat: number; lon: number } | undefined) ||
+    // Try to parse coordinates from Google Maps URL (e.g., @34.828,32.401)
+    (() => {
+      if (locationUrl) {
+        const atMatch = locationUrl.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+        if (atMatch) {
+          return { lat: parseFloat(atMatch[1]), lon: parseFloat(atMatch[2]) };
+        }
+        // Also try "place/lat,lon" format
+        const placeMatch = locationUrl.match(/place\/(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+        if (placeMatch) {
+          return { lat: parseFloat(placeMatch[1]), lon: parseFloat(placeMatch[2]) };
+        }
+      }
+      return undefined;
+    })() ||
     // Fallback: use default coordinates based on location name
-    // IMPORTANT: Find the MOST SPECIFIC match (longest matching key)
     (() => {
       const locationLower = location.toLowerCase();
       let bestMatch: { key: string; coords: { lat: number; lon: number } } | null = null;
 
       for (const [key, coords] of Object.entries(DEFAULT_COORDINATES)) {
         if (locationLower.includes(key)) {
-          // Keep the longest matching key (most specific)
           if (!bestMatch || key.length > bestMatch.key.length) {
             bestMatch = { key, coords };
           }
@@ -522,17 +608,12 @@ async function handleCreatePropertyListing(
     yearBuilt: args.yearBuilt as number | undefined,
     floor: args.floor as string | undefined,
     areaDescription: args.areaDescription as string | undefined,
+    condition: args.condition as string | undefined,
+    orientation: args.orientation as string | undefined,
   });
 
-  // 11. Build AI message content (for My Notes - includes how listing was created)
-  let aiMessageContent: string | null = null;
-  if (duplicates.isDuplicate) {
-    aiMessageContent = generateDuplicateWarning(duplicates.potentialMatches);
-  } else if (args.specialNotes) {
-    aiMessageContent = `Agent notes: ${args.specialNotes}`;
-  }
-
-  // 12. Generate My Notes (with listing owner, reviewer, AI message - all in one place)
+  // 11. Generate My Notes (with listing owner, reviewer, AI message - all in one place)
+  // Note: aiMessageContent was already built earlier (step 9a.5) including Google Maps URL
   const myNotes = generateMyNotes(
     {
       name: args.ownerName as string,
@@ -543,6 +624,7 @@ async function handleCreatePropertyListing(
     agent,
     {
       duplicateWarning: duplicates.isDuplicate ? createDuplicateNote(duplicates.potentialMatches) : undefined,
+      locationUrl,
       coordinates: resolvedCoordinates,
       listingOwner: reviewers.listingOwner,
       reviewer1: reviewers.reviewer1,
@@ -565,11 +647,11 @@ async function handleCreatePropertyListing(
   });
 
   // 13. Generate AI Notes (separate field for AI understanding)
+  // NOTE: Don't pass specialNotes here — already included in aiMessageContent (step 11)
   const aiNotes = generateAIAssistantNotes(
     `${listingType === "rent" ? "Rental" : "Sale"} listing from WhatsApp`,
     args.propertyType as string,
     (args.features as string[]) || [],
-    args.specialNotes as string | undefined
   );
 
   // 14. Create the listing
@@ -592,8 +674,6 @@ async function handleCreatePropertyListing(
     locationUuid, // Always valid - findLocationUuid now always returns a UUID
     bedrooms: args.bedrooms as number,
     bathrooms: args.bathrooms as number,
-    kitchens: args.kitchens as number | undefined,
-    livingRooms: args.livingRooms as number | undefined,
     coveredArea: args.coveredArea as number,
     plotSize: args.plotSize as number | undefined,
     coveredVeranda: args.coveredVeranda as number | undefined,
@@ -616,8 +696,10 @@ async function handleCreatePropertyListing(
     priceNegotiable: args.priceNegotiable as boolean | undefined,
     isNewBuild: args.isNewBuild as boolean | undefined,
     parkingType: args.parkingType as "covered" | "open" | "garage" | "carport" | "none" | undefined,
-    // For Own Reference ID: Owner - {Agent} - {Seller} - {Phone} - {Email}
-    agentName: agent.fullName,
+    priceModifier: args.priceModifier as "no_vat" | "plus_vat" | "vat_included" | undefined,
+    floorPlanUrls: args.floorPlanUrls as string[] | undefined,
+    // For Own Reference ID: Owner - {Listing Owner} - {Seller} - {Phone} - {Email}
+    agentName: listingOwnerName,
     ownerName: args.ownerName as string,
     ownerPhone: args.ownerPhone as string,
     ownerEmail: args.ownerEmail as string | undefined,
@@ -638,6 +720,16 @@ async function handleCreatePropertyListing(
     logger.info("Cleared pending images after successful upload", {
       category: LogCategory.IMAGE,
     });
+
+    // Track listing for publication notification (non-blocking, fire-and-forget)
+    const propertyTitle = `${args.bedrooms} bed ${args.propertyType} in ${location}`;
+    trackListingUpload(
+      result.listingId,
+      agentPhone,
+      agent.fullName,
+      propertyTitle,
+      result.listingUrl,
+    ).catch(() => {}); // Swallow errors — tracking is non-critical
   } catch (createError) {
     const err = createError instanceof Error ? createError : new Error(String(createError));
     const errorType = classifyError(err);
@@ -669,6 +761,14 @@ async function handleCreatePropertyListing(
   message += `• Reviewer: ${reviewers.reviewer1}\n`;
   message += `\n🔗 **Draft URL:** ${result.listingUrl}\n`;
 
+  // Add Google Maps link to response (copy of what's in My Notes)
+  if (locationUrl) {
+    message += `\n📍 **Google Maps:** ${locationUrl}\n`;
+  } else if (resolvedCoordinates) {
+    const mapsUrl = `https://www.google.com/maps/place/${resolvedCoordinates.lat},${resolvedCoordinates.lon}`;
+    message += `\n📍 **Google Maps:** ${mapsUrl}\n`;
+  }
+
   // Add warnings
   const imageWarnings = generateImageWarnings(validImages);
   if (imageWarnings) {
@@ -689,6 +789,90 @@ async function handleCreatePropertyListing(
       listingUrl: result.listingUrl,
     },
   };
+}
+
+/**
+ * Handle listing available agents in a region (for management assignment)
+ */
+async function handleGetRegionalAgents(
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const region = args.region as string;
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const agents = await getAgentsByRegion(region, supabaseUrl, supabaseKey);
+
+    if (agents.length === 0) {
+      return {
+        success: true,
+        data: { message: `No agents found in ${region} region.`, agents: [] },
+      };
+    }
+
+    const agentList = agents.map((a) => ({
+      name: a.fullName,
+      email: a.listingOwnerEmail || a.communicationEmail,
+      role: a.role,
+    }));
+
+    return {
+      success: true,
+      data: {
+        message: `Found ${agentList.length} agent(s) in ${region}:`,
+        agents: agentList,
+      },
+    };
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error("Failed to get regional agents", err, { category: LogCategory.TOOL });
+    return { error: `Failed to retrieve agents for ${region}` };
+  }
+}
+
+/**
+ * Handle Bazaraki link extraction
+ */
+async function handleExtractFromBazaraki(
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const url = args.url as string;
+
+  if (!url || !isBazarakiUrl(url)) {
+    return { error: "Please provide a valid Bazaraki URL (bazaraki.com or bazaraki.cy)" };
+  }
+
+  try {
+    const listing = await extractBazarakiListing(url);
+    const summary = formatBazarakiSummary(listing);
+
+    return {
+      success: true,
+      message: summary,
+      data: {
+        ...listing,
+        // Pass extracted data so AI can pre-fill createPropertyListing
+        extractedFields: {
+          listingType: listing.listingType,
+          propertyType: listing.propertyType,
+          price: listing.price,
+          location: listing.location,
+          bedrooms: listing.bedrooms,
+          bathrooms: listing.bathrooms,
+          coveredArea: listing.coveredArea,
+          plotSize: listing.plotSize,
+          imageUrls: listing.imageUrls,
+        },
+      },
+    };
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error("Bazaraki extraction failed", err, { category: LogCategory.TOOL });
+    return {
+      error: "I couldn't extract details from that Bazaraki link. Could you please provide the property details directly?",
+    };
+  }
 }
 
 /**
@@ -968,7 +1152,14 @@ async function handleSendEmail(
   // AUTO-ATTACH: If no explicit attachment provided, check for recently generated document
   if (!attachmentUrl && phoneNumber) {
     try {
-      const lastDoc = await getLastDocument(phoneNumber);
+      // Documents are saved with user_id = bare digits (e.g., "35799111668")
+      // but phoneNumber here is formatted with + prefix (e.g., "+35799111668").
+      // Try formatted first, then bare digits to match how saveLastDocument stores them.
+      let lastDoc = await getLastDocument(phoneNumber);
+      if (!lastDoc) {
+        const bareDigits = phoneNumber.replace(/^\+/, "");
+        lastDoc = await getLastDocument(bareDigits);
+      }
       if (lastDoc) {
         // Only auto-attach if document was created within last 30 minutes
         const docAge = Date.now() - new Date(lastDoc.created_at).getTime();

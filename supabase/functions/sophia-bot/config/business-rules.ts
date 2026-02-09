@@ -41,12 +41,12 @@ export const USER_FALLBACKS: Record<string, string> = {
   "paphos@zyprus.com": AZINAS_UUID,
   "charalambos@zyprus.com": CHARALAMBOS_UUID,
   "csc@zyprus.com": CHARALAMBOS_UUID,
-  // Regional request accounts - use SOPHIA_AI_UUID as fallback
-  "requestpaphos@zyprus.com": SOPHIA_AI_UUID,
-  "requestlimassol@zyprus.com": SOPHIA_AI_UUID,
-  "requestlarnaca@zyprus.com": SOPHIA_AI_UUID,
-  "requestnicosia@zyprus.com": SOPHIA_AI_UUID,
-  "requestfamagusta@zyprus.com": SOPHIA_AI_UUID,
+  // Regional request accounts - actual Zyprus user UUIDs (verified from Zyprus API)
+  "requestpaphos@zyprus.com": "c8e05e2a-56e6-4d1f-9a20-31235feaec54",
+  "requestlimassol@zyprus.com": "c82d28cd-8167-4a2a-9ae8-8168015869c3",
+  "requestlarnaca@zyprus.com": "f889a6dc-0973-44b2-b10c-0d681f84f560",
+  "requestnicosia@zyprus.com": "630cc4fd-d2c7-410a-821d-b0a9adfae4ea",
+  "requestfamagusta@zyprus.com": "7e33cdcd-709d-4fc0-8682-0075dde55964",
 };
 
 /**
@@ -90,6 +90,26 @@ export const AGENT_NAME_MAP: Record<string, string[]> = {
   // Management
   "csc@zyprus.com": ["charalambos", "csc"],
   "listings@zyprus.com": ["lauren", "listings"],
+};
+
+/**
+ * Human-readable display names for emails shown in My Notes
+ * Used by my-notes-generator.ts to show names instead of raw emails
+ */
+export const EMAIL_DISPLAY_NAMES: Record<string, string> = {
+  "listings@zyprus.com": "Lauren",
+  "requestpaphos@zyprus.com": "Paphos Office",
+  "requestlimassol@zyprus.com": "Limassol Office",
+  "requestlarnaca@zyprus.com": "Larnaca Office",
+  "requestnicosia@zyprus.com": "Nicosia Office",
+  "requestfamagusta@zyprus.com": "Famagusta Office",
+  "demetra@zyprus.com": "Demetra",
+  "michelle@zyprus.com": "Michelle",
+  "limassol@zyprus.com": "Michelle",
+  "azinas@zyprus.com": "Azinas",
+  "paphos@zyprus.com": "Azinas",
+  "charalambos@zyprus.com": "Charalambos",
+  "csc@zyprus.com": "Charalambos",
 };
 
 // =============================================================================
@@ -244,20 +264,30 @@ export const DEFAULT_TITLE_DEED_UUID = "5c553db1-e53d-46a2-b609-093d17e75a7a";
 
 /**
  * Hardcoded fallback UUIDs for common property types
- * Verified to work on dev9.zyprus.com
+ * Verified against dev9.zyprus.com live API (Feb 2026)
  */
 export const PROPERTY_TYPE_FALLBACKS: Record<string, string> = {
   apartment: "e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44",
-  villa: "76b4fa8e-de7e-4232-85ac-869dca3620f4",
-  house: "76b4fa8e-de7e-4232-85ac-869dca3620f4",
+  villa: "76b4fa8e-de7e-4232-85ac-869dca3620f4",            // Detached House
+  house: "76b4fa8e-de7e-4232-85ac-869dca3620f4",             // Detached House
   "detached house": "76b4fa8e-de7e-4232-85ac-869dca3620f4",
-  "detached villa": "76b4fa8e-de7e-4232-85ac-869dca3620f4",
-  "semi-detached": "76b4fa8e-de7e-4232-85ac-869dca3620f4",
-  studio: "e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44",
-  penthouse: "e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44",
-  bungalow: "76b4fa8e-de7e-4232-85ac-869dca3620f4",
-  maisonette: "e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44",
-  townhouse: "76b4fa8e-de7e-4232-85ac-869dca3620f4",
+  "detached villa": "76b4fa8e-de7e-4232-85ac-869dca3620f4",  // Detached House
+  "semi-detached": "d9ab36df-b3ab-4fd0-b618-797784457fe9",   // Semi Detached House
+  "semi-detached house": "d9ab36df-b3ab-4fd0-b618-797784457fe9",
+  studio: "bff4e856-9888-4c4a-94c5-9fc6a6dfb6f3",            // Studio
+  penthouse: "cf2d6939-a757-4036-912f-6fda39a6d5fb",          // Penthouse
+  bungalow: "8a3b5196-0068-4c56-b7bd-8f419a0884cc",           // Bungalow
+  maisonette: "e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44",        // Apartment (no maisonette type)
+  townhouse: "74f0a039-fff8-4f7e-ae6d-6bda4c656b68",          // Townhouse
+  flat: "1cc0bfae-8773-4f8b-93f2-e4ee7e5c7cc7",               // Flat
+  "entire floor apartment": "59e8e5b9-14a8-450b-ab95-f5f9b25e3f3d",
+  "mixed-use building": "0f109c45-21e2-4979-8b7c-4ece7b73fbe7",
+};
+
+/** Property status UUIDs - verified from live API (Feb 2026) */
+export const PROPERTY_STATUS_UUIDS: Record<string, string> = {
+  "off-plan": "fcb94eb2-ddc8-4654-b017-135eee25c775",
+  "under construction": "c2ae2a05-8433-4b79-ab30-f5488b222033",
 };
 
 // =============================================================================

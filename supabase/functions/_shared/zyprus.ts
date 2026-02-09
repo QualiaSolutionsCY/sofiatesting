@@ -792,7 +792,8 @@ const buildJsonApiPayload = (
       format: "plain_text",
     },
     field_my_notes: listing.myNotes,
-    field_ai_assistant_notes: listing.aiNotes || "",
+    // NOTE: field_ai_assistant_notes does NOT exist on live API (verified Feb 2026)
+    // aiNotes content is merged into field_ai_message instead
     field_ai_generated: true,
     field_ai_state: "draft",
     field_negotiable: true,
@@ -811,8 +812,10 @@ const buildJsonApiPayload = (
   if (listing.potentialDuplicate) {
     attributes.field_potential_duplicate = true;
   }
-  if (listing.aiMessage) {
-    attributes.field_ai_message = listing.aiMessage;
+  // Merge aiNotes into aiMessage since field_ai_assistant_notes doesn't exist on live API
+  const aiMessageParts = [listing.aiMessage, listing.aiNotes].filter(Boolean);
+  if (aiMessageParts.length > 0) {
+    attributes.field_ai_message = aiMessageParts.join("\n\n");
   }
 
   if (listing.coordinates) {
@@ -885,9 +888,8 @@ const buildJsonApiPayload = (
     };
   }
 
-  relationships.field_listing_owner = {
-    data: { type: "user--user", id: listingOwnerUuid },
-  };
+  // NOTE: field_listing_owner does NOT exist on live API (verified Feb 2026)
+  // The `uid` field (set by API based on OAuth token) determines the listing author/owner
 
   if (viewUuids.length > 0) {
     relationships.field_property_views = {

@@ -9,6 +9,7 @@
  * - GET /admin/prompts/history?key=X - Get version history
  * - GET /admin/cache/status - Cache diagnostic info
  * - POST /admin/migrate-templates - One-time template migration
+ * - POST /admin/generate-description - Generate AI property description (for Zyprus)
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
@@ -20,6 +21,7 @@ import {
   rollbackPrompt,
   getPromptVersionHistory,
 } from "../services/prompt-loader.ts";
+import { generateDescription, type PropertyDetails } from "../services/description-generator.ts";
 
 const ADMIN_SECRET = Deno.env.get("SOPHIA_ADMIN_SECRET");
 
@@ -83,6 +85,11 @@ export async function handleAdminRequest(
     return handleTemplateMigration(supabase);
   }
 
+  // Generate property description endpoint (for Zyprus CMS)
+  if (url.pathname === "/sophia-bot/admin/generate-description" && req.method === "POST") {
+    return handleGenerateDescription(req);
+  }
+
   // Unknown admin endpoint
   return new Response(JSON.stringify({
     error: "Not Found",
@@ -92,6 +99,7 @@ export async function handleAdminRequest(
       "GET /sophia-bot/admin/prompts/history?key=X",
       "GET /sophia-bot/admin/cache/status",
       "POST /sophia-bot/admin/migrate-templates",
+      "POST /sophia-bot/admin/generate-description - Generate AI property description (for Zyprus)",
     ]
   }), {
     status: 404,
@@ -371,5 +379,150 @@ async function handleTemplateMigration(
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
+  }
+}
+
+/**
+ * POST /admin/generate-description
+ * Generate AI property description for Zyprus CMS
+ *
+ * This endpoint is called by the Zyprus backend "Generate Description" button.
+ * It uses Sophia AI's description generator to create professional property descriptions.
+ *
+ * Request body schema:
+ * {
+ *   "type": string,           // Property type (e.g., "apartment", "villa", "detached house")
+ *   "listingType": "sale" | "rent",
+ *   "bedrooms": number,
+ *   "bathrooms": number,
+ *   "location": string,       // Area name (e.g., "Tala", "Kato Paphos", "Limassol")
+ *   "coveredArea": number,    // in square meters
+ *   "plotSize"?: number,      // Optional: Plot size in sqm
+ *   "coveredVeranda"?: number,
+ *   "uncoveredVeranda"?: number,
+ *   "features"?: string[],    // Optional: Array of feature strings
+ *   "price": number,
+ *   "yearBuilt"?: number,
+ *   "condition"?: string,
+ *   "orientation"?: string,
+ *   "parking"?: string,
+ *   "storage"?: boolean,
+ *   "airConditioning"?: boolean,
+ *   "centralHeating"?: boolean,
+ *   "pool"?: boolean,
+ *   "garden"?: boolean,
+ *   "seaView"?: boolean,
+ *   "mountainView"?: boolean,
+ *   "titleDeedStatus"?: string,
+ *   "areaDescription"?: string // Optional: User-provided custom area description
+ * }
+ *
+ * Response:
+ * {
+ *   "success": true,
+ *   "description": string,   // Generated description text
+ *   "title"?: string         // Generated short title
+ * }
+ */
+async function handleGenerateDescription(req: Request): Promise<Response> {
+  try {
+    const body = await req.json();
+
+    // Validate required fields
+    const requiredFields = ["type", "listingType", "bedrooms", "bathrooms", "location", "coveredArea", "price"];
+    const missingFields = requiredFields.filter((field) => body[field] === undefined);
+
+    if (missingFields.length > 0) {
+      logger.warn("Admin: Generate description missing required fields", {
+        category: LogCategory.GENERAL,
+        missingFields,
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Missing required fields",
+          missingFields,
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate listingType
+    if (body.listingType !== "sale" && body.listingType !== "rent") {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Invalid listingType. Must be 'sale' or 'rent'",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Build property details object
+    const propertyDetails: PropertyDetails = {
+      type: body.type,
+      listingType: body.listingType,
+      bedrooms: Number(body.bedrooms),
+      bathrooms: Number(body.bathrooms),
+      location: body.location,
+      coveredArea: Number(body.coveredArea),
+      price: Number(body.price),
+      plotSize: body.plotSize ? Number(body.plotSize) : undefined,
+      coveredVeranda: body.coveredVeranda ? Number(body.coveredVeranda) : undefined,
+      uncoveredVeranda: body.uncoveredVeranda ? Number(body.uncoveredVeranda) : undefined,
+      features: Array.isArray(body.features) ? body.features : undefined,
+      yearBuilt: body.yearBuilt ? Number(body.yearBuilt) : undefined,
+      condition: body.condition,
+      orientation: body.orientation,
+      parking: body.parking,
+      storage: body.storage,
+      airConditioning: body.airConditioning,
+      centralHeating: body.centralHeating,
+      pool: body.pool,
+      garden: body.garden,
+      seaView: body.seaView,
+      mountainView: body.mountainView,
+      titleDeedStatus: body.titleDeedStatus,
+      areaDescription: body.areaDescription,
+    };
+
+    logger.info("Admin: Generate description requested", {
+      category: LogCategory.GENERAL,
+      propertyType: propertyDetails.type,
+      location: propertyDetails.location,
+      bedrooms: propertyDetails.bedrooms,
+    });
+
+    // Generate the description using Sophia AI's description generator
+    const description = generateDescription(propertyDetails);
+
+    logger.info("Admin: Description generated successfully", {
+      category: LogCategory.GENERAL,
+      descriptionLength: description.length,
+    });
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        description,
+        title: `${propertyDetails.bedrooms === 0 ? "Studio" : propertyDetails.bedrooms === 1 ? "1 Bed" : `${propertyDetails.bedrooms} Bed`} ${propertyDetails.type.charAt(0).toUpperCase() + propertyDetails.type.slice(1)} in ${propertyDetails.location.charAt(0).toUpperCase() + propertyDetails.location.slice(1)}`,
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    logger.error("Admin: Generate description endpoint error", err instanceof Error ? err : undefined, {
+      category: LogCategory.GENERAL,
+      errorDetails: err instanceof Error ? err.message : String(err),
+    });
+
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Failed to generate description",
+        details: err instanceof Error ? err.message : String(err),
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
 }

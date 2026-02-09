@@ -46,7 +46,7 @@ export const TOOLS: ToolDefinition[] = [
           },
           location: {
             type: "string",
-            description: "The area/location of the property (e.g., Tala, Potamos Germasogeia)",
+            description: "The specific area/location of the property. MUST include district (Paphos, Limassol, Larnaca, Nicosia, Famagusta). If user omits district, ASK which district. Example formats: 'Neapoli, Nicosia', 'Germasogeia, Limassol', 'Tala, Paphos'. NEVER assume district - always clarify if missing.",
           },
           bedrooms: {
             type: "integer",
@@ -86,8 +86,36 @@ export const TOOLS: ToolDefinition[] = [
           },
           titleDeedStatus: {
             type: "string",
-            enum: ["separate", "final_approval", "pending", "unknown"],
-            description: "Status of the title deeds",
+            enum: ["separate", "final_approval", "pending", "share_of_land", "unknown"],
+            description: "Status of the title deeds: separate (full title deeds), final_approval, pending, share_of_land (shared ownership of land), unknown",
+          },
+          priceNegotiable: {
+            type: "boolean",
+            description: "Whether the price is negotiable. Default is TRUE (negotiable) unless agent explicitly says 'non-negotiable' or 'fixed price'",
+          },
+          isNewBuild: {
+            type: "boolean",
+            description: "Whether this is a new build property. Set to true if agent mentions 'new build', 'brand new', 'newly built', or year built is recent (within last 2-3 years)",
+          },
+          parkingType: {
+            type: "string",
+            enum: ["covered", "open", "garage", "carport", "none"],
+            description: "Type of parking available. Ask agent to specify: covered parking, open parking, garage, carport, or none",
+          },
+          condition: {
+            type: "string",
+            enum: ["new", "excellent", "good", "fair", "needs_renovation"],
+            description: "Property condition. Set based on agent description: 'brand new'→new, 'perfect/excellent condition'→excellent, 'good condition'→good, 'needs work/renovation'→needs_renovation",
+          },
+          orientation: {
+            type: "string",
+            enum: ["north", "south", "east", "west", "northeast", "northwest", "southeast", "southwest"],
+            description: "Compass orientation of the property (which direction it faces)",
+          },
+          priceModifier: {
+            type: "string",
+            enum: ["no_vat", "plus_vat", "vat_included"],
+            description: "VAT status of the price. Default 'no_vat' for resale properties. Use 'plus_vat' if price is before VAT, 'vat_included' if VAT is already in the price. Only relevant for new builds.",
           },
           registrationNumber: {
             type: "string",
@@ -98,10 +126,15 @@ export const TOOLS: ToolDefinition[] = [
             items: { type: "string" },
             description: "Array of image URLs for the property",
           },
+          floorPlanUrls: {
+            type: "array",
+            items: { type: "string" },
+            description: "Array of floor plan image URLs (separate from property photos). These are uploaded to a dedicated floor plan field on the listing.",
+          },
           features: {
             type: "array",
             items: { type: "string" },
-            description: "Property features like pool, garden, sea view, air conditioning",
+            description: "Property features. Include: INDOOR (fitted kitchen, air conditioning, central heating, underfloor heating, fireplace, storage room, elevator), OUTDOOR (private pool, communal pool, garden, BBQ area, covered parking, open parking, garage), VIEWS (sea view, mountain view, city view). Infer features from images when possible.",
           },
           yearBuilt: {
             type: "integer",
@@ -123,13 +156,17 @@ export const TOOLS: ToolDefinition[] = [
             type: "string",
             description: "User-provided description of the area/neighborhood (e.g., 'peaceful neighborhood with excellent access to tourist areas, city center, and highway. Near universities and Kings Avenue Mall'). IMPORTANT: Always capture and pass any location/area details the user provides - these are valuable marketing points that should NOT be replaced with generic descriptions.",
           },
+          locationUrl: {
+            type: "string",
+            description: "Google Maps URL or pin link provided by the agent for the property location. Pass the EXACT URL as-is — do NOT modify it. This goes directly into the listing notes for reviewers.",
+          },
           coordinates: {
             type: "object",
             properties: {
-              lat: { type: "number", description: "Latitude (e.g., 34.6841 for Limassol)" },
-              lon: { type: "number", description: "Longitude (e.g., 33.0413 for Limassol)" },
+              lat: { type: "number", description: "Latitude (e.g., 35.17 for Nicosia, 34.68 for Limassol)" },
+              lon: { type: "number", description: "Longitude (e.g., 33.36 for Nicosia, 33.04 for Limassol)" },
             },
-            description: "GPS coordinates for the property location. Use approximate city coordinates if exact address unknown. Cyprus coordinates: Limassol (34.68, 33.04), Paphos (34.77, 32.42), Nicosia (35.17, 33.36), Larnaca (34.92, 33.63)",
+            description: "GPS coordinates for the property location. Extract from Google Maps URL if provided (the @lat,lon part). Otherwise use approximate city coordinates. Cyprus coordinates: Nicosia (35.17, 33.36), Limassol (34.68, 33.04), Paphos (34.77, 32.42), Larnaca (34.92, 33.63), Famagusta (35.12, 33.95)",
           },
         },
         required: [
@@ -267,13 +304,54 @@ export const TOOLS: ToolDefinition[] = [
     },
   },
 
+  // Get Regional Agents (for management assignment)
+  {
+    type: "function",
+    function: {
+      name: "getRegionalAgents",
+      description:
+        "List available agents in a specific region. Use this when management (Charalambos, Lauren) asks who they can assign a listing to, or wants to see agents in a region.",
+      parameters: {
+        type: "object",
+        properties: {
+          region: {
+            type: "string",
+            enum: ["paphos", "limassol", "larnaca", "nicosia", "famagusta"],
+            description: "The region to list agents for",
+          },
+        },
+        required: ["region"],
+      },
+    },
+  },
+
+  // Extract Property from Bazaraki
+  {
+    type: "function",
+    function: {
+      name: "extractFromBazaraki",
+      description:
+        "Extract property details from a Bazaraki listing URL. Use this when an agent sends a Bazaraki link (bazaraki.com or bazaraki.cy). Extracts photos, price, location, property type, bedrooms, bathrooms, and area. The agent must still provide owner details and title deed status. Always confirm extracted data with the agent before uploading.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: {
+            type: "string",
+            description: "The full Bazaraki listing URL (e.g., https://www.bazaraki.com/adv/12345678_...)",
+          },
+        },
+        required: ["url"],
+      },
+    },
+  },
+
   // Send Email Tool
   {
     type: "function",
     function: {
       name: "sendEmail",
       description:
-        "Send an email to yourself. The email is automatically sent to your registered Zyprus email address. Use this when you want to send/email a document, template, registration, marketing agreement, or any content to yourself. The email will be sent from sofia@zyprus.com. No need to specify your email address - it's automatically detected.",
+        "Send an email to yourself. The email is automatically sent to your registered Zyprus email address. ONLY use this when the user EXPLICITLY asks to email something (e.g., 'send to my email', 'email it to me'). DO NOT automatically email DOCX documents (viewing forms, reservation agreements, marketing agreements) - these are sent as WhatsApp file attachments unless user requests email. The email will be sent from sofia@zyprus.com. No need to specify your email address - it's automatically detected.",
       parameters: {
         type: "object",
         properties: {

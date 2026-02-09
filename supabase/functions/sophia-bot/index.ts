@@ -17,7 +17,7 @@
  * - utils/wasend.ts: WaSend API client
  */
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { logger, LogCategory, ErrorCategory } from "./utils/logger.ts";
 import { withContext } from "./utils/context.ts";
@@ -58,6 +58,10 @@ if (!RESEND_API_KEY) {
 const ALLOWED_ADMIN_ORIGINS = [
   "https://supabase.com",
   "https://vceeheaxcrhmpqueudqx.supabase.co",
+  // Zyprus CMS domains
+  "https://www.zyprus.com",
+  "https://zyprus.com",
+  "https://dev9.zyprus.com",
 ];
 
 const getCorsHeaders = (origin: string | null): Record<string, string> => {

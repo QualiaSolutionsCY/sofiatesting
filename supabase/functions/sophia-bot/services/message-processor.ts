@@ -221,20 +221,25 @@ export async function extractMessage(payload: any): Promise<{
     await processImageMessage(message.data.imageMessage, "message.data.imageMessage");
   }
 
-  // Location 4: Check if WaSend provides decryptedMediaUrl directly
-  if (message.decryptedMediaUrl || message.message?.decryptedMediaUrl) {
-    const url = message.decryptedMediaUrl || message.message?.decryptedMediaUrl;
-    logger.info(`Image: Found decryptedMediaUrl: ${url?.substring(0, 80)}`, { category: LogCategory.IMAGE });
-    if (url && isPublicUrl(url)) {
-      imageUrls.push(url);
+  // Location 4-5: Fallback checks — ONLY if no images found from primary locations above
+  // WaSender often provides the same image in multiple payload fields (imageMessage + mediaUrl),
+  // but with different URLs (encrypted vs pre-decrypted). Skip fallbacks to avoid double-counting.
+  if (imageUrls.length === 0) {
+    // Location 4: Check if WaSend provides decryptedMediaUrl directly
+    if (message.decryptedMediaUrl || message.message?.decryptedMediaUrl) {
+      const url = message.decryptedMediaUrl || message.message?.decryptedMediaUrl;
+      logger.info(`Image: Found decryptedMediaUrl: ${url?.substring(0, 80)}`, { category: LogCategory.IMAGE });
+      if (url && isPublicUrl(url)) {
+        imageUrls.push(url);
+      }
     }
-  }
 
-  // Location 5: Check mediaUrl field (some webhook formats)
-  if (message.mediaUrl && !imageUrls.includes(message.mediaUrl)) {
-    logger.info(`Image: Found mediaUrl: ${message.mediaUrl.substring(0, 80)}`, { category: LogCategory.IMAGE });
-    if (isPublicUrl(message.mediaUrl)) {
-      imageUrls.push(message.mediaUrl);
+    // Location 5: Check mediaUrl field (some webhook formats)
+    if (message.mediaUrl && !imageUrls.includes(message.mediaUrl)) {
+      logger.info(`Image: Found mediaUrl: ${message.mediaUrl.substring(0, 80)}`, { category: LogCategory.IMAGE });
+      if (isPublicUrl(message.mediaUrl)) {
+        imageUrls.push(message.mediaUrl);
+      }
     }
   }
 

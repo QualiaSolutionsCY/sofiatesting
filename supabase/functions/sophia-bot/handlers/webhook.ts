@@ -235,26 +235,31 @@ async function processRequest(
       }).catch(() => {});
     }
 
-    // Check for email sending intent
-    // Build updated history by appending new messages to existing history (avoids redundant DB call)
-    const updatedHistoryForEmail = [
+    // Build updated history once (reused for both email detection and DOCX routing)
+    const updatedHistory = [
       ...history,
       { role: "user", parts: [{ text: userMessage }] },
       { role: "model", parts: [{ text: aiResponse }] },
     ];
-    const emailIntent = await detectEmailSendingIntent(
-      aiResponse,
-      updatedHistoryForEmail,
-      identifiedAgent?.communicationEmail,
-      userId
-    );
 
-    if (emailIntent) {
-      const emailResult = await sendEmail(emailIntent);
-      if (!emailResult.success) {
-        const failureNote = `\n\n(Note: There was an issue sending the email: ${emailResult.error}. Please try again or send it manually.)`;
-        await sendTextMessage(phoneNumber, aiResponse + failureNote);
-        return;
+    // Check for email sending intent
+    // IMPORTANT: Skip email detection if sendEmail tool was already called (prevents double emails)
+    const sendEmailAlreadyCalled = aiResult.toolsUsed?.includes("sendEmail");
+    if (!sendEmailAlreadyCalled) {
+      const emailIntent = await detectEmailSendingIntent(
+        aiResponse,
+        updatedHistory,
+        identifiedAgent?.communicationEmail,
+        userId
+      );
+
+      if (emailIntent) {
+        const emailResult = await sendEmail(emailIntent);
+        if (!emailResult.success) {
+          const failureNote = `\n\n(Note: There was an issue sending the email: ${emailResult.error}. Please try again or send it manually.)`;
+          await sendTextMessage(phoneNumber, aiResponse + failureNote);
+          return;
+        }
       }
     }
 
@@ -277,7 +282,7 @@ async function processRequest(
     }
 
     // Reuse the already-constructed history (avoids redundant DB call)
-    let shouldSendAsDocx = !isInformational && isDocxTemplate(aiResponse, updatedHistoryForEmail);
+    let shouldSendAsDocx = !isInformational && isDocxTemplate(aiResponse, updatedHistory);
     const detectedTemplateType = detectTemplateType(userMessage);
 
     // SAFETY: Registration templates (containing "Dear XXXXXXXX" or "Subject:") are ALWAYS TEXT

@@ -810,18 +810,24 @@ export async function getLocationsByRegion(region: string): Promise<TaxonomyItem
 
 /**
  * Find price modifier UUID
- * Production: "Plus VAT", "No VAT", "VAT Included"
- * Dev API: ['Price', 'Guide Price', 'Offers in region of', 'Offers over', 'Negotiable']
+ * Live API values: Price, Guide Price, Offers in region of, Offers over, Negotiable
  * Uses DEFAULT_PRICE_MODIFIER_UUID from config as fallback
  */
 export async function findPriceModifierUuid(modifier?: string): Promise<string> {
   try {
     const taxonomy = await loadTaxonomy();
 
-    // Search terms for different environments
-    const searchTerms = modifier
-      ? [modifier.toLowerCase()]
-      : ["no vat", "price", "negotiable", "vat included"];
+    // Map SOPHIA tool values to Zyprus taxonomy search terms
+    // Live API values: Price, Guide Price, Offers in region of, Offers over, Negotiable
+    const modifierMappings: Record<string, string[]> = {
+      "no_vat": ["price"],
+      "plus_vat": ["price"],      // "Plus VAT" isn't a price modifier in Zyprus — it's the default "Price"
+      "vat_included": ["price"],   // Same — VAT status doesn't map to price_modifier taxonomy
+    };
+
+    const searchTerms = modifier && modifierMappings[modifier]
+      ? modifierMappings[modifier]
+      : modifier ? [modifier.toLowerCase()] : ["price"];
 
     for (const term of searchTerms) {
       const match = taxonomy.priceModifiers.find(
@@ -848,8 +854,7 @@ export async function findPriceModifierUuid(modifier?: string): Promise<string> 
 
 /**
  * Find title deed UUID
- * Production: "Title Deed", "Final Approval", "Share of Land"
- * Dev API: ['Available', 'Not Available', 'On Application', 'Not Display']
+ * Live API values: Available, Not Available, On Application, Not Display
  * Uses DEFAULT_TITLE_DEED_UUID from config as fallback
  */
 export async function findTitleDeedUuid(status?: string): Promise<string> {

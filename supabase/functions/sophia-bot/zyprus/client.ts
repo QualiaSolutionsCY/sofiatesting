@@ -32,8 +32,6 @@ export interface ListingData {
   locationUuid?: string;
   bedrooms: number;
   bathrooms: number;
-  kitchens?: number; // Number of kitchens (default 1)
-  livingRooms?: number; // Number of living rooms (default 1)
   coveredArea: number;
   plotSize?: number;
   coveredVeranda?: number; // Covered veranda sqm
@@ -56,6 +54,8 @@ export interface ListingData {
   priceNegotiable?: boolean; // Default true (negotiable)
   isNewBuild?: boolean; // New build property
   parkingType?: "covered" | "open" | "garage" | "carport" | "none";
+  priceModifier?: "no_vat" | "plus_vat" | "vat_included";
+  floorPlanUrls?: string[]; // Floor plan images (uploaded to field_floor_plan)
   // For Own Reference ID format: Owner - {Agent} - {Seller} - {Phone} - {Email}
   agentName?: string;
   ownerName?: string;
@@ -229,7 +229,8 @@ function buildJsonApiPayload(
   listingOwnerUuid: string,
   indoorFeatureUuids: string[],
   outdoorFeatureUuids: string[],
-  viewUuids: string[]
+  viewUuids: string[],
+  floorPlanFileIds: string[] = []
 ): Record<string, unknown> {
   // Generate Own Reference ID for quick reviewer reference
   // Format: Owner - {Agent Name} - {Seller Name} - {Seller Phone} - {Email}
@@ -252,15 +253,16 @@ function buildJsonApiPayload(
     field_price: listing.price,
     field_no_bedrooms: listing.bedrooms,
     field_no_bathrooms: listing.bathrooms,
-    field_no_kitchens: listing.kitchens ?? 1, // Default to 1 kitchen
-    field_no_living_rooms: listing.livingRooms ?? 1, // Default to 1 living room
+    // NOTE: field_no_kitchens and field_no_living_rooms intentionally NOT set
+    // Zyprus auto-generates titles from room counts — only bedrooms/bathrooms are standard
     field_covered_area: listing.coveredArea,
     body: {
       value: listing.description,
       format: "plain_text",
     },
     field_my_notes: listing.myNotes,
-    field_ai_assistant_notes: listing.aiNotes || "",
+    // NOTE: field_ai_assistant_notes does NOT exist on live API (verified Feb 2026)
+    // aiNotes content is merged into field_ai_message instead
     field_ai_generated: true,
     field_ai_state: "draft",
     // Price negotiable: default TRUE unless explicitly set to false
@@ -289,8 +291,10 @@ function buildJsonApiPayload(
   if (listing.potentialDuplicate) {
     attributes.field_potential_duplicate = true;
   }
-  if (listing.aiMessage) {
-    attributes.field_ai_message = listing.aiMessage;
+  // Merge aiNotes into aiMessage since field_ai_assistant_notes doesn't exist on live API
+  const aiMessageParts = [listing.aiMessage, listing.aiNotes].filter(Boolean);
+  if (aiMessageParts.length > 0) {
+    attributes.field_ai_message = aiMessageParts.join("\n\n");
   }
   // New build flag
   if (listing.isNewBuild) {
@@ -349,6 +353,16 @@ function buildJsonApiPayload(
     };
   }
 
+  // Floor plan images (separate from gallery)
+  if (floorPlanFileIds.length > 0) {
+    relationships.field_floor_plan = {
+      data: floorPlanFileIds.map((id) => ({
+        type: "file--file",
+        id,
+      })),
+    };
+  }
+
   // Indoor features (AC, heating, etc.)
   // Note: field is field_indoor_property_features but references taxonomy_term--indoor_property_views
   if (indoorFeatureUuids.length > 0) {
@@ -382,13 +396,10 @@ function buildJsonApiPayload(
     };
   }
 
-  // NOTE: field_listing_owner does NOT exist on dev9.zyprus.com (verified Jan 2026)
-  // The API silently ignores unknown relationships. The `uid` field (set by API based on OAuth token)
-  // is what determines the listing author/owner on dev9.
-  // TODO: Re-enable if this field exists on production, or if dev9 schema is updated
-  // relationships.field_listing_owner = {
-  //   data: { type: "user--user", id: listingOwnerUuid },
-  // };
+  // Listing owner - the agent assigned to manage this listing
+  relationships.field_listing_owner = {
+    data: { type: "user--user", id: listingOwnerUuid },
+  };
 
   // Property views (sea view, mountain view, etc.)
   // Per Postman spec: taxonomy_term--property_views
@@ -581,6 +592,85 @@ async function uploadImages(
 }
 
 /**
+ * Upload floor plan images to Zyprus (uses field_floor_plan endpoint)
+ */
+async function uploadFloorPlans(
+  floorPlanUrls: string[],
+  token: string,
+  config: ZyprusConfig
+): Promise<string[]> {
+  logger.info("Uploading floor plans to Zyprus", {
+    category: LogCategory.ZYPRUS,
+    operation: "uploadFloorPlans",
+    count: floorPlanUrls.length,
+  });
+
+  const results = await Promise.all(
+    floorPlanUrls.map(async (url, index) => {
+      try {
+        // Download the floor plan image
+        const imageResponse = await fetch(url);
+        if (!imageResponse.ok) {
+          logger.warn("Failed to download floor plan", {
+            category: LogCategory.ZYPRUS,
+            operation: "uploadFloorPlan",
+            imageIndex: index,
+            status: imageResponse.status,
+          });
+          return null;
+        }
+
+        const imageBlob = await imageResponse.blob();
+        const imageBuffer = await imageBlob.arrayBuffer();
+        let filename = url.split("/").pop()?.split("?")[0] || `floor_plan_${index + 1}.jpg`;
+        if (!filename.match(/\.(jpg|jpeg|png|gif|webp|pdf)$/i)) {
+          filename = `floor_plan_${index + 1}.jpg`;
+        }
+
+        const response = await withRetry(
+          async () => {
+            const res = await fetch(
+              `${config.apiUrl}/jsonapi/node/property/field_floor_plan`,
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/octet-stream",
+                  "Content-Disposition": `file; filename="${filename}"`,
+                  "User-Agent": "SophiaAI",
+                },
+                body: imageBuffer,
+              }
+            );
+            if (!res.ok && res.status >= 500) {
+              throw new Error(`Floor plan upload failed: ${res.status}`);
+            }
+            return res;
+          },
+          { maxRetries: 2, baseDelayMs: 500 },
+          "uploadFloorPlan"
+        );
+
+        if (!response.ok) return null;
+
+        const result = await response.json();
+        return result.data?.id || null;
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        logger.error("Floor plan upload error", err, {
+          category: LogCategory.ZYPRUS,
+          operation: "uploadFloorPlan",
+          imageIndex: index,
+        });
+        return null;
+      }
+    })
+  );
+
+  return results.filter((id): id is string => id !== null);
+}
+
+/**
  * Create a property listing draft
  */
 export async function createDraftListing(
@@ -617,7 +707,7 @@ export async function createDraftListing(
   ] = await Promise.all([
     findListingTypeUuid(listing.listingType),
     findPropertyTypeUuid(listing.propertyType),
-    findPriceModifierUuid(), // Uses default "No VAT"
+    findPriceModifierUuid(listing.priceModifier), // Resolves VAT status or defaults to "No VAT"
     findTitleDeedUuid(), // Uses default "Title Deed"
     findUserUuid(listing.listingInstructor), // Resolve instructor email to UUID
     findUserUuids(reviewerEmails), // Resolve reviewer emails to UUIDs
@@ -653,6 +743,18 @@ export async function createDraftListing(
     totalCount: listing.images.length,
   });
 
+  // Upload floor plans if provided (uses field_floor_plan endpoint)
+  let floorPlanFileIds: string[] = [];
+  if (listing.floorPlanUrls && listing.floorPlanUrls.length > 0) {
+    floorPlanFileIds = await uploadFloorPlans(listing.floorPlanUrls, token, config);
+    logger.info("Floor plans uploaded for listing", {
+      category: LogCategory.ZYPRUS,
+      operation: "createDraftListing",
+      uploadedCount: floorPlanFileIds.length,
+      totalCount: listing.floorPlanUrls.length,
+    });
+  }
+
   // Build and send listing payload
   const payload = buildJsonApiPayload(
     listing,
@@ -666,7 +768,8 @@ export async function createDraftListing(
     listingOwnerUuid,
     indoorFeatureUuids,
     outdoorFeatureUuids,
-    viewUuids
+    viewUuids,
+    floorPlanFileIds
   );
 
   const response = await withRetry(

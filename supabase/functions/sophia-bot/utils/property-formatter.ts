@@ -64,6 +64,7 @@ export const CYPRUS_AREAS = [
   "ypsonas",
   "zakaki",
   "agios athanasios",
+  "agia paraskevi",
   "mesa geitonia",
   "polemidia",
   "souni-zanakia",
@@ -95,6 +96,17 @@ export const CYPRUS_AREAS = [
   "protaras",
   "sotira",
   "derynia",
+  // Municipality areas (dimos = municipality, used as neighborhood/area names)
+  "dimos lemesou",
+  "dimos pafou",
+  "dimos larnakas",
+  "dimos lefkosias",
+  "dimos strovolou",
+  "dimos germasogeias",
+  "dimos ypsonas",
+  "dimos polemidia",
+  "dimos agios athanasios",
+  "dimos mesa geitonia",
 ] as const;
 
 /**
@@ -192,9 +204,9 @@ export function formatPropertyDescription(rawInput: string): string {
     input = input.replace(sheetMatch[0], " ").trim();
   }
 
-  // Extract block pattern: "block 0", "block 12"
+  // Extract block pattern: "block 0", "block 12", "block:1"
   let blockInfo = "";
-  const blockMatch = input.match(/\bblock\s+(\d+)/i);
+  const blockMatch = input.match(/\bblock[\s:]+(\d+)/i);
   if (blockMatch) {
     blockInfo = `Block ${blockMatch[1]}`;
     input = input.replace(blockMatch[0], " ").trim();
@@ -220,13 +232,21 @@ export function formatPropertyDescription(rawInput: string): string {
 
   // Check for multi-word areas BEFORE splitting into individual words
   // This handles "agios theodoros", "kato paphos", "coral bay", etc.
+  // Find ALL multi-word matches (not just first) to handle cases like
+  // "agios athanasios agia paraskevi" where both are valid areas
   let area = "";
-  for (const multiWordArea of CYPRUS_AREAS.filter((a) => a.includes(" "))) {
+  const extraMultiWordAreas: string[] = [];
+  // Sort by length descending so longer matches (e.g. "dimos mesa geitonia") match before shorter ones ("mesa geitonia")
+  const multiWordAreas = CYPRUS_AREAS.filter((a) => a.includes(" ")).slice().sort((a, b) => b.length - a.length);
+  for (const multiWordArea of multiWordAreas) {
     const regex = new RegExp(`\\b${multiWordArea}\\b`, "i");
     if (regex.test(input)) {
-      area = titleCase(multiWordArea);
+      if (!area) {
+        area = titleCase(multiWordArea);
+      } else {
+        extraMultiWordAreas.push(titleCase(multiWordArea));
+      }
       input = input.replace(regex, " ").trim();
-      break;
     }
   }
 
@@ -261,6 +281,9 @@ export function formatPropertyDescription(rawInput: string): string {
     }
   }
 
+  // Add extra multi-word areas found in first pass
+  additionalAreas.push(...extraMultiWordAreas);
+
   // Identify complex name (contains court, complex, tower, etc.)
   // Build complex name from consecutive words that form a complex
   let complexName = "";
@@ -291,6 +314,24 @@ export function formatPropertyDescription(rawInput: string): string {
   // If we found a complex indicator, complexWords contains the full complex name
   if (foundComplexIndicator) {
     complexName = complexWords.join(" ");
+    // Check finalWords (words after complex indicator) for areas/districts
+    for (const word of finalWords) {
+      const wordLower = word.toLowerCase();
+      if (!district && CYPRUS_DISTRICTS.includes(wordLower as typeof CYPRUS_DISTRICTS[number])) {
+        district = titleCase(word);
+      } else if (CYPRUS_AREAS.includes(wordLower as typeof CYPRUS_AREAS[number])) {
+        additionalAreas.push(titleCase(word));
+      }
+      // Non-area/district words after complex are intentionally dropped
+    }
+  } else {
+    // No complex name found - unrecognized words are likely location/area names
+    // Preserve them in the output rather than silently dropping them
+    for (const word of complexWords) {
+      if (word.replace(/[^a-zA-Z]/g, "").length > 1) {
+        additionalAreas.push(word);
+      }
+    }
   }
 
   // Build location string from all area parts + district

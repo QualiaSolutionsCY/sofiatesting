@@ -20,8 +20,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | Component | Runs On | Status |
 |-----------|---------|--------|
 | **WhatsApp Bot (Sophia)** | Supabase Edge Function `sophia-bot` | LIVE |
-| **Telegram Bot** | Supabase Edge Functions | **DISABLED** |
-| **AI Proxy (ai-chat)** | Supabase Edge Functions | LIVE |
+| **Telegram Bot** | Supabase Edge Function `sophia-bot` | **DISABLED** |
+| **Listing Notifier** | Supabase Edge Function `listing-notifier` | LIVE (pg_cron every 15 min) |
+| **Draft Cleanup** | Supabase Edge Function `draft-cleanup` | LIVE |
 | **Web App (Next.js)** | Vercel | LIVE |
 | **Database** | Supabase PostgreSQL | LIVE |
 
@@ -92,87 +93,34 @@ supabase secrets set SOPHIA_TELEGRAM_ENABLED=false --project-ref vceeheaxcrhmpqu
 
 ---
 
-### ⚡ QUICK CHECKLIST: Making SOPHIA Template/Behavior Changes
+### Making SOPHIA Prompt Changes (Complete Workflow)
 
-Use this checklist EVERY TIME you modify how SOPHIA responds on WhatsApp.
+Use this workflow EVERY TIME you modify how SOPHIA responds on WhatsApp.
 
-```
-□ Step 1: SEARCH ALL PROMPTS for the behavior you're changing
-    - Search DB: SELECT key, content FROM sophia_prompts WHERE content ILIKE '%keyword%'
-    - Search files: grep -r "keyword" supabase/functions/sophia-bot/prompts/
-
-□ Step 2: IDENTIFY CONFLICTS (lower priority number = AI follows this one)
-    - If same instruction in multiple prompts, AI uses lowest priority number
-    - Example: safety_rules (20) beats document_routing (30)
-
-□ Step 3: UPDATE THE RIGHT PLACE
-    - For template content → Edit prompts/templates/content.ts (file only, NOT in DB)
-    - For behaviors → Update DB prompt AND corresponding file to stay in sync
-
-□ Step 4: DISABLE CACHE for immediate testing
-    - Edit prompt-loader.ts: CACHE_TTL_MS = 0
-
-□ Step 5: DEPLOY
-    - supabase functions deploy sophia-bot --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
-
-□ Step 6: TEST ON WHATSAPP (not just theory)
-    - Send actual message to SOPHIA
-    - Verify response matches expected behavior
-
-□ Step 7: RE-ENABLE CACHE after confirmed working
-    - Edit prompt-loader.ts: CACHE_TTL_MS = 5 * 60 * 1000
-    - Deploy again
-```
-
----
-
-### How to Make a Successful Prompt Change (Detailed)
-
-**Step 1: Identify which prompt section contains the behavior**
+**Step 1: SEARCH all prompts for the behavior you're changing**
 
 ```sql
--- Check what's in the database
-SELECT key, priority, LENGTH(content) as content_length
-FROM sophia_prompts
-WHERE is_active = true
-ORDER BY priority;
-```
-
-**Step 2: Search ALL prompts for the keyword/feature you're changing**
-
-This is the most critical step. Use these searches:
-
-```sql
--- Search DB for any mention of the feature (e.g., "callback")
+-- Search DB (check ALL active prompts)
 SELECT key, priority, LEFT(content, 500) as preview
 FROM sophia_prompts
-WHERE is_active = true AND content ILIKE '%callback%'
+WHERE is_active = true AND content ILIKE '%keyword%'
 ORDER BY priority;
 ```
-
 ```bash
-# Search files for the same keyword
-grep -rn "callback" supabase/functions/sophia-bot/prompts/
+# Search files
+grep -rn "keyword" supabase/functions/sophia-bot/prompts/
 ```
 
-**Step 3: Check for conflicting instructions across prompts**
+**Step 2: CHECK for conflicting instructions across prompts**
 
-⚠️ **CRITICAL PITFALL**: If the same behavior is defined in MULTIPLE prompts, AI follows the one with LOWER priority number (loaded first).
+Lower priority number = AI follows that one. If the same behavior is in multiple prompts, the lowest priority number wins.
 
-**Real Example (Jan 2026):**
-```
-Problem: SOPHIA kept asking for callback fields one at a time instead of all at once
+Real example (Jan 2026): `safety_rules` (priority 20) said "ask fields in 2 messages" while `document_routing` (priority 30) said "ask ALL fields in ONE message". AI followed priority 20. Fix: remove conflicting instruction from the higher-priority prompt.
 
-Root cause discovered:
-- safety_rules (priority 20): "Ask for callback fields in 2 separate messages"
-- document_routing (priority 30): "Ask for ALL callback fields in ONE message"
+**Step 3: UPDATE the right place(s)**
 
-Result: AI followed safety_rules because priority 20 < 30
-
-Fix: Removed the conflicting instruction from safety_rules (the higher-priority prompt)
-```
-
-**Step 4: Update BOTH database AND files**
+- Template content → Edit `prompts/templates/content.ts` (file only, NOT in DB)
+- Behaviors → Update DB prompt AND corresponding file to stay in sync
 
 ```sql
 -- Update database prompt
@@ -181,33 +129,31 @@ SET content = 'new content here', updated_at = NOW()
 WHERE key = 'document_routing';
 ```
 
-Also update the corresponding file:
-```bash
-# Edit the file fallback to stay in sync
-vim supabase/functions/sophia-bot/prompts/behaviors/document-routing.ts
-```
+**Step 4: DISABLE cache for testing**
 
-**Step 5: Bypass cache for immediate testing**
+In `prompt-loader.ts`, set `CACHE_TTL_MS = 0` (normal value: `5 * 60 * 1000`)
 
-```typescript
-// In prompt-loader.ts, temporarily set cache to 0
-const CACHE_TTL_MS = 0; // TEMP: Disabled for testing
-// Normal value: 5 * 60 * 1000 (5 minutes)
-```
-
-**Step 6: Deploy and test**
+**Step 5: DEPLOY**
 
 ```bash
 supabase functions deploy sophia-bot --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
 ```
 
-**Step 7: Re-enable cache after confirming changes work**
+**Step 6: CLEAR chat history (CRITICAL)**
 
-```typescript
-const CACHE_TTL_MS = 5 * 60 * 1000; // Restore 5-minute cache
+Chat history pattern copying is the #1 reason prompt changes don't take effect. AI copies old format patterns from conversation history.
+
+```sql
+DELETE FROM chat_history WHERE created_at >= NOW() - INTERVAL '1 hour';
 ```
 
-Then deploy again.
+**Step 7: TEST on WhatsApp, then verify**
+
+```sql
+SELECT parts FROM chat_history WHERE role = 'model' ORDER BY created_at DESC LIMIT 1;
+```
+
+**Step 8: RE-ENABLE cache** after confirmed working (`CACHE_TTL_MS = 5 * 60 * 1000`), deploy again.
 
 ---
 
@@ -220,81 +166,7 @@ Then deploy again.
 | Updated DB but local file shows old text | DB and file out of sync | Always update BOTH to prevent future confusion |
 | Template changes not working | `templates` content is in FILES not DB | Edit `prompts/templates/content.ts` directly |
 | Behavior only partially changed | Multiple prompts contain variations of the same rule | Search + grep ALL prompts, consolidate instructions in ONE place |
-| **AI keeps using OLD format despite all updates** | **Chat history has examples of old format - AI copies pattern** | **CLEAR chat_history table for the user (see below)** |
-
----
-
-### ⚠️ CRITICAL: Chat History Pattern Copying
-
-**This is the #1 reason prompt changes don't take effect immediately.**
-
-When SOPHIA responds, she receives the full conversation history. If previous messages contain the OLD format, the AI will copy that pattern even with updated prompts.
-
-**Example (Feb 2026):**
-```
-Problem: Rental registration kept showing old 4-field format instead of new 3-field numbered format
-
-Root cause:
-- DB prompt was updated correctly ✓
-- File was updated correctly ✓
-- Cache was disabled ✓
-- BUT: Chat history had 10+ examples of old format
-- AI saw old pattern in history and copied it
-
-Fix: Cleared chat_history for that user
-```
-
-**ALWAYS clear chat history after prompt changes:**
-
-```sql
--- Find and clear chat history for testing user
-DELETE FROM chat_history
-WHERE user_id = (
-  SELECT DISTINCT user_id
-  FROM chat_history
-  WHERE created_at >= NOW() - INTERVAL '1 hour'
-  LIMIT 1
-);
-
--- Or clear ALL recent history (use carefully)
-DELETE FROM chat_history WHERE created_at >= NOW() - INTERVAL '2 hours';
-```
-
----
-
-### 🚀 INSTANT PROMPT EDIT - Complete Checklist
-
-Use this for ANY template or behavior change:
-
-```
-□ 1. SEARCH for the text you want to change
-   SELECT key, LEFT(content, 500) FROM sophia_prompts
-   WHERE content ILIKE '%keyword%' AND is_active = true;
-
-□ 2. UPDATE the database prompt (DB takes precedence)
-   UPDATE sophia_prompts
-   SET content = REPLACE(content, 'old text', 'new text'), updated_at = NOW()
-   WHERE key = 'document_routing' AND is_active = true AND is_current = true;
-
-   -- OR for field collection changes, update document_routing key
-
-□ 3. UPDATE the file fallback (keep in sync)
-   Edit: supabase/functions/sophia-bot/prompts/behaviors/document-routing.ts
-
-□ 4. VERIFY cache is disabled (should already be 0 for testing)
-   Check: prompt-loader.ts → CACHE_TTL_MS = 0
-
-□ 5. DEPLOY edge function
-   supabase functions deploy sophia-bot --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
-
-□ 6. CLEAR chat history (CRITICAL!)
-   DELETE FROM chat_history WHERE created_at >= NOW() - INTERVAL '1 hour';
-
-□ 7. TEST on WhatsApp with fresh conversation
-
-□ 8. VERIFY new format appears in chat_history table
-   SELECT parts FROM chat_history WHERE role = 'model' ORDER BY created_at DESC LIMIT 1;
-```
+| **AI keeps using OLD format despite all updates** | **Chat history has examples of old format - AI copies pattern** | **CLEAR chat_history table for the user** |
 
 ### Field Collection Prompts Location
 
@@ -376,59 +248,36 @@ grep -rn "text to change" supabase/functions/sophia-bot/prompts/
 
 **Key documents:** `docs/PRD.md` (requirements), `docs/ARCHITECTURE.md` (system design)
 
-**Slash commands** (`.claude/commands/`): `/deploy-checklist`, `/test-all`, `/tool-audit`, `/new-tool <name> <desc>`, `/telegram-debug`, `/db-check`
-
 **Skills** (project-managed): `sofia-debugger` (debug SOFIA issues), `cyprus-calculator` (property tax calculations)
 
 ---
 
-## Current Status
+## Current Operational Notes
 
-### Recently Implemented
-- **`sendEmail` tool** (`lib/ai/tools/send-email.ts`) - Direct email sending from WhatsApp without UI forms
-  - Supports optional DOCX document attachments via `documentUrl` parameter
-  - Uses Resend API with `sofia@zyprus.com` as sender
-  - Registered in WhatsApp message handler (`lib/whatsapp/message-handler.ts`)
-  - Flow: User creates document → User asks to email it → AI uses `sendEmail` with document URL
+### Property Uploads
+- `createPropertyListing` tool auto-uploads to Zyprus as unpublished draft
+- Minimum 1 image required; must be direct image URLs (not ibb.co sharing pages)
+- Image validation: HEAD request with GET fallback
+- Hardcoded fallback taxonomy UUIDs ensure uploads never fail on taxonomy lookup
+- Description format: itemized bullet lists (KEY FEATURES, INDOOR, OUTDOOR, VIEWS) via `services/description-generator.ts`
+- **Upload lock**: Per-property (fingerprint = agent+location+price+owner), NOT per-agent — allows sequential uploads
+- **Floor plans**: Separate `floorPlanUrls` field uploads to `field_floor_plan` (distinct from gallery)
+- **Bazaraki**: `extractFromBazaraki` tool scrapes Bazaraki listings (HTML + URL fallback) to pre-fill fields
+- **Publication notifications**: After upload, listing is tracked in `listing_uploads` table. `listing-notifier` edge function (pg_cron every 15 min) polls Zyprus API and sends WhatsApp notification when published
+- **Fields**: `condition`, `orientation`, `priceModifier`, `share_of_land` title deed status all supported
 
-### Configured
-- `RESEND_API_KEY` - Set in Supabase Edge Function secrets
+### Reviewer Assignment Rules (`rules/reviewer-assignment.ts`)
+- FOR SALE (Paphos/Limassol/Larnaca/Nicosia): Reviewer 1 = Lauren, Reviewer 2 = regional office
+- FOR SALE (Famagusta): Reviewer 1 = requestfamagusta@zyprus.com, Reviewer 2 = NONE
+- FOR RENT: Reviewer 1 = agent who sent it, Reviewer 2 = NONE
+- Michelle Rentals: Reviewer 1 = demetra@zyprus.com, Reviewer 2 = requestlimassol@zyprus.com (special case - joint account)
+- Charalambos/Lauren cannot upload rentals (rejected with message)
 
-### Pending
-1. **Resend Domain Verification** - Add SPF/DKIM records for `zyprus.com` in DNS (skip MX record to avoid Google Workspace conflicts)
-2. **Deploy to Supabase** - `supabase functions deploy whatsapp-webhook` after domain verification
-3. **End-to-End Testing** - Test flow: create document via WhatsApp → send via email with attachment
+### Region Restrictions
+- Agents can ONLY upload in their assigned region (check `agents.region` field)
+- Values: paphos, limassol, larnaca, nicosia, famagusta, all
 
-### SOPHIA Updates (Jan 2026)
-
-**Property Uploads - NOW WORKING! ✅**
-- ✅ WhatsApp listing uploads work via Edge Function `sophia-bot`
-- ✅ Tool name: `createPropertyListing` (auto-uploads to Zyprus as draft)
-- ✅ Hardcoded fallback taxonomy UUIDs ensure uploads never fail on taxonomy lookup
-- ✅ Minimum 1 image required (reduced from 3)
-- ✅ Google Maps links: SOPHIA now asks for area name instead of guessing
-- ✅ ibb.co links: SOPHIA explains direct image URLs are needed (i.ibb.co not ibb.co)
-
-**New Fields Added (Jan 16, 2026):**
-- ✅ `field_listing_owner` - UUID of agent who owns the listing (for commission tracking)
-- ✅ `field_ai_draft_own_reference_id` - Auto-generated reference: `SOPHIA-YYYYMMDD-HHMMSS-TYP`
-- ✅ `field_property_views` - Sea View, Mountain View, etc. now properly populated
-- Files modified: `zyprus/client.ts`, `zyprus/taxonomy-cache.ts`
-
-**Reviewer Assignment Rules (Jan 30, 2026):**
-- ✅ FOR SALE (Paphos/Limassol/Larnaca/Nicosia): Reviewer 1 = Lauren (listings@zyprus.com), Reviewer 2 = regional office
-- ✅ FOR SALE (Famagusta): Reviewer 1 = requestfamagusta@zyprus.com, Reviewer 2 = NONE
-- ✅ FOR RENT: Reviewer 1 = agent who sent it, Reviewer 2 = NONE
-- ✅ Michelle Rentals: Reviewer 1 = demetra@zyprus.com (special case - joint account with her mother)
-- ✅ Charalambos/Lauren cannot upload rentals (rejected with message)
-- Files: `rules/reviewer-assignment.ts`, `zyprus/taxonomy-cache.ts`
-
-**✅ Regional Office Accounts (Fixed Jan 30, 2026)**
-- All regional accounts now have `zyprus_user_id` in agents table
-- UUIDs found via Zyprus API by searching usernames: limassol, larnaca, nicosia, famagusta
-- Paphos has no separate user - uses Azinas's UUID as fallback
-- Reviewer 2 now properly assigned for all FOR SALE listings
-
+### Regional Office Accounts
 | Regional Email | Zyprus UUID | Username |
 |----------------|-------------|----------|
 | requestpaphos@zyprus.com | c8e05e2a-56e6-4d1f-9a20-31235feaec54 | (azinas) |
@@ -437,63 +286,9 @@ grep -rn "text to change" supabase/functions/sophia-bot/prompts/
 | requestnicosia@zyprus.com | 630cc4fd-d2c7-410a-821d-b0a9adfae4ea | nicosia |
 | requestfamagusta@zyprus.com | 7e33cdcd-709d-4fc0-8682-0075dde55964 | famagusta |
 
-**Description Format (Comprehensive Itemized - Jan 16, 2026):**
-- ✅ Now generates **itemized bullet lists** matching Zyprus website style
-- File: `supabase/functions/sophia-bot/services/description-generator.ts`
-- Format:
-  ```
-  Stunning 4 Bedroom Detached Villa For Sale in Agios Tychonas with Separate Title Deeds
-
-  [Location paragraph]
-
-  KEY FEATURES:
-  • 4 Bedrooms
-  • 3 Bathrooms
-  • 280m² Covered Area
-  • 1200m² Plot Size
-  • Built in 2019
-  • Separate Title Deeds
-
-  INDOOR FEATURES:
-  • Air Conditioning
-  • Central Heating
-  • Wine Cellar
-
-  OUTDOOR FEATURES:
-  • Private Swimming Pool
-  • Double Garage
-  • Landscaped Garden
-
-  PROPERTY VIEWS:
-  • Sea View
-  • Mountain View
-
-  [Closing + Price + CTA]
-  ```
-
-**Region Restrictions:**
-- Agents can ONLY upload properties in their assigned region
-- Error: "Unfortunately, you are not allowed to market a property outside your region"
-- Check `agents` table for `region` field (paphos, limassol, larnaca, nicosia, famagusta, all)
-
-**Image Handling:**
-- Phone gallery attachments: ✅ Work automatically (WaSend extracts URLs)
-- Direct image URLs: ✅ Must be actual images (not HTML pages like ibb.co sharing links)
-- Image validation: HEAD request with GET fallback for servers that don't support HEAD
-
-**Templates & Documents:**
-- ✅ Removed "Phone-Only Addon" from Template 17 (Good Client Email)
-- ✅ Viewing Forms: SOPHIA now asks "Standard or Advanced?" when type not specified
-- ✅ Viewing Form DOCX titles now just show "Viewing Form" (no Standard/Advanced visible to client)
-- ✅ **Removed Template 16 (Exclusive Marketing Agreement)** - only Non-Exclusive and Email Marketing remain
-- ✅ Non-Exclusive Marketing Agreement fixes:
-  - Agent name: Charalambos Pitros (was Pitsillides)
-  - Removed "(name of the seller)" text
-  - Added signature spacing lines
-
-**Knowledge & Responses:**
-- ✅ Deleted `Zoning_Density_Land_.pptx` from knowledge
-- ✅ CREA wording now sends as **3 separate messages** (intro, copy-pasteable block, important note)
+### Pending
+1. **Resend Domain Verification** - Add SPF/DKIM records for `zyprus.com` in DNS (skip MX to avoid Google Workspace conflicts)
+2. **End-to-End Email Testing** - Test flow: create document via WhatsApp → send via email with attachment
 
 **Deploy command:** `supabase functions deploy sophia-bot --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx`
 
@@ -501,24 +296,24 @@ grep -rn "text to change" supabase/functions/sophia-bot/prompts/
 
 ## Project Overview
 
-**SOFIA v3.1.0** - Next.js 15 AI assistant for Zyprus Property Group (Cyprus real estate). Core features:
+**SOFIA v3.2.0** - Next.js 15 AI assistant for Zyprus Property Group (Cyprus real estate). Core features:
 - AI chat with Cyprus real estate tools (VAT, transfer fees, capital gains calculators)
 - Property listing management with Zyprus API integration (Drupal JSON:API)
 - Telegram and WhatsApp bot integration (dual-channel support)
 - Document generation (37 DOCX templates via `docx` package, sent via Resend email)
 
-## AI Configuration
+## AI Configuration (Dual Architecture)
 
-**OpenRouter is the AI provider** - Gemini models accessed via OpenRouter proxy (Supabase Edge Function `ai-chat`).
+**Two separate AI implementations exist** - understand which one you're modifying:
+
+| Channel | AI Provider | Implementation |
+|---------|-------------|----------------|
+| **WhatsApp (sophia-bot)** | OpenRouter → Gemini | `supabase/functions/sophia-bot/` calls OpenRouter directly |
+| **Web App (Next.js)** | Vercel AI SDK | `app/(chat)/api/chat/route.ts` uses AI SDK with OpenRouter |
+
+**Models** (via OpenRouter): `google/gemini-2.0-flash` (default), `google/gemini-pro` (fallback)
 
 Set `OPENROUTER_API_KEY` in Supabase Edge Function secrets. **NO direct Gemini API key needed.**
-
-| Model | Via OpenRouter | Use Case |
-|-------|----------------|----------|
-| `google/gemini-2.0-flash` | Default | Fast, cost-effective |
-| `google/gemini-pro` | Fallback | Complex reasoning |
-
-**Edge Function**: `supabase/functions/ai-chat/` proxies requests to OpenRouter.
 
 ## Database
 
@@ -530,6 +325,7 @@ Set `OPENROUTER_API_KEY` in Supabase Edge Function secrets. **NO direct Gemini A
 - `PropertyListing` - draft listings with `deletedAt` soft delete, `uploadStatus` tracking
 - `Stream` - SSE stream resumption, CASCADE delete on chat
 - `ListingUploadAttempt` - upload retry tracking with error logs
+- `listing_uploads` - tracks uploaded drafts for publication notification (used by listing-notifier)
 
 ## Authentication
 
@@ -554,9 +350,14 @@ pnpm db:pull          # Pull schema from database
 pnpm db:check         # Check schema consistency
 pnpm db:up            # Upgrade snapshots for split migrations
 
-pnpm test:unit        # All unit tests
+pnpm test:unit        # All unit tests (node:test runner via tsx)
 pnpm test:ai-models   # Test AI model connectivity
 PLAYWRIGHT=True pnpm test  # E2E tests (requires dev server)
+
+# Edge function tests (vitest - tests sophia-bot code)
+pnpm test:edge-functions           # Run once
+pnpm test:edge-functions:watch     # Watch mode
+pnpm test:edge-functions:coverage  # With coverage
 
 # Single test file (node:test runner via tsx)
 pnpm exec tsx --test tests/unit/your-file.test.ts
@@ -570,6 +371,7 @@ pnpm test:unit:parallel-uploads
 
 **Test file locations:**
 - `tests/unit/` - Unit tests (Node.js test runner via tsx) - 66+ tests including WhatsApp module
+- `tests/unit/edge-functions/` - Edge function unit tests (vitest) - tests sophia-bot code with Deno mocks
 - `tests/e2e/` - Playwright E2E tests
 - `tests/manual/` - Manual test scripts (e.g., `test-ai-models.ts`, `test-zyprus-api.ts`)
 
@@ -605,30 +407,65 @@ Key patterns:
 
 **SSE Event Types**: `0:` text, `2:` tool call, `3:` tool result, `d:` done
 
-## Integrations (Supabase Edge Functions)
+## Edge Functions (Supabase)
 
-**IMPORTANT**: All bot integrations run on Supabase Edge Functions, NOT Next.js API routes.
+**IMPORTANT**: All bot integrations run on Supabase Edge Functions (Deno), NOT Next.js API routes.
 
-**Telegram** (`supabase/functions/telegram-webhook/`):
-- Webhook receives updates from Telegram
-- Typing indicators (time-based, 3s interval)
-- Message splitting for long responses
-- Group lead management via lead-router logic
-- Deploy: `supabase functions deploy telegram-webhook`
+### sophia-bot (Primary Edge Function)
 
-**WhatsApp** (`supabase/functions/whatsapp-webhook/`):
-- Uses WaSenderAPI (~$6/month) for DOCX attachments and text messages
-- Secrets: `WASENDER_API_KEY`, `WASENDER_WEBHOOK_SECRET` (set via Supabase dashboard)
-- Features: text messages, document uploads, all AI tools
-- Security: HMAC webhook authentication, Redis session storage
-- Deploy: `supabase functions deploy whatsapp-webhook`
+Handles both WhatsApp and Telegram (when enabled). Deploy: `supabase functions deploy sophia-bot --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx`
 
-**Shared logic** (`lib/` folder):
-- `lib/telegram/` - Telegram-specific utilities (can be imported in Edge Functions)
-- `lib/whatsapp/` - WhatsApp-specific utilities
-- `lib/ai/` - AI providers, tools, prompts (shared across channels)
+- WhatsApp via WaSenderAPI (~$6/month) for DOCX attachments and text messages
+- Secrets: `WASENDER_API_KEY`, `WASENDER_WEBHOOK_SECRET`
+- Security: HMAC webhook authentication
+- Telegram: typing indicators, message splitting, group lead management (currently DISABLED)
 
-**Zyprus API** (`lib/zyprus/`): Drupal JSON:API backend for property/land listings. OAuth 2.0 auth, auto-upload as unpublished drafts. Redis-cached taxonomy (1h TTL) with in-memory fallback. See Zyprus API Quick Reference section below.
+**sophia-bot internal structure:**
+```
+supabase/functions/sophia-bot/
+├── handlers/        # Request routing (webhook.ts, admin.ts, health.ts)
+├── prompts/         # AI prompt files (core/, behaviors/, knowledge/, templates/)
+├── services/        # Business logic (prompt-loader.ts, description-generator.ts, image-handler.ts, my-notes-generator.ts, bazaraki-scraper.ts)
+├── templates/       # Template detection and field extraction (detection.ts, fields.ts, registry.ts)
+├── tools/           # AI tool definitions + executor (definitions.ts, executor.ts)
+├── agents/          # Agent identification from phone number (identifier.ts)
+├── memory/          # Conversation memory management (sophia-memory.ts)
+├── rules/           # Business rules (reviewer-assignment.ts, region-validator.ts, bank-detection.ts, etc.)
+├── config/          # Centralized constants and UUIDs (business-rules.ts)
+├── zyprus/          # Zyprus API client for Edge Function (client.ts, taxonomy-cache.ts)
+├── docx/            # DOCX document generation (templates/)
+├── utils/           # Helpers (property-formatter.ts, webhook-auth.ts)
+└── assets/          # Static assets (zyprus-logo.ts)
+```
+
+### _shared (Shared Edge Function Code)
+
+`supabase/functions/_shared/` contains shared utilities imported by edge functions:
+- `db.ts` - Chat history operations (`getHistory`, `addMessage`, `claimMessageForProcessing`, `saveLastDocument`, `getLastDocument`) + listing upload tracking (`trackListingUpload`, `getPendingListingUploads`, `markListingPublished`, `markListingExpired`)
+- `zyprus.ts` - Legacy shared Zyprus API client
+- `calculators.ts` - Shared calculator functions
+- `tools.ts` - Shared tool definitions
+- `services.ts` - Shared services
+- `assets/` - Shared assets (zyprus-logo.ts)
+- `mod.ts` - Barrel export file
+
+### listing-notifier
+
+Polls Zyprus API every 15 min (via pg_cron job #7) to check if uploaded draft listings have been published. Sends WhatsApp notification to the agent when their listing goes live. Expires tracking after 30 days. Deploy: `supabase functions deploy listing-notifier --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx`
+
+### draft-cleanup
+
+Separate edge function for cleaning up old draft listings.
+
+### Zyprus API Clients (THREE locations - know which one to edit)
+
+| Location | Used By | Notes |
+|----------|---------|-------|
+| `supabase/functions/sophia-bot/zyprus/` | sophia-bot Edge Function | **Primary - edit this for WhatsApp upload changes** |
+| `supabase/functions/_shared/zyprus.ts` | Legacy shared code | May be unused - check before editing |
+| `lib/zyprus/` | Next.js web app | Only for web app property management |
+
+All use Drupal JSON:API backend. OAuth 2.0 auth, auto-upload as unpublished drafts. See Zyprus API Quick Reference section below.
 
 ## Active Tools (WhatsApp via sophia-bot Edge Function)
 
@@ -636,15 +473,19 @@ Tool definitions in `supabase/functions/sophia-bot/tools/definitions.ts`, execut
 
 | Category | Tool Name | Description |
 |----------|-----------|-------------|
-| **Property** | `createPropertyListing` | Creates draft listing on Zyprus (auto-upload) |
+| **Property** | `createPropertyListing` | Creates draft listing on Zyprus (auto-upload, with floor plan support) |
 | **Taxonomy** | `getZyprusData` | Fetch locations, property types, features |
+| **Agents** | `getRegionalAgents` | List agents by region (for management assignment) |
+| **Scraping** | `extractFromBazaraki` | Extract property data from Bazaraki listing URL |
 | **Calculators** | `calculateVAT`, `calculateTransferFees`, `calculateCapitalGains` | Cyprus property tax calculations |
+| **Email** | `sendEmail` | Send email to agent's registered Zyprus address |
 
 **Key Files for Uploads:**
 - `supabase/functions/sophia-bot/tools/executor.ts` - Tool execution logic
 - `supabase/functions/sophia-bot/zyprus/client.ts` - Zyprus API client
 - `supabase/functions/sophia-bot/zyprus/taxonomy-cache.ts` - UUID resolution with fallbacks
 - `supabase/functions/sophia-bot/services/image-handler.ts` - Image validation
+- `supabase/functions/sophia-bot/services/bazaraki-scraper.ts` - Bazaraki listing extraction
 
 **Source of Truth for Zyprus API:** `UPLOAD-LISTINGS-EXTENSIVE-INFO/` (DO NOT modify this folder)
 
@@ -670,24 +511,30 @@ See `.cursor/rules/ultracite.mdc` for full ruleset.
 ## Project Structure
 
 ```
-app/
-├── (auth)/           # Auth pages
-├── (chat)/           # Chat UI + /api/chat streaming endpoint
-├── (admin)/          # Admin dashboard (listings review, user management)
-├── api/              # REST endpoints (listings, templates, telegram, whatsapp)
-└── properties/       # Property management UI
+app/                              # Next.js web app (Vercel)
+├── (auth)/                       # Auth pages
+├── (chat)/                       # Chat UI + /api/chat streaming endpoint
+├── (admin)/                      # Admin dashboard (listings review, user management)
+├── api/                          # REST endpoints (listings, templates)
+└── properties/                   # Property management UI
 
-lib/
-├── ai/               # providers.ts, prompts.ts, tools/, conversation-pruning.ts
-├── db/               # schema.ts, queries.ts, migrations/
-├── telegram/         # Telegram bot
-├── whatsapp/         # WhatsApp bot + DOCX
-└── zyprus/           # Zyprus API client
+lib/                              # Shared libraries (used by Next.js app)
+├── ai/                           # providers.ts, prompts.ts, tools/, conversation-pruning.ts
+├── db/                           # schema.ts, queries.ts, migrations/
+├── telegram/                     # Telegram bot utilities
+├── whatsapp/                     # WhatsApp bot utilities + DOCX
+└── zyprus/                       # Zyprus API client (web app only)
+
+supabase/functions/               # Edge Functions (Deno runtime - LIVE)
+├── sophia-bot/                   # Main bot (WhatsApp + Telegram) - see detailed structure above
+├── listing-notifier/             # Publication notification polling (pg_cron every 15 min)
+├── _shared/                      # Shared code between edge functions (db, calculators, assets)
+└── draft-cleanup/                # Draft listing cleanup
 
 docs/
-├── knowledge/        # Cyprus real estate knowledge (embedded in system prompt)
-├── templates/        # 38 document templates
-└── guides/           # Setup guides
+├── knowledge/                    # Cyprus real estate knowledge (reference only)
+├── templates/                    # 38 document templates (reference only)
+└── guides/                       # Setup guides
 ```
 
 ## Environment Variables
@@ -722,8 +569,8 @@ See `.env.example` for complete list.
 | Zyprus API 404 errors | Run `pnpm exec tsx tests/manual/test-zyprus-api.ts` to discover correct endpoint names |
 | "Unable to create listing" | Check Edge Function logs for taxonomy errors; vocabulary names may have changed |
 | Sentry "Project not found" | Verify `SENTRY_PROJECT` env var matches Sentry project slug (not display name) |
-| WhatsApp issues | Check `supabase functions logs whatsapp-webhook` - see IMPLEMENTATION_PLAN.md for known issues |
-| Telegram issues | Check `supabase functions logs telegram-webhook` |
+| WhatsApp issues | Check `supabase functions logs sophia-bot` |
+| Telegram issues | Check `supabase functions logs sophia-bot` (shares the same edge function) |
 | Prompt cache not updating | Bump cache key version in `lib/ai/prompts.ts` (e.g., `sophia-base-prompt-v10` → `v11`) |
 
 ## Key Patterns
@@ -743,7 +590,8 @@ See `.env.example` for complete list.
 
 ## Zyprus API Quick Reference
 
-**Architecture**: `lib/zyprus/client.ts` (API client with OAuth 2.0), `lib/zyprus/taxonomy-cache.ts` (Redis-backed cache with 1h TTL and in-memory fallback)
+**Primary client (sophia-bot)**: `supabase/functions/sophia-bot/zyprus/client.ts` (OAuth 2.0), `zyprus/taxonomy-cache.ts` (UUID resolution with hardcoded fallbacks)
+**Web app client**: `lib/zyprus/client.ts`, `lib/zyprus/taxonomy-cache.ts` (Redis-backed cache with 1h TTL and in-memory fallback)
 
 ### Critical Configuration
 
@@ -767,15 +615,21 @@ headers: {
 
 4. **Land vs Property**: Different field prefixes - `field_land_price` vs `field_price`, `field_land_map` vs `field_map`
 
-5. **AI Notes field**: `field_ai_assistant_notes` is a new text field auto-populated on listing upload with user requirements, property type, and key features summary
+5. **AI Notes**: `field_ai_assistant_notes` does NOT exist on live API (verified Feb 2026). AI notes content is merged into `field_ai_message` instead.
 
-6. **Required relationship fields** (Jan 2026):
-   - `field_listing_owner` - User UUID who owns the listing (use instructor UUID as fallback)
+6. **Required relationship fields** (verified Feb 2026):
+   - ~~`field_listing_owner`~~ — does NOT exist on live API. The `uid` field (set by OAuth token) determines listing author.
    - `field_ai_listing_instructor` - User UUID who requested the upload
    - `field_ai_listing_reviewer` - Array of reviewer User UUIDs
    - `field_property_views` - Array of taxonomy_term--property_views UUIDs (Sea View, Mountain View, etc.)
 
-7. **Reference ID format**: `field_ai_draft_own_reference_id` should be `SOPHIA-YYYYMMDD-HHMMSS-TYP` where TYP is first 3 chars of property type (e.g., VIL, APA, TOW)
+7. **Reference ID format**: `field_ai_draft_own_reference_id` and `field_own_reference_id` use format: `Owner - {Agent} - {Seller} - {Phone} - {Email} - Reg No.{Reg}`
+
+8. **Price modifiers** (live API): Price, Guide Price, Offers in region of, Offers over, Negotiable. Default: "Price" (`ab39af2d-c8f5-4971-9fa5-2df6822ab9a9`)
+
+9. **Property status** (live API): Off-plan (`fcb94eb2-ddc8-4654-b017-135eee25c775`), Under construction (`c2ae2a05-8433-4b79-ab30-f5488b222033`)
+
+10. **Floor plans**: Uploaded separately via `field_floor_plan` (images) and `field_pdf_floor_plan` (PDFs). Distinct from property gallery images (`field_gallery_`)
 
 ### Debugging
 
@@ -816,13 +670,15 @@ npx tsx tests/manual/test-zyprus-api.ts
 - Edge Function Logs: Use Supabase MCP `get_logs` with service="edge-function"
 - Chat History: Query `chat_history` table in Supabase for SOPHIA responses
 
-**Key Constants:**
+**Key Constants** (centralized in `supabase/functions/sophia-bot/config/business-rules.ts`):
 ```typescript
-SOPHIA_AI_UUID = "7026c7a3-1ef0-419f-9957-15a8c161b614"  // For field_ai_listing_instructor
+SOPHIA_AI_UUID = "7026c7a3-1ef0-419f-9957-15a8c161b614"  // sophia_ai service account (NOT "Sophia" user d697ac16)
 MICHELLE_UUID = "dc2688d2-0ea1-4c13-b03d-3309ee8de6a4"   // Michelle Pitsillides
 LAUREN_UUID = "0caa9a75-362a-4156-b11b-b52839243b74"    // Lauren (reviewer)
 DEFAULT_LOCATION = "7dbc931e-90eb-4b89-9ac8-b5e593831cf8"  // Acropolis, Strovolos
 DEFAULT_PROPERTY_TYPE = "e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44"  // Apartment
+DEFAULT_PRICE_MODIFIER = "ab39af2d-c8f5-4971-9fa5-2df6822ab9a9"  // Price
+PROPERTY_STATUS = { "off-plan": "fcb94eb2...", "under construction": "c2ae2a05..." }
 ```
 
 See `tests/manual/README-UPLOADS.md` for complete test documentation.

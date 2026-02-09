@@ -59,23 +59,30 @@ async function getActivityData() {
     }));
   }
 
-  // 2. Get Recent WhatsApp Messages from whatsapp_analytics
-  const { data: recentMessages } = await supabase
-    .from("whatsapp_analytics")
-    .select("*")
-    .in("event_type", ["message_received", "message_sent", "tool_call"])
+  // 2. Get Recent WhatsApp Messages from chat_history (has actual message content)
+  const { data: chatMessages } = await supabase
+    .from("chat_history")
+    .select("id, role, parts, created_at, phone_number")
     .order("created_at", { ascending: false })
     .limit(50);
 
-  const formattedMessages = (recentMessages || []).map((msg) => ({
-    id: msg.id,
-    action: msg.event_type,
-    timestamp: msg.created_at,
-    metadata: {
-      from: msg.phone_number,
-      message: msg.tool_name || msg.template_name || msg.event_type,
-    },
-  }));
+  const formattedMessages = (chatMessages || []).map((msg) => {
+    // Extract text from parts array
+    const parts = Array.isArray(msg.parts) ? msg.parts : [];
+    const textPart = parts.find((p: any) => p.text)?.text || "";
+    // Skip empty messages or system messages
+    const displayText = textPart.trim() || (msg.role === "user" ? "[Media/Attachment]" : "");
+
+    return {
+      id: msg.id,
+      action: msg.role === "user" ? "message_received" : "message_sent",
+      timestamp: msg.created_at,
+      metadata: {
+        from: msg.phone_number || "Unknown",
+        message: displayText,
+      },
+    };
+  }).filter((msg) => msg.metadata.message !== ""); // Filter out empty messages
 
   return { onlineAgents, recentMessages: formattedMessages };
 }

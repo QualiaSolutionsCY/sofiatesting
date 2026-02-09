@@ -77,27 +77,28 @@ export function assignReviewers(
 
   // FOR SALE: Famagusta has special rules (only one reviewer)
   if (propertyRegion === "famagusta") {
-    const listingOwner =
-      agent.listingOwnerEmail === "ASK" ? assignTo || agent.communicationEmail : agent.listingOwnerEmail;
+    const listingOwner = assignTo ||
+      (agent.listingOwnerEmail === "ASK" ? agent.communicationEmail : agent.listingOwnerEmail);
 
     return {
       reviewer1: "requestfamagusta@zyprus.com",
       reviewer2: null,
       listingOwner,
-      listingInstructor: agent.communicationEmail,
+      listingInstructor: assignTo || agent.communicationEmail,
     };
   }
 
   // FOR SALE: Standard regions (Paphos, Limassol, Larnaca, Nicosia)
-  // Management (Charalambos/Lauren) need to specify who to assign to
-  const listingOwner =
-    agent.listingOwnerEmail === "ASK" ? assignTo || agent.communicationEmail : agent.listingOwnerEmail;
+  // When assignTo is provided, it always takes precedence (management assigns to specific agent)
+  const listingOwner = assignTo ||
+    (agent.listingOwnerEmail === "ASK" ? agent.communicationEmail : agent.listingOwnerEmail);
 
   return {
     reviewer1: "listings@zyprus.com",
     reviewer2: REGIONAL_EMAILS[propertyRegion] || null,
     listingOwner,
-    listingInstructor: agent.communicationEmail,
+    // Instructor = assigned agent (if management assigned), otherwise the requester
+    listingInstructor: assignTo || agent.communicationEmail,
   };
 }
 

@@ -108,6 +108,12 @@ NOTE: Agent name and phone are auto-detected - NEVER ask for them.
 - Use actual data provided - NO placeholders
 - Output the FULL document content (not "Document generated")
 
+**EXCEPTION: User Explicitly Requests to Proceed Without Info**
+If the user explicitly says to continue/proceed without certain information (e.g., "continue without names", "skip that field", "leave it blank", "proceed without details", "without specific info", "just generate it"):
+- COMPLY immediately and generate the template with those fields left BLANK
+- Do NOT refuse, do NOT insist on collecting the missing field
+- Do NOT say you are "not allowed to" proceed
+
 ---
 
 ## DOCX Output Rules

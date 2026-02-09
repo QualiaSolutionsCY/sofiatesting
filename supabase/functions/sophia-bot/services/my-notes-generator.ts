@@ -2,8 +2,9 @@
  * My Notes Generator
  * Creates back-office notes for property listings
  *
- * My Notes are internal notes visible only to Zyprus staff,
- * containing owner contact details and agent information.
+ * My Notes contains only essential info for reviewers:
+ * 1. Google Maps link (priority)
+ * 2. Agent notes / special instructions
  */
 
 import { Agent } from "../agents/identifier.ts";
@@ -20,162 +21,69 @@ export interface ListingContext {
   source?: string;
   duplicateWarning?: string;
   urgentNotes?: string;
+  locationUrl?: string;
   coordinates?: { lat: number; lon: number };
-  listingOwner?: string; // The office or person assigned as listing owner
-  reviewer1?: string; // Primary reviewer name/email
-  reviewer2?: string; // Secondary reviewer name/email (optional)
-}
-
-/**
- * Format phone number for display
- */
-function formatPhone(phone: string): string {
-  // Already formatted
-  if (phone.includes(" ") || phone.startsWith("+357")) {
-    return phone;
-  }
-
-  // Add Cyprus country code if missing
-  let formatted = phone.replace(/\D/g, "");
-
-  if (formatted.startsWith("357")) {
-    formatted = "+" + formatted;
-  } else if (formatted.startsWith("9") || formatted.startsWith("7")) {
-    formatted = "+357" + formatted;
-  } else if (!formatted.startsWith("+")) {
-    formatted = "+357" + formatted;
-  }
-
-  // Format: +357 99 123456
-  if (formatted.length >= 12) {
-    return (
-      formatted.slice(0, 4) +
-      " " +
-      formatted.slice(4, 6) +
-      " " +
-      formatted.slice(6)
-    );
-  }
-
-  return formatted;
+  listingOwner?: string;
+  reviewer1?: string;
+  reviewer2?: string;
+  aiMessage?: string;
+  listingType?: "sale" | "rent";
+  propertyType?: string;
+  keyFeatures?: string[];
 }
 
 /**
  * Generate My Notes content for a property listing
  *
- * Format:
- * Owner: [Name]
- * Tel: [Phone]
- * Agent: [Agent Name]
- * [Optional: Registration Number]
- * [Optional: Notes]
+ * Format (updated Feb 2026):
+ * 1. Google Maps link (priority — first line)
+ * 2. Agent notes / special instructions (if any)
+ * 3. Duplicate warning (if flagged)
+ *
+ * Keep it minimal — other details go in separate Zyprus fields.
  */
 export function generateMyNotes(
   owner: OwnerInfo,
-  agent: Agent,
+  _agent: Agent,
   context?: ListingContext
 ): string {
   const lines: string[] = [];
 
-  // Owner information
-  lines.push(`Owner: ${owner.name}`);
-  lines.push(`Tel: ${formatPhone(owner.phone)}`);
-
-  if (owner.email) {
-    lines.push(`Email: ${owner.email}`);
-  }
-
-  // Agent information
-  lines.push(`Agent: ${agent.fullName}`);
-
-  // Google Maps link if coordinates provided
-  if (context?.coordinates) {
+  // Google Maps link — always first (highest priority for reviewers)
+  // Prefer the exact URL the agent provided; fall back to coordinates-based link
+  if (context?.locationUrl) {
+    lines.push(context.locationUrl);
+  } else if (context?.coordinates) {
     const mapsUrl = `https://www.google.com/maps/place/${context.coordinates.lat},${context.coordinates.lon}`;
-    lines.push(`Location: ${mapsUrl}`);
+    lines.push(mapsUrl);
   }
 
-  // Registration number if provided
-  if (context?.registrationNumber) {
-    lines.push(`Reg: ${context.registrationNumber}`);
-  }
-
-  // Source if provided
-  if (context?.source) {
-    lines.push(`Source: ${context.source}`);
+  // Agent notes / special instructions from the conversation
+  if (owner.specialNotes) {
+    lines.push(owner.specialNotes);
   }
 
   // Duplicate warning (important for reviewers)
   if (context?.duplicateWarning) {
     lines.push("");
-    lines.push("⚠️ POTENTIAL DUPLICATE:");
-    lines.push(context.duplicateWarning);
+    lines.push(`⚠️ POTENTIAL DUPLICATE: ${context.duplicateWarning}`);
   }
-
-  // Special notes from owner
-  if (owner.specialNotes) {
-    lines.push("");
-    lines.push("Owner Notes:");
-    lines.push(owner.specialNotes);
-  }
-
-  // Urgent notes
-  if (context?.urgentNotes) {
-    lines.push("");
-    lines.push("⚡ URGENT:");
-    lines.push(context.urgentNotes);
-  }
-
-  // Listing assignment info (NOT "SOPHIA AI" - use actual owner/reviewer)
-  lines.push("");
-  if (context?.listingOwner) {
-    lines.push(`Listing Owner: ${context.listingOwner}`);
-  }
-  if (context?.reviewer1) {
-    lines.push(`Reviewer: ${context.reviewer1}`);
-  }
-  if (context?.reviewer2) {
-    lines.push(`Reviewer 2: ${context.reviewer2}`);
-  }
-
-  // Add timestamp
-  lines.push("");
-  lines.push(`Created: ${new Date().toISOString().split("T")[0]}`);
 
   return lines.join("\n");
 }
 
 /**
  * Generate AI Assistant Notes for the listing
- * This is a separate field that captures the AI's understanding of the request
+ * This is a separate field (field_ai_message) that captures special instructions
  */
 export function generateAIAssistantNotes(
-  requestSummary: string,
-  propertyType: string,
-  keyFeatures: string[],
+  _requestSummary: string,
+  _propertyType: string,
+  _keyFeatures: string[],
   specialInstructions?: string
 ): string {
-  const lines: string[] = [];
-
-  lines.push("=== AI UPLOAD SUMMARY ===");
-  lines.push("");
-  lines.push(`Request: ${requestSummary}`);
-  lines.push(`Property Type: ${propertyType}`);
-
-  if (keyFeatures.length > 0) {
-    lines.push(`Key Features: ${keyFeatures.join(", ")}`);
-  }
-
-  if (specialInstructions) {
-    lines.push("");
-    lines.push("Special Instructions:");
-    lines.push(specialInstructions);
-  }
-
-  lines.push("");
-  lines.push("---");
-  lines.push("All details were extracted from WhatsApp conversation.");
-
-  return lines.join("\n");
+  // Only include special instructions / agent notes — nothing else
+  return specialInstructions || "";
 }
 
 /**
@@ -218,4 +126,3 @@ export function parseOwnerDetails(text: string): Partial<OwnerInfo> {
 
   return result;
 }
-

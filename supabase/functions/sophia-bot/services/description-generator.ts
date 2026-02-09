@@ -279,6 +279,9 @@ function formatTitleDeedStatus(status?: string): string {
     case "pending":
     case "application":
       return "Title Deed Pending";
+    case "share_of_land":
+    case "share of land":
+      return "Share of Land";
     default:
       return "";
   }
@@ -466,6 +469,12 @@ export function generateDescription(details: PropertyDetails): string {
   }
   if (details.plotSize) {
     lines.push(`${details.plotSize}m² Plot Size`);
+  }
+
+  // Orientation (compass facing direction)
+  if (details.orientation) {
+    const orientationCapitalized = details.orientation.charAt(0).toUpperCase() + details.orientation.slice(1);
+    lines.push(`${orientationCapitalized} Facing`);
   }
 
   // 6. REMAINING FEATURES (excluding bottom-priority features)
