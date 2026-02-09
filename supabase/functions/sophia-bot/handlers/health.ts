@@ -149,7 +149,7 @@ export async function handleHealthCheck(
 
   const response = {
     service: "sophia-bot",
-    version: "1.1.0",
+    version: "1.1.4",
     status: overallStatus,
     timestamp: new Date().toISOString(),
     totalLatencyMs: Date.now() - startTime,

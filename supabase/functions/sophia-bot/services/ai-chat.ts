@@ -385,15 +385,35 @@ export async function chat(
       toolCallCount++;
       logger.info(`[OpenRouter] Tool call ${toolCallCount}: ${message.tool_calls.length} tools requested`, { category: LogCategory.GENERAL });
 
-      // Add assistant message with tool calls to history
+      // CRITICAL: Deduplicate identical tool calls within the same response
+      // OpenRouter sometimes returns duplicate tool calls, causing duplicate executions
+      const seenToolSignatures = new Set<string>();
+      const uniqueToolCalls = message.tool_calls.filter(toolCall => {
+        const toolName = toolCall.function.name;
+        const toolArgs = toolCall.function.arguments || "{}";
+        // Create a signature from tool name + args hash
+        const signature = `${toolName}:${toolArgs}`;
+        if (seenToolSignatures.has(signature)) {
+          logger.warn(`[OpenRouter] Filtering out duplicate tool call: ${toolName}`, { category: LogCategory.GENERAL });
+          return false;
+        }
+        seenToolSignatures.add(signature);
+        return true;
+      });
+
+      if (uniqueToolCalls.length < message.tool_calls.length) {
+        logger.info(`[OpenRouter] Deduplicated tool calls: ${message.tool_calls.length} -> ${uniqueToolCalls.length}`, { category: LogCategory.GENERAL });
+      }
+
+      // Add assistant message with original tool calls to history (for proper conversation flow)
       currentMessages.push({
         role: "assistant",
         content: message.content || "",
         tool_calls: message.tool_calls,
       });
 
-      // Execute each tool call
-      for (const toolCall of message.tool_calls) {
+      // Execute only unique tool calls
+      for (const toolCall of uniqueToolCalls) {
         const toolName = toolCall.function.name;
         let toolArgs: Record<string, unknown>;
 
@@ -484,8 +504,23 @@ export async function chat(
 
       if (retryMessage?.tool_calls && retryMessage.tool_calls.length > 0) {
         logger.info("[FORCE TOOL] Retry successful - got tool calls", { category: LogCategory.GENERAL });
-        // Process the tool calls
-        for (const toolCall of retryMessage.tool_calls) {
+
+        // CRITICAL: Deduplicate identical tool calls within the retry response
+        const seenToolSignatures = new Set<string>();
+        const uniqueRetryCalls = retryMessage.tool_calls.filter(toolCall => {
+          const toolName = toolCall.function.name;
+          const toolArgs = toolCall.function.arguments || "{}";
+          const signature = `${toolName}:${toolArgs}`;
+          if (seenToolSignatures.has(signature)) {
+            logger.warn(`[FORCE TOOL] Filtering out duplicate tool call: ${toolName}`, { category: LogCategory.GENERAL });
+            return false;
+          }
+          seenToolSignatures.add(signature);
+          return true;
+        });
+
+        // Process only unique tool calls
+        for (const toolCall of uniqueRetryCalls) {
           const toolName = toolCall.function.name;
           let toolArgs: Record<string, unknown>;
           try {

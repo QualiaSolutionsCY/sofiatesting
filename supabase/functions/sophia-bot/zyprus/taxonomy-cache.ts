@@ -492,6 +492,7 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
  */
 export async function findLocationUuid(locationName: string): Promise<string> {
   const normalized = locationName.toLowerCase().trim();
+  let specifiedDistrict: string | null = null; // Declare outside try for error logging
 
   try {
     const taxonomy = await loadTaxonomy();
@@ -516,7 +517,6 @@ export async function findLocationUuid(locationName: string): Promise<string> {
 
     // CRITICAL: Detect the EXPLICITLY SPECIFIED district from input
     // This is the district name that appears AFTER the comma or as one of the words
-    let specifiedDistrict: string | null = null;
     for (const [region, locationsList] of Object.entries(REGION_LOCATIONS)) {
       // Check if any region name or aliases appear in the input
       const regionAliases = [region, ...locationsList];
@@ -573,9 +573,9 @@ export async function findLocationUuid(locationName: string): Promise<string> {
         const regionLocs = REGION_LOCATIONS[specifiedDistrict] || [];
 
         // Check if this location is in the specified district
-        // A location is in a district if its name OR its parent's name matches district locations
+        // CRITICAL: Use EXACT word match, not substring, to avoid "neapoli" matching "neapolis"
         const locationIsInDistrict = locWords.some(locWord =>
-          regionLocs.some(regLoc => locWord.includes(regLoc) || regLoc.includes(locWord))
+          regionLocs.some(regLoc => locWord === regLoc)
         );
 
         if (locationIsInDistrict) {
@@ -586,9 +586,7 @@ export async function findLocationUuid(locationName: string): Promise<string> {
           let locationInOtherDistrict: string | null = null;
           for (const [otherRegion, otherLocs] of Object.entries(REGION_LOCATIONS)) {
             if (otherRegion === specifiedDistrict) continue;
-            if (locWords.some(locWord => otherLocs.some(otherLoc =>
-              locWord.includes(otherLoc) || otherLoc.includes(locWord)
-            ))) {
+            if (locWords.some(locWord => otherLocs.some(otherLoc => locWord === otherLoc))) {
               locationInOtherDistrict = otherRegion;
               break;
             }
@@ -626,31 +624,82 @@ export async function findLocationUuid(locationName: string): Promise<string> {
     if (scoredMatches.length > 0) {
       scoredMatches.sort((a, b) => b.score - a.score);
       const best = scoredMatches[0];
-      logger.debug(`[Taxonomy] Best match for "${locationName}": ${best.location.name} (score: ${best.score}, matched: ${best.matchedWords.join(", ")}, bonus: ${best.bonusReason})`);
 
-      // Log top 3 alternatives for debugging
-      for (let i = 1; i < Math.min(4, scoredMatches.length); i++) {
-        const alt = scoredMatches[i];
-        logger.debug(`[Taxonomy] Alternative ${i}: ${alt.location.name} (score: ${alt.score}, ${alt.bonusReason})`);
+      // CRITICAL: When a district is specified, ONLY accept matches in that district
+      // If the best match is in the wrong district, discard all matches and use fallback
+      if (specifiedDistrict) {
+        const regionLocs = REGION_LOCATIONS[specifiedDistrict] || [];
+        const bestLocWords = best.location.name.toLowerCase().split(/[\s,]+/).filter(w => w.length > 1);
+        // CRITICAL: Use EXACT word match for district detection
+        const bestIsInDistrict = bestLocWords.some(locWord =>
+          regionLocs.some(regLoc => locWord === regLoc)
+        );
+
+        if (!bestIsInDistrict) {
+          logger.warn(`[Taxonomy] Best match "${best.location.name}" is NOT in specified district "${specifiedDistrict}" - discarding and using fallback`, { category: LogCategory.ZYPRUS });
+
+          // Don't return - fall through to fallback logic below
+        } else {
+          logger.debug(`[Taxonomy] Best match for "${locationName}": ${best.location.name} (score: ${best.score}, matched: ${best.matchedWords.join(", ")}, bonus: ${best.bonusReason})`);
+
+          // Log top 3 alternatives for debugging
+          for (let i = 1; i < Math.min(4, scoredMatches.length); i++) {
+            const alt = scoredMatches[i];
+            logger.debug(`[Taxonomy] Alternative ${i}: ${alt.location.name} (score: ${alt.score}, ${alt.bonusReason})`);
+          }
+
+          return best.location.id;
+        }
+      } else {
+        logger.debug(`[Taxonomy] Best match for "${locationName}": ${best.location.name} (score: ${best.score}, matched: ${best.matchedWords.join(", ")}, bonus: ${best.bonusReason})`);
+
+        // Log top 3 alternatives for debugging
+        for (let i = 1; i < Math.min(4, scoredMatches.length); i++) {
+          const alt = scoredMatches[i];
+          logger.debug(`[Taxonomy] Alternative ${i}: ${alt.location.name} (score: ${alt.score}, ${alt.bonusReason})`);
+        }
+
+        return best.location.id;
       }
-
-      return best.location.id;
     }
 
     // Fallback: try to find a general location in the detected region
     if (specifiedDistrict && taxonomy.locations.length > 0) {
-      // Try to find a location that contains the region name
-      const regionFallback = taxonomy.locations.find(loc =>
-        loc.name.toLowerCase().includes(specifiedDistrict)
+      // Get all location names that belong to this district from REGION_LOCATIONS
+      const regionLocs = REGION_LOCATIONS[specifiedDistrict] || [];
+
+      // First try: direct name match with district name (e.g., "Limassol")
+      let regionFallback = taxonomy.locations.find(loc =>
+        loc.name.toLowerCase().includes(specifiedDistrict!)
       );
+
+      // Second try: match ANY location name that appears in REGION_LOCATIONS for this district
+      // CRITICAL: Use EXACT word match to avoid "neapoli" matching "neapolis"
+      if (!regionFallback && regionLocs.length > 0) {
+        regionFallback = taxonomy.locations.find(loc => {
+          const locNameLower = loc.name.toLowerCase();
+          const locWords = locNameLower.split(/[\s,]+/).filter(w => w.length > 1);
+          return locWords.some(locWord => regionLocs.includes(locWord));
+        });
+      }
+
+      // Third try: just find the first location that STARTS with the district name
+      if (!regionFallback) {
+        regionFallback = taxonomy.locations.find(loc =>
+          loc.name.toLowerCase().startsWith(specifiedDistrict!)
+        );
+      }
+
       if (regionFallback) {
-        logger.debug(`[Taxonomy] Using region fallback for "${locationName}": ${regionFallback.name}`);
+        logger.debug(`[Taxonomy] Using region fallback for "${locationName}" (district: ${specifiedDistrict}): ${regionFallback.name}`);
         return regionFallback.id;
       }
+
+      logger.warn(`[Taxonomy] No location found for district "${specifiedDistrict}" in "${locationName}", will use default`, { category: LogCategory.ZYPRUS });
     }
 
-    // Ultimate fallback: return first location if available
-    if (taxonomy.locations.length > 0) {
+    // Ultimate fallback: return first location if available (ONLY when no district specified)
+    if (!specifiedDistrict && taxonomy.locations.length > 0) {
       logger.debug(`[Taxonomy] WARNING: Using first available location for "${locationName}": ${taxonomy.locations[0].name}`);
       return taxonomy.locations[0].id;
     }
@@ -659,7 +708,13 @@ export async function findLocationUuid(locationName: string): Promise<string> {
   }
 
   // Ultimate fallback: use known working UUID
-  logger.debug(`[Taxonomy] Using hardcoded default location UUID for: ${locationName}`);
+  // CRITICAL: If a district was specified, this means we FAILED to find even a generic location in that district
+  // This is a problem because the property will be tagged with the wrong district (Nicosia default)
+  if (specifiedDistrict) {
+    logger.error(`[Taxonomy] CRITICAL: No location found for district "${specifiedDistrict}" in "${locationName}" - using Nicosia fallback!`, undefined, { category: LogCategory.ZYPRUS });
+  } else {
+    logger.debug(`[Taxonomy] Using hardcoded default location UUID for: ${locationName}`);
+  }
   return DEFAULT_LOCATION_UUID;
 }
 

@@ -78,7 +78,19 @@ Herein, I [FULL_NAME] with ID [ID_NUMBER] Issued By: [COUNTRY] confirm that CSC 
 Property: [FULL PROPERTY DESCRIPTION - registration no, location, building name, flat number ALL on one line]
 
 Name: _________________________
+Signature: _________________________
 
+*BLANK TEMPLATE FORMAT (when user says "no information", "blank", "just template"):*
+
+**Viewing Form**
+
+Date: [ ]
+
+Herein, I [ ] with ID [ ] Issued By: [ ] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to me with a viewing the property with the following Registry details:
+
+Property: [ ]
+
+Name: _________________________
 Signature: _________________________
 
 *Multiple People Format (2+ people) - just add extra name/ID lines and signature lines:*
@@ -92,14 +104,28 @@ Herein, I [PERSON1_NAME] with ID [PERSON1_ID] Issued By: [COUNTRY1] and I [PERSO
 Property: [FULL PROPERTY DESCRIPTION - registration no, location, building name, flat number ALL on one line]
 
 Name: _________________________
-
 Signature: _________________________
 
 Name: _________________________
-
 Signature: _________________________
 
 [Add more Name/Signature lines for additional people]
+
+*BLANK TEMPLATE FORMAT for Multiple People (when user says "no information", "blank", "just template"):*
+
+**Viewing Form**
+
+Date: [ ]
+
+Herein, I [ ] with ID [ ] Issued By: [ ] and I [ ] with ID [ ] Issued By: [ ] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to us with a viewing the property with the following Registry details:
+
+Property: [ ]
+
+Name: _________________________
+Signature: _________________________
+
+Name: _________________________
+Signature: _________________________
 
 ---
 

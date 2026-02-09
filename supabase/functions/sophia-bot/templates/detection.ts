@@ -136,7 +136,21 @@ export function isCompletedViewingForm(content: string): boolean {
     return false;
   }
 
-  // Must have an ID/passport pattern
+  // Check for blank document pattern (has [ ] placeholders)
+  const hasBlankBrackets = /\[\s*\]/g.test(content);
+  if (hasBlankBrackets) {
+    // If it has blank brackets AND document structure, it's a valid blank viewing form
+    const hasPropertyContent =
+      lowerContent.includes('property') ||
+      lowerContent.includes('registration') ||
+      lowerContent.includes('immovable');
+    if (hasPropertyContent) {
+      logger.debug("[Detection] Blank viewing form detected (via [ ] brackets) -> DOCX", { category: LogCategory.GENERAL });
+      return true;
+    }
+  }
+
+  // Must have an ID/passport pattern (for non-blank forms)
   const hasIdPattern =
     /with\s+id\s+[A-Z0-9]+/i.test(content) ||
     /passport\/id\s*(number)?:?\s*[A-Z0-9]+/i.test(content) ||
@@ -343,6 +357,28 @@ export function containsPlaceholders(content: string): boolean {
     !p.includes('License') &&
     p.length > 3
   );
+
+  // Check for empty brackets [ ] - if found with document structure, allow it (blank document)
+  // IMPORTANT: This check must come BEFORE bracket placeholder check below
+  const hasEmptyBrackets = /\[\s*\]/g.test(content);
+  if (hasEmptyBrackets) {
+    const hasDocStructure =
+      lowerContent.includes('viewing form') ||
+      lowerContent.includes('property reservation agreement') ||
+      lowerContent.includes('marketing agreement') ||
+      lowerContent.includes('herein, i');
+    if (hasDocStructure) {
+      // Empty brackets with document structure = intentional blank document, not a placeholder
+      // Return false immediately - no placeholders for blank documents
+      logger.debug("[Detection] Found [ ] empty brackets with document structure - allowing blank document (returning false)", { category: LogCategory.GENERAL });
+      return false;
+    } else {
+      // Empty brackets without document structure = treat as placeholder
+      logger.debug("[Detection] Found [ ] empty brackets without document structure -> TEXT", { category: LogCategory.GENERAL });
+      return true;
+    }
+  }
+
   if (realPlaceholders.length > 0) {
     logger.debug("[Detection] Found bracket placeholders:", { placeholders: realPlaceholders, category: LogCategory.GENERAL });
     return true;
@@ -451,10 +487,12 @@ export function shouldSendAsDocx(response: string): boolean {
   const fullLower = response.toLowerCase();
 
   // Viewing Form detection - requires actual form content
+  // Also handle blank viewing forms with [ ] placeholders
+  const hasBlankBrackets = /\[\s*\]/g.test(response);
   if (
     firstPart.includes("viewing form") &&
     (fullLower.includes("herein, i") || fullLower.includes("confirm that")) &&
-    (fullLower.includes("id number") || fullLower.includes("passport") || fullLower.includes("signature"))
+    (fullLower.includes("id number") || fullLower.includes("passport") || fullLower.includes("signature") || hasBlankBrackets)
   ) {
     logger.debug("[Detection] Viewing Form content detected -> DOCX", { category: LogCategory.GENERAL });
     return true;
