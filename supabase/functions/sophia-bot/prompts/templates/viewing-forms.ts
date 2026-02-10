@@ -38,7 +38,8 @@ All above PLUS for each additional person:
 *Field collection prompts are in document_routing - this section only defines output format.*
 
 *DO NOT GENERATE until you have ALL mandatory fields!*
-*NEVER use XXXXXXXX or [PLACEHOLDER] - always use real data!*
+*If data is missing, use bracketed placeholders like [DATE], [FULL_NAME], [ID_NUMBER], [COUNTRY], [PROPERTY ADDRESS] - NEVER use dots!*
+*NEVER use XXXXXXXX or dots (……………………) as placeholders!*
 
 *STRUCTURED DATA FORMAT FOR DOCX GENERATION:*
 When outputting viewing forms, include these fields clearly:
@@ -145,7 +146,8 @@ Same as Standard Viewing Form (Standard Viewing Form):
 8. Locality (e.g., Universal, Tala)
 
 *DO NOT GENERATE until you have ALL mandatory fields!*
-*NEVER use XXXXXXXX or [PLACEHOLDER] - always use real data!*
+*If data is missing, use bracketed placeholders like [DATE], [FULL_NAME], [ID_NUMBER], [COUNTRY], [PROPERTY ADDRESS] - NEVER use dots!*
+*NEVER use XXXXXXXX or dots (……………………) as placeholders!*
 
 *Single Person Format:*
 
@@ -253,17 +255,17 @@ Example output when generating:
 
 **PROPERTY RESERVATION AGREEMENT**
 
-Date Reservation Fee Received: ...
+Date Reservation Fee Received: [Date Reservation Fee Received]
 
 *DO NOT GENERATE until you have ALL mandatory fields!*
-*NEVER use placeholder text like [BUYER_NAME] - always use real collected data!*
+*If data is missing, use bracketed placeholders like [BUYER_NAME], [VENDOR_NAME], [PROPERTY_ADDRESS], [DATE] - NEVER use dots!*
 *The document will be generated as a DOCX file with the Zyprus logo automatically!*
 
 Template (the legal clauses vary based on Loan/VAT - system handles this automatically):
 
 **PROPERTY RESERVATION AGREEMENT**
 
-Date Reservation Fee Received: ……..……………………………………….
+Date Reservation Fee Received: [Date Reservation Fee Received]
 
 Prospective Buyer: [BUYER_FULL_NAME] [ID_TYPE]: [ID_NUMBER]
 (Example: Moshe Rajczyk Cyprus ID: 945119)
