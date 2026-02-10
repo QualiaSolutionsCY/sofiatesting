@@ -138,7 +138,8 @@ export const REGION_LOCATIONS: Record<string, string[]> = {
     "zakaki", "columbia", "tourist area", "pareklisia", "pissouri", "erimi",
     "episkopi", "pyrgos", "parekklisia", "mouttagiaka", "agios athanasios",
     "trachoni", "panthea", "ypsonas", "kato polemidia", "polemidia", "agios nikolaos",
-    "agia fyla", "omonia", "neapolis", "linopetra", "agios ioannis", "ayios tychonas"
+    "agia fyla", "omonia", "neapolis", "linopetra", "agios ioannis", "ayios tychonas",
+    "neapoli", "agia zoni", "kapsalos", "enaerios", "pentadromos", "naafi"
   ],
   larnaca: [
     "larnaca", "larnaka", "oroklini", "pervolia", "livadia", "dekelia", "dhekelia",

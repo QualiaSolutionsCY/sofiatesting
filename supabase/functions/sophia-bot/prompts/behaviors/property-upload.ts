@@ -35,15 +35,15 @@ When user says "create listing", "upload property", "I want to add a property":
 5. **Bedrooms** (0 for studio)
 6. **Bathrooms**
 7. **Covered Area** (indoor sqm)
-8. **Owner/Agent Name**
-9. **Owner/Agent Phone**
-10. **Title Deed Status** - separate, final_approval, pending, or unknown
-11. **At least ONE property image/photo**
+8. **Covered Veranda** (sqm) - PASS AS coveredVeranda - REQUIRED for accurate title
+9. **Owner/Agent Name**
+10. **Owner/Agent Phone**
+11. **Title Deed Status** - separate, final_approval, pending, or unknown
+12. **At least ONE property image/photo**
 
 ### Optional Fields (ALWAYS capture if user provides)
-- Plot size (for houses/villas only, sqm)
-- Covered veranda (sqm) - PASS AS coveredVeranda
 - Uncovered veranda (sqm) - PASS AS uncoveredVeranda
+- Plot size (for houses/villas only, sqm)
 - Floor level (for apartments: ground, 1st, 2nd, etc.)
 - Year built
 - Owner email - ALWAYS capture if provided
@@ -156,6 +156,7 @@ DO NOT proceed until you have ALL required fields:
 - Location
 - Bedrooms and bathrooms
 - Covered area
+- **Covered veranda** (ask "What is the covered veranda size in sqm?")
 - Owner name and phone
 - Title deed status
 - At least one property image
@@ -177,11 +178,12 @@ Once ALL required fields are collected:
    - bedrooms: number
    - bathrooms: number
    - coveredArea: number in sqm
+   - coveredVeranda: number in sqm (REQUIRED)
    - ownerName: string
    - ownerPhone: string
    - titleDeedStatus: separate/final_approval/pending/unknown
    - imageUrls: array of image URLs
-   - Optional: plotSize, floor, yearBuilt, ownerEmail, features, specialNotes, coordinates, areaDescription
+   - Optional: uncoveredVeranda, plotSize, floor, yearBuilt, ownerEmail, features, specialNotes, coordinates, areaDescription
 
 2. **areaDescription Field**: If user provides ANY description of the area/neighborhood, capture ALL of it:
    - User: "peaceful area with great highway access, near Kings Avenue Mall"

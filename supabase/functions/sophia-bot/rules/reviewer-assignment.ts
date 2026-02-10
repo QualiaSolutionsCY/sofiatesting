@@ -61,7 +61,7 @@ export function assignReviewers(
       reviewer1: "demetra@zyprus.com",
       reviewer2: "requestlimassol@zyprus.com",
       listingOwner: "demetra@zyprus.com",
-      listingInstructor: "michelle@zyprus.com",
+      listingInstructor: "demetra@zyprus.com", // CRITICAL: Must be same as listingOwner
     };
   }
 
@@ -71,7 +71,7 @@ export function assignReviewers(
       reviewer1: agent.listingOwnerEmail,
       reviewer2: null,
       listingOwner: agent.listingOwnerEmail,
-      listingInstructor: agent.communicationEmail,
+      listingInstructor: agent.listingOwnerEmail, // CRITICAL: Must be same as listingOwner
     };
   }
 
@@ -84,7 +84,7 @@ export function assignReviewers(
       reviewer1: "requestfamagusta@zyprus.com",
       reviewer2: null,
       listingOwner,
-      listingInstructor: assignTo || agent.communicationEmail,
+      listingInstructor: listingOwner, // Always same as listingOwner
     };
   }
 
@@ -97,8 +97,7 @@ export function assignReviewers(
     reviewer1: "listings@zyprus.com",
     reviewer2: REGIONAL_EMAILS[propertyRegion] || null,
     listingOwner,
-    // Instructor = assigned agent (if management assigned), otherwise the requester
-    listingInstructor: assignTo || agent.communicationEmail,
+    listingInstructor: listingOwner, // Always same as listingOwner
   };
 }
 

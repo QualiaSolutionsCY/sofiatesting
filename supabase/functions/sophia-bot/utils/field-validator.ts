@@ -154,6 +154,23 @@ function validateReservationAgreementFields(content: string): boolean {
     return true;
   }
 
+  // SECOND: Check for blank document patterns - these are intentional blank documents
+  const hasBlankBrackets = /\[\s*\]/g.test(content);
+  const hasRepeatedDots = /[\.…]{8,}/g.test(content);
+  const hasUnderscoreLines = /_{15,}/g.test(content);
+
+  if (hasBlankBrackets || hasRepeatedDots || hasUnderscoreLines) {
+    const lowerContent = content.toLowerCase();
+    const hasDocStructure =
+      lowerContent.includes('property reservation agreement') ||
+      lowerContent.includes('reservation agreement') ||
+      lowerContent.includes('csc zyprus');
+    if (hasDocStructure) {
+      logger.debug("[Field Validator] Blank reservation agreement detected - allowing blank document", { category: LogCategory.GENERAL });
+      return true;
+    }
+  }
+
   const requiredPatterns = [
     // Buyer name with passport info
     /(?:prospective\s+)?buyer[:\s]+[A-Za-z\s]+/i,

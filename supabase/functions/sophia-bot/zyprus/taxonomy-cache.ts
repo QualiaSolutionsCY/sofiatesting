@@ -219,34 +219,38 @@ async function fetchLocations(
   const firstData = await firstResponse.json();
   const items = parseLocationItems(firstData);
 
-  // Check if there are more pages
-  const totalCount = firstData.meta?.count;
-  if (!totalCount || totalCount <= PAGE_SIZE) {
+  // Check if there are more pages using links.next (meta.count is undefined in Zyprus API)
+  const nextLink = firstData.links?.next;
+  if (!nextLink) {
     logger.debug(`[Taxonomy] Loaded ${items.length} location nodes (single page)`);
     return items;
   }
 
-  // Calculate remaining pages and fetch in parallel
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
-  const remainingPages = totalPages - 1;
+  // Fetch remaining pages by following links sequentially
+  const allItems = [...items];
+  let nextUrl = (typeof nextLink === 'string' ? nextLink : nextLink?.href) as string | null;
+  let pageCount = 1;
 
-  if (remainingPages > 0) {
-    const pagePromises = Array.from({ length: remainingPages }, (_, i) =>
-      fetch(`${baseUrl}?page[limit]=${PAGE_SIZE}&page[offset]=${(i + 1) * PAGE_SIZE}`, { headers })
-        .then(res => res.ok ? res.json() : null)
-        .catch(() => null)
-    );
+  while (nextUrl) {
+    const response = await fetch(nextUrl, { headers });
+    if (!response.ok) break;
 
-    const pageResults = await Promise.all(pagePromises);
-    for (const pageData of pageResults) {
-      if (pageData) {
-        items.push(...parseLocationItems(pageData));
-      }
+    const data = await response.json();
+    allItems.push(...parseLocationItems(data));
+    pageCount++;
+
+    const next = data.links?.next;
+    nextUrl = (typeof next === 'string' ? next : next?.href) as string | null;
+
+    // Safety limit to prevent infinite loops
+    if (pageCount > 100) {
+      logger.warn(`[Taxonomy] Location pagination exceeded 100 pages, stopping`, undefined, { category: LogCategory.ZYPRUS });
+      break;
     }
   }
 
-  logger.debug(`[Taxonomy] Loaded ${items.length} location nodes (${totalPages} pages parallel)`);
-  return items;
+  logger.debug(`[Taxonomy] Loaded ${allItems.length} location nodes (${pageCount} pages)`);
+  return allItems;
 }
 
 /**
@@ -294,34 +298,38 @@ async function fetchUsers(
   const firstData = await firstResponse.json();
   const items = parseUserItems(firstData);
 
-  // Check if there are more pages
-  const totalCount = firstData.meta?.count;
-  if (!totalCount || totalCount <= PAGE_SIZE) {
+  // Check if there are more pages using links.next (meta.count is undefined in Zyprus API)
+  const nextLink = firstData.links?.next;
+  if (!nextLink) {
     logger.debug(`[Taxonomy] Loaded ${items.length} users (single page)`);
     return items;
   }
 
-  // Calculate remaining pages and fetch in parallel
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
-  const remainingPages = totalPages - 1;
+  // Fetch remaining pages by following links sequentially
+  const allItems = [...items];
+  let nextUrl = (typeof nextLink === 'string' ? nextLink : nextLink?.href) as string | null;
+  let pageCount = 1;
 
-  if (remainingPages > 0) {
-    const pagePromises = Array.from({ length: remainingPages }, (_, i) =>
-      fetch(`${baseUrl}?filter[status]=1&page[limit]=${PAGE_SIZE}&page[offset]=${(i + 1) * PAGE_SIZE}`, { headers })
-        .then(res => res.ok ? res.json() : null)
-        .catch(() => null)
-    );
+  while (nextUrl) {
+    const response = await fetch(nextUrl, { headers });
+    if (!response.ok) break;
 
-    const pageResults = await Promise.all(pagePromises);
-    for (const pageData of pageResults) {
-      if (pageData) {
-        items.push(...parseUserItems(pageData));
-      }
+    const data = await response.json();
+    allItems.push(...parseUserItems(data));
+    pageCount++;
+
+    const next = data.links?.next;
+    nextUrl = (typeof next === 'string' ? next : next?.href) as string | null;
+
+    // Safety limit to prevent infinite loops
+    if (pageCount > 100) {
+      logger.warn(`[Taxonomy] User pagination exceeded 100 pages, stopping`, undefined, { category: LogCategory.ZYPRUS });
+      break;
     }
   }
 
-  logger.debug(`[Taxonomy] Loaded ${items.length} users (${totalPages} pages parallel)`);
-  return items;
+  logger.debug(`[Taxonomy] Loaded ${allItems.length} users (${pageCount} pages)`);
+  return allItems;
 }
 
 /**
@@ -707,11 +715,12 @@ export async function findLocationUuid(locationName: string): Promise<string> {
     logger.error("[Taxonomy] Error finding location", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
   }
 
-  // Ultimate fallback: use known working UUID
-  // CRITICAL: If a district was specified, this means we FAILED to find even a generic location in that district
-  // This is a problem because the property will be tagged with the wrong district (Nicosia default)
+  // Ultimate fallback: use default location UUID
+  // NOTE: Zyprus API REQUIRES field_location to be non-null (422 error if missing)
+  // Since Zyprus only has Nicosia locations in the database, we must use Nicosia as fallback
+  // even for other districts. The location mismatch will be noted in AI message for manual correction.
   if (specifiedDistrict) {
-    logger.error(`[Taxonomy] CRITICAL: No location found for district "${specifiedDistrict}" in "${locationName}" - using Nicosia fallback!`, undefined, { category: LogCategory.ZYPRUS });
+    logger.warn(`[Taxonomy] No location found for district "${specifiedDistrict}" in "${locationName}" - using Nicosia default as API requires non-null location`, { category: LogCategory.ZYPRUS });
   } else {
     logger.debug(`[Taxonomy] Using hardcoded default location UUID for: ${locationName}`);
   }

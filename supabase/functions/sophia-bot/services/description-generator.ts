@@ -35,31 +35,97 @@ export interface PropertyDetails {
 }
 
 // Location descriptions for common Cyprus areas
+// Focus on: access to city center, practical living, what the area offers
 const LOCATION_DESCRIPTIONS: Record<string, string> = {
-  // Paphos
-  tala: "Tala is a picturesque hillside village offering stunning views and a peaceful lifestyle, just minutes from Paphos and the Mediterranean coast.",
-  peyia: "Peyia is a popular hillside town known for its pleasant climate, beautiful sunsets, and proximity to the famous Coral Bay beaches.",
-  "coral bay": "Coral Bay is one of Cyprus's most sought-after beach destinations, offering crystal-clear waters and a vibrant atmosphere.",
-  chloraka: "Chloraka is a charming coastal suburb of Paphos, offering easy access to beaches, amenities, and the historic harbor area.",
-  "kato paphos": "Kato Paphos is the cosmopolitan heart of the region, home to the famous archaeological park, harbor, and excellent restaurants.",
-  universal: "Universal is a prestigious area of Paphos known for its quality developments and convenient location near the town center.",
-  yeroskipou: "Yeroskipou is a family-friendly area known for its traditional character, excellent schools, and proximity to Paphos town.",
+  // Paphos - focused on access to Paphos center/amenities
+  tala: "Tala offers a peaceful village lifestyle with stunning hillside views, just a 10-15 minute drive to Paphos town center and the coast.",
+  peyia: "Peyia provides a relaxed hillside setting with beautiful sunsets, just 5 minutes from the famous Coral Bay beaches and 15 minutes to Paphos.",
+  "coral bay": "Coral Bay offers direct beach access with crystal-clear waters, restaurants and amenities right by the sea, 20 minutes from Paphos center.",
+  chloraka: "Chloraka provides affordable coastal living with easy access to beaches, supermarkets, and just 10 minutes to Paphos harbor.",
+  "kato paphos": "Kato Paphos puts you in the heart of the action - walking distance to the harbor, archaeological park, restaurants, and the seafront promenade.",
+  universal: "Universal is a prestigious residential area just 5 minutes from Paphos town center, Kings Avenue Mall, and all major amenities.",
+  yeroskipou: "Yeroskipou offers traditional village living with excellent schools, just 10 minutes from Paphos center and 5 minutes to the airport.",
+  kissonerga: "Kissonerga provides sea views and village charm, just 10 minutes to Coral Bay beaches and 15 minutes to Paphos center.",
+  emba: "Emba is an affordable village just 10 minutes from Paphos town center and the beach, with local shops and traditional tavernas nearby.",
+  geroskipou: "Geroskipou is a traditional town between Paphos airport and the city center, offering easy highway access and local amenities.",
+  kouklia: "Kouklia offers rural village living near the Sanctuary of Aphrodite, 20 minutes from Paphos center and close to secret valley golf course.",
+  timi: "Timi provides quiet village living near the beach, just 10 minutes from Paphos airport and 15 minutes to the town center.",
+  mandria: "Mandria offers peaceful village life with a nearby beach, just 10 minutes from the airport and 20 minutes to Paphos.",
 
-  // Limassol
-  limassol: "Limassol is Cyprus's vibrant second city, combining business energy with beachfront living and a rich cultural scene.",
-  "potamos germasogeia": "Potamos Germasogeia is a prime tourist area known for its beautiful beach, hotels, and proximity to amenities.",
-  "agios tychonas": "Agios Tychonas is an upscale coastal area offering luxury properties with stunning sea views and exclusive amenities.",
-  "mesa geitonia": "Mesa Geitonia is a well-established residential area offering excellent schools, shops, and a strong community feel.",
+  // Limassol - focused on access to Limassol center/amenities
+  limassol: "Limassol city center puts you in the heart of the action - walking distance to the marina, old town, restaurants, and the famous Molos promenade.",
+  "potamos germasogeia": "Potamos Germasogeia offers beachfront living with direct access to the promenade, just 10 minutes drive to Limassol marina and old town.",
+  "agios tychonas": "Agios Tychonas provides upscale coastal living with beach access, just 10 minutes to Limassol marina and the city center.",
+  "mesa geitonia": "Mesa Geitonia is a well-established residential area just 5 minutes from Limassol city center, with excellent schools and shops nearby.",
+  germasogeia: "Germasogeia offers beach access and a relaxed lifestyle, just 10-15 minutes to Limassol city center and the marina.",
+  moutagiaka: "Moutagiaka is an attractive coastal suburb just 10 minutes from Limassol center, with beaches, shops, and easy highway access.",
+  mouttagiaka: "Mouttagiaka is an attractive coastal suburb just 10 minutes from Limassol center, with beaches, shops, and easy highway access.",
+  "agios athanasios": "Agios Athanasios provides affordable family living with direct highway access, just 10-15 minutes to Limassol city center.",
+  zakaki: "Zakaki is a rapidly developing area close to the new casino and marina, just 10 minutes to Limassol city center.",
+  parekklisia: "Parekklisia offers village life with mountain views, just 15 minutes to the beach and 20 minutes to Limassol center.",
+  pareklisia: "Pareklisia offers village life with mountain views, just 15 minutes to the beach and 20 minutes to Limassol center.",
+  erimi: "Erimi is a convenient residential area halfway between Limassol and the airport, just 15 minutes to the city center.",
+  episkopi: "Episkopi offers traditional village living in the countryside, 20 minutes to Limassol center and close to Kolossi castle.",
+  pyrgos: "Pyrgos is a hillside village with stunning views, 15-20 minutes to Limassol center and 10 minutes to the beach.",
+  polemidia: "Polemidia offers affordable living with direct highway access, just 10 minutes to Limassol city center.",
+  ypsonas: "Ypsonas provides affordable village living with good amenities, just 15 minutes to Limassol center and easy highway access.",
+  "agia zoni": "Agia Zoni is a quiet residential neighborhood just 5 minutes from Limassol city center and close to all amenities.",
+  neapoli: "Neapoli is a central neighborhood in Limassol, walking distance to shops, restaurants, and just 5 minutes to the beachfront.",
+  neapolis: "Neapolis is a central neighborhood in Limassol, walking distance to shops, restaurants, and just 5 minutes to the beachfront.",
+  linopetra: "Linopetra is a peaceful residential area close to the sea, just 5-10 minutes to Limassol city center.",
+  "agios ioannis": "Agios Ioannis offers coastal living with sea views, just 10 minutes to Limassol marina and the old town.",
+  "agios nikolaos": "Agios Nikolaos is a well-established area just 5 minutes from Limassol center, with easy access to schools and shops.",
+  trachoni: "Trachoni offers affordable living with good road access, just 10-15 minutes to Limassol city center.",
+  panthea: "Panthea is an upscale hillside area with stunning views, just 5-10 minutes to Limassol city center.",
+  "agia fyla": "Agia Fyla provides peaceful residential living with mountain views, just 10-15 minutes to Limassol center.",
+  kapsalos: "Kapsalos is a quiet neighborhood just 5 minutes from Limassol city center, with easy access to shops and amenities.",
 
-  // Larnaca
-  larnaca: "Larnaca combines rich history with modern convenience, featuring a beautiful seafront promenade and excellent connectivity.",
-  oroklini: "Oroklini is a peaceful residential area known for its nature reserve, beach, and family-friendly environment.",
-  pervolia: "Pervolia is a charming coastal village offering a relaxed lifestyle near Larnaca airport and beautiful beaches.",
+  // Larnaca - focused on access to Larnaca center/amenities
+  larnaca: "Larnaca center puts you walking distance to the famous seafront promenade, Finikoudes beach, restaurants, and the old town.",
+  oroklini: "Oroklini is a peaceful village just 10 minutes from Larnaca center, with nearby beaches and easy highway access.",
+  voroklini: "Voroklini is a peaceful village just 10 minutes from Larnaca center, with nearby beaches and easy highway access.",
+  pervolia: "Pervolia is a coastal village offering relaxed living, 10 minutes to Larnaca airport and 15 minutes to the city center.",
+  dhekelia: "Dhekelia is a prime coastal area with direct beach access, just 10 minutes to Larnaca center and 5 minutes to the airport.",
+  dekelia: "Dhekelia is a prime coastal area with direct beach access, just 10 minutes to Larnaca center and 5 minutes to the airport.",
+  pyla: "Pyla offers village life with a nearby sandy beach, 15 minutes to Larnaca and easy access to the Ayia Napa area.",
+  kiti: "Kiti is a coastal village just 10 minutes from Larnaca airport and 15 minutes to the city center, with nearby beaches.",
+  tersefanou: "Tersefanou offers peaceful village living with nice views, 15 minutes to Larnaca center and close to the airport.",
+  dromolaxia: "Dromolaxia is a developing village just 10 minutes from Larnaca center with easy highway access.",
+  meneou: "Meneou is a quiet village close to the coast, 15 minutes to Larnaca center and 10 minutes to the airport.",
+  livadia: "Livadia offers coastal living with beach access, just 10 minutes to Larnaca city center.",
+  aradippou: "Aradippou is an affordable residential area just 10 minutes to Larnaca center with good local amenities.",
+  kamares: "Kamares is an upscale area with sea views, just 5-10 minutes to Larnaca center and the beach.",
 
-  // Famagusta
-  paralimni: "Paralimni is a thriving town in the Famagusta district, serving as a hub for the popular resort areas of Protaras and Ayia Napa.",
-  "ayia napa": "Ayia Napa is world-famous for its stunning beaches, vibrant nightlife, and excellent tourist facilities.",
-  protaras: "Protaras is a family-friendly resort area known for its golden beaches, clear waters, and peaceful atmosphere.",
+  // Nicosia - focused on access to Nicosia center/amenities
+  nicosia: "Nicosia city center puts you in the heart of the capital - walking distance to museums, shopping, restaurants, and business districts.",
+  lefkosia: "Nicosia city center puts you in the heart of the capital - walking distance to museums, shopping, restaurants, and business districts.",
+  strovolos: "Strovolos is a major suburb just 10 minutes from Nicosia center, with excellent schools, parks, malls, and local amenities.",
+  lakatamia: "Lakatamia is a family-friendly suburb just 15 minutes from Nicosia center, with good schools and local shopping.",
+  engomi: "Engomi is an upscale area just 5-10 minutes from Nicosia center, close to the university and embassies.",
+  aglandjia: "Aglandjia offers peaceful residential living with parks, just 10 minutes to Nicosia city center.",
+  latsia: "Latsia is an affordable developing suburb just 15 minutes from Nicosia center with good infrastructure.",
+  geri: "Geri is a growing suburb just 15-20 minutes from Nicosia center offering modern housing at reasonable prices.",
+  dali: "Dali is a village just 15 minutes from Nicosia center offering traditional living with easy highway access.",
+  tseri: "Tseri is a residential area just 10-15 minutes from Nicosia center with good local amenities.",
+  kokkinotrimithia: "Kokkinotrimithia is a village just 20 minutes from Nicosia center offering rural charm.",
+  mammari: "Mammari is a quiet village just 15-20 minutes from Nicosia center with traditional Cypriot living.",
+  deftera: "Deftera offers semi-rural living with countryside views, just 20 minutes to Nicosia center.",
+  anthoupoli: "Anthoupoli is a developing area just 10-15 minutes from Nicosia center offering affordable housing.",
+  makedonitissa: "Makedonitissa is a convenient area just 5-10 minutes from Nicosia center, close to the university and hospitals.",
+
+  // Famagusta - focused on access to local amenities
+  paralimni: "Paralimni is the main town in the area, offering all amenities, shops, and restaurants, with Protaras beaches just 10 minutes away.",
+  "ayia napa": "Ayia Napa puts you in the heart of the action - walking distance to famous beaches, nightlife, restaurants, and the harbor.",
+  protaras: "Protaras offers beautiful beaches and family-friendly living, with restaurants and amenities within walking distance.",
+  deryneia: "Deryneia is a traditional village just 10-15 minutes from the beaches of Protaras and Ayia Napa.",
+  sotira: "Sotira offers village living with traditional character, just 10 minutes to the coastal resorts.",
+  frenaros: "Frenaros is a traditional village just 15 minutes to Ayia Napa and Protaras beaches.",
+  vrysoulles: "Vrysoulles is a quiet village just 10 minutes from the famous beaches of Protaras.",
+  liopetri: "Liopetri is a traditional fishing village just 15 minutes from the main coastal resorts, with local tavernas by the harbor.",
+  "cape greco": "Cape Greco offers stunning coastal scenery and nature trails, just 5 minutes to Ayia Napa and Protaras.",
+  kapparis: "Kapparis is a coastal area with beautiful beaches, just 10 minutes to Protaras and 20 minutes to Ayia Napa.",
+  pernera: "Pernera offers family-friendly beach living with restaurants and amenities within walking distance.",
+  "fig tree bay": "Fig Tree Bay puts you right on one of Cyprus's most famous beaches, with restaurants and amenities steps away.",
 };
 
 // Opening adjectives for variety
@@ -458,9 +524,14 @@ export function generateDescription(details: PropertyDetails): string {
   }
 
   // 5. BASIC SPECS (bedrooms, bathrooms, areas)
+  // If there's a veranda, rename "Covered Area" to "Net Indoor Area"
+  const hasVeranda = (details.coveredVeranda && details.coveredVeranda > 0) ||
+                      (details.uncoveredVeranda && details.uncoveredVeranda > 0);
+  const areaLabel = hasVeranda ? "Net Indoor Area" : "Covered Area";
+
   lines.push(`${details.bedrooms} ${details.bedrooms === 1 ? "Bedroom" : "Bedrooms"}`);
   lines.push(`${details.bathrooms} ${details.bathrooms === 1 ? "Bathroom" : "Bathrooms"}`);
-  lines.push(`${details.coveredArea}m² Covered Area`);
+  lines.push(`${details.coveredArea}m² ${areaLabel}`);
   if (details.coveredVeranda) {
     lines.push(`${details.coveredVeranda}m² Covered Veranda`);
   }
@@ -633,11 +704,13 @@ function getGenericLocationSentences(location: string): string[] {
     ],
     moutagiaka: [
       "Located in a peaceful and attractive neighborhood.",
-      "It enjoys excellent access to the highway and the city center."
+      "Walking distance to the beach and local amenities.",
+      "Easy access to the highway."
     ],
     mouttagiaka: [
       "Located in a peaceful and attractive neighborhood.",
-      "It enjoys excellent access to the highway and the city center."
+      "Walking distance to the beach and local amenities.",
+      "Easy access to the highway."
     ],
     "potamos germasogeia": [
       "Situated in the popular tourist area of Potamos Germasogeia",
@@ -647,17 +720,17 @@ function getGenericLocationSentences(location: string): string[] {
     germasogeia: [
       "Located in the sought-after area of Germasogeia",
       "Close to the beach, shops and restaurants",
-      "Easy access to Limassol town center and the highway!"
+      "Easy access to the highway!"
     ],
     "agios tychonas": [
       "Located in the upscale area of Agios Tychonas",
       "Enjoying stunning sea views and peaceful surroundings",
-      "Close to Limassol Marina and all amenities!"
+      "Close to the beach and local amenities!"
     ],
     "mesa geitonia": [
       "Situated in the established residential area of Mesa Geitonia",
       "Close to excellent schools, shops and parks",
-      "Easy access to Limassol town center!"
+      "Easy access to all main roads!"
     ],
     larnaca: [
       "Located in the historic city of Larnaca",
@@ -667,12 +740,12 @@ function getGenericLocationSentences(location: string): string[] {
     oroklini: [
       "Situated in the peaceful area of Oroklini",
       "Close to the beach and nature reserve",
-      "Short drive to Larnaca town center!"
+      "Easy access to the highway and main amenities!"
     ],
     pervolia: [
       "Located in the charming coastal village of Pervolia",
       "Close to beautiful beaches and the airport",
-      "Peaceful surroundings with easy access to Larnaca!"
+      "Peaceful surroundings with easy access to all main roads!"
     ],
     paralimni: [
       "Situated in the thriving town of Paralimni",
@@ -697,7 +770,7 @@ function getGenericLocationSentences(location: string): string[] {
     strovolos: [
       "Situated in the popular suburb of Strovolos",
       "Close to shopping centers, schools and parks",
-      "Easy access to Nicosia city center!"
+      "Easy access to the highway and all main roads!"
     ],
   };
 
@@ -751,6 +824,7 @@ function getClosingSentences(details: PropertyDetails): string[] {
 
 /**
  * Generate a short summary for the listing title
+ * If covered veranda exists, includes both covered area and covered veranda separately
  */
 export function generateTitle(details: PropertyDetails): string {
   const bedroomText =
@@ -762,6 +836,13 @@ export function generateTitle(details: PropertyDetails): string {
   const propertyType = capitalize(details.type);
   const location = capitalizeLocation(details.location);
 
-  return `${bedroomText} ${propertyType} in ${location}`;
+  // If there's a COVERED veranda, show both covered area and covered veranda separately
+  const hasCoveredVeranda = details.coveredVeranda && details.coveredVeranda > 0;
+
+  if (hasCoveredVeranda) {
+    return `${bedroomText} ${propertyType} (${details.coveredArea}m² + ${details.coveredVeranda}m² covered veranda) in ${location}`;
+  }
+
+  return `${bedroomText} ${propertyType} (${details.coveredArea}m²) in ${location}`;
 }
 

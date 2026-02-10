@@ -242,13 +242,37 @@ function buildJsonApiPayload(
     listing.registrationNumber
   );
 
-  // Build proper title: "2 Bedroom Bungalow For Sale in Kamares, Tala"
+  // Build proper title: "2 Bedroom Bungalow (125m²) For Sale in Kamares, Tala"
+  // If there's a covered veranda, include total area (Net Indoor Area + Covered Veranda only)
   const bedroomText = listing.bedrooms === 1 ? "1 Bedroom" : `${listing.bedrooms} Bedroom`;
   const listingTypeText = listing.listingType === "rent" ? "For Rent" : "For Sale";
   const propertyTypeCapitalized = listing.propertyType.charAt(0).toUpperCase() + listing.propertyType.slice(1).toLowerCase();
 
+  // Calculate title area text: Show covered area + covered veranda separately (not summed)
+  const hasCoveredVeranda = listing.coveredVeranda && listing.coveredVeranda > 0;
+  let titleAreaText = "";
+  if (hasCoveredVeranda) {
+    titleAreaText = ` (${listing.coveredArea}m² + ${listing.coveredVeranda}m² covered veranda)`;
+    logger.info(`Title area calculation: ${listing.coveredArea}m² + ${listing.coveredVeranda}m² covered veranda`, {
+      category: LogCategory.ZYPRUS,
+      operation: "createDraftListing",
+    });
+  } else {
+    titleAreaText = ` (${listing.coveredArea}m²)`;
+    logger.info(`Title area calculation: ${listing.coveredArea}m² (no covered veranda)`, {
+      category: LogCategory.ZYPRUS,
+      operation: "createDraftListing",
+    });
+  }
+
+  const generatedTitle = `${bedroomText} ${propertyTypeCapitalized}${titleAreaText} ${listingTypeText} in ${listing.location}`;
+  logger.info(`Generated title: ${generatedTitle}`, {
+    category: LogCategory.ZYPRUS,
+    operation: "createDraftListing",
+  });
+
   const attributes: Record<string, unknown> = {
-    title: `${bedroomText} ${propertyTypeCapitalized} ${listingTypeText} in ${listing.location}`,
+    title: generatedTitle,
     status: false, // Always unpublished draft
     field_price: listing.price,
     field_no_bedrooms: listing.bedrooms,
@@ -260,7 +284,7 @@ function buildJsonApiPayload(
       value: listing.description,
       format: "plain_text",
     },
-    field_my_notes: listing.myNotes,
+    // NOTE: field_my_notes was removed - location URL now goes to field_property_notes instead
     // NOTE: field_ai_assistant_notes does NOT exist on live API (verified Feb 2026)
     // aiNotes content is merged into field_ai_message instead
     field_ai_generated: true,
@@ -271,6 +295,12 @@ function buildJsonApiPayload(
     field_own_reference_id: ownReferenceId,
     field_ai_draft_own_reference_id: ownReferenceId,
   };
+
+  // field_property_notes: Location URL goes here (for agent/reviewer reference)
+  // This is the "Property Notes / My notes" field on the edit form
+  if (listing.myNotes) {
+    attributes.field_property_notes = listing.myNotes;
+  }
 
   // Optional fields
   if (listing.plotSize) {
@@ -291,7 +321,8 @@ function buildJsonApiPayload(
   if (listing.potentialDuplicate) {
     attributes.field_potential_duplicate = true;
   }
-  // Merge aiNotes into aiMessage since field_ai_assistant_notes doesn't exist on live API
+  // Merge aiNotes and aiMessage into field_ai_message
+  // NOTE: myNotes is NOT included here - it goes to field_property_notes instead
   const aiMessageParts = [listing.aiMessage, listing.aiNotes].filter(Boolean);
   if (aiMessageParts.length > 0) {
     attributes.field_ai_message = aiMessageParts.join("\n\n");
@@ -337,11 +368,15 @@ function buildJsonApiPayload(
     data: { type: "taxonomy_term--title_deed", id: titleDeedUuid },
   };
 
-  // MANDATORY: Location (NOTE: Zyprus uses node--location, NOT taxonomy_term)
-  // Always include - findLocationUuid now always returns a valid UUID
-  relationships.field_location = {
-    data: { type: "node--location", id: listing.locationUuid || "7dbc931e-90eb-4b89-9ac8-b5e593831cf8" },
-  };
+  // Location (NOTE: Zyprus uses node--location, NOT taxonomy_term)
+  // MANDATORY: API requires field_location to be non-null (422 error if missing)
+  // Since Zyprus only has Nicosia locations, non-Nicosia properties will get Nicosia location
+  // The AI message will warn about this mismatch for manual correction
+  if (listing.locationUuid) {
+    relationships.field_location = {
+      data: { type: "node--location", id: listing.locationUuid },
+    };
+  }
 
   // Images (NOTE: Zyprus uses field_gallery_ with trailing underscore)
   if (imageFileIds.length > 0) {
@@ -687,20 +722,32 @@ export async function createDraftListing(
     location: listing.location,
   });
 
+  // Log incoming values for debugging
+  logger.info("Listing assignment values (incoming)", {
+    category: LogCategory.ZYPRUS,
+    operation: "createDraftListing",
+    listingOwner: listing.listingOwner,
+    listingInstructor: listing.listingInstructor,
+    reviewer1: listing.reviewer1,
+    reviewer2: listing.reviewer2,
+    match: listing.listingOwner === listing.listingInstructor,
+  });
+
   // Collect all reviewer emails for UUID resolution
   const reviewerEmails: string[] = [];
   if (listing.reviewer1) reviewerEmails.push(listing.reviewer1);
   if (listing.reviewer2) reviewerEmails.push(listing.reviewer2);
 
   // Resolve all taxonomy UUIDs, user UUIDs, and feature UUIDs in parallel
+  // CRITICAL: listingOwner and listingInstructor should be the SAME person (same UUID)
+  // We resolve listingOwner first, then use that UUID for both fields
   const [
     listingTypeUuid,
     propertyTypeUuid,
     priceModifierUuid,
     titleDeedUuid,
-    instructorUuid,
-    reviewerUuids,
     listingOwnerUuid,
+    reviewerUuids,
     indoorFeatureUuids,
     outdoorFeatureUuids,
     viewUuids,
@@ -709,15 +756,17 @@ export async function createDraftListing(
     findPropertyTypeUuid(listing.propertyType),
     findPriceModifierUuid(listing.priceModifier), // Resolves VAT status or defaults to "No VAT"
     findTitleDeedUuid(), // Uses default "Title Deed"
-    findUserUuid(listing.listingInstructor), // Resolve instructor email to UUID
-    findUserUuids(reviewerEmails), // Resolve reviewer emails to UUIDs
     findUserUuid(listing.listingOwner), // CRITICAL: Resolve listing owner email to UUID
+    findUserUuids(reviewerEmails), // Resolve reviewer emails to UUIDs
     findIndoorFeatureUuids(listing.features || [], listing.bathrooms), // Resolve indoor features (auto-adds guest toilet + master bed if bathrooms >= 2)
     findOutdoorFeatureUuids(listing.features || []), // Resolve outdoor features
     findPropertyViewUuids(listing.features || []), // Resolve property views (sea view, etc.)
   ]);
 
   // Note: All taxonomy/user functions now have hardcoded fallbacks, so they cannot fail
+
+  // CRITICAL: listingInstructor MUST be the same UUID as listingOwner
+  const instructorUuid = listingOwnerUuid;
 
   logger.info("Resolved Zyprus UUIDs for listing", {
     category: LogCategory.ZYPRUS,
@@ -727,8 +776,8 @@ export async function createDraftListing(
     priceModifierUuid,
     titleDeedUuid,
     instructorUuid,
-    reviewerCount: reviewerUuids.length,
     listingOwnerUuid,
+    reviewerCount: reviewerUuids.length,
     indoorFeatureCount: indoorFeatureUuids.length,
     outdoorFeatureCount: outdoorFeatureUuids.length,
     viewCount: viewUuids.length,

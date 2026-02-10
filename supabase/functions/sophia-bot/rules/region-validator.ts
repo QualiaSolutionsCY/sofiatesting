@@ -16,7 +16,8 @@ const REGION_LOCATIONS: Record<string, string[]> = {
   limassol: [
     'limassol', 'potamos germasogeia', 'germasogeia', 'agios tychonas', 'mesa geitonia',
     'zakaki', 'amathus', 'mouttagiaka', 'pareklisia', 'erimi', 'episkopi', 'kolossi',
-    'pyrgos', 'parekklisia', 'polemidia', 'agios athanasios', 'agios nikolaos'
+    'pyrgos', 'parekklisia', 'polemidia', 'agios athanasios', 'agios nikolaos',
+    'neapoli', 'agia zoni', 'kapsalos', 'enaerios', 'pentadromos', 'naafi', 'ypsonas'
   ],
   larnaca: [
     'larnaca', 'larnaka', 'oroklini', 'pervolia', 'livadia', 'dhekelia', 'dekelia',

@@ -36,9 +36,8 @@ export interface ListingContext {
  * Generate My Notes content for a property listing
  *
  * Format (updated Feb 2026):
- * 1. Google Maps link (priority — first line)
- * 2. Agent notes / special instructions (if any)
- * 3. Duplicate warning (if flagged)
+ * 1. Google Maps link (ONLY content — no listing owner, no agent notes)
+ * 2. Duplicate warning (if flagged)
  *
  * Keep it minimal — other details go in separate Zyprus fields.
  */
@@ -49,18 +48,13 @@ export function generateMyNotes(
 ): string {
   const lines: string[] = [];
 
-  // Google Maps link — always first (highest priority for reviewers)
+  // Google Maps link — ONLY content for My Notes
   // Prefer the exact URL the agent provided; fall back to coordinates-based link
   if (context?.locationUrl) {
     lines.push(context.locationUrl);
   } else if (context?.coordinates) {
     const mapsUrl = `https://www.google.com/maps/place/${context.coordinates.lat},${context.coordinates.lon}`;
     lines.push(mapsUrl);
-  }
-
-  // Agent notes / special instructions from the conversation
-  if (owner.specialNotes) {
-    lines.push(owner.specialNotes);
   }
 
   // Duplicate warning (important for reviewers)
@@ -75,15 +69,35 @@ export function generateMyNotes(
 /**
  * Generate AI Assistant Notes for the listing
  * This is a separate field (field_ai_message) that captures special instructions
+ * Format: Google Maps link first, then special instructions if any
  */
 export function generateAIAssistantNotes(
   _requestSummary: string,
   _propertyType: string,
   _keyFeatures: string[],
-  specialInstructions?: string
+  specialInstructions?: string,
+  locationUrl?: string,
+  coordinates?: { lat: number; lon: number }
 ): string {
-  // Only include special instructions / agent notes — nothing else
-  return specialInstructions || "";
+  const lines: string[] = [];
+
+  // Google Maps link — always first in AI Notes too
+  if (locationUrl) {
+    lines.push(locationUrl);
+  } else if (coordinates) {
+    const mapsUrl = `https://www.google.com/maps/place/${coordinates.lat},${coordinates.lon}`;
+    lines.push(mapsUrl);
+  }
+
+  // Special instructions / agent notes
+  if (specialInstructions) {
+    if (lines.length > 0) {
+      lines.push("");
+    }
+    lines.push(specialInstructions);
+  }
+
+  return lines.join("\n");
 }
 
 /**

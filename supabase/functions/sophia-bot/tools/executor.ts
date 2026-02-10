@@ -510,22 +510,12 @@ async function handleCreatePropertyListing(
   // 9a. Capture the raw Google Maps URL (passed directly by the agent)
   const locationUrl = args.locationUrl as string | undefined;
 
-  // 9a.5 CRITICAL: Include Google Maps URL in AI message for Zyprus website display
-  // The locationUrl is also in myNotes, but agents need it in field_ai_message for visibility
+  // 9a.5 Build AI message content (for My Notes - includes how listing was created)
   let aiMessageContent: string | null = null;
   if (duplicates.isDuplicate) {
     aiMessageContent = generateDuplicateWarning(duplicates.potentialMatches);
   } else if (args.specialNotes) {
     aiMessageContent = `Agent notes: ${args.specialNotes}`;
-  }
-
-  // Add Google Maps URL to AI message (appears in AI Notes field on Zyprus website)
-  if (locationUrl) {
-    if (aiMessageContent) {
-      aiMessageContent += `\n\nLocation: ${locationUrl}`;
-    } else {
-      aiMessageContent = `Location: ${locationUrl}`;
-    }
   }
 
   // 9b. Resolve coordinates — from args, from Google Maps URL, or from defaults
@@ -613,7 +603,6 @@ async function handleCreatePropertyListing(
   });
 
   // 11. Generate My Notes (with listing owner, reviewer, AI message - all in one place)
-  // Note: aiMessageContent was already built earlier (step 9a.5) including Google Maps URL
   const myNotes = generateMyNotes(
     {
       name: args.ownerName as string,
@@ -646,15 +635,17 @@ async function handleCreatePropertyListing(
     containsSophiaAI: myNotes.toLowerCase().includes("sophia ai"),
   });
 
-  // 13. Generate AI Notes (separate field for AI understanding)
-  // NOTE: Don't pass specialNotes here — already included in aiMessageContent (step 11)
+  // 12. Generate AI Notes (separate field for AI understanding)
   const aiNotes = generateAIAssistantNotes(
     `${listingType === "rent" ? "Rental" : "Sale"} listing from WhatsApp`,
     args.propertyType as string,
     (args.features as string[]) || [],
+    args.specialNotes as string | undefined,
+    locationUrl, // Google Maps link
+    resolvedCoordinates, // Fallback coordinates
   );
 
-  // 14. Create the listing
+  // 13. Create the listing
   logger.info("Creating draft listing", {
     category: LogCategory.ZYPRUS,
     operation: "createPropertyListing",
@@ -665,13 +656,12 @@ async function handleCreatePropertyListing(
   });
   let result;
   try {
-    // NOTE: aiMessageContent already built above (step 11) and passed to My Notes
     result = await createDraftListing({
     listingType,
     propertyType: args.propertyType as string,
     price: args.price as number,
     location,
-    locationUuid, // Always valid - findLocationUuid now always returns a UUID
+    locationUuid, // May be empty if no appropriate location found in Zyprus (e.g., non-Nicosia districts)
     bedrooms: args.bedrooms as number,
     bathrooms: args.bathrooms as number,
     coveredArea: args.coveredArea as number,

@@ -136,16 +136,20 @@ export function isCompletedViewingForm(content: string): boolean {
     return false;
   }
 
-  // Check for blank document pattern (has [ ] placeholders)
+  // Check for blank document patterns - if found with property content, it's a valid blank viewing form
   const hasBlankBrackets = /\[\s*\]/g.test(content);
-  if (hasBlankBrackets) {
-    // If it has blank brackets AND document structure, it's a valid blank viewing form
+  const hasRepeatedDots = /[\.…]{8,}/g.test(content);
+  const hasUnderscoreLines = /_{15,}/g.test(content);
+
+  if (hasBlankBrackets || hasRepeatedDots || hasUnderscoreLines) {
+    // If it has blank patterns AND document structure, it's a valid blank viewing form
     const hasPropertyContent =
       lowerContent.includes('property') ||
       lowerContent.includes('registration') ||
-      lowerContent.includes('immovable');
+      lowerContent.includes('immovable') ||
+      lowerContent.includes('csc zyprus');
     if (hasPropertyContent) {
-      logger.debug("[Detection] Blank viewing form detected (via [ ] brackets) -> DOCX", { category: LogCategory.GENERAL });
+      logger.debug("[Detection] Blank viewing form detected (via blank patterns) -> DOCX", { category: LogCategory.GENERAL });
       return true;
     }
   }
@@ -358,23 +362,31 @@ export function containsPlaceholders(content: string): boolean {
     p.length > 3
   );
 
-  // Check for empty brackets [ ] - if found with document structure, allow it (blank document)
-  // IMPORTANT: This check must come BEFORE bracket placeholder check below
+  // Check for blank document patterns - if found with document structure, allow it (blank document)
+  // IMPORTANT: This check must come BEFORE other placeholder checks below
+  // Pattern 1: Empty brackets [ ]
   const hasEmptyBrackets = /\[\s*\]/g.test(content);
-  if (hasEmptyBrackets) {
+  // Pattern 2: Repeated dots/ellipses (………… or ………………) used for blank fields
+  // The ellipsis character … is U+2026, matches 8+ consecutive dots or ellipsis
+  const hasRepeatedDots = /[\.…]{8,}/g.test(content);
+  // Pattern 3: Underscore lines (____________________)
+  const hasUnderscoreLines = /_{15,}/g.test(content);
+
+  if (hasEmptyBrackets || hasRepeatedDots || hasUnderscoreLines) {
     const hasDocStructure =
       lowerContent.includes('viewing form') ||
       lowerContent.includes('property reservation agreement') ||
       lowerContent.includes('marketing agreement') ||
-      lowerContent.includes('herein, i');
+      lowerContent.includes('herein, i') ||
+      lowerContent.includes('csc zyprus property group');
     if (hasDocStructure) {
-      // Empty brackets with document structure = intentional blank document, not a placeholder
+      // Empty brackets/dots/underscores with document structure = intentional blank document, not a placeholder
       // Return false immediately - no placeholders for blank documents
-      logger.debug("[Detection] Found [ ] empty brackets with document structure - allowing blank document (returning false)", { category: LogCategory.GENERAL });
+      logger.debug("[Detection] Found blank document pattern ([ ], ……, or _____) with document structure - allowing blank document (returning false)", { category: LogCategory.GENERAL });
       return false;
     } else {
-      // Empty brackets without document structure = treat as placeholder
-      logger.debug("[Detection] Found [ ] empty brackets without document structure -> TEXT", { category: LogCategory.GENERAL });
+      // Empty patterns without document structure = treat as placeholder
+      logger.debug("[Detection] Found blank pattern without document structure -> TEXT", { category: LogCategory.GENERAL });
       return true;
     }
   }
