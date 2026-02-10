@@ -176,7 +176,7 @@ export function createReservationAgreement(data: ReservationAgreementData): Docu
     new Paragraph({
       children: [
         new TextRun({ text: "Date Reservation Fee Received: ", bold: true, size: 22, font: "Times New Roman" }),
-        new TextRun({ text: data.dateReceived || "……..……………………………………….".substring(0, 40), size: 22, font: "Times New Roman" }),
+        new TextRun({ text: data.dateReceived || "[Date Reservation Fee Received]", size: 22, font: "Times New Roman" }),
       ],
       spacing: { after: 200 },
     })
