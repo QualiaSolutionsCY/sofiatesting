@@ -40,6 +40,7 @@ All above PLUS for each additional person:
 *DO NOT GENERATE until you have ALL mandatory fields!*
 *If data is missing, use bracketed placeholders like [DATE], [FULL_NAME], [ID_NUMBER], [COUNTRY], [PROPERTY ADDRESS] - NEVER use dots!*
 *NEVER use XXXXXXXX or dots (……………………) as placeholders!*
+*CRITICAL: In the declaration line, NEVER add a colon after "ID". The format is: "I [NAME] with ID [ID_NUMBER] Issued By: [COUNTRY]" - only "Issued By" has a colon!*
 
 *STRUCTURED DATA FORMAT FOR DOCX GENERATION:*
 When outputting viewing forms, include these fields clearly:
@@ -148,6 +149,7 @@ Same as Standard Viewing Form (Standard Viewing Form):
 *DO NOT GENERATE until you have ALL mandatory fields!*
 *If data is missing, use bracketed placeholders like [DATE], [FULL_NAME], [ID_NUMBER], [COUNTRY], [PROPERTY ADDRESS] - NEVER use dots!*
 *NEVER use XXXXXXXX or dots (……………………) as placeholders!*
+*CRITICAL: In the declaration line, NEVER add a colon after "ID". The format is: "I [NAME] with ID [ID_NUMBER], Issued By: [COUNTRY]" - only "Issued By" has a colon!*
 
 *Single Person Format:*
 
