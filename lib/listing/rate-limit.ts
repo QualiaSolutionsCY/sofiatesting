@@ -1,6 +1,8 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
-import { logger } from "../logger";
+import { createLogger } from "../logger";
+
+const logger = createLogger("listing:rate-limit");
 
 const redisUrl = process.env.REDIS_URL;
 
@@ -31,15 +33,15 @@ if (redisUrl) {
         prefix: "@upstash/ratelimit/listing-upload",
       });
 
-      logger.listing.info("Redis rate limiting initialized");
+      logger.info("Redis rate limiting initialized");
     } else {
-      logger.listing.warn("REDIS_URL missing password, using in-memory fallback");
+      logger.warn("REDIS_URL missing password, using in-memory fallback");
     }
   } catch (error) {
-    logger.listing.error("Failed to initialize Redis, using in-memory fallback", error);
+    logger.error("Failed to initialize Redis, using in-memory fallback", error);
   }
 } else {
-  logger.listing.warn("REDIS_URL not configured, using in-memory fallback");
+  logger.warn("REDIS_URL not configured, using in-memory fallback");
 }
 
 export async function checkRateLimit(userId: string): Promise<boolean> {
@@ -49,7 +51,7 @@ export async function checkRateLimit(userId: string): Promise<boolean> {
       const { success } = await ratelimit.limit(userId);
       return success;
     } catch (error) {
-      logger.listing.error("Redis rate limit check failed, falling back to in-memory", error);
+      logger.error("Redis rate limit check failed, falling back to in-memory", error);
       // Fall through to in-memory
     }
   }
