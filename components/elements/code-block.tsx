@@ -2,7 +2,7 @@
 
 import { CheckIcon, CopyIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes, ReactNode } from "react";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useRef, useEffect } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import {
   oneDark,
@@ -121,6 +121,7 @@ export const CodeBlockCopyButton = ({
 }: CodeBlockCopyButtonProps) => {
   const [isCopied, setIsCopied] = useState(false);
   const { code } = useContext(CodeBlockContext);
+  const timeoutRef = useRef<NodeJS.Timeout>();
 
   const copyToClipboard = async () => {
     if (typeof window === "undefined" || !navigator.clipboard.writeText) {
@@ -128,15 +129,29 @@ export const CodeBlockCopyButton = ({
       return;
     }
 
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
     try {
       await navigator.clipboard.writeText(code);
       setIsCopied(true);
       onCopy?.();
-      setTimeout(() => setIsCopied(false), timeout);
+      timeoutRef.current = setTimeout(() => setIsCopied(false), timeout);
     } catch (error) {
       onError?.(error as Error);
     }
   };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const Icon = isCopied ? CheckIcon : CopyIcon;
 

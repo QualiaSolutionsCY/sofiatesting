@@ -19,7 +19,7 @@ import {
   WidthType,
 } from "https://esm.sh/docx@8.5.0";
 
-import { FONTS, SPACING, COMPANY, createSignatureLine, formatDate, formatPropertyDescription } from "../styles.ts";
+import { FONTS, SPACING, COMPANY, createSignatureLine, formatDate, formatPropertyDescription, PLACEHOLDERS } from "../styles.ts";
 import { logger } from "../../utils/logger.ts";
 
 /**
@@ -43,6 +43,29 @@ export interface ViewingFormMultipleData {
     municipality: string;
     locality: string;
     rawDescription?: string;
+  };
+}
+
+/**
+ * Create blank viewing form data with placeholders for multiple persons
+ */
+export function createBlankViewingFormMultipleData(date?: string): ViewingFormMultipleData {
+  return {
+    date: date || formatDate(),
+    persons: [
+      {
+        fullName: PLACEHOLDERS.FULL_NAME,
+        idNumber: PLACEHOLDERS.ID_NUMBER,
+        issuedBy: PLACEHOLDERS.ISSUED_BY,
+      },
+    ],
+    property: {
+      registrationNo: PLACEHOLDERS.REGISTRATION_NO,
+      district: PLACEHOLDERS.DISTRICT,
+      municipality: PLACEHOLDERS.MUNICIPALITY,
+      locality: PLACEHOLDERS.LOCALITY,
+      rawDescription: PLACEHOLDERS.PROPERTY,
+    },
   };
 }
 
@@ -300,11 +323,28 @@ export function createViewingFormMultiple(
 
 /**
  * Parse AI response to extract viewing form data for multiple people
+ * Returns blank data with placeholders if parsing fails (for blank documents)
  */
 export function parseViewingFormMultipleData(response: string): ViewingFormMultipleData | null {
   try {
     // Strip markdown formatting for easier parsing
     const cleanResponse = response.replace(/\*\*/g, '').replace(/\*\s+/g, '');
+
+    // Check if this is a BLANK viewing form (has placeholders or ellipses)
+    const hasBlankPatterns = /\[\s*\]/g.test(response) ||
+                            /[\.…]{8,}/g.test(response) ||
+                            /_{15,}/g.test(response) ||
+                            /\.{15,}/g.test(response);
+
+    const isViewingForm = cleanResponse.toLowerCase().includes('viewing form') &&
+                          cleanResponse.toLowerCase().includes('herein, i');
+
+    // If it's a blank viewing form, return placeholder data
+    if (isViewingForm && hasBlankPatterns) {
+      logger.debug("[ViewingFormMultiple] Detected blank viewing form - using placeholders");
+      const dateMatch = cleanResponse.match(/Date:?\s*\*?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
+      return createBlankViewingFormMultipleData(dateMatch ? dateMatch[1] : undefined);
+    }
 
     // Extract all person matches
     // IMPORTANT: issuedBy must stop at "confirm" or "and" to avoid capturing duplicate company text

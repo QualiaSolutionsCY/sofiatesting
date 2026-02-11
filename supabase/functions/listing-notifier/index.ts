@@ -18,9 +18,15 @@ import { sendTextMessage, formatPhoneNumber } from "../sophia-bot/utils/wasend.t
 import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
 
 const ZYPRUS_API_URL = "https://dev9.zyprus.com";
-const ZYPRUS_CLIENT_ID = "5Al3Dbs3X9Oqbi8PAjPh5wUfcfrothnub7gI8nOvLig";
-const ZYPRUS_CLIENT_SECRET = 'M7wH"%zuyf8")KZ';
 const MAX_DRAFT_AGE_DAYS = 30;
+
+// Get Zyprus credentials from environment (set via supabase secrets)
+const ZYPRUS_CLIENT_ID = Deno.env.get("ZYPRUS_CLIENT_ID");
+const ZYPRUS_CLIENT_SECRET = Deno.env.get("ZYPRUS_CLIENT_SECRET");
+
+if (!ZYPRUS_CLIENT_ID || !ZYPRUS_CLIENT_SECRET) {
+  throw new Error("ZYPRUS_CLIENT_ID and ZYPRUS_CLIENT_SECRET must be set as Supabase secrets");
+}
 
 const responseHeaders = {
   "Content-Type": "application/json",

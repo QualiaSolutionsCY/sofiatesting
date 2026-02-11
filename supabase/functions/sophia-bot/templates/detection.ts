@@ -466,11 +466,20 @@ export function shouldSendAsDocx(response: string): boolean {
     return false;
   }
 
-  // Rule 2.5: Check for DOCX templates FIRST (before placeholder check)
+  // Rule 2.5: CRITICAL - Block Reservation Agreements with defaulted Loan/VAT flags
+  // The AI MUST ask about Loan and VAT before generating ANY reservation agreement
+  if (hasDefaultedLoanVatFlags(response)) {
+    logger.warn("[Detection] BLOCKING Reservation Agreement - AI defaulted Loan/VAT instead of asking -> TEXT", { category: LogCategory.GENERAL });
+    return false; // Force TEXT response so AI must ask the questions
+  }
+
+  // Rule 2.6: Check for DOCX templates FIRST (before placeholder check)
   // Reservation agreements should be DOCX even if vendor field has placeholders
+  // BUT only if Loan/VAT flags were properly set (not defaulted)
   const firstPart = response.substring(0, 800).toLowerCase();
 
   // Check for Property Reservation Agreement early - allow even with placeholders
+  // ONLY if it passed the hasDefaultedLoanVatFlags check above
   if (
     (firstPart.includes("property reservation agreement") ||
       firstPart.includes("reservation agreement")) &&
@@ -626,6 +635,47 @@ export function detectTemplateTypeFromMessage(userMessage: string): string | nul
   }
 
   return null;
+}
+
+/**
+ * CRITICAL: Check if Reservation Agreement has defaulted Loan/VAT flags
+ *
+ * This prevents SOPHIA from generating ANY reservation agreement (blank or filled)
+ * without first asking the user about Loan and VAT status.
+ *
+ * The AI MUST ask: "Is the buyer getting a bank loan/mortgage?" and "Is VAT applicable?"
+ * BEFORE generating any reservation agreement document.
+ *
+ * Returns true if the response contains the default <!-- Loan: No, VAT: No --> comment,
+ * indicating the AI defaulted instead of asking.
+ */
+export function hasDefaultedLoanVatFlags(response: string): boolean {
+  const lower = response.toLowerCase();
+
+  // Only check reservation agreements
+  if (!lower.includes("reservation agreement") &&
+      !lower.includes("property reservation")) {
+    return false;
+  }
+
+  // Check for the default comment pattern AI adds when it doesn't ask
+  // Pattern: <!-- Loan: No, VAT: No --> or variations
+  const defaultedPatterns = [
+    /<!--\s*Loan:\s*No,\s*VAT:\s*No\s*-->/i,
+    /<!--\s*Loan:\s*No,\s*VAT:\s*No/i,
+    /<!--\s*loan:\s*no,\s*vat:\s*no/i,
+  ];
+
+  for (const pattern of defaultedPatterns) {
+    if (pattern.test(response)) {
+      logger.warn("[Detection] Reservation Agreement has DEFAULTED Loan/VAT flags - AI should have asked first!", {
+        category: LogCategory.GENERAL,
+      });
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**

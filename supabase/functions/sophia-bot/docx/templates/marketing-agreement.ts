@@ -736,6 +736,22 @@ export function createMarketingAgreement(
 }
 
 /**
+ * Create blank marketing agreement data with placeholders
+ */
+export function createBlankMarketingAgreementData(agentName: string = "[Agent's Name]"): MarketingAgreementData {
+  return {
+    agreementDate: formatOrdinalDate(),
+    sellerFullName: "[SELLER'S NAME]",
+    propertyRegistration: "[PROPERTY REGISTRATION]",
+    marketingPrice: "[PRICE]",
+    agentName,
+    propertyInfo: {
+      description: "[PROPERTY DETAILS]",
+    },
+  };
+}
+
+/**
  * Parse AI response to extract marketing agreement data
  */
 export function parseMarketingAgreementData(
@@ -744,6 +760,21 @@ export function parseMarketingAgreementData(
 ): MarketingAgreementData | null {
   try {
     const cleanResponse = response.replace(/\*\*/g, "");
+
+    // Check if this is a BLANK marketing agreement (has placeholders or ellipses)
+    const hasBlankPatterns = /\[\s*\]/g.test(response) ||
+                            /[\.…]{8,}/g.test(response) ||
+                            /_{15,}/g.test(response) ||
+                            /\.{15,}/g.test(response);
+
+    const isMarketingAgreement = cleanResponse.toLowerCase().includes('marketing agreement');
+
+    // If it's a blank marketing agreement, return placeholder data
+    if (isMarketingAgreement && hasBlankPatterns) {
+      logger.debug("[MarketingAgreement] Detected blank marketing agreement - using placeholders", { category: LogCategory.GENERAL });
+      return createBlankMarketingAgreementData(agentName);
+    }
+
     logger.debug("[MarketingAgreement] Parsing response...");
     logger.debug("[MarketingAgreement] Clean response preview", { preview: cleanResponse.substring(0, 500) });
 

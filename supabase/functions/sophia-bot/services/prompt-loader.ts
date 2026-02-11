@@ -279,9 +279,11 @@ export async function loadSystemPrompt(
 
   // Assemble sections in priority order
   // The DB returns them sorted by priority, but we also define explicit order
+  // NOTE: reservation_loan_vat_required (priority 25) must come BEFORE document_routing (30)
   const orderedKeys = [
     "identity",
     "safety_rules",
+    "reservation_loan_vat_required",  // MUST load before document_routing
     "document_routing",
     "property_upload",
     "response_format",

@@ -285,6 +285,9 @@ async function processRequest(
     let shouldSendAsDocx = !isInformational && isDocxTemplate(aiResponse, updatedHistory);
     const detectedTemplateType = detectTemplateType(userMessage);
 
+    // DEBUG: Log initial DOCX detection result
+    logger.info(`[DOCX DEBUG] Initial check - isDocxTemplate: ${shouldSendAsDocx}, isInformational: ${isInformational}, responseLength: ${aiResponse.length}`, { category: LogCategory.GENERAL });
+
     // SAFETY: Registration templates (containing "Dear XXXXXXXX" or "Subject:") are ALWAYS TEXT
     // This prevents misrouting Advanced Seller Registration as Marketing Agreement DOCX
     if (shouldSendAsDocx && (/Dear\s+X{6,}/i.test(aiResponse) || aiResponse.includes("Subject:"))) {
@@ -293,13 +296,20 @@ async function processRequest(
     }
 
     // Field validation checks
-    if (shouldSendAsDocx && isCollectingInformation(aiResponse)) {
+    const isCollecting = isCollectingInformation(aiResponse);
+    if (shouldSendAsDocx && isCollecting) {
+      logger.info(`[DOCX DEBUG] Blocked - isCollectingInformation returned true`, { category: LogCategory.GENERAL });
       shouldSendAsDocx = false;
     }
 
-    if (shouldSendAsDocx && !hasAllRequiredFields(aiResponse, detectedTemplateType || undefined)) {
+    const hasAllFields = hasAllRequiredFields(aiResponse, detectedTemplateType || undefined);
+    if (shouldSendAsDocx && !hasAllFields) {
+      logger.info(`[DOCX DEBUG] Blocked - hasAllRequiredFields returned false, templateType: ${detectedTemplateType}`, { category: LogCategory.GENERAL });
       shouldSendAsDocx = false;
     }
+
+    // Final decision log
+    logger.info(`[DOCX DEBUG] Final decision - shouldSendAsDocx: ${shouldSendAsDocx}`, { category: LogCategory.GENERAL });
 
     if (shouldSendAsDocx) {
       // Send as DOCX file

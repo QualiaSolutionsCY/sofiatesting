@@ -207,11 +207,33 @@ function validateReservationAgreementFields(content: string): boolean {
 
 /**
  * Main validation function to check if all required fields are present
+ *
+ * CRITICAL FIX: Check for completed documents FIRST before any placeholder/info checks.
+ * Completed viewing forms, marketing agreements, and reservation agreements should pass
+ * validation even if they have patterns that might look like "requesting info" or placeholders.
  */
 export function hasAllRequiredFields(aiResponse: string, templateType?: string): boolean {
   const lowerResponse = aiResponse.toLowerCase();
 
-  // First, check if it contains placeholders
+  // CRITICAL FIX: Check for completed documents FIRST before other checks
+  // This prevents valid completed documents from being rejected by placeholder or
+  // "requesting information" checks that misinterpret their structure
+  if (isCompletedViewingForm(aiResponse)) {
+    logger.debug("[Field Validator] hasAllRequiredFields: Detected completed viewing form -> PASS", { category: LogCategory.GENERAL });
+    return true;
+  }
+
+  if (isCompletedMarketingAgreement(aiResponse)) {
+    logger.debug("[Field Validator] hasAllRequiredFields: Detected completed marketing agreement -> PASS", { category: LogCategory.GENERAL });
+    return true;
+  }
+
+  if (isCompletedReservationAgreement(aiResponse)) {
+    logger.debug("[Field Validator] hasAllRequiredFields: Detected completed reservation agreement -> PASS", { category: LogCategory.GENERAL });
+    return true;
+  }
+
+  // Only after confirming it's not a completed document, check for placeholders
   if (checkPlaceholders(aiResponse)) {
     return false;
   }

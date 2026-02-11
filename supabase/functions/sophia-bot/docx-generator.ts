@@ -34,6 +34,7 @@ import {
 import {
   isClarificationQuestion as centralizedIsClarification,
   isConfirmationMessage as centralizedIsConfirmation,
+  hasDefaultedLoanVatFlags,
 } from "./templates/detection.ts";
 
 /**
@@ -91,37 +92,64 @@ export function isDocxTemplate(
   aiResponse: string,
   _conversationHistory?: Array<{role: string, parts: Array<{text: string}>}>
 ): boolean {
-  logger.debug(`[DOCX] Checking response (length: ${aiResponse.length})`, { category: LogCategory.GENERAL });
+  logger.info(`[DOCX CHECK] Starting check - length: ${aiResponse.length}`, { category: LogCategory.GENERAL });
 
   // STRICT CHECK 0: Short responses are NEVER DOCX
-  if (aiResponse.length < 400) {
-    logger.debug("[DOCX] Too short -> TEXT", { category: LogCategory.GENERAL });
+  // EXCEPTION: Blank viewing forms are naturally short (300-400 chars)
+  const lowerResponse = aiResponse.toLowerCase();
+  const isViewingFormShort = lowerResponse.includes('viewing form') &&
+                            lowerResponse.includes('herein, i') &&
+                            aiResponse.length >= 300;
+
+  if (aiResponse.length < 400 && !isViewingFormShort) {
+    logger.info(`[DOCX CHECK] BLOCKED at length check: ${aiResponse.length} < 400`, { category: LogCategory.GENERAL });
     return false;
+  }
+  if (isViewingFormShort) {
+    logger.info(`[DOCX CHECK] Viewing form exception: length ${aiResponse.length} >= 300`, { category: LogCategory.GENERAL });
+  } else {
+    logger.info(`[DOCX CHECK] Passed length check: ${aiResponse.length} >= 400`, { category: LogCategory.GENERAL });
   }
 
   // STRICT CHECK 1: Clarification questions are NEVER DOCX
-  if (isClarificationQuestion(aiResponse)) {
-    logger.debug("[DOCX] Clarification question -> TEXT", { category: LogCategory.GENERAL });
+  const clarificationResult = isClarificationQuestion(aiResponse);
+  if (clarificationResult) {
+    logger.info(`[DOCX CHECK] BLOCKED at clarification check`, { category: LogCategory.GENERAL });
     return false;
   }
+  logger.info(`[DOCX CHECK] Passed clarification check`, { category: LogCategory.GENERAL });
 
   // STRICT CHECK 2: Confirmation messages are NEVER DOCX
-  if (isConfirmationMessage(aiResponse)) {
-    logger.debug("[DOCX] Response is a confirmation message -> TEXT", { category: LogCategory.GENERAL });
+  const confirmationResult = isConfirmationMessage(aiResponse);
+  if (confirmationResult) {
+    logger.info(`[DOCX CHECK] BLOCKED at confirmation check`, { category: LogCategory.GENERAL });
     return false;
   }
+  logger.info(`[DOCX CHECK] Passed confirmation check`, { category: LogCategory.GENERAL });
 
   // STRICT CHECK 3: Check if AI is requesting information first
-  if (isRequestingInformation(aiResponse)) {
-    logger.debug("[DOCX] Response is requesting information -> TEXT", { category: LogCategory.GENERAL });
+  const requestingResult = isRequestingInformation(aiResponse);
+  if (requestingResult) {
+    logger.info(`[DOCX CHECK] BLOCKED at requesting info check`, { category: LogCategory.GENERAL });
+    return false;
+  }
+  logger.info(`[DOCX CHECK] Passed requesting info check`, { category: LogCategory.GENERAL });
+
+  // STRICT CHECK 3.5: BLOCK Reservation Agreements with defaulted Loan/VAT flags
+  // When user says "no data" or "blank", AI must ASK for Loan/VAT because they determine document variant
+  // This uses the centralized detection function
+  if (hasDefaultedLoanVatFlags(aiResponse)) {
+    logger.info(`[DOCX CHECK] BLOCKED - Reservation agreement has defaulted Loan/VAT flags. AI MUST ask about Loan and VAT first.`, { category: LogCategory.GENERAL });
     return false;
   }
 
   // NEW: Check if response contains placeholders
-  if (containsPlaceholders(aiResponse)) {
-    logger.debug("[DOCX] Response contains placeholders -> TEXT", { category: LogCategory.GENERAL });
+  const placeholdersResult = containsPlaceholders(aiResponse);
+  if (placeholdersResult) {
+    logger.info(`[DOCX CHECK] BLOCKED at placeholders check`, { category: LogCategory.GENERAL });
     return false;
   }
+  logger.info(`[DOCX CHECK] Passed placeholders check`, { category: LogCategory.GENERAL });
 
   // Rule 1: Subject line = email = TEXT
   if (aiResponse.includes("Subject:")) {
@@ -160,13 +188,16 @@ export function isDocxTemplate(
     firstPart.includes("confirm that") && firstPart.includes("viewing"),
     firstPart.includes("property viewing") && aiResponse.length > 500,
   ];
+  logger.info(`[DOCX CHECK] Viewing form patterns: ${JSON.stringify(viewingFormPatterns)}`, { category: LogCategory.GENERAL });
   if (viewingFormPatterns.some(p => p)) {
     // Check if it's actually requesting form information
-    if (isRequestingInformation(aiResponse) || containsPlaceholders(aiResponse)) {
-      logger.debug("[DOCX] Viewing form pattern but requesting info/has placeholders -> TEXT", { category: LogCategory.GENERAL });
+    const requestingInfoAgain = isRequestingInformation(aiResponse) || containsPlaceholders(aiResponse);
+    logger.info(`[DOCX CHECK] Viewing form pattern matched, requesting/placeholder recheck: ${requestingInfoAgain}`, { category: LogCategory.GENERAL });
+    if (requestingInfoAgain) {
+      logger.info("[DOCX CHECK] BLOCKED - Viewing form pattern but requesting info/has placeholders -> TEXT", { category: LogCategory.GENERAL });
       return false;
     }
-    logger.debug("[DOCX] Viewing form pattern with complete data -> DOCX", { category: LogCategory.GENERAL });
+    logger.info("[DOCX CHECK] SUCCESS - Viewing form pattern with complete data -> DOCX", { category: LogCategory.GENERAL });
     return true;
   }
 

@@ -227,9 +227,14 @@ You MUST collect ALL of these fields before generating the reservation agreement
 4. *Reservation Fee* - Amount in EUR (auto-convert to words)
 5. *Purchase Price* - Amount in EUR (auto-convert to words)
 
-6. *Loan/VAT Clauses* (ALWAYS ASK):
+6. *Loan/VAT Clauses* (ALWAYS ASK - EVEN FOR "NO DATA" REQUESTS):
    - **Loan clause**: "Is the buyer getting a bank loan/mortgage?" (Yes/No)
    - **VAT clause**: "Is VAT applicable to this property?" (Yes/No - typically Yes for new builds)
+
+**CRITICAL: Loan and VAT determine WHICH document variant to generate.**
+- If user says "no data", "blank", or "just template" - you MUST STILL ASK for Loan and VAT!
+- NEVER default to "No, No" - these flags decide which variant (4 total) to generate
+- Do NOT generate document until you have explicit Yes/No answers for BOTH Loan and VAT
 
 *PRE-FILLED VALUES (DO NOT ASK - USE THESE AUTOMATICALLY):*
 - Agent: Charalambos Pitros
@@ -252,16 +257,18 @@ Format: <!-- Loan: Yes/No, VAT: Yes/No -->
 **NEVER include "Loan: Yes" or "VAT: Yes" as visible text in the response.**
 These flags are for the parser only and MUST be hidden in a comment. If they appear in visible text, the document will look unprofessional.
 
-Example output when generating:
-<!-- Loan: Yes, VAT: No -->
+**CRITICAL: Loan and VAT determine which DOCUMENT VARIANT to generate.**
+There are 4 different reservation agreement templates:
+- No Loan, No VAT → variant 1
+- Yes Loan, No VAT → variant 2 (includes loan clause)
+- No Loan, Yes VAT → variant 3 (includes VAT refund clause)
+- Yes Loan, Yes VAT → variant 4 (includes both clauses)
 
-**PROPERTY RESERVATION AGREEMENT**
-
-Date Reservation Fee Received: [Date Reservation Fee Received]
-
-*DO NOT GENERATE until you have ALL mandatory fields!*
-*If data is missing, use bracketed placeholders like [BUYER_NAME], [VENDOR_NAME], [PROPERTY_ADDRESS], [DATE] - NEVER use dots!*
-*The document will be generated as a DOCX file with the Zyprus logo automatically!*
+**THEREFORE: You MUST know Loan and VAT answers BEFORE generating.**
+- Ask for Loan and VAT EVERY TIME
+- NEVER guess or default to "No"
+- NEVER generate the document until you have both answers
+- The user's answers determine which variant you output
 
 Template (the legal clauses vary based on Loan/VAT - system handles this automatically):
 

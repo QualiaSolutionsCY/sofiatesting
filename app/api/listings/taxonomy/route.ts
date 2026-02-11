@@ -5,6 +5,9 @@ import { getZyprusTaxonomyTerms } from "@/lib/zyprus/client";
 
 const logger = createLogger("api:listings:taxonomy");
 
+// Revalidate taxonomy data every hour (infrequently changing data)
+export const revalidate = 3600;
+
 export async function GET(req: Request) {
   const session = await auth();
 

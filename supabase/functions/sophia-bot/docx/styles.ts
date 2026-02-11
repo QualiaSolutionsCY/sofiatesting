@@ -132,6 +132,20 @@ export const SIGNATURE = {
 } as const;
 
 /**
+ * Placeholder text for blank documents
+ */
+export const PLACEHOLDERS = {
+  FULL_NAME: "[FULL NAME]",
+  ID_NUMBER: "[ID NUMBER]",
+  ISSUED_BY: "[ISSUED BY]",
+  REGISTRATION_NO: "[REGISTRATION NO]",
+  DISTRICT: "[DISTRICT]",
+  MUNICIPALITY: "[MUNICIPALITY]",
+  LOCALITY: "[LOCALITY]",
+  PROPERTY: "[PROPERTY DETAILS]",
+} as const;
+
+/**
  * Generate a signature line string
  */
 export function createSignatureLine(width: number = SIGNATURE.LINE_WIDTH): string {

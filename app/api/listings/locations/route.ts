@@ -5,6 +5,9 @@ import { getZyprusLocations } from "@/lib/zyprus/client";
 
 const logger = createLogger("api:listings:locations");
 
+// Revalidate location data every hour (infrequently changing data)
+export const revalidate = 3600;
+
 export async function GET(_req: Request) {
   try {
     const session = await auth();

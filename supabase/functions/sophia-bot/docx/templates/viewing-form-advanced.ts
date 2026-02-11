@@ -16,7 +16,7 @@ import {
   UnderlineType,
 } from "https://esm.sh/docx@8.5.0";
 
-import { FONTS, SPACING, COMPANY, LEGAL_TEXT, createSignatureLine, formatDate, formatPropertyDescription } from "../styles.ts";
+import { FONTS, SPACING, COMPANY, LEGAL_TEXT, createSignatureLine, formatDate, formatPropertyDescription, PLACEHOLDERS } from "../styles.ts";
 import { logger } from "../../utils/logger.ts";
 
 /**
@@ -40,6 +40,29 @@ export interface ViewingFormAdvancedData {
     municipality: string;
     locality: string;
     rawDescription?: string;
+  };
+}
+
+/**
+ * Create blank viewing form data with placeholders for advanced form
+ */
+export function createBlankViewingFormAdvancedData(date?: string): ViewingFormAdvancedData {
+  return {
+    date: date || formatDate(),
+    persons: [
+      {
+        fullName: PLACEHOLDERS.FULL_NAME,
+        idNumber: PLACEHOLDERS.ID_NUMBER,
+        issuedBy: PLACEHOLDERS.ISSUED_BY,
+      },
+    ],
+    property: {
+      registrationNo: PLACEHOLDERS.REGISTRATION_NO,
+      district: PLACEHOLDERS.DISTRICT,
+      municipality: PLACEHOLDERS.MUNICIPALITY,
+      locality: PLACEHOLDERS.LOCALITY,
+      rawDescription: PLACEHOLDERS.PROPERTY,
+    },
   };
 }
 
@@ -221,11 +244,28 @@ export function createViewingFormAdvanced(
 
 /**
  * Parse AI response to extract advanced viewing form data
+ * Returns blank data with placeholders if parsing fails (for blank documents)
  */
 export function parseViewingFormAdvancedData(response: string): ViewingFormAdvancedData | null {
   try {
     // Strip markdown formatting for easier parsing
     const cleanResponse = response.replace(/\*\*/g, '').replace(/\*\s+/g, '');
+
+    // Check if this is a BLANK viewing form (has placeholders or ellipses)
+    const hasBlankPatterns = /\[\s*\]/g.test(response) ||
+                            /[\.…]{8,}/g.test(response) ||
+                            /_{15,}/g.test(response) ||
+                            /\.{15,}/g.test(response);
+
+    const isViewingForm = cleanResponse.toLowerCase().includes('viewing form') &&
+                          cleanResponse.toLowerCase().includes('herein, i');
+
+    // If it's a blank viewing form, return placeholder data
+    if (isViewingForm && hasBlankPatterns) {
+      logger.debug("[ViewingFormAdvanced] Detected blank viewing form - using placeholders");
+      const dateMatch = cleanResponse.match(/Date:?\s*\*?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
+      return createBlankViewingFormAdvancedData(dateMatch ? dateMatch[1] : undefined);
+    }
 
     // Extract all person matches
     // IMPORTANT: issuedBy captures only the country name (single word) to avoid duplicate company text
@@ -238,7 +278,7 @@ export function parseViewingFormAdvancedData(response: string): ViewingFormAdvan
         issuedBy: m[3].trim(),
       });
     }
-    
+
     // Capture full "Property:" line for smart formatting
     // IMPORTANT: Must anchor to line start and require colon to avoid matching "Property" in company name
     const propertyLineMatch = cleanResponse.match(/^Property:\s*(.+)/im);

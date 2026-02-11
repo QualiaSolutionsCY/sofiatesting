@@ -8,12 +8,14 @@
 export {
   createViewingFormSingle,
   parseViewingFormSingleData,
+  createBlankViewingFormData,
   type ViewingFormSingleData,
 } from "./viewing-form-single.ts";
 
 export {
   createViewingFormMultiple,
   parseViewingFormMultipleData,
+  createBlankViewingFormMultipleData,
   type ViewingFormMultipleData,
   type PersonData,
 } from "./viewing-form-multiple.ts";
@@ -21,6 +23,7 @@ export {
 export {
   createViewingFormAdvanced,
   parseViewingFormAdvancedData,
+  createBlankViewingFormAdvancedData,
   type ViewingFormAdvancedData,
 } from "./viewing-form-advanced.ts";
 
@@ -28,6 +31,7 @@ export {
 export {
   createReservationAgreement,
   parseReservationAgreementData,
+  createBlankReservationAgreementData,
   type ReservationAgreementData,
   type BuyerInfo,
   type VendorInfo,
@@ -40,6 +44,7 @@ export {
 export {
   createMarketingAgreement,
   parseMarketingAgreementData,
+  createBlankMarketingAgreementData,
   type MarketingAgreementData,
 } from "./marketing-agreement.ts";
 

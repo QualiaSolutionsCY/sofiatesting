@@ -589,6 +589,40 @@ function formatDate(date: Date): string {
 // are now imported from ../../utils/property-formatter.ts (single source of truth)
 
 /**
+ * Create blank reservation agreement data with placeholders
+ */
+export function createBlankReservationAgreementData(): ReservationAgreementData {
+  return {
+    buyers: [{
+      fullName: "[BUYER NAME]",
+      idType: "Cyprus ID",
+      idNumber: "[ID NUMBER]",
+    }],
+    vendor: {
+      name: "[VENDOR NAME]",
+      idType: "Cyprus ID",
+      idNumber: "[ID NUMBER]",
+    },
+    vendors: [{
+      name: "[VENDOR NAME]",
+      idType: "Cyprus ID",
+      idNumber: "[ID NUMBER]",
+    }],
+    property: {
+      description: "[PROPERTY DETAILS]",
+    },
+    financial: {
+      reservationFee: 0,
+      reservationFeeWords: "[AMOUNT] euro",
+      purchasePrice: 0,
+      purchasePriceWords: "[AMOUNT] euro",
+    },
+    hasLoanClause: false,
+    hasVatClause: false,
+  };
+}
+
+/**
  * Parse AI response to extract reservation agreement data
  *
  * Expected input format from SOPHIA (based on field collection):
@@ -603,6 +637,20 @@ function formatDate(date: Date): string {
 export function parseReservationAgreementData(response: string): ReservationAgreementData | null {
   try {
     logger.debug("[ReservationAgreement] Parsing response", { length: response.length });
+
+    // Check if this is a BLANK reservation agreement (has placeholders or ellipses)
+    const hasBlankPatterns = /\[\s*\]/g.test(response) ||
+                            /[\.…]{8,}/g.test(response) ||
+                            /_{15,}/g.test(response) ||
+                            /\.{15,}/g.test(response);
+
+    const isReservationAgreement = response.toLowerCase().includes('reservation agreement');
+
+    // If it's a blank reservation agreement, return placeholder data
+    if (isReservationAgreement && hasBlankPatterns) {
+      logger.debug("[ReservationAgreement] Detected blank reservation agreement - using placeholders");
+      return createBlankReservationAgreementData();
+    }
 
     // Clean response - remove markdown bold markers
     const cleanResponse = response.replace(/\*\*/g, '');
