@@ -83,6 +83,7 @@ export const CYPRUS_AREAS = [
   "latsia",
   "aglantzia",
   "acropolis",
+  "agios vasilios",
   // Larnaca District
   "oroklini",
   "pervolia",
@@ -107,6 +108,15 @@ export const CYPRUS_AREAS = [
   "dimos polemidia",
   "dimos agios athanasios",
   "dimos mesa geitonia",
+  // Limassol neighborhoods/localities
+  "katholiki",
+  "agios ioannis",
+  "potamos germasogeias",
+  "tsirio",
+  "columbia",
+  "agia zoni",
+  "omonia",
+  "agios georgios",
 ] as const;
 
 /**
@@ -159,8 +169,9 @@ export function titleCase(str: string): string {
  * sheet/plan, block, and plot info from a raw string. Used by all document templates.
  *
  * Output formats:
- * Apartment: "Registration No. 0/1567, Konia, Paphos (Maroula Court, Flat No. 105)"
- * Land/Plot: "Registration No. 0/1346, Sheet/Plan 44/55, Block 0, Plot No. 122, Amathounta, Agios Athanasios, Limassol"
+ * Apartment: "Reg No. 0/1567, Konia, Paphos (Maroula Court Flat No. 105)"
+ * Land/Plot: "Reg No. 0/1346, Sheet/Plan 44/55, Block 0, Plot No. 122, Amathounta, Agios Athanasios, Limassol"
+ * Municipality: "Reg No. 0/14567, Dimos Lemesou, Katholiki, Limassol, Plot"
  */
 export function formatPropertyDescription(rawInput: string): string {
   if (!rawInput || rawInput.length < 3) {
@@ -177,6 +188,8 @@ export function formatPropertyDescription(rawInput: string): string {
     .replace(/\bwith\s+reg\s*(?:no\.?)?\b/gi, "")
     .replace(/\bwith\b/gi, "") // Remove standalone "with"
     .replace(/\bin\s+(?=[a-z])/gi, "")
+    // Normalize Greek transliterations: "demos" → "dimos" (Δήμος = municipality)
+    .replace(/\bdemos\b/gi, "dimos")
     .trim();
 
   // Extract registration number (format: X/XXXX like 0/1234 or 1/12345)
@@ -225,6 +238,17 @@ export function formatPropertyDescription(rawInput: string): string {
       unitMatch[1].slice(1).toLowerCase();
     unitInfo = `${unitType} No. ${unitNum}`;
     input = input.replace(unitMatch[0], " ").trim();
+  }
+
+  // Extract standalone property type (e.g., "plot", "land") when no unit number
+  // These are property descriptors, not locations - should appear at end of description
+  let propertyType = "";
+  if (!unitInfo) {
+    const standaloneTypeMatch = input.match(/\b(plot|land)\b/i);
+    if (standaloneTypeMatch) {
+      propertyType = titleCase(standaloneTypeMatch[1]);
+      input = input.replace(standaloneTypeMatch[0], " ").trim();
+    }
   }
 
   // Clean up and normalize whitespace
@@ -334,32 +358,34 @@ export function formatPropertyDescription(rawInput: string): string {
     }
   }
 
-  // Build location string from all area parts + district
+  // Build location string: municipality (area) first, then neighborhoods, then district
   const locationParts: string[] = [];
-  locationParts.push(...additionalAreas);
   if (area) locationParts.push(area);
+  locationParts.push(...additionalAreas);
   if (district) locationParts.push(district);
   const location = locationParts.join(", ");
 
   // Build description parts (comma-separated)
   const descParts: string[] = [];
-  if (regNumber) descParts.push(`Registration No. ${regNumber}`);
+  if (regNumber) descParts.push(`Reg No. ${regNumber}`);
   if (sheetPlanInfo) descParts.push(sheetPlanInfo);
   if (blockInfo) descParts.push(blockInfo);
   // Unit info outside parentheses only when no complex name
   if (unitInfo && !complexName) descParts.push(unitInfo);
   if (location) descParts.push(location);
+  // Standalone property type (e.g., "Plot", "Land") appended after location
+  if (propertyType) descParts.push(propertyType);
 
   // Build final description
   let description: string;
   if (descParts.length > 0 && complexName && unitInfo) {
-    description = `${descParts.join(", ")} (${complexName}, ${unitInfo})`;
+    description = `${descParts.join(", ")} (${complexName} ${unitInfo})`;
   } else if (descParts.length > 0 && complexName) {
     description = `${descParts.join(", ")} (${complexName})`;
   } else if (descParts.length > 0) {
     description = descParts.join(", ");
   } else if (complexName && unitInfo) {
-    description = `${complexName}, ${unitInfo}`;
+    description = `${complexName} ${unitInfo}`;
   } else if (complexName) {
     description = complexName;
   } else if (location) {

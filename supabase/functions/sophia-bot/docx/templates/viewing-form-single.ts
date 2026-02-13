@@ -62,13 +62,14 @@ export function createBlankViewingFormData(date?: string): ViewingFormSingleData
  */
 export function createViewingFormSingle(
   data: ViewingFormSingleData,
-  logoData?: Uint8Array
+  logoData?: Uint8Array,
+  logoType: "jpg" | "png" = "png"
 ): Document {
   const dateStr = data.date || formatDate();
-  
+
   const children: Paragraph[] = [];
-  
-  // Logo - preserve aspect ratio (Zyprus logo is 1960x1005, ~2:1 ratio)
+
+  // Logo - Zyprus viewing form logo
   if (logoData && logoData.length > 0) {
     children.push(
       new Paragraph({
@@ -76,10 +77,10 @@ export function createViewingFormSingle(
           new ImageRun({
             data: logoData,
             transformation: {
-              width: 200,
-              height: 103,
+              width: 240,
+              height: 123,
             },
-            type: "png",
+            type: logoType,
           }),
         ],
         alignment: AlignmentType.LEFT,
@@ -232,11 +233,43 @@ export function parseViewingFormSingleData(response: string): ViewingFormSingleD
     const isViewingForm = cleanResponse.toLowerCase().includes('viewing form') &&
                           cleanResponse.toLowerCase().includes('herein, i');
 
-    // If it's a blank viewing form, return placeholder data
+    // If it's a blank/partial viewing form, extract whatever data IS available
     if (isViewingForm && hasBlankPatterns) {
-      logger.debug("[ViewingFormSingle] Detected blank viewing form - using placeholders", { category: LogCategory.GENERAL });
+      logger.debug("[ViewingFormSingle] Detected blank/partial viewing form - extracting available data", { category: LogCategory.GENERAL });
       const dateMatch = cleanResponse.match(/Date:?\s*\*?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
-      return createBlankViewingFormData(dateMatch ? dateMatch[1] : undefined);
+      const blankData = createBlankViewingFormData(dateMatch ? dateMatch[1] : undefined);
+
+      // Extract name from "Herein, I [NAME] with ID" pattern
+      const partialNameMatch = cleanResponse.match(/(?:Herein,?\s*I\s+)(.+?)\s+with\s+ID/i);
+      if (partialNameMatch) {
+        const name = partialNameMatch[1].trim();
+        if (name && !/^[\[\]\.…_\s]+$/.test(name) && name.length > 1) {
+          blankData.person.fullName = name;
+        }
+      }
+
+      // Extract ID if it's a real value (not placeholder)
+      const partialIdMatch = cleanResponse.match(/with\s+ID\s+([A-Z0-9]+)/i);
+      if (partialIdMatch) {
+        blankData.person.idNumber = partialIdMatch[1].trim();
+      }
+
+      // Extract IssuedBy if it's a real value
+      const partialIssuedMatch = cleanResponse.match(/Issued\s+By:?\s*([A-Za-z]{2,})/i);
+      if (partialIssuedMatch && partialIssuedMatch[1].trim().toLowerCase() !== "confirm") {
+        blankData.person.issuedBy = partialIssuedMatch[1].trim();
+      }
+
+      // Extract property if available
+      const partialPropertyMatch = cleanResponse.match(/^Property:\s*(.+)/im);
+      if (partialPropertyMatch) {
+        const prop = partialPropertyMatch[1].trim();
+        if (prop && !/^[\[\]\.…_\s]+$/.test(prop) && prop.length > 3) {
+          blankData.property.rawDescription = prop;
+        }
+      }
+
+      return blankData;
     }
 
     // Extract person details using regex

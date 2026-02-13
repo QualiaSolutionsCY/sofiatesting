@@ -14,6 +14,7 @@ import { processImages, validateImages, generateImageWarnings, hasEnoughImages }
 import { createDraftListing, getZyprusConfig, getAccessToken } from "../zyprus/client.ts";
 import { loadTaxonomy, findLocationUuid, findPropertyTypeUuid, getLocationsByRegion } from "../zyprus/taxonomy-cache.ts";
 import { clearPendingImages, getPendingImages } from "../services/pending-images.ts";
+import { getPendingDocuments, clearPendingDocuments } from "../services/pending-documents.ts";
 import { extractFromBazaraki as extractBazarakiListing, isBazarakiUrl, formatBazarakiSummary } from "../services/bazaraki-scraper.ts";
 import { logger, LogCategory } from "../utils/logger.ts";
 import { classifyError, getUserFriendlyMessage, ErrorType } from "../utils/error-mapper.ts";
@@ -445,6 +446,26 @@ async function handleCreatePropertyListing(
     });
   }
 
+  // 7b. Retrieve pending documents (title deeds, PDFs sent via WhatsApp)
+  let titleDeedFileUrls: string[] = [];
+  if (agentPhone) {
+    const pendingDocs = await getPendingDocuments(agentPhone);
+    if (pendingDocs.length > 0) {
+      titleDeedFileUrls = pendingDocs.map(d => d.document_url);
+      logger.info("Retrieved pending documents for upload", {
+        category: LogCategory.GENERAL,
+        operation: "createPropertyListing",
+        documentCount: pendingDocs.length,
+        filenames: pendingDocs.map(d => d.filename).filter(Boolean),
+      });
+    }
+  }
+  // Also include any document URLs the AI explicitly passed
+  const aiTitleDeedUrls = (args.titleDeedFileUrls as string[]) || [];
+  if (aiTitleDeedUrls.length > 0) {
+    titleDeedFileUrls = [...titleDeedFileUrls, ...aiTitleDeedUrls];
+  }
+
   const processedImages = await processImages(imageUrls);
 
   // Check minimum images (sync)
@@ -600,6 +621,8 @@ async function handleCreatePropertyListing(
     areaDescription: args.areaDescription as string | undefined,
     condition: args.condition as string | undefined,
     orientation: args.orientation as string | undefined,
+    basementRooms: args.basementRooms as number | undefined,
+    parking: args.parkingType as string | undefined,
   });
 
   // 11. Generate My Notes (with listing owner, reviewer, AI message - all in one place)
@@ -688,6 +711,7 @@ async function handleCreatePropertyListing(
     parkingType: args.parkingType as "covered" | "open" | "garage" | "carport" | "none" | undefined,
     priceModifier: args.priceModifier as "no_vat" | "plus_vat" | "vat_included" | undefined,
     floorPlanUrls: args.floorPlanUrls as string[] | undefined,
+    titleDeedFileUrls: titleDeedFileUrls.length > 0 ? titleDeedFileUrls : undefined,
     // For Own Reference ID: Owner - {Listing Owner} - {Seller} - {Phone} - {Email}
     agentName: listingOwnerName,
     ownerName: args.ownerName as string,
@@ -703,11 +727,12 @@ async function handleCreatePropertyListing(
       listingUrl: result.listingUrl,
     });
 
-    // CRITICAL: Clear pending images after successful upload
-    // This prevents the same images from being used in the next listing
-    // Use agentPhone (cleaned format) to match how images were stored
+    // CRITICAL: Clear pending images and documents after successful upload
+    // This prevents the same files from being used in the next listing
+    // Use agentPhone (cleaned format) to match how files were stored
     await clearPendingImages(agentPhone);
-    logger.info("Cleared pending images after successful upload", {
+    await clearPendingDocuments(agentPhone);
+    logger.info("Cleared pending images and documents after successful upload", {
       category: LogCategory.IMAGE,
     });
 
@@ -747,6 +772,9 @@ async function handleCreatePropertyListing(
   message += `• Price: €${(args.price as number).toLocaleString()}\n`;
   message += `• Type: For ${listingType}\n`;
   message += `• Images: ${validImages.length} uploaded\n`;
+  if (titleDeedFileUrls.length > 0) {
+    message += `• Title deed documents: ${titleDeedFileUrls.length} attached\n`;
+  }
   message += `• Assigned to: ${reviewers.listingOwner}\n`;
   message += `• Reviewer: ${reviewers.reviewer1}\n`;
   message += `\n🔗 **Draft URL:** ${result.listingUrl}\n`;

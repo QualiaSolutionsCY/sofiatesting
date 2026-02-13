@@ -56,6 +56,7 @@ export interface ListingData {
   parkingType?: "covered" | "open" | "garage" | "carport" | "none";
   priceModifier?: "no_vat" | "plus_vat" | "vat_included";
   floorPlanUrls?: string[]; // Floor plan images (uploaded to field_floor_plan)
+  titleDeedFileUrls?: string[]; // Title deed documents (uploaded to field_title_deed_file)
   // For Own Reference ID format: Owner - {Agent} - {Seller} - {Phone} - {Email}
   agentName?: string;
   ownerName?: string;
@@ -161,15 +162,20 @@ export async function getAccessToken(config: ZyprusConfig): Promise<string> {
 }
 
 /**
- * Add privacy offset to coordinates (2-3 streets away)
- * Per meeting spec: NEVER place pin at exact property address
+ * Add privacy offset to coordinates (at least 1km away)
+ * Per spec: NEVER place pin at exact property address
+ * Pin should land on a general area like a roundabout or supermarket nearby
  */
 function addPrivacyOffset(coords: { lat: number; lon: number }): { lat: number; lon: number } {
-  // ~0.002 degrees ≈ 200m offset
-  const offset = 0.002;
+  // ~0.01 degrees ≈ 1.1km offset, random direction
+  // Minimum 0.008 (~900m), maximum 0.012 (~1.3km)
+  const minOffset = 0.008;
+  const range = 0.004;
+  const latOffset = (Math.random() > 0.5 ? 1 : -1) * (minOffset + Math.random() * range);
+  const lonOffset = (Math.random() > 0.5 ? 1 : -1) * (minOffset + Math.random() * range);
   return {
-    lat: coords.lat + (Math.random() - 0.5) * offset,
-    lon: coords.lon + (Math.random() - 0.5) * offset,
+    lat: coords.lat + latOffset,
+    lon: coords.lon + lonOffset,
   };
 }
 
@@ -230,7 +236,8 @@ function buildJsonApiPayload(
   indoorFeatureUuids: string[],
   outdoorFeatureUuids: string[],
   viewUuids: string[],
-  floorPlanFileIds: string[] = []
+  floorPlanFileIds: string[] = [],
+  titleDeedFileIds: string[] = []
 ): Record<string, unknown> {
   // Generate Own Reference ID for quick reviewer reference
   // Format: Owner - {Agent Name} - {Seller Name} - {Seller Phone} - {Email}
@@ -290,7 +297,8 @@ function buildJsonApiPayload(
     field_ai_generated: true,
     field_ai_state: "draft",
     // Price negotiable: default TRUE unless explicitly set to false
-    field_negotiable: listing.priceNegotiable !== false,
+    // NOTE: Drupal list fields may expect integer (1/0) instead of boolean (true/false)
+    field_negotiable: listing.priceNegotiable !== false ? 1 : 0,
     // Own Reference ID: Owner - {Agent} - {Seller} - {Phone} - Reg No.{Reg}
     field_own_reference_id: ownReferenceId,
     field_ai_draft_own_reference_id: ownReferenceId,
@@ -307,10 +315,10 @@ function buildJsonApiPayload(
     attributes.field_land_size = listing.plotSize; // API field is field_land_size, not field_plot_size
   }
   if (listing.coveredVeranda) {
-    attributes.field_covered_veranda = listing.coveredVeranda;
+    attributes.field_no_covered_verandas = listing.coveredVeranda;
   }
   if (listing.uncoveredVeranda) {
-    attributes.field_uncovered_veranda = listing.uncoveredVeranda;
+    attributes.field_no_uncovered_verandas = listing.uncoveredVeranda;
   }
   if (listing.yearBuilt) {
     attributes.field_year_built = listing.yearBuilt;
@@ -398,6 +406,16 @@ function buildJsonApiPayload(
     };
   }
 
+  // Title deed files (PDFs/scans of title deeds)
+  if (titleDeedFileIds.length > 0) {
+    relationships.field_title_deed_file = {
+      data: titleDeedFileIds.map((id) => ({
+        type: "file--file",
+        id,
+      })),
+    };
+  }
+
   // Indoor features (AC, heating, etc.)
   // Note: field is field_indoor_property_features but references taxonomy_term--indoor_property_views
   if (indoorFeatureUuids.length > 0) {
@@ -431,8 +449,10 @@ function buildJsonApiPayload(
     };
   }
 
-  // Listing owner - the agent assigned to manage this listing
-  relationships.field_listing_owner = {
+  // Listing owner/author - set via uid to override the OAuth service account
+  // NOTE: field_listing_owner does NOT exist on live API (verified Feb 2026)
+  // The CMS "Listing Owner" is determined by the uid (author) relationship
+  relationships.uid = {
     data: { type: "user--user", id: listingOwnerUuid },
   };
 
@@ -706,6 +726,94 @@ async function uploadFloorPlans(
 }
 
 /**
+ * Upload title deed files to Zyprus (uses field_title_deed_file endpoint)
+ * Falls back gracefully if the field doesn't exist on property nodes
+ */
+async function uploadTitleDeedFiles(
+  fileUrls: string[],
+  token: string,
+  config: ZyprusConfig
+): Promise<string[]> {
+  logger.info("Uploading title deed files to Zyprus", {
+    category: LogCategory.ZYPRUS,
+    operation: "uploadTitleDeedFiles",
+    count: fileUrls.length,
+  });
+
+  const results = await Promise.all(
+    fileUrls.map(async (url, index) => {
+      try {
+        const fileResponse = await fetch(url);
+        if (!fileResponse.ok) {
+          logger.warn("Failed to download title deed file", {
+            category: LogCategory.ZYPRUS,
+            operation: "uploadTitleDeedFile",
+            imageIndex: index,
+            status: fileResponse.status,
+          });
+          return null;
+        }
+
+        const fileBlob = await fileResponse.blob();
+        const fileBuffer = await fileBlob.arrayBuffer();
+        let filename = url.split("/").pop()?.split("?")[0] || `title_deed_${index + 1}.pdf`;
+        if (!filename.match(/\.(jpg|jpeg|png|gif|webp|pdf|doc|docx)$/i)) {
+          filename = `title_deed_${index + 1}.pdf`;
+        }
+
+        const response = await withRetry(
+          async () => {
+            const res = await fetch(
+              `${config.apiUrl}/jsonapi/node/property/field_title_deed_file`,
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/octet-stream",
+                  "Content-Disposition": `file; filename="${filename}"`,
+                  "User-Agent": "SophiaAI",
+                },
+                body: fileBuffer,
+              }
+            );
+            if (!res.ok && res.status >= 500) {
+              throw new Error(`Title deed upload failed: ${res.status}`);
+            }
+            return res;
+          },
+          { maxRetries: 2, baseDelayMs: 500 },
+          "uploadTitleDeedFile"
+        );
+
+        if (!response.ok) {
+          // 404 means field doesn't exist on property — log and skip
+          if (response.status === 404) {
+            logger.warn("field_title_deed_file not available on property node", {
+              category: LogCategory.ZYPRUS,
+              operation: "uploadTitleDeedFile",
+            });
+          }
+          return null;
+        }
+
+        const result = await response.json();
+        return result.data?.id || null;
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        logger.error("Title deed upload error", err, {
+          category: LogCategory.ZYPRUS,
+          operation: "uploadTitleDeedFile",
+          imageIndex: index,
+        });
+        return null;
+      }
+    })
+  );
+
+  return results.filter((id): id is string => id !== null);
+}
+
+/**
  * Create a property listing draft
  */
 export async function createDraftListing(
@@ -804,6 +912,18 @@ export async function createDraftListing(
     });
   }
 
+  // Upload title deed files if provided (uses field_title_deed_file endpoint)
+  let titleDeedFileIds: string[] = [];
+  if (listing.titleDeedFileUrls && listing.titleDeedFileUrls.length > 0) {
+    titleDeedFileIds = await uploadTitleDeedFiles(listing.titleDeedFileUrls, token, config);
+    logger.info("Title deed files uploaded for listing", {
+      category: LogCategory.ZYPRUS,
+      operation: "createDraftListing",
+      uploadedCount: titleDeedFileIds.length,
+      totalCount: listing.titleDeedFileUrls.length,
+    });
+  }
+
   // Build and send listing payload
   const payload = buildJsonApiPayload(
     listing,
@@ -818,7 +938,8 @@ export async function createDraftListing(
     indoorFeatureUuids,
     outdoorFeatureUuids,
     viewUuids,
-    floorPlanFileIds
+    floorPlanFileIds,
+    titleDeedFileIds
   );
 
   const response = await withRetry(

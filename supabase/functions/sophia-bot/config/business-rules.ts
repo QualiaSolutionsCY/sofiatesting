@@ -144,7 +144,7 @@ export const REGION_LOCATIONS: Record<string, string[]> = {
   larnaca: [
     "larnaca", "larnaka", "oroklini", "pervolia", "livadia", "dekelia", "dhekelia",
     "kamares", "aradippou", "meneou", "dromolaxia", "kiti", "tersefanou", "perivolia",
-    "chrysopolitissa"
+    "chrysopolitissa", "pyla"
   ],
   nicosia: [
     "nicosia", "lefkosia", "strovolos", "lakatamia", "engomi", "aglantzia",

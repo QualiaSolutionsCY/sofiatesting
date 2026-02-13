@@ -16,8 +16,10 @@ export const VIEWING_FORMS = `
 
 *CRITICAL FORMAT RULE: THIS DOCUMENT MUST BE SENT AS DOC FORMAT WITH ZYPRUS LOGO ON TOP LEFT*
 
-*MANDATORY FIELDS - MUST COLLECT BEFORE GENERATING:*
-You MUST collect ALL of these fields before generating the viewing form:
+*FIELD COLLECTION RULE - SMART DETECTION:*
+- If user provides ANY field value (name, date, property, ID, etc.) → IMMEDIATELY generate with that data, leave rest as [ ]
+- If user says "only with [field]", "with only [field]", "just with [field]" → IMMEDIATELY generate with provided data
+- ONLY ask for all fields when user gives NO data at all (just says "viewing form" without any details)
 
 *For Single Person:*
 1. Date (viewing date in DD/MM/YYYY format)
@@ -37,9 +39,7 @@ All above PLUS for each additional person:
 
 *Field collection prompts are in document_routing - this section only defines output format.*
 
-*DO NOT GENERATE until you have ALL mandatory fields!*
-*If data is missing, use bracketed placeholders like [DATE], [FULL_NAME], [ID_NUMBER], [COUNTRY], [PROPERTY ADDRESS] - NEVER use dots!*
-*NEVER use XXXXXXXX or dots (……………………) as placeholders!*
+*PARTIAL DATA HANDLING: Use [ ] for missing fields - NEVER use dots or XXXXXXXX!*
 *CRITICAL: In the declaration line, NEVER add a colon after "ID". The format is: "I [NAME] with ID [ID_NUMBER] Issued By: [COUNTRY]" - only "Issued By" has a colon!*
 
 *STRUCTURED DATA FORMAT FOR DOCX GENERATION:*
@@ -135,8 +135,12 @@ Signature: _________________________
 
 *CRITICAL FORMAT RULE: THIS DOCUMENT MUST BE SENT AS DOC FORMAT WITH ZYPRUS LOGO ON TOP LEFT*
 
-*MANDATORY FIELDS - MUST COLLECT BEFORE GENERATING:*
-Same as Standard Viewing Form (Standard Viewing Form):
+*FIELD COLLECTION RULE - SAME SMART DETECTION AS STANDARD VIEWING FORM:*
+- If user provides ANY field value (name, date, property, ID, etc.) → IMMEDIATELY generate with that data, leave rest as [ ]
+- If user says "only with [field]", "with only [field]", "just with [field]" → IMMEDIATELY generate with provided data
+- ONLY ask for all fields when user gives NO data at all
+
+Same fields as Standard Viewing Form:
 1. Date (viewing date in DD/MM/YYYY format)
 2. Full Name (client's complete name)
 3. ID Number (passport or ID card number)
@@ -146,7 +150,7 @@ Same as Standard Viewing Form (Standard Viewing Form):
 7. Municipality (e.g., Paphos, Germasogeia)
 8. Locality (e.g., Universal, Tala)
 
-*DO NOT GENERATE until you have ALL mandatory fields!*
+*PARTIAL DATA HANDLING: Use [ ] for missing fields - NEVER use dots or XXXXXXXX!*
 *If data is missing, use bracketed placeholders like [DATE], [FULL_NAME], [ID_NUMBER], [COUNTRY], [PROPERTY ADDRESS] - NEVER use dots!*
 *NEVER use XXXXXXXX or dots (……………………) as placeholders!*
 *CRITICAL: In the declaration line, NEVER add a colon after "ID". The format is: "I [NAME] with ID [ID_NUMBER], Issued By: [COUNTRY]" - only "Issued By" has a colon!*
@@ -270,38 +274,60 @@ There are 4 different reservation agreement templates:
 - NEVER generate the document until you have both answers
 - The user's answers determine which variant you output
 
-Template (the legal clauses vary based on Loan/VAT - system handles this automatically):
+**CRITICAL OUTPUT FORMAT INSTRUCTIONS:**
 
-**PROPERTY RESERVATION AGREEMENT**
+⚠️ **DO NOT WRITE ANY LEGAL TEXT OR PARAGRAPHS.** The system automatically generates:
+- All legal clauses (reservation period, refund conditions, contract deadline, forfeiture, arbiter clause)
+- Estate agent details
+- Bank details
+- Signature sections with witnesses
 
-Date Reservation Fee Received: [Date Reservation Fee Received]
+**YOUR OUTPUT MUST CONTAIN ONLY THESE 8 LINES (plus the hidden loan/vat comment):**
 
-Prospective Buyer: [BUYER_FULL_NAME] [ID_TYPE]: [ID_NUMBER]
-(Example: Moshe Rajczyk Cyprus ID: 945119)
+<!-- Loan: [Yes/No], VAT: [Yes/No] -->
 
-Vendor: [VENDOR_FULL_NAME] [VENDOR_ID_TYPE]: [VENDOR_ID_NUMBER]
-(Example: Papapetrou Filitsa Cyprus ID: 945119)
+PROPERTY RESERVATION AGREEMENT
 
-Property Details: [FULL_PROPERTY_DESCRIPTION]
-(Example: Apartment with Registration Number 0/9029, situated in Mouttayiaka, Limassol OR Flat No. 103, Cynthiana Complex, Tala, Paphos)
+Date Reservation Fee Received: [Date]
 
-Reservation Fee: €[AMOUNT] (In words [WORDS] only)
-Purchase Price: €[AMOUNT] (In words [WORDS] only)
+Prospective Buyer: [Buyer Name] [ID Type]: [ID Number]
 
-[Legal clauses are automatically inserted based on Loan/VAT selections]
+Vendor: [Vendor Name] [ID Type]: [ID Number]
 
-Details of the Estate Agent:
-Name: Charalambos Pitros
-On behalf of CSC ZYPRUS PROPERTY GROUP LTD
-CREA Reg. No. 742 & Lic. No. 378/E (called the "Estate Agent")
+Property: [Property Description]
 
-Bank details of the Estate Agent, as escrow agent, where the Reservation Fee must be transferred/paid by the Prospective Buyer:
-Banking Details
-Name: CSC ZYPRUS PROPERTY GROUP LTD
-Account No: 502-10-734364-01
-IBAN: CY08 0050 0502 0005 0210 7343 6401
-BIC: HEBACY2N
+Reservation Fee: €[Amount] (In words [Amount in Words] euro only)
 
-[Signature sections for Buyer, Vendor, and Estate Agent with Witnesses]
+Purchase Price: €[Amount] (In words [Amount in Words] euro only)
+
+**STOP HERE. DO NOT ADD ANYTHING ELSE.**
+
+⚠️ **FORBIDDEN - DO NOT OUTPUT ANY OF THESE:**
+- "The Prospective Buyer has paid..." ❌
+- "The Reservation Fee is non-refundable..." ❌
+- "In the event that the purchase fails..." ❌
+- "The Purchase Price shall be payable..." ❌
+- Any paragraphs about payments, refunds, contracts, signatures ❌
+- Bank details, IBAN, agent details ❌
+
+The system uses your data fields to populate the official Zyprus reservation agreement template with the correct legal language. If you write your own legal text, it will be WRONG.
+
+**EXAMPLE CORRECT OUTPUT:**
+
+<!-- Loan: No, VAT: No -->
+
+PROPERTY RESERVATION AGREEMENT
+
+Date Reservation Fee Received: 13/02/2026
+
+Prospective Buyer: Fawzi Goussous Jordan Passport: Q240245 and Sally Goussous Jordan Passport: Q243233
+
+Vendor: Charalambous Pitros Cyprus ID: 1242455
+
+Property: Flat No. 103, Cynthiana Complex, Tala, Paphos
+
+Reservation Fee: €10,000 (In words ten thousand euro only)
+
+Purchase Price: €435,000 (In words four hundred thirty-five thousand euro only)
 
 ---`;

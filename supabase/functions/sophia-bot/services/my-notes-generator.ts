@@ -24,6 +24,7 @@ export interface ListingContext {
   locationUrl?: string;
   coordinates?: { lat: number; lon: number };
   listingOwner?: string;
+  listingOwnerName?: string;
   reviewer1?: string;
   reviewer2?: string;
   aiMessage?: string;
@@ -36,20 +37,26 @@ export interface ListingContext {
  * Generate My Notes content for a property listing
  *
  * Format (updated Feb 2026):
- * 1. Google Maps link (ONLY content — no listing owner, no agent notes)
- * 2. Duplicate warning (if flagged)
- *
- * Keep it minimal — other details go in separate Zyprus fields.
+ * 1. Listing Owner (matches Listing Instructor in AI Notes)
+ * 2. Google Maps link
+ * 3. Duplicate warning (if flagged)
  */
 export function generateMyNotes(
-  owner: OwnerInfo,
+  _owner: OwnerInfo,
   _agent: Agent,
   context?: ListingContext
 ): string {
   const lines: string[] = [];
 
-  // Google Maps link — ONLY content for My Notes
-  // Prefer the exact URL the agent provided; fall back to coordinates-based link
+  // Listing Owner — MUST match the Listing Instructor in AI Notes
+  if (context?.listingOwner) {
+    const ownerDisplay = context.listingOwnerName
+      ? `${context.listingOwnerName} (${context.listingOwner})`
+      : context.listingOwner;
+    lines.push(`Listing Owner: ${ownerDisplay}`);
+  }
+
+  // Google Maps link
   if (context?.locationUrl) {
     lines.push(context.locationUrl);
   } else if (context?.coordinates) {
@@ -57,10 +64,16 @@ export function generateMyNotes(
     lines.push(mapsUrl);
   }
 
+  // Special instructions / agent notes (important for reviewers to see in back office)
+  if (_owner.specialNotes) {
+    lines.push("");
+    lines.push(`Agent Notes: ${_owner.specialNotes}`);
+  }
+
   // Duplicate warning (important for reviewers)
   if (context?.duplicateWarning) {
     lines.push("");
-    lines.push(`⚠️ POTENTIAL DUPLICATE: ${context.duplicateWarning}`);
+    lines.push(`POTENTIAL DUPLICATE: ${context.duplicateWarning}`);
   }
 
   return lines.join("\n");
@@ -69,7 +82,7 @@ export function generateMyNotes(
 /**
  * Generate AI Assistant Notes for the listing
  * This is a separate field (field_ai_message) that captures special instructions
- * Format: Google Maps link first, then special instructions if any
+ * Format: Listing Instructor, Google Maps link, then special instructions
  */
 export function generateAIAssistantNotes(
   _requestSummary: string,
@@ -77,11 +90,17 @@ export function generateAIAssistantNotes(
   _keyFeatures: string[],
   specialInstructions?: string,
   locationUrl?: string,
-  coordinates?: { lat: number; lon: number }
+  coordinates?: { lat: number; lon: number },
+  listingInstructor?: { name: string; email: string }
 ): string {
   const lines: string[] = [];
 
-  // Google Maps link — always first in AI Notes too
+  // Listing Instructor — matches Listing Owner in My Notes
+  if (listingInstructor) {
+    lines.push(`Listing Instructor: ${listingInstructor.name} (${listingInstructor.email})`);
+  }
+
+  // Google Maps link
   if (locationUrl) {
     lines.push(locationUrl);
   } else if (coordinates) {

@@ -47,9 +47,11 @@ export async function addPendingImages(
     image_url: url,
   }));
 
+  // Use upsert with ignoreDuplicates to handle the UNIQUE(phone_number, image_url) constraint
+  // This prevents duplicate images when WhatsApp retries the same webhook
   const { error } = await supabase
     .from("pending_images")
-    .insert(records);
+    .upsert(records, { onConflict: "phone_number,image_url", ignoreDuplicates: true });
 
   if (error) {
     logger.error("Failed to add pending images", error, {

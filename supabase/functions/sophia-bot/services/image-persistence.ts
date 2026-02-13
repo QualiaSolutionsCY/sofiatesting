@@ -94,6 +94,75 @@ export async function persistImage(url: string, index: number): Promise<string |
  * @param urls - Array of temporary decrypted URLs from WaSenderAPI
  * @returns Array of public Supabase Storage URLs (failures filtered out)
  */
+/**
+ * Persist a document file (PDF, DOCX, etc.) to Supabase Storage
+ *
+ * @param url - Temporary decrypted URL from WaSenderAPI
+ * @param originalFilename - Original filename from WhatsApp (e.g., "title_deed.pdf")
+ * @param mimetype - MIME type of the document
+ * @returns Public Supabase Storage URL or null on failure
+ */
+export async function persistDocument(
+  url: string,
+  originalFilename?: string,
+  mimetype?: string
+): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      logger.error("Failed to fetch document from temporary URL", undefined, {
+        category: LogCategory.GENERAL,
+        operation: "persistDocument",
+        status: response.status,
+      });
+      return null;
+    }
+
+    const contentType = mimetype || response.headers.get("content-type") || "application/octet-stream";
+    const blob = await response.blob();
+    const buffer = await blob.arrayBuffer();
+
+    // Use original filename or generate one
+    const ext = originalFilename?.split(".").pop() || "pdf";
+    const safeName = originalFilename
+      ? originalFilename.replace(/[^a-zA-Z0-9._-]/g, "_")
+      : `document_${Date.now()}.${ext}`;
+    const storagePath = `whatsapp-documents/wa_doc_${Date.now()}_${safeName}`;
+
+    const { error } = await supabase.storage
+      .from("documents")
+      .upload(storagePath, buffer, { contentType, upsert: false });
+
+    if (error) {
+      logger.error("Failed to upload document to Supabase Storage", error, {
+        category: LogCategory.GENERAL,
+        operation: "persistDocument",
+        storagePath,
+      });
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("documents")
+      .getPublicUrl(storagePath);
+
+    logger.info("Document persisted to Supabase Storage", {
+      category: LogCategory.GENERAL,
+      operation: "persistDocument",
+      publicUrl: urlData.publicUrl,
+      originalFilename,
+    });
+    return urlData.publicUrl;
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    logger.error("Error persisting document", error, {
+      category: LogCategory.GENERAL,
+      operation: "persistDocument",
+    });
+    return null;
+  }
+}
+
 export async function persistImages(urls: string[]): Promise<string[]> {
   if (urls.length === 0) return [];
 

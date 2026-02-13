@@ -66,7 +66,7 @@ export const TOOLS: ToolDefinition[] = [
           },
           coveredVeranda: {
             type: "number",
-            description: "Covered veranda area in square meters (optional)",
+            description: "Covered veranda area in square meters. ALWAYS include when user mentions veranda/balcony size - this is used in the listing title.",
           },
           uncoveredVeranda: {
             type: "number",
@@ -86,8 +86,8 @@ export const TOOLS: ToolDefinition[] = [
           },
           titleDeedStatus: {
             type: "string",
-            enum: ["separate", "final_approval", "pending", "share_of_land", "unknown"],
-            description: "Status of the title deeds: separate (full title deeds), final_approval, pending, share_of_land (shared ownership of land), unknown",
+            enum: ["separate", "final_approval", "pending", "share_of_land", "unknown", "do_not_display"],
+            description: "Status of the title deeds: separate (full title deeds), final_approval, pending, share_of_land (shared ownership of land), unknown, do_not_display (agent explicitly asked to NOT show deed status in the description — still capture the actual status in specialNotes for reviewers)",
           },
           priceNegotiable: {
             type: "boolean",
@@ -131,6 +131,11 @@ export const TOOLS: ToolDefinition[] = [
             items: { type: "string" },
             description: "Array of floor plan image URLs (separate from property photos). These are uploaded to a dedicated floor plan field on the listing.",
           },
+          titleDeedFileUrls: {
+            type: "array",
+            items: { type: "string" },
+            description: "Array of title deed document URLs (PDF or scanned image of title deeds). When agent sends a document attachment during property upload, pass the URL here. These are uploaded to the title deed documents field on the listing.",
+          },
           features: {
             type: "array",
             items: { type: "string" },
@@ -144,9 +149,13 @@ export const TOOLS: ToolDefinition[] = [
             type: "string",
             description: "Floor level (for apartments): ground, 1st, 2nd, etc.",
           },
+          basementRooms: {
+            type: "integer",
+            description: "Number of bedrooms/rooms in the basement (e.g., if agent says '5 bedrooms plus 1 in the basement', pass bedrooms=5 and basementRooms=1). These will be shown as '5 Bedrooms + 1 Basement Bedroom' in the description.",
+          },
           assignTo: {
             type: "string",
-            description: "For management only: email of agent to assign as listing owner",
+            description: "For management only: email of agent to assign as listing owner. CRITICAL: If the user says 'assign to [name]' or 'assign to [email]', extract the email and pass it here. Check the agent name-to-email mapping in your instructions. If user provides the email directly (e.g., 'danae@zyprus.com'), use it as-is.",
           },
           specialNotes: {
             type: "string",
@@ -154,7 +163,7 @@ export const TOOLS: ToolDefinition[] = [
           },
           areaDescription: {
             type: "string",
-            description: "User-provided description of the area/neighborhood (e.g., 'peaceful neighborhood with excellent access to tourist areas, city center, and highway. Near universities and Kings Avenue Mall'). IMPORTANT: Always capture and pass any location/area details the user provides - these are valuable marketing points that should NOT be replaced with generic descriptions.",
+            description: "Description of the area/neighborhood for the listing. IMPORTANT: When user provides a Google Maps link, analyze the location and describe what is specifically nearby (e.g., supermarkets, schools, parks, beach proximity, restaurants, highway access). Also capture any area details the user provides verbatim - these are valuable marketing points that should NOT be replaced with generic descriptions.",
           },
           locationUrl: {
             type: "string",

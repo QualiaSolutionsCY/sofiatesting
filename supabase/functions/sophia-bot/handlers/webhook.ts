@@ -10,7 +10,8 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { Document, Packer } from "https://esm.sh/docx@8.5.0";
-import { ZYPRUS_LOGO_BASE64 } from "../../_shared/prompts.ts";
+import { SOPHIA_LOGO_BASE64 } from "../assets/sophia-logo.ts";
+import { VIEWING_FORM_LOGO_BASE64 } from "../assets/viewing-form-logo.ts";
 import { logger, LogCategory } from "../utils/logger.ts";
 import {
   verifyWebhookSignature,
@@ -154,7 +155,7 @@ async function processRequest(
     // Check for logo request first
     if (isLogoRequest(userMessage)) {
       logger.info("[Logo] Logo request detected, sending logo image", { category: LogCategory.GENERAL });
-      await sendLogoImage(supabase, phoneNumber, ZYPRUS_LOGO_BASE64);
+      await sendLogoImage(supabase, phoneNumber, SOPHIA_LOGO_BASE64);
       await addMessage(userId, "user", userMessage);
       await addMessage(userId, "assistant", "Here's the Zyprus Property Group logo!");
       return;
@@ -322,11 +323,13 @@ async function processRequest(
 
       if (templateType.startsWith('viewing-form-') || templateType === 'reservation-agreement' || templateType === 'marketing-non-exclusive') {
         try {
-          // Convert base64 logo to Uint8Array for viewing forms
+          // Convert base64 viewing form logo to Uint8Array for viewing forms
           let logoData: Uint8Array | undefined;
-          if (ZYPRUS_LOGO_BASE64) {
+          const isViewingForm = templateType.startsWith('viewing-form-');
+          const logoBase64 = isViewingForm ? VIEWING_FORM_LOGO_BASE64 : SOPHIA_LOGO_BASE64;
+          if (logoBase64) {
             try {
-              const binaryString = atob(ZYPRUS_LOGO_BASE64);
+              const binaryString = atob(logoBase64);
               const array = new Uint8Array(binaryString.length);
               for (let i = 0; i < binaryString.length; i++) {
                 array[i] = binaryString.charCodeAt(i);
@@ -343,21 +346,21 @@ async function processRequest(
             case 'viewing-form-single': {
               const singleData = parseViewingFormSingleData(aiResponse);
               if (singleData) {
-                docxDoc = createViewingFormSingle(singleData, logoData);
+                docxDoc = createViewingFormSingle(singleData, logoData, "jpg");
               }
               break;
             }
             case 'viewing-form-multiple': {
               const multipleData = parseViewingFormMultipleData(aiResponse);
               if (multipleData) {
-                docxDoc = createViewingFormMultiple(multipleData, logoData);
+                docxDoc = createViewingFormMultiple(multipleData, logoData, "jpg");
               }
               break;
             }
             case 'viewing-form-advanced': {
               const advancedData = parseViewingFormAdvancedData(aiResponse);
               if (advancedData) {
-                docxDoc = createViewingFormAdvanced(advancedData, logoData);
+                docxDoc = createViewingFormAdvanced(advancedData, logoData, "jpg");
               } else {
                 // Fallback: try multiple parser and still use advanced template
                 const multipleAsAdvanced = parseViewingFormMultipleData(aiResponse);
@@ -366,7 +369,7 @@ async function processRequest(
                     date: multipleAsAdvanced.date,
                     persons: multipleAsAdvanced.persons,
                     property: multipleAsAdvanced.property,
-                  }, logoData);
+                  }, logoData, "jpg");
                 }
               }
               break;

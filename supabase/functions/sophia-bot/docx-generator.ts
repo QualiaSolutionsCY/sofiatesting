@@ -10,17 +10,21 @@
  */
 
 import { Document, Packer, Paragraph, ImageRun, TextRun, AlignmentType } from "https://esm.sh/docx@8.5.0";
-import { ZYPRUS_LOGO_BASE64 } from "./prompts.ts";
+import { SOPHIA_LOGO_BASE64 } from "./assets/sophia-logo.ts";
+import { VIEWING_FORM_LOGO_BASE64 } from "./assets/viewing-form-logo.ts";
 import { isRequestingInformation, containsPlaceholders } from "./utils/field-validator.ts";
 import {
   createReservationAgreement,
   parseReservationAgreementData,
+  createBlankReservationAgreementData,
   createMarketingAgreement,
   parseMarketingAgreementData,
   createViewingFormSingle,
   parseViewingFormSingleData,
+  createBlankViewingFormData,
   createViewingFormAdvanced,
   parseViewingFormAdvancedData,
+  createBlankViewingFormAdvancedData,
   createViewingFormMultiple,
   parseViewingFormMultipleData,
 } from "./docx/templates/index.ts";
@@ -51,26 +55,31 @@ const FONTS = {
 // isConfirmationMessage imported from templates/detection.ts as centralizedIsConfirmation
 
 /**
- * PERFORMANCE: Pre-decode logo at module initialization (cold start)
+ * PERFORMANCE: Pre-decode logos at module initialization (cold start)
  */
-const DECODED_LOGO: Uint8Array | null = (() => {
+const decodeLogo = (base64: string, name: string): Uint8Array | null => {
   try {
-    if (!ZYPRUS_LOGO_BASE64 || ZYPRUS_LOGO_BASE64.length === 0) {
-      logger.debug("No logo data available", { category: LogCategory.GENERAL });
+    if (!base64 || base64.length === 0) {
+      logger.debug(`No ${name} logo data available`, { category: LogCategory.GENERAL });
       return null;
     }
-    const binaryString = atob(ZYPRUS_LOGO_BASE64);
+    const binaryString = atob(base64);
     const array = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
       array[i] = binaryString.charCodeAt(i);
     }
-    logger.debug("Pre-decoded Zyprus logo at module initialization", { category: LogCategory.GENERAL });
+    logger.debug(`Pre-decoded ${name} logo at module initialization`, { category: LogCategory.GENERAL });
     return array;
   } catch (error) {
-    logger.warn("Failed to pre-decode logo at module init", { category: LogCategory.GENERAL, error: String(error) });
+    logger.warn(`Failed to pre-decode ${name} logo at module init`, { category: LogCategory.GENERAL, error: String(error) });
     return null;
   }
-})();
+};
+
+// Sophia logo - used for standalone logo requests
+const DECODED_LOGO: Uint8Array | null = decodeLogo(SOPHIA_LOGO_BASE64, "SOPHIA");
+// Zyprus viewing form logo - used on viewing form DOCX documents
+const DECODED_VIEWING_FORM_LOGO: Uint8Array | null = decodeLogo(VIEWING_FORM_LOGO_BASE64, "viewing-form");
 
 // Use centralized functions from templates/
 const extractTemplateTitle = centralizedExtractTitle;
@@ -96,17 +105,26 @@ export function isDocxTemplate(
 
   // STRICT CHECK 0: Short responses are NEVER DOCX
   // EXCEPTION: Blank viewing forms are naturally short (300-400 chars)
+  // EXCEPTION: Reservation agreements with only data fields (no legal text) can be ~250-350 chars
   const lowerResponse = aiResponse.toLowerCase();
   const isViewingFormShort = lowerResponse.includes('viewing form') &&
                             lowerResponse.includes('herein, i') &&
                             aiResponse.length >= 300;
 
-  if (aiResponse.length < 400 && !isViewingFormShort) {
+  const isReservationShort = (lowerResponse.includes('property reservation agreement') ||
+                              lowerResponse.includes('reservation agreement')) &&
+                             lowerResponse.includes('prospective buyer') &&
+                             lowerResponse.includes('purchase price') &&
+                             aiResponse.length >= 200;
+
+  if (aiResponse.length < 400 && !isViewingFormShort && !isReservationShort) {
     logger.info(`[DOCX CHECK] BLOCKED at length check: ${aiResponse.length} < 400`, { category: LogCategory.GENERAL });
     return false;
   }
   if (isViewingFormShort) {
     logger.info(`[DOCX CHECK] Viewing form exception: length ${aiResponse.length} >= 300`, { category: LogCategory.GENERAL });
+  } else if (isReservationShort) {
+    logger.info(`[DOCX CHECK] Reservation agreement exception: length ${aiResponse.length} >= 200`, { category: LogCategory.GENERAL });
   } else {
     logger.info(`[DOCX CHECK] Passed length check: ${aiResponse.length} >= 400`, { category: LogCategory.GENERAL });
   }
@@ -135,13 +153,8 @@ export function isDocxTemplate(
   }
   logger.info(`[DOCX CHECK] Passed requesting info check`, { category: LogCategory.GENERAL });
 
-  // STRICT CHECK 3.5: BLOCK Reservation Agreements with defaulted Loan/VAT flags
-  // When user says "no data" or "blank", AI must ASK for Loan/VAT because they determine document variant
-  // This uses the centralized detection function
-  if (hasDefaultedLoanVatFlags(aiResponse)) {
-    logger.info(`[DOCX CHECK] BLOCKED - Reservation agreement has defaulted Loan/VAT flags. AI MUST ask about Loan and VAT first.`, { category: LogCategory.GENERAL });
-    return false;
-  }
+  // CHECK 3.5: Log Reservation Agreement Loan/VAT flags (no longer blocks — prompt enforcement handles asking)
+  hasDefaultedLoanVatFlags(aiResponse);
 
   // NEW: Check if response contains placeholders
   const placeholdersResult = containsPlaceholders(aiResponse);
@@ -302,6 +315,35 @@ export async function createDocxFile(content: string, _filename: string = "docum
     // Use specialized Reservation Agreement template
     if (isReservationAgreement) {
       logger.debug("[DOCX] Detected Reservation Agreement - using specialized template", { category: LogCategory.GENERAL });
+
+      // SAFEGUARD: Detect if AI incorrectly wrote legal text instead of just data fields
+      // These phrases should NEVER appear in AI output - they're in our template, not AI's
+      const forbiddenPhrases = [
+        "non-refundable, except",
+        "taken off the market",
+        "escrow agent",
+        "reservation period",
+        "clean land registry search",
+        "encumbrances",
+        "fails to materialize",
+        "buyer's exclusive fault",
+        "50% to the vendor",
+        "determining who is at fault",
+        "for the entire duration",
+        "directly and/or indirectly, advertise",
+      ];
+
+      const aiWroteLegalText = forbiddenPhrases.some(phrase =>
+        contentLower.includes(phrase.toLowerCase())
+      );
+
+      if (aiWroteLegalText) {
+        logger.warn("[DOCX] AI incorrectly wrote legal text - stripping and using template", {
+          category: LogCategory.GENERAL,
+          hint: "AI should only output data fields, not legal paragraphs"
+        });
+      }
+
       const parsedData = parseReservationAgreementData(content);
       if (parsedData) {
         logger.debug("[DOCX] Successfully parsed reservation agreement data", { category: LogCategory.GENERAL });
@@ -309,7 +351,27 @@ export async function createDocxFile(content: string, _filename: string = "docum
         const buffer = await Packer.toBuffer(doc);
         return new Uint8Array(buffer);
       } else {
-        logger.warn("[DOCX] Failed to parse reservation agreement data - falling back to generic DOCX", { category: LogCategory.GENERAL });
+        // CRITICAL FIX: Even if parsing fails, use blank template with placeholders
+        // NEVER fall back to generic DOCX (which would render AI's potentially wrong text)
+        logger.warn("[DOCX] Failed to parse reservation agreement data - using template with placeholders", { category: LogCategory.GENERAL });
+
+        // Try to extract Loan/VAT flags even if full parsing failed
+        let hasLoanClause = false;
+        let hasVatClause = false;
+        const commentMatch = contentLower.match(/<!--[^>]*?loan[:\s]*(yes|no)[^>]*?vat[:\s]*(yes|no)[^>]*?-->/i);
+        if (commentMatch) {
+          hasLoanClause = /yes/i.test(commentMatch[1]);
+          hasVatClause = /yes/i.test(commentMatch[2]);
+        }
+
+        // Use blank template with correct legal clauses
+        const blankData = createBlankReservationAgreementData();
+        blankData.hasLoanClause = hasLoanClause;
+        blankData.hasVatClause = hasVatClause;
+
+        const doc = createReservationAgreement(blankData);
+        const buffer = await Packer.toBuffer(doc);
+        return new Uint8Array(buffer);
       }
     }
 
@@ -363,7 +425,7 @@ export async function createDocxFile(content: string, _filename: string = "docum
         const parsedAdvanced = parseViewingFormAdvancedData(content);
         if (parsedAdvanced) {
           logger.debug(`[DOCX] Parsed advanced viewing form with ${parsedAdvanced.persons.length} person(s)`, { category: LogCategory.GENERAL });
-          const doc = createViewingFormAdvanced(parsedAdvanced, DECODED_LOGO || undefined);
+          const doc = createViewingFormAdvanced(parsedAdvanced, DECODED_VIEWING_FORM_LOGO || undefined, "jpg");
           const buffer = await Packer.toBuffer(doc);
           return new Uint8Array(buffer);
         }
@@ -375,7 +437,7 @@ export async function createDocxFile(content: string, _filename: string = "docum
             date: parsedMultiAdvanced.date,
             persons: parsedMultiAdvanced.persons,
             property: parsedMultiAdvanced.property,
-          }, DECODED_LOGO || undefined);
+          }, DECODED_VIEWING_FORM_LOGO || undefined, "jpg");
           const buffer = await Packer.toBuffer(doc);
           return new Uint8Array(buffer);
         }
@@ -385,7 +447,7 @@ export async function createDocxFile(content: string, _filename: string = "docum
       const parsedMultiple = parseViewingFormMultipleData(content);
       if (parsedMultiple && parsedMultiple.persons.length > 1) {
         logger.debug(`[DOCX] Parsed multiple viewing form with ${parsedMultiple.persons.length} persons`, { category: LogCategory.GENERAL });
-        const doc = createViewingFormMultiple(parsedMultiple, DECODED_LOGO || undefined);
+        const doc = createViewingFormMultiple(parsedMultiple, DECODED_VIEWING_FORM_LOGO || undefined, "jpg");
         const buffer = await Packer.toBuffer(doc);
         return new Uint8Array(buffer);
       }
@@ -394,18 +456,36 @@ export async function createDocxFile(content: string, _filename: string = "docum
       const parsedSingle = parseViewingFormSingleData(content);
       if (parsedSingle) {
         logger.debug("[DOCX] Parsed single viewing form", { category: LogCategory.GENERAL });
-        const doc = createViewingFormSingle(parsedSingle, DECODED_LOGO || undefined);
+        const doc = createViewingFormSingle(parsedSingle, DECODED_VIEWING_FORM_LOGO || undefined, "jpg");
         const buffer = await Packer.toBuffer(doc);
         return new Uint8Array(buffer);
       }
 
-      logger.warn("[DOCX] Failed to parse viewing form data - falling back to generic DOCX", { category: LogCategory.GENERAL });
+      // CRITICAL FIX: Never fall back to generic DOCX for viewing forms
+      // Use blank template instead to prevent AI's raw text from being rendered
+      logger.warn("[DOCX] Failed to parse viewing form data - using blank template instead of generic DOCX", { category: LogCategory.GENERAL });
+
+      // Try to extract date from content
+      const dateMatch = content.match(/Date:\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
+      const extractedDate = dateMatch ? dateMatch[1] : undefined;
+
+      if (isAdvanced) {
+        const blankAdvanced = createBlankViewingFormAdvancedData(extractedDate);
+        const doc = createViewingFormAdvanced(blankAdvanced, DECODED_VIEWING_FORM_LOGO || undefined, "jpg");
+        const buffer = await Packer.toBuffer(doc);
+        return new Uint8Array(buffer);
+      } else {
+        const blankSingle = createBlankViewingFormData(extractedDate);
+        const doc = createViewingFormSingle(blankSingle, DECODED_VIEWING_FORM_LOGO || undefined, "jpg");
+        const buffer = await Packer.toBuffer(doc);
+        return new Uint8Array(buffer);
+      }
     }
 
     const paragraphs: Paragraph[] = [];
 
-    // Add logo if available (Reservation Agreement already handled above with specialized template)
-    if (DECODED_LOGO && DECODED_LOGO.length > 0) {
+    // Add logo if available (skip for Reservation Agreements - they have NO logo per reference templates)
+    if (DECODED_LOGO && DECODED_LOGO.length > 0 && !isReservationAgreement) {
       try {
         paragraphs.push(
           new Paragraph({
@@ -413,10 +493,10 @@ export async function createDocxFile(content: string, _filename: string = "docum
               new ImageRun({
                 data: DECODED_LOGO,
                 transformation: {
-                  width: 200,
-                  height: 103,
+                  width: 120,
+                  height: 120,
                 },
-                type: "png",
+                type: "jpg",
               }),
             ],
             alignment: AlignmentType.LEFT,
@@ -428,8 +508,8 @@ export async function createDocxFile(content: string, _filename: string = "docum
       }
     }
     
-    // Process content lines
-    const lines = content.split('\n');
+    // Process content lines (strip HTML comments like <!-- Loan: No, VAT: No -->)
+    const lines = content.replace(/<!--[\s\S]*?-->/g, '').split('\n');
     for (const line of lines) {
       if (!line.trim()) {
         paragraphs.push(new Paragraph({ text: "" }));

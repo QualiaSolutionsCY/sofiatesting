@@ -159,9 +159,18 @@ ${context.agentEmail ? `**Email:** ${context.agentEmail}
                             lowerMessage.includes("upload") ||
                             lowerMessage.includes("listing") ||
                             lowerMessage.includes("photo") ||
-                            lowerMessage.includes("image");
+                            lowerMessage.includes("image") ||
+                            lowerMessage.includes("finished") ||
+                            lowerMessage.includes("done") ||
+                            lowerMessage.includes("that's all") ||
+                            lowerMessage.includes("assign") ||
+                            lowerMessage.includes("@zyprus.com");
+  // Also check if agent can upload — short replies during upload flow need image context
+  const isUploadCapableAgent = context.agentCanUpload === true;
+  // Short messages (< 30 chars) from upload-capable agents are likely replies in upload flow
+  const isShortReplyFromAgent = isUploadCapableAgent && lowerMessage.length < 30 && lowerMessage.length > 0;
 
-  if (isImageRelated || isPropertyRelated) {
+  if (isImageRelated || isPropertyRelated || isShortReplyFromAgent) {
     accumulatedImages = await getPendingImages(context.phoneNumber.replace(/\D/g, ""));
   }
   const totalImageCount = accumulatedImages.length;

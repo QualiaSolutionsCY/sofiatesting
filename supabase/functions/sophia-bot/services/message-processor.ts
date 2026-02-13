@@ -11,8 +11,9 @@ import {
   needsDecryption,
   isPublicUrl,
 } from "./media-decryptor.ts";
-import { persistImages } from "./image-persistence.ts";
+import { persistImages, persistDocument } from "./image-persistence.ts";
 import { addPendingImages } from "./pending-images.ts";
+import { addPendingDocument } from "./pending-documents.ts";
 import { validateImagesAtIngress } from "./image-validator.ts";
 import { sendTextMessage } from "../utils/wasend.ts";
 
@@ -267,6 +268,57 @@ export async function extractMessage(payload: any): Promise<{
         }
       } else if (isPublicUrl(rawUrl)) {
         imageUrls.push(rawUrl);
+      }
+    }
+  }
+
+  // Capture non-image document attachments (PDF, DOCX — e.g., title deeds)
+  // These get persisted to Supabase Storage and tracked in pending_documents
+  if (message.message?.documentMessage?.url &&
+      !message.message?.documentMessage?.mimetype?.startsWith("image/")) {
+    const docMsg = message.message.documentMessage;
+    const rawUrl = docMsg.url;
+    const docMimetype = docMsg.mimetype || "application/octet-stream";
+    const docFilename = docMsg.fileName || undefined;
+
+    logger.info("Found non-image document attachment", {
+      category: LogCategory.GENERAL,
+      operation: "extractMessage",
+      mimetype: docMimetype,
+      filename: docFilename,
+    });
+
+    if (rawUrl) {
+      let documentUrl: string | null = null;
+
+      if (needsDecryption(rawUrl) && docMsg.mediaKey) {
+        logger.info("Decrypting document via WaSend API...", { category: LogCategory.GENERAL });
+        documentUrl = await decryptWhatsAppImage(messageId + "_doc", {
+          url: rawUrl,
+          mimetype: docMimetype,
+          mediaKey: docMsg.mediaKey,
+          fileSha256: docMsg.fileSha256,
+          fileLength: docMsg.fileLength?.toString(),
+          fileName: docFilename,
+        });
+      } else if (isPublicUrl(rawUrl)) {
+        documentUrl = rawUrl;
+      }
+
+      if (documentUrl) {
+        // Persist to Supabase Storage for stable URL
+        const persistedUrl = await persistDocument(documentUrl, docFilename, docMimetype);
+        if (persistedUrl) {
+          const phoneNumber = remoteJid?.split("@")[0]?.replace(/\D/g, "") || "";
+          if (phoneNumber) {
+            await addPendingDocument(phoneNumber, persistedUrl, docFilename, docMimetype);
+          }
+
+          // Use placeholder so AI knows a document was sent
+          if (!userMessage || userMessage.trim() === "") {
+            userMessage = `[User sent document: ${docFilename || "file"}]`;
+          }
+        }
       }
     }
   }

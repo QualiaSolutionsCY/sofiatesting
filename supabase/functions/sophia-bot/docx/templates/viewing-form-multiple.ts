@@ -74,13 +74,14 @@ export function createBlankViewingFormMultipleData(date?: string): ViewingFormMu
  */
 export function createViewingFormMultiple(
   data: ViewingFormMultipleData,
-  logoData?: Uint8Array
+  logoData?: Uint8Array,
+  logoType: "jpg" | "png" = "png"
 ): Document {
   const dateStr = data.date || formatDate();
-  
+
   const children: Paragraph[] = [];
-  
-  // Logo - preserve aspect ratio (Zyprus logo is 1960x1005, ~2:1 ratio)
+
+  // Logo - Zyprus viewing form logo
   if (logoData && logoData.length > 0) {
     children.push(
       new Paragraph({
@@ -88,10 +89,10 @@ export function createViewingFormMultiple(
           new ImageRun({
             data: logoData,
             transformation: {
-              width: 200,
-              height: 103,
+              width: 240,
+              height: 123,
             },
-            type: "png",
+            type: logoType,
           }),
         ],
         alignment: AlignmentType.LEFT,
@@ -339,11 +340,41 @@ export function parseViewingFormMultipleData(response: string): ViewingFormMulti
     const isViewingForm = cleanResponse.toLowerCase().includes('viewing form') &&
                           cleanResponse.toLowerCase().includes('herein, i');
 
-    // If it's a blank viewing form, return placeholder data
+    // If it's a blank/partial viewing form, extract whatever data IS available
     if (isViewingForm && hasBlankPatterns) {
-      logger.debug("[ViewingFormMultiple] Detected blank viewing form - using placeholders");
+      logger.debug("[ViewingFormMultiple] Detected blank/partial viewing form - extracting available data");
       const dateMatch = cleanResponse.match(/Date:?\s*\*?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
-      return createBlankViewingFormMultipleData(dateMatch ? dateMatch[1] : undefined);
+      const blankData = createBlankViewingFormMultipleData(dateMatch ? dateMatch[1] : undefined);
+
+      // Extract ALL persons using matchAll (supports multiple people)
+      const personMatches = cleanResponse.matchAll(/(?:Herein,?\s*)?I\s+([^,]+?)\s+with\s+ID\s+([^\s,]+),?\s+Issued\s+By:?\s*([A-Za-z]+)(?:\s+(?:and|confirm))?/gi);
+      const extractedPersons: PersonData[] = [];
+      for (const m of personMatches) {
+        const name = m[1].trim();
+        if (name && !/^[\[\]\.…_\s]+$/.test(name) && name.length > 1) {
+          extractedPersons.push({
+            fullName: name,
+            idNumber: m[2].trim(),
+            issuedBy: m[3].trim(),
+          });
+        }
+      }
+
+      if (extractedPersons.length > 0) {
+        blankData.persons = extractedPersons;
+        logger.debug(`[ViewingFormMultiple] Extracted ${extractedPersons.length} person(s) from partial data`);
+      }
+
+      // Extract property if available
+      const partialPropertyMatch = cleanResponse.match(/^Property:\s*(.+)/im);
+      if (partialPropertyMatch) {
+        const prop = partialPropertyMatch[1].trim();
+        if (prop && !/^[\[\]\.…_\s]+$/.test(prop) && prop.length > 3) {
+          blankData.property.rawDescription = prop;
+        }
+      }
+
+      return blankData;
     }
 
     // Extract all person matches

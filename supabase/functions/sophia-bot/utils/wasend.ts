@@ -251,13 +251,13 @@ export async function uploadLogoToStorage(
       bytes[i] = binaryString.charCodeAt(i);
     }
 
-    const filename = "zyprus-logo.png";
+    const filename = "zyprus-logo.jpg";
 
     // Upload to Supabase Storage in 'documents' bucket under 'logos' folder
     const { error } = await supabase.storage
       .from('documents')
       .upload(`logos/${filename}`, bytes, {
-        contentType: 'image/png',
+        contentType: 'image/jpeg',
         upsert: true  // Overwrite if exists
       });
 

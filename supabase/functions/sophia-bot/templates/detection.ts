@@ -122,6 +122,11 @@ export function isCompletedReservationAgreement(content: string): boolean {
 
 /**
  * Checks if content looks like a completed viewing form document
+ *
+ * Supports three types of viewing forms:
+ * 1. Fully filled - all fields have actual data
+ * 2. Partially filled - some fields provided (e.g., "only with name"), rest are placeholders
+ * 3. Blank - all fields are placeholders ([ ], dots, etc.)
  */
 export function isCompletedViewingForm(content: string): boolean {
   const lowerContent = content.toLowerCase();
@@ -142,28 +147,32 @@ export function isCompletedViewingForm(content: string): boolean {
   const hasUnderscoreLines = /_{15,}/g.test(content);
 
   if (hasBlankBrackets || hasRepeatedDots || hasUnderscoreLines) {
-    // If it has blank patterns AND document structure, it's a valid blank viewing form
+    // If it has blank patterns AND document structure, it's a valid blank/partial viewing form
     const hasPropertyContent =
       lowerContent.includes('property') ||
       lowerContent.includes('registration') ||
       lowerContent.includes('immovable') ||
       lowerContent.includes('csc zyprus');
     if (hasPropertyContent) {
-      logger.debug("[Detection] Blank viewing form detected (via blank patterns) -> DOCX", { category: LogCategory.GENERAL });
+      logger.debug("[Detection] Blank/partial viewing form detected (via blank patterns) -> DOCX", { category: LogCategory.GENERAL });
       return true;
     }
   }
 
-  // Must have an ID/passport pattern (for non-blank forms)
+  // Check for ANY real data in the form (not just placeholders)
+  // This handles "viewing form only with name" cases
+  const hasActualName = /(?:herein,\s*i,?\s*)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/i.test(content);
   const hasIdPattern =
     /with\s+id\s+[A-Z0-9]+/i.test(content) ||
     /passport\/id\s*(number)?:?\s*[A-Z0-9]+/i.test(content) ||
     /id\/passport:?\s*[A-Z0-9]+/i.test(content) ||
     /(id|passport)\s*(number)?:?\s*[A-Z0-9]{5,}/i.test(content);
+  const hasActualDate = /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(content) ||
+                       /\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(content);
+  const hasPropertyReg = /\d+\/\d+/.test(content); // e.g., 0/1234
 
-  if (!hasIdPattern) {
-    return false;
-  }
+  // If ANY real data is present (name, ID, date, or property reg), it's a valid viewing form
+  const hasRealData = hasActualName || hasIdPattern || hasActualDate || hasPropertyReg;
 
   // Should have property-related content
   const hasPropertyContent =
@@ -171,7 +180,18 @@ export function isCompletedViewingForm(content: string): boolean {
     lowerContent.includes('registration') ||
     lowerContent.includes('immovable');
 
-  return hasPropertyContent;
+  const isValid = hasRealData && hasPropertyContent;
+  if (isValid) {
+    logger.debug("[Detection] Viewing form with actual data detected -> DOCX", {
+      category: LogCategory.GENERAL,
+      hasActualName,
+      hasIdPattern,
+      hasActualDate,
+      hasPropertyReg
+    });
+  }
+
+  return isValid;
 }
 
 /**
@@ -466,20 +486,14 @@ export function shouldSendAsDocx(response: string): boolean {
     return false;
   }
 
-  // Rule 2.5: CRITICAL - Block Reservation Agreements with defaulted Loan/VAT flags
-  // The AI MUST ask about Loan and VAT before generating ANY reservation agreement
-  if (hasDefaultedLoanVatFlags(response)) {
-    logger.warn("[Detection] BLOCKING Reservation Agreement - AI defaulted Loan/VAT instead of asking -> TEXT", { category: LogCategory.GENERAL });
-    return false; // Force TEXT response so AI must ask the questions
-  }
+  // Rule 2.5: Log Reservation Agreement Loan/VAT flags (no longer blocks — prompt enforcement handles this)
+  hasDefaultedLoanVatFlags(response);
 
   // Rule 2.6: Check for DOCX templates FIRST (before placeholder check)
   // Reservation agreements should be DOCX even if vendor field has placeholders
-  // BUT only if Loan/VAT flags were properly set (not defaulted)
   const firstPart = response.substring(0, 800).toLowerCase();
 
   // Check for Property Reservation Agreement early - allow even with placeholders
-  // ONLY if it passed the hasDefaultedLoanVatFlags check above
   if (
     (firstPart.includes("property reservation agreement") ||
       firstPart.includes("reservation agreement")) &&
@@ -638,16 +652,17 @@ export function detectTemplateTypeFromMessage(userMessage: string): string | nul
 }
 
 /**
- * CRITICAL: Check if Reservation Agreement has defaulted Loan/VAT flags
+ * Check if Reservation Agreement has Loan/VAT flags in the response.
  *
- * This prevents SOPHIA from generating ANY reservation agreement (blank or filled)
- * without first asking the user about Loan and VAT status.
+ * NOTE: This function previously BLOCKED DOCX generation when it found
+ * <!-- Loan: No, VAT: No --> comments. However, this caused a critical bug:
+ * when users explicitly answered "no" to both Loan and VAT questions,
+ * the AI correctly added this comment but the function couldn't distinguish
+ * between "user answered No" vs "AI defaulted to No without asking".
  *
- * The AI MUST ask: "Is the buyer getting a bank loan/mortgage?" and "Is VAT applicable?"
- * BEFORE generating any reservation agreement document.
- *
- * Returns true if the response contains the default <!-- Loan: No, VAT: No --> comment,
- * indicating the AI defaulted instead of asking.
+ * The reservation_loan_vat_required prompt (priority 25 in sophia_prompts)
+ * already enforces that SOPHIA must ask about Loan/VAT before generating.
+ * This function now only LOGS for debugging — it never blocks DOCX.
  */
 export function hasDefaultedLoanVatFlags(response: string): boolean {
   const lower = response.toLowerCase();
@@ -658,23 +673,16 @@ export function hasDefaultedLoanVatFlags(response: string): boolean {
     return false;
   }
 
-  // Check for the default comment pattern AI adds when it doesn't ask
-  // Pattern: <!-- Loan: No, VAT: No --> or variations
-  const defaultedPatterns = [
-    /<!--\s*Loan:\s*No,\s*VAT:\s*No\s*-->/i,
-    /<!--\s*Loan:\s*No,\s*VAT:\s*No/i,
-    /<!--\s*loan:\s*no,\s*vat:\s*no/i,
-  ];
-
-  for (const pattern of defaultedPatterns) {
-    if (pattern.test(response)) {
-      logger.warn("[Detection] Reservation Agreement has DEFAULTED Loan/VAT flags - AI should have asked first!", {
-        category: LogCategory.GENERAL,
-      });
-      return true;
-    }
+  // Log if we see the Loan/VAT comment (for debugging only — NOT blocking)
+  const loanVatPattern = /<!--\s*Loan:\s*\w+,\s*VAT:\s*\w+\s*-->/i;
+  if (loanVatPattern.test(response)) {
+    logger.info("[Detection] Reservation Agreement has Loan/VAT flags (user-confirmed, allowing DOCX)", {
+      category: LogCategory.GENERAL,
+    });
   }
 
+  // Always return false — never block DOCX based on Loan/VAT flags
+  // The prompt enforcement handles the "must ask" requirement
   return false;
 }
 

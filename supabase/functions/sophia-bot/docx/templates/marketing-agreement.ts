@@ -102,7 +102,7 @@ function formatPrice(price: string): string {
  * - "Flat No. 103, Cynthiana Complex, Tala, Paphos reg no 0/1234"
  * - "Limas Building 1045 Limassol"
  */
-function formatPropertyInfo(rawInput: string): PropertyInfo {
+export function formatPropertyInfo(rawInput: string): PropertyInfo {
   if (!rawInput || rawInput.length < 3) {
     return {
       description: "[Property Information]",
@@ -312,7 +312,7 @@ export function createMarketingAgreement(
   const agreementDate = data.agreementDate || formatOrdinalDate();
 
   // Format placeholders - use brackets for empty/missing values
-  const sellerDisplay = data.sellerFullName || "[Seller's Name]";
+  const sellerDisplay = data.sellerFullName || "[SELLER NAME]";
   const rawPropertyInfo = data.propertyRegistration || "[Property Information]";
 
   // Get property info (single line format)
@@ -741,7 +741,7 @@ export function createMarketingAgreement(
 export function createBlankMarketingAgreementData(agentName: string = "[Agent's Name]"): MarketingAgreementData {
   return {
     agreementDate: formatOrdinalDate(),
-    sellerFullName: "[SELLER'S NAME]",
+    sellerFullName: "[SELLER NAME]",
     propertyRegistration: "[PROPERTY REGISTRATION]",
     marketingPrice: "[PRICE]",
     agentName,
@@ -763,16 +763,53 @@ export function parseMarketingAgreementData(
 
     // Check if this is a BLANK marketing agreement (has placeholders or ellipses)
     const hasBlankPatterns = /\[\s*\]/g.test(response) ||
-                            /[\.…]{8,}/g.test(response) ||
-                            /_{15,}/g.test(response) ||
-                            /\.{15,}/g.test(response);
+      /[\.…]{8,}/g.test(response) ||
+      /_{15,}/g.test(response) ||
+      /\.{15,}/g.test(response);
 
     const isMarketingAgreement = cleanResponse.toLowerCase().includes('marketing agreement');
 
-    // If it's a blank marketing agreement, return placeholder data
+    // If it's a blank/partial marketing agreement, extract whatever data IS available
     if (isMarketingAgreement && hasBlankPatterns) {
-      logger.debug("[MarketingAgreement] Detected blank marketing agreement - using placeholders", { category: LogCategory.GENERAL });
-      return createBlankMarketingAgreementData(agentName);
+      logger.debug("[MarketingAgreement] Detected blank/partial marketing agreement - extracting available data", { category: LogCategory.GENERAL });
+      const blankData = createBlankMarketingAgreementData(agentName);
+
+      // Extract seller name if available
+      const partialSellerMatch =
+        cleanResponse.match(/\bAnd\s*\n+\s*([A-Za-z][A-Za-z\s]+?)(?:……|\.\.\.|\n)/i) ||
+        cleanResponse.match(/Seller(?:'s)?\s*(?:Name)?[:\s]+([A-Za-z][A-Za-z\s]+?)(?:\n|,|$)/i) ||
+        cleanResponse.match(/The Seller\s*\n\s*Name:\s*([A-Za-z][A-Za-z\s]+?)(?:\n|$)/i);
+
+      if (partialSellerMatch) {
+        const name = partialSellerMatch[1].trim();
+        if (name && !/^[\[\]\.…_\s]+$/.test(name) && name.length > 1) {
+          blankData.sellerFullName = name;
+        }
+      }
+
+      // Extract property registration if available
+      const partialRegMatch =
+        cleanResponse.match(/Property(?!\s+Group)[:\s]+(?:with\s+)?(?:Registration\s+(?:No\.?\s*)?)?([^\n]*?\d+\/\d+[^\n]*?)(?=\s*\(?hereinafter|\s*which\s+the\s+seller|\s*$)/im) ||
+        cleanResponse.match(/(?:Reg(?:istration)?\.?\s*(?:No\.?)?)[:\s]*(\d+\/\d+[^\n]*)(?:\n|$)/i);
+
+      if (partialRegMatch) {
+        const prop = partialRegMatch[1].trim();
+        if (prop && !/^[\[\]\.…_\s]+$/.test(prop) && prop.length > 3) {
+          blankData.propertyRegistration = prop;
+          blankData.propertyInfo = formatPropertyInfo(prop);
+        }
+      }
+
+      // Extract price if available
+      const partialPriceMatch =
+        cleanResponse.match(/(?:marketing\s+)?price\s+is\s+[€$]?\s*([\d,]+)/i) ||
+        cleanResponse.match(/(?:Marketing\s+)?Price[:\s]+[€$]?\s*([\d,]+)/i);
+
+      if (partialPriceMatch) {
+        blankData.marketingPrice = partialPriceMatch[1].replace(/,/g, "");
+      }
+
+      return blankData;
     }
 
     logger.debug("[MarketingAgreement] Parsing response...");
@@ -836,7 +873,9 @@ export function parseMarketingAgreementData(
       // Pattern 9: Explicit "Property registration:" or "Property information:" field
       cleanResponse.match(/Property(?:'s)?\s+(?:registration|information)[:\s]+([^\n]+)/i) ||
       // Pattern 10: "Property Details:" field (but NOT "Property Group")
-      cleanResponse.match(/Property\s+Details[:\s]+([^\n]+)/i);
+      cleanResponse.match(/Property\s+Details[:\s]+([^\n]+)/i) ||
+      // Pattern 11: Fallback generic "Property:" match (catches descriptions without numbers)
+      cleanResponse.match(/(?:owner of\s+)?Property(?!\s+Group)[:\s]+([^\n]+)/i);
 
     // Extract marketing price - handle "price is €X" and "price: €X" formats
     const priceMatch =

@@ -594,7 +594,7 @@ function formatDate(date: Date): string {
 export function createBlankReservationAgreementData(): ReservationAgreementData {
   return {
     buyers: [{
-      fullName: "[BUYER NAME]",
+      fullName: "[PROSPECTIVE BUYER]",
       idType: "Cyprus ID",
       idNumber: "[ID NUMBER]",
     }],
@@ -638,22 +638,142 @@ export function parseReservationAgreementData(response: string): ReservationAgre
   try {
     logger.debug("[ReservationAgreement] Parsing response", { length: response.length });
 
+    // Clean response - remove markdown bold markers (MUST be before blank pattern check)
+    const cleanResponse = response.replace(/\*\*/g, '');
+
     // Check if this is a BLANK reservation agreement (has placeholders or ellipses)
     const hasBlankPatterns = /\[\s*\]/g.test(response) ||
-                            /[\.…]{8,}/g.test(response) ||
-                            /_{15,}/g.test(response) ||
-                            /\.{15,}/g.test(response);
+      /[\.…]{8,}/g.test(response) ||
+      /_{15,}/g.test(response) ||
+      /\.{15,}/g.test(response);
 
     const isReservationAgreement = response.toLowerCase().includes('reservation agreement');
 
-    // If it's a blank reservation agreement, return placeholder data
+    // If it's a blank/partial reservation agreement, extract whatever data IS available
     if (isReservationAgreement && hasBlankPatterns) {
-      logger.debug("[ReservationAgreement] Detected blank reservation agreement - using placeholders");
-      return createBlankReservationAgreementData();
-    }
+      logger.debug("[ReservationAgreement] Detected blank/partial reservation agreement - extracting available data");
+      const blankData = createBlankReservationAgreementData();
 
-    // Clean response - remove markdown bold markers
-    const cleanResponse = response.replace(/\*\*/g, '');
+      // Extract Loan/VAT flags from comment
+      const loanVatComment = cleanResponse.match(/<!--[^>]*?loan[:\s]*(yes|no)[^>]*?vat[:\s]*(yes|no)[^>]*?-->/i);
+      if (loanVatComment) {
+        blankData.hasLoanClause = /yes/i.test(loanVatComment[1]);
+        blankData.hasVatClause = /yes/i.test(loanVatComment[2]);
+      }
+
+      // Extract buyer info if available
+      const buyerLineMatch = cleanResponse.match(/Prospective\s+Buyer[:\s]*([^\n]+)/i);
+      if (buyerLineMatch) {
+        const buyerText = buyerLineMatch[1].trim();
+
+        // Parse "Name1 Country1 Passport: ID1 and Name2 Country2 Passport: ID2"
+        const buyerSegments = buyerText.split(/\s+and\s+/i);
+
+        for (let i = 0; i < buyerSegments.length; i++) {
+          const segment = buyerSegments[i].trim();
+          // Ignore empty segments OR segments that are just empty brackets "[]" or "[ ]"
+          if (!segment || /^[\[\]\.…_\s]+$/.test(segment) || /^\[\s*\]$/.test(segment)) continue;
+
+          // Try to match: "Name Country Passport: ID" or "Name Cyprus ID: ID"
+          const idTypeMatch = segment.match(/^(.+?)\s+((?:\w+\s+)?(?:Passport|Cyprus\s+ID|ID))[:\s]+([A-Z0-9]+)/i);
+          if (idTypeMatch) {
+            const buyer = {
+              fullName: idTypeMatch[1].trim(),
+              idType: idTypeMatch[2].trim(),
+              idNumber: idTypeMatch[3].trim(),
+            };
+            if (i === 0) {
+              blankData.buyers[0] = buyer;
+            } else {
+              blankData.buyers.push(buyer);
+            }
+          } else {
+            // Just a name without ID
+            const nameOnly = segment.split(/\s+(?:Cyprus\s+ID|Passport|ID|\[)/i)[0].trim();
+            if (nameOnly && nameOnly.length > 1) {
+              if (i === 0) {
+                blankData.buyers[0].fullName = nameOnly;
+              } else {
+                blankData.buyers.push({ fullName: nameOnly, idType: "Cyprus ID", idNumber: "[ID NUMBER]" });
+              }
+            }
+          }
+        }
+      }
+
+      // Extract vendor info if available
+      const vendorLineMatch = cleanResponse.match(/(?:^|\n)Vendor[:\s]*([^\n]+)/im);
+      if (vendorLineMatch) {
+        const vendorText = vendorLineMatch[1].trim();
+        if (vendorText && !/^[\[\]\.…_\s:]+$/.test(vendorText)) {
+          const vendorIdMatch = vendorText.match(/^(.+?)\s+((?:\w+\s+)?(?:Passport|Cyprus\s+ID|ID))[:\s]+([A-Z0-9]+)/i);
+          if (vendorIdMatch) {
+            blankData.vendor.name = vendorIdMatch[1].trim();
+            blankData.vendor.idType = vendorIdMatch[2].trim();
+            blankData.vendor.idNumber = vendorIdMatch[3].trim();
+            if (blankData.vendors && blankData.vendors.length > 0) {
+              blankData.vendors[0].name = vendorIdMatch[1].trim();
+              blankData.vendors[0].idType = vendorIdMatch[2].trim();
+              blankData.vendors[0].idNumber = vendorIdMatch[3].trim();
+            }
+          } else {
+            const nameOnly = vendorText.split(/\s+(?:Cyprus\s+ID|Passport|ID|UK|\[)/i)[0].trim();
+            if (nameOnly && nameOnly.length > 1) {
+              blankData.vendor.name = nameOnly;
+              if (blankData.vendors && blankData.vendors.length > 0) {
+                blankData.vendors[0].name = nameOnly;
+              }
+            }
+          }
+        }
+      }
+
+      // Extract date if available
+      const dateMatch = cleanResponse.match(/Date\s+Reservation\s+Fee\s+Received[:\s]*([^\n]+)/i);
+      if (dateMatch) {
+        const dateText = dateMatch[1].trim();
+        if (dateText && !/^[\[\]\.…_\s]+$/.test(dateText) && dateText.length > 3) {
+          blankData.date = dateText;
+        }
+      }
+
+      // Extract property if available (require colon to avoid matching "PROPERTY RESERVATION AGREEMENT" title)
+      const propertyMatch = cleanResponse.match(/^Property\s*:\s*(.+)/im);
+      if (propertyMatch) {
+        const prop = propertyMatch[1].trim();
+        if (prop && !/^[\[\]\.…_\s]+$/.test(prop) && prop.length > 3) {
+          blankData.property.description = formatPropertyDescription(prop);
+        }
+      }
+
+      // Extract amounts if available
+      const reservationFeeMatch = cleanResponse.match(/Reservation\s+Fee[:\s]*[€$]?\s*([\d,]+)/i);
+      if (reservationFeeMatch) {
+        const fee = parseInt(reservationFeeMatch[1].replace(/,/g, ""), 10);
+        if (fee > 0) {
+          blankData.financial.reservationFee = fee;
+          blankData.financial.reservationFeeWords = numberToWords(fee) + " euro";
+        }
+      }
+
+      const purchasePriceMatch = cleanResponse.match(/Purchase\s+Price[:\s]*[€$]?\s*([\d,]+)/i);
+      if (purchasePriceMatch) {
+        const price = parseInt(purchasePriceMatch[1].replace(/,/g, ""), 10);
+        if (price > 0) {
+          blankData.financial.purchasePrice = price;
+          blankData.financial.purchasePriceWords = numberToWords(price) + " euro";
+        }
+      }
+
+      logger.debug("[ReservationAgreement] Partial data extracted", {
+        buyerName: blankData.buyers[0]?.fullName,
+        buyerId: blankData.buyers[0]?.idNumber,
+        hasLoan: blankData.hasLoanClause,
+        hasVat: blankData.hasVatClause,
+      });
+
+      return blankData;
+    }
 
     // Extract LOAN/VAT flags
     // Priority 1: Structured HTML comment format <!-- Loan: Yes, VAT: No -->
@@ -806,8 +926,8 @@ export function parseReservationAgreementData(response: string): ReservationAgre
       /Property\s+(?:Details|Description)[:\s]*(.+?)(?=\n\n|\nReservation|\nPurchase|$)/is,
       // Pattern 3: Just get whatever follows "Property Details:"
       /Property\s+(?:Details|Description)[:\s]*(.+)/i,
-      // Pattern 4: "Property:" followed by description
-      /Property[:\s]+([^\n]+)/i,
+      // Pattern 4: "Property:" with required colon (avoids matching "PROPERTY RESERVATION AGREEMENT" title)
+      /^Property\s*:\s*(.+)/im,
     ];
 
     for (const pattern of propertyPatterns) {

@@ -8,6 +8,3 @@
  *
  * DO NOT add new prompts here. Edit via Dashboard or modular files instead.
  */
-
-// Re-export logo for backward compatibility with existing imports
-export { ZYPRUS_LOGO_BASE64 } from "./assets/zyprus-logo.ts";
