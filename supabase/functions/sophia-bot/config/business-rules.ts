@@ -282,7 +282,10 @@ export const PROPERTY_TYPE_FALLBACKS: Record<string, string> = {
   townhouse: "74f0a039-fff8-4f7e-ae6d-6bda4c656b68",          // Townhouse
   flat: "1cc0bfae-8773-4f8b-93f2-e4ee7e5c7cc7",               // Flat
   "entire floor apartment": "59e8e5b9-14a8-450b-ab95-f5f9b25e3f3d",
-  "mixed-use building": "0f109c45-21e2-4979-8b7c-4ece7b73fbe7",
+  // NOTE: "mixed-use building" and "residential building" removed
+  // The UUID was invalid on Zyprus API (404). These will fall through
+  // to the default property type (Apartment) via DEFAULT_PROPERTY_TYPE_UUID
+  // If Zyprus adds these types later, fetch them from the live taxonomy.
 };
 
 /** Property status UUIDs - verified from live API (Feb 2026) */
