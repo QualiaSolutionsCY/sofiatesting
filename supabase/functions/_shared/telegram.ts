@@ -75,7 +75,7 @@ export class TelegramBotClient {
 
     if (!data.ok) {
       logger.error("Telegram sendMessage error", new Error(data.description ?? "Unknown error"), {
-        category: LogCategory.EXTERNAL_API,
+        category: LogCategory.GENERAL,
         chatId: String(chatId),
         errorCode: data.error_code,
       });
@@ -100,7 +100,7 @@ export class TelegramBotClient {
 
       if (!data.ok) {
         logger.error("Telegram getChat error", new Error(data.description ?? "Unknown error"), {
-          category: LogCategory.EXTERNAL_API,
+          category: LogCategory.GENERAL,
           chatId: String(chatId),
         });
         return null;
@@ -111,7 +111,7 @@ export class TelegramBotClient {
       logger.error(
         "Error getting chat info",
         error instanceof Error ? error : new Error(String(error)),
-        { category: LogCategory.EXTERNAL_API, chatId: String(chatId) },
+        { category: LogCategory.GENERAL, chatId: String(chatId) },
       );
       return null;
     }

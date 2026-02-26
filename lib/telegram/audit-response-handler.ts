@@ -195,7 +195,8 @@ export async function handleAuditAlertResponse(
         break;
     }
 
-    const { error: updateError } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped table
+    const { error: updateError } = await (supabase as any)
       .from("audit_alerts")
       .update(updateFields)
       .eq("id", alert.id);
