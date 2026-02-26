@@ -101,53 +101,104 @@ export async function extractTodayCalls(client: ThreeCXClient): Promise<ThreeCXC
         };
       }
 
-      const response = await client.makeAuthenticatedRequest(endpoint.path, requestOptions);
+      let response: Response;
+      let responseText: string;
+      let data: any;
 
-      if (!response.ok) {
-        if (response.status === 404) {
-          logger.debug(`[Call Log Extractor] ${endpoint.name} not available (404)`, {
-            category: LogCategory.GENERAL,
-          });
-          continue;
+      try {
+        response = await client.makeAuthenticatedRequest(endpoint.path, requestOptions);
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            logger.debug(`[Call Log Extractor] ${endpoint.name} not available (404)`, {
+              category: LogCategory.GENERAL,
+            });
+            continue;
+          }
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+        responseText = await response.text();
+        logger.debug(`[Call Log Extractor] Raw response from ${endpoint.name}`, {
+          category: LogCategory.GENERAL,
+          responseLength: responseText.length,
+          responseSample: responseText.substring(0, 200),
+        });
+
+      } catch (networkError) {
+        lastError = networkError instanceof Error ? networkError : new Error(String(networkError));
+        logger.warn(`[Call Log Extractor] ${endpoint.name} network error`, {
+          category: LogCategory.GENERAL,
+          error: lastError.message,
+        });
+        continue;
       }
 
-      const responseText = await response.text();
-      logger.debug(`[Call Log Extractor] Raw response from ${endpoint.name}`, {
-        category: LogCategory.GENERAL,
-        responseLength: responseText.length,
-        responseSample: responseText.substring(0, 200),
-      });
-
-      let data: any;
+      // Parse JSON with detailed error handling
       try {
+        // Check Content-Type before parsing
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.includes("application/json") && !contentType.includes("text/json")) {
+          if (responseText.includes("<html") || responseText.includes("login")) {
+            throw new Error(`${endpoint.name} returned HTML login page - session expired`);
+          }
+          logger.warn(`[Call Log Extractor] Unexpected content type from ${endpoint.name}`, {
+            category: LogCategory.GENERAL,
+            contentType,
+            responseSample: responseText.substring(0, 100),
+          });
+        }
+
         data = JSON.parse(responseText);
       } catch (parseError) {
-        throw new Error(`Invalid JSON response: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+        const error = new Error(`Invalid JSON response from ${endpoint.name}: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+        lastError = error;
+        logger.warn(`[Call Log Extractor] ${endpoint.name} JSON parse failed`, {
+          category: LogCategory.GENERAL,
+          error: error.message,
+          responseLength: responseText.length,
+          responseSample: responseText.substring(0, 200),
+        });
+        continue;
       }
 
-      // Parse response based on common 3CX API formats
-      const entries = parseCallLogResponse(data, endpoint.name);
+      // Parse response with graceful degradation
+      let entries: ThreeCXCallLogEntry[];
+      try {
+        entries = parseCallLogResponse(data, endpoint.name);
+      } catch (parseError) {
+        const error = new Error(`Failed to parse call log format from ${endpoint.name}: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+        lastError = error;
+        logger.warn(`[Call Log Extractor] ${endpoint.name} response format parsing failed`, {
+          category: LogCategory.GENERAL,
+          error: error.message,
+          dataKeys: Object.keys(data || {}),
+          dataType: typeof data,
+          endpoint: endpoint.name,
+        });
+        continue;
+      }
 
-      logger.info(`[Call Log Extractor] Successfully extracted calls via ${endpoint.name}`, {
-        category: LogCategory.GENERAL,
-        totalCalls: entries.length,
-      });
+      // Success case
+      if (entries.length === 0) {
+        logger.info(`[Call Log Extractor] ${endpoint.name} succeeded but no calls found`, {
+          category: LogCategory.GENERAL,
+          endpoint: endpoint.name,
+        });
+      } else {
+        logger.info(`[Call Log Extractor] Successfully extracted calls via ${endpoint.name}`, {
+          category: LogCategory.GENERAL,
+          totalCalls: entries.length,
+          endpoint: endpoint.name,
+        });
+      }
 
       return entries;
-
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      logger.warn(`[Call Log Extractor] ${endpoint.name} failed`, {
-        category: LogCategory.GENERAL,
-        error: lastError.message,
-      });
-    }
   }
 
   // All endpoints failed
-  throw new Error(`All call log API endpoints failed. Last error: ${lastError?.message || "Unknown error"}`);
+  const availableEndpoints = endpoints.map(e => e.name).join(", ");
+  throw new Error(`All call log API endpoints failed (${availableEndpoints}). Last error: ${lastError?.message || "Unknown error"}`);
 }
 
 /**
@@ -172,13 +223,15 @@ function parseCallLogResponse(data: any, endpointName: string): ThreeCXCallLogEn
   } else if (data.data && Array.isArray(data.data)) {
     callList = data.data;
   } else {
+    const errorMsg = `Unknown response format from ${endpointName} - expected array or object with list/calls/data property`;
     logger.warn("[Call Log Extractor] Unknown response format", {
       category: LogCategory.GENERAL,
       endpoint: endpointName,
       dataType: typeof data,
       keys: Object.keys(data || {}),
+      sampleData: JSON.stringify(data).substring(0, 200),
     });
-    return [];
+    throw new Error(errorMsg);
   }
 
   logger.debug("[Call Log Extractor] Parsing call entries", {
@@ -192,6 +245,14 @@ function parseCallLogResponse(data: any, endpointName: string): ThreeCXCallLogEn
       const parsedEntry = parseCallEntry(entry);
       if (parsedEntry) {
         entries.push(parsedEntry);
+      } else {
+        // Log when entry is skipped due to missing required fields
+        logger.debug("[Call Log Extractor] Skipped call entry (missing required fields)", {
+          category: LogCategory.GENERAL,
+          index,
+          entryKeys: Object.keys(entry || {}),
+          endpoint: endpointName,
+        });
       }
     } catch (error) {
       logger.warn("[Call Log Extractor] Failed to parse call entry", {
@@ -199,6 +260,8 @@ function parseCallLogResponse(data: any, endpointName: string): ThreeCXCallLogEn
         index,
         error: error instanceof Error ? error.message : String(error),
         entryKeys: Object.keys(entry || {}),
+        endpoint: endpointName,
+        entrySample: JSON.stringify(entry).substring(0, 150),
       });
     }
   }
@@ -249,15 +312,49 @@ function parseCallEntry(entry: any): ThreeCXCallLogEntry | null {
 
   const callerNumber = getCallerNumber();
   const calledNumber = getCalledNumber();
+  const callTime = getCallTime();
 
   if (!callerNumber || !calledNumber) {
-    // Skip entries without phone numbers
+    // Skip entries without phone numbers - this is normal for system events
     return null;
+  }
+
+  // Handle malformed date strings with fallback
+  let parsedCallTime: string;
+  try {
+    if (callTime && typeof callTime === 'string') {
+      // Try to parse and re-format the date
+      const parsedDate = new Date(callTime);
+      if (isNaN(parsedDate.getTime())) {
+        // Try Date.parse fallback
+        const fallbackParsed = new Date(Date.parse(callTime));
+        if (isNaN(fallbackParsed.getTime())) {
+          logger.warn("[Call Log Extractor] Malformed date string, using current time", {
+            category: LogCategory.GENERAL,
+            originalDate: callTime,
+          });
+          parsedCallTime = new Date().toISOString();
+        } else {
+          parsedCallTime = fallbackParsed.toISOString();
+        }
+      } else {
+        parsedCallTime = parsedDate.toISOString();
+      }
+    } else {
+      parsedCallTime = new Date().toISOString();
+    }
+  } catch (dateError) {
+    logger.warn("[Call Log Extractor] Date parsing error, using current time", {
+      category: LogCategory.GENERAL,
+      originalDate: callTime,
+      error: dateError instanceof Error ? dateError.message : String(dateError),
+    });
+    parsedCallTime = new Date().toISOString();
   }
 
   return {
     id: getId(),
-    callTime: getCallTime(),
+    callTime: parsedCallTime,
     callerNumber: String(callerNumber),
     calledNumber: String(calledNumber),
     duration: Number(getDuration()) || 0,
@@ -323,7 +420,14 @@ export function filterExternalCallers(entries: ThreeCXCallLogEntry[]): CallAudit
       if (normalizedNumber) {
         externalCallerSet.add(normalizedNumber);
       } else {
-        errors.push(`Invalid phone number format: ${entry.callerNumber}`);
+        // Log warning but don't fail the entire process
+        const errorMsg = `Invalid phone number format: ${entry.callerNumber}`;
+        errors.push(errorMsg);
+        logger.debug("[Call Log Extractor] Skipped invalid phone number", {
+          category: LogCategory.GENERAL,
+          callerNumber: entry.callerNumber,
+          entryId: entry.id,
+        });
       }
 
     } catch (error) {

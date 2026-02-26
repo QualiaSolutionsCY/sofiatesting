@@ -23,42 +23,182 @@ const responseHeaders = {
 };
 
 /**
- * Health check - verify configuration is accessible
+ * Error categories for structured error reporting
  */
-function getHealthStatus() {
-  try {
-    // Test configuration access
-    const config = get3CXConfig();
+enum ErrorCategory {
+  AUTH_FAILED = "AUTH_FAILED",
+  SESSION_EXPIRED = "SESSION_EXPIRED",
+  NETWORK_ERROR = "NETWORK_ERROR",
+  PARSE_ERROR = "PARSE_ERROR",
+  NO_DATA = "NO_DATA",
+  CONFIG_ERROR = "CONFIG_ERROR",
+  UNKNOWN = "UNKNOWN"
+}
 
-    return {
-      status: "healthy",
-      config: {
-        targetNumber: AUDIT_CONFIG.TARGET_NUMBER,
-        internalExtensions: AUDIT_CONFIG.INTERNAL_EXTENSIONS,
-        timezone: AUDIT_CONFIG.TIMEZONE,
-        scheduleHour: AUDIT_CONFIG.SCHEDULE_HOUR,
-        scheduleDays: AUDIT_CONFIG.SCHEDULE_DAYS,
-        threeCXBaseUrl: config.baseUrl, // Don't expose credentials
-        threeCXConfigured: true,
-      },
-      timestamp: new Date().toISOString(),
-    };
-  } catch (error) {
-    return {
-      status: "unhealthy",
-      error: error instanceof Error ? error.message : "Configuration error",
-      timestamp: new Date().toISOString(),
-    };
+/**
+ * Check if an error is retryable based on category
+ */
+function isRetryableError(category: ErrorCategory): boolean {
+  switch (category) {
+    case ErrorCategory.NETWORK_ERROR:
+    case ErrorCategory.SESSION_EXPIRED:
+      return true;
+    case ErrorCategory.AUTH_FAILED:
+    case ErrorCategory.PARSE_ERROR:
+    case ErrorCategory.CONFIG_ERROR:
+      return false;
+    case ErrorCategory.NO_DATA:
+    case ErrorCategory.UNKNOWN:
+    default:
+      return false;
   }
 }
 
+/**
+ * Classify error by type and message
+ */
+function classifyError(error: Error): ErrorCategory {
+  const message = error.message.toLowerCase();
+  const name = error.name.toLowerCase();
+
+  // Authentication errors
+  if (
+    message.includes("authentication failed") ||
+    message.includes("credentials rejected") ||
+    message.includes("login failed") ||
+    name.includes("auth")
+  ) {
+    return ErrorCategory.AUTH_FAILED;
+  }
+
+  // Session expiry
+  if (
+    message.includes("session expired") ||
+    message.includes("login page") ||
+    message.includes("re-authentication failed") ||
+    message.includes("401") ||
+    message.includes("403")
+  ) {
+    return ErrorCategory.SESSION_EXPIRED;
+  }
+
+  // Network errors
+  if (
+    message.includes("network error") ||
+    message.includes("timeout") ||
+    message.includes("fetch") ||
+    message.includes("econnrefused") ||
+    message.includes("cannot reach") ||
+    name.includes("network") ||
+    name.includes("fetch")
+  ) {
+    return ErrorCategory.NETWORK_ERROR;
+  }
+
+  // Parse errors
+  if (
+    message.includes("parse") ||
+    message.includes("json") ||
+    message.includes("format") ||
+    message.includes("invalid json") ||
+    message.includes("unexpected content type")
+  ) {
+    return ErrorCategory.PARSE_ERROR;
+  }
+
+  // Configuration errors
+  if (
+    message.includes("configuration") ||
+    message.includes("config") ||
+    message.includes("environment variable") ||
+    message.includes("missing")
+  ) {
+    return ErrorCategory.CONFIG_ERROR;
+  }
+
+  return ErrorCategory.UNKNOWN;
+}
+
+/**
+ * Health check - verify configuration and test 3CX connectivity
+ */
+async function getHealthStatus(includeConnectivityTest = false): Promise<any> {
+  const healthResult: any = {
+    timestamp: new Date().toISOString(),
+  };
+
+  // Test configuration access
+  try {
+    const config = get3CXConfig();
+    healthResult.config = {
+      targetNumber: AUDIT_CONFIG.TARGET_NUMBER,
+      internalExtensions: AUDIT_CONFIG.INTERNAL_EXTENSIONS,
+      timezone: AUDIT_CONFIG.TIMEZONE,
+      scheduleHour: AUDIT_CONFIG.SCHEDULE_HOUR,
+      scheduleDays: AUDIT_CONFIG.SCHEDULE_DAYS,
+      threeCXBaseUrl: config.baseUrl, // Don't expose credentials
+      threeCXConfigured: true,
+    };
+    healthResult.configStatus = "valid";
+  } catch (configError) {
+    healthResult.configStatus = "invalid";
+    healthResult.configError = configError instanceof Error ? configError.message : "Configuration error";
+    healthResult.status = "unhealthy";
+    return healthResult;
+  }
+
+  // Test 3CX reachability if requested
+  if (includeConnectivityTest) {
+    try {
+      const config = get3CXConfig();
+
+      // Simple connectivity test - HEAD request to base URL
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(config.baseUrl, {
+        method: "HEAD",
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "SophiaAI-CallAudit-Health",
+        },
+      }).finally(() => clearTimeout(timeoutId));
+
+      healthResult.connectivity = {
+        reachable: true,
+        responseStatus: response.status,
+        responseTime: "< 10s",
+      };
+    } catch (connectError) {
+      healthResult.connectivity = {
+        reachable: false,
+        error: connectError instanceof Error ? connectError.message : "Connection failed",
+        responseTime: "timeout",
+      };
+
+      if (connectError instanceof Error && connectError.name === "AbortError") {
+        healthResult.connectivity.error = "Connection timeout after 10s";
+      }
+    }
+  }
+
+  healthResult.status = healthResult.configStatus === "valid" &&
+    (!includeConnectivityTest || healthResult.connectivity?.reachable) ? "healthy" : "unhealthy";
+
+  return healthResult;
+}
+
 Deno.serve(async (req: Request) => {
+  const startTime = performance.now();
+  const startTimestamp = new Date().toISOString();
+
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 405 });
   }
 
   try {
     const url = new URL(req.url);
+    const isHealthCheck = url.searchParams.get('health') !== null;
     const isDryRun = url.searchParams.get('dry-run') === 'true';
     const dateOverride = url.searchParams.get('date');
 
@@ -66,24 +206,50 @@ Deno.serve(async (req: Request) => {
       category: LogCategory.GENERAL,
       method: req.method,
       url: req.url,
+      isHealthCheck,
       isDryRun,
       dateOverride,
     });
+
+    // Handle health check
+    if (isHealthCheck) {
+      const includeConnectivity = url.searchParams.get('connectivity') === 'true';
+      const healthStatus = await getHealthStatus(includeConnectivity);
+      const executionMs = Math.round(performance.now() - startTime);
+
+      return new Response(
+        JSON.stringify({
+          ...healthStatus,
+          executionMs,
+        }),
+        {
+          headers: responseHeaders,
+          status: healthStatus.status === "healthy" ? 200 : 503
+        }
+      );
+    }
 
     // 1. Read and validate 3CX config
     let config;
     try {
       config = get3CXConfig();
     } catch (configError) {
+      const errorCategory = classifyError(configError instanceof Error ? configError : new Error(String(configError)));
+      const executionMs = Math.round(performance.now() - startTime);
+
       logger.error("[Call Audit] Configuration validation failed", configError instanceof Error ? configError : new Error(String(configError)), {
         category: LogCategory.GENERAL,
+        errorCategory,
       });
 
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Configuration error",
-          details: configError instanceof Error ? configError.message : String(configError),
+          error: errorCategory,
+          message: configError instanceof Error ? configError.message : String(configError),
+          timestamp: new Date().toISOString(),
+          retryable: isRetryableError(errorCategory),
+          executionMs,
         }),
         { headers: responseHeaders, status: 500 }
       );
@@ -96,15 +262,22 @@ Deno.serve(async (req: Request) => {
     try {
       await client.login();
     } catch (authError) {
+      const errorCategory = classifyError(authError instanceof Error ? authError : new Error(String(authError)));
+      const executionMs = Math.round(performance.now() - startTime);
+
       logger.error("[Call Audit] 3CX authentication failed", authError instanceof Error ? authError : new Error(String(authError)), {
         category: LogCategory.GENERAL,
+        errorCategory,
       });
 
       return new Response(
         JSON.stringify({
           success: false,
-          error: "3CX authentication failed",
-          details: authError instanceof Error ? authError.message : String(authError),
+          error: errorCategory,
+          message: authError instanceof Error ? authError.message : String(authError),
+          timestamp: new Date().toISOString(),
+          retryable: isRetryableError(errorCategory),
+          executionMs,
         }),
         { headers: responseHeaders, status: 500 }
       );
@@ -112,9 +285,12 @@ Deno.serve(async (req: Request) => {
 
     // If dry-run mode, return auth status only
     if (isDryRun) {
+      const executionMs = Math.round(performance.now() - startTime);
+
       logger.info("[Call Audit] Dry run completed - authentication successful", {
         category: LogCategory.GENERAL,
         targetNumber: AUDIT_CONFIG.TARGET_NUMBER,
+        executionMs,
       });
 
       return new Response(
@@ -128,6 +304,7 @@ Deno.serve(async (req: Request) => {
             threeCXBaseUrl: config.baseUrl,
           },
           timestamp: new Date().toISOString(),
+          executionMs,
         }),
         { headers: responseHeaders, status: 200 }
       );
@@ -147,15 +324,22 @@ Deno.serve(async (req: Request) => {
 
       entries = await extractTodayCalls(client);
     } catch (extractError) {
+      const errorCategory = classifyError(extractError instanceof Error ? extractError : new Error(String(extractError)));
+      const executionMs = Math.round(performance.now() - startTime);
+
       logger.error("[Call Audit] Call log extraction failed", extractError instanceof Error ? extractError : new Error(String(extractError)), {
         category: LogCategory.GENERAL,
+        errorCategory,
       });
 
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Call log extraction failed",
-          details: extractError instanceof Error ? extractError.message : String(extractError),
+          error: errorCategory,
+          message: extractError instanceof Error ? extractError.message : String(extractError),
+          timestamp: new Date().toISOString(),
+          retryable: isRetryableError(errorCategory),
+          executionMs,
         }),
         { headers: responseHeaders, status: 500 }
       );
@@ -166,21 +350,34 @@ Deno.serve(async (req: Request) => {
     try {
       auditResult = filterExternalCallers(entries);
     } catch (filterError) {
+      const errorCategory = classifyError(filterError instanceof Error ? filterError : new Error(String(filterError)));
+      const executionMs = Math.round(performance.now() - startTime);
+
       logger.error("[Call Audit] Call filtering failed", filterError instanceof Error ? filterError : new Error(String(filterError)), {
         category: LogCategory.GENERAL,
+        errorCategory,
       });
 
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Call filtering failed",
-          details: filterError instanceof Error ? filterError.message : String(filterError),
+          error: errorCategory,
+          message: filterError instanceof Error ? filterError.message : String(filterError),
+          timestamp: new Date().toISOString(),
+          retryable: isRetryableError(errorCategory),
+          executionMs,
         }),
         { headers: responseHeaders, status: 500 }
       );
     }
 
     // 6. Log summary and return result
+    const executionMs = Math.round(performance.now() - startTime);
+
+    // Check if no external callers found
+    const noDataFound = auditResult.externalCallers.length === 0;
+    const resultCategory = noDataFound ? ErrorCategory.NO_DATA : "SUCCESS";
+
     logger.info("[Call Audit] Audit completed successfully", {
       category: LogCategory.GENERAL,
       date: auditResult.date,
@@ -188,26 +385,41 @@ Deno.serve(async (req: Request) => {
       externalCallers: auditResult.externalCallers.length,
       internalFiltered: auditResult.internalFiltered,
       errors: auditResult.errors.length,
+      executionMs,
+      resultCategory,
     });
 
     return new Response(
       JSON.stringify({
         success: true,
-        result: auditResult,
+        result: {
+          ...auditResult,
+          timestamp: new Date().toISOString(),
+          executionMs,
+          ...(noDataFound && { note: "No external callers found for today" }),
+        },
       }),
       { headers: responseHeaders, status: 200 }
     );
 
   } catch (error) {
+    const errorCategory = classifyError(error instanceof Error ? error : new Error(String(error)));
+    const executionMs = Math.round(performance.now() - startTime);
+
     logger.error("[Call Audit] Fatal error", error instanceof Error ? error : new Error(String(error)), {
       category: LogCategory.GENERAL,
+      errorCategory,
+      executionMs,
     });
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: "Call audit failed",
+        error: errorCategory,
         message: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString(),
+        retryable: isRetryableError(errorCategory),
+        executionMs,
       }),
       { headers: responseHeaders, status: 500 }
     );
