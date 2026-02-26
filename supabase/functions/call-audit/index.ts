@@ -258,7 +258,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // 1. Read and validate 3CX config
-    let config;
+    let config: ReturnType<typeof get3CXConfig>;
     try {
       config = get3CXConfig();
     } catch (configError) {
