@@ -10,7 +10,6 @@
 
 import { getTelegramBot } from "./telegram.ts";
 import { ZYPRESS_OTHERS_CHAT_ID } from "./telegram-search.ts";
-import { getSupabaseAdmin } from "./db.ts";
 import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
 
 // ---------------------------------------------------------------------------
@@ -24,21 +23,6 @@ export interface MissingCallerInfo {
   searchedGroups: string[]; // Names of groups searched
 }
 
-export interface AuditAlert {
-  id: string;
-  phone_number: string;
-  call_date: string;
-  call_time: string;
-  alert_type: string;
-  telegram_message_id: number | null;
-  chat_id: number;
-  status: string;
-  response_text: string | null;
-  responded_by_telegram_id: number | null;
-  responded_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
 
 // ---------------------------------------------------------------------------
 // Phone Number Formatting
@@ -138,7 +122,6 @@ export function formatFollowUpReminder(
  * Send a single missing-caller alert to the Zypress Others group.
  *
  * Returns the Telegram message ID on success (needed for response tracking).
- * Persists the alert in the audit_alerts table.
  */
 export async function sendMissingCallerAlert(
   call: MissingCallerInfo,
@@ -167,9 +150,6 @@ export async function sendMissingCallerAlert(
       messageId: String(messageId),
       callDate: call.callDate,
     });
-
-    // Persist alert in database
-    await persistAlert(call, messageId, "initial");
 
     return { success: true, messageId };
   } catch (error) {
@@ -221,134 +201,4 @@ export async function sendBatchMissingCallerAlerts(
   });
 
   return { sent, failed, messageIds };
-}
-
-// ---------------------------------------------------------------------------
-// Database Persistence
-// ---------------------------------------------------------------------------
-
-/**
- * Persist an alert record in audit_alerts.
- * Handles duplicate gracefully (unique constraint on phone_number+call_date+alert_type).
- */
-async function persistAlert(
-  call: MissingCallerInfo,
-  telegramMessageId: number,
-  alertType: string,
-): Promise<void> {
-  try {
-    const supabase = getSupabaseAdmin();
-
-    const { error } = await supabase.from("audit_alerts").insert({
-      phone_number: call.phoneNumber,
-      call_date: call.callDate,
-      call_time: call.callTime,
-      alert_type: alertType,
-      telegram_message_id: telegramMessageId,
-      chat_id: ZYPRESS_OTHERS_CHAT_ID,
-      status: "pending",
-    });
-
-    if (error) {
-      // 23505 = unique constraint violation (duplicate alert)
-      if (error.code === "23505") {
-        logger.info("Alert already exists for this phone+date+type", {
-          category: LogCategory.DATABASE,
-          operation: "persistAlert",
-          callDate: call.callDate,
-        });
-        return;
-      }
-
-      logger.error("Error persisting alert", error, {
-        category: LogCategory.DATABASE,
-        operation: "persistAlert",
-      });
-    }
-  } catch (error) {
-    // Non-critical: log but don't fail the alert send
-    const err = error instanceof Error ? error : new Error(String(error));
-    logger.error("Exception persisting alert", err, {
-      category: LogCategory.DATABASE,
-      operation: "persistAlert",
-    });
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Alert Query Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Get unresolved alerts older than the specified number of hours.
- * Used for follow-up reminder logic.
- */
-export async function getUnresolvedAlerts(
-  olderThanHours: number,
-): Promise<AuditAlert[]> {
-  try {
-    const supabase = getSupabaseAdmin();
-    const cutoff = new Date(Date.now() - olderThanHours * 60 * 60 * 1000).toISOString();
-
-    const { data, error } = await supabase
-      .from("audit_alerts")
-      .select("*")
-      .eq("status", "pending")
-      .lt("created_at", cutoff)
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      logger.error("Error fetching unresolved alerts", error, {
-        category: LogCategory.DATABASE,
-        operation: "getUnresolvedAlerts",
-      });
-      return [];
-    }
-
-    return (data || []) as AuditAlert[];
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    logger.error("Exception fetching unresolved alerts", err, {
-      category: LogCategory.DATABASE,
-      operation: "getUnresolvedAlerts",
-    });
-    return [];
-  }
-}
-
-/**
- * Mark an alert as resolved with response details.
- */
-export async function markAlertResolved(
-  alertId: string,
-  responseText: string,
-  respondedBy: number,
-): Promise<void> {
-  try {
-    const supabase = getSupabaseAdmin();
-
-    const { error } = await supabase
-      .from("audit_alerts")
-      .update({
-        status: "resolved",
-        response_text: responseText,
-        responded_by_telegram_id: respondedBy,
-        responded_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", alertId);
-
-    if (error) {
-      logger.error("Error marking alert resolved", error, {
-        category: LogCategory.DATABASE,
-        operation: "markAlertResolved",
-      });
-    }
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    logger.error("Exception marking alert resolved", err, {
-      category: LogCategory.DATABASE,
-      operation: "markAlertResolved",
-    });
-  }
 }

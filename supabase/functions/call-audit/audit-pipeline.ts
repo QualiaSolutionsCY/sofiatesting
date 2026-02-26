@@ -26,6 +26,7 @@ import {
 import {
   searchPhoneInGroups,
   REGIONAL_GROUP_IDS,
+  ZYPRESS_OTHERS_CHAT_ID,
 } from "../_shared/telegram-search.ts";
 import {
   sendMissingCallerAlert,
@@ -263,10 +264,11 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
           const result = await sendMissingCallerAlert(caller);
 
           if (result.success && result.messageId) {
-            // Update alert status with message ID
+            // Update alert status with message ID and chat ID
             await updateAlertStatus(alert.id, {
               status: "alerted",
               alert_message_id: String(result.messageId),
+              chat_id: ZYPRESS_OTHERS_CHAT_ID,
             });
 
             alertsSent++;
