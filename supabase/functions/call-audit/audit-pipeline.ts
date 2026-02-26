@@ -138,8 +138,6 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
 
     // Step 4: Search Telegram groups for each external caller
     const missingCallers: MissingCallerInfo[] = [];
-    let telegramSearchSkipped = false;
-
     // Check if Telegram is configured
     const groupIds = Object.values(REGIONAL_GROUP_IDS);
     if (groupIds.some((id) => id === 0)) {
@@ -148,7 +146,6 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
         operation: "runDailyAudit",
         runId,
       });
-      telegramSearchSkipped = true;
 
       // Mark all callers as missing since we can't search
       for (const phone of auditResult.externalCallers) {
@@ -270,7 +267,7 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
               operation: "runDailyAudit",
               runId,
               phone: caller.phoneNumber,
-              messageId: result.messageId,
+              messageId: String(result.messageId),
             });
           } else {
             alertsFailed++;
