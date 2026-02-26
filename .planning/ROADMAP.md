@@ -144,9 +144,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [x] 12-01-PLAN.md — Deno Telegram client, group message search, and message indexing
-- [x] 12-02-PLAN.md — Alert sending to Zypress Others with DB persistence
-- [x] 12-03-PLAN.md — Response tracking from Vasya and alert state management
+- [x] 12-01-PLAN.md -- Deno Telegram client, group message search, and message indexing
+- [x] 12-02-PLAN.md -- Alert sending to Zypress Others with DB persistence
+- [x] 12-03-PLAN.md -- Response tracking from Vasya and alert state management
 
 #### Phase 13: Alerting Logic
 **Goal**: System sends correct alerts and handles all response scenarios
@@ -160,11 +160,11 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [x] 13-01-PLAN.md — Audit pipeline orchestrator (3CX -> Telegram search -> alerts -> DB tracking)
-- [x] 13-02-PLAN.md — Follow-up reminder logic (24-hour timing) and pipeline integration
-- [x] 13-03-PLAN.md — Gap closure: call time extraction and propagation (fixes "Unknown"/"N/A")
-- [x] 13-04-PLAN.md — Gap closure: response handling verification (deferred — code confirmed correct)
-- [x] 13-05-PLAN.md — Gap closure: unify response tracking onto caller_alerts table (fixes ALERT-04)
+- [x] 13-01-PLAN.md -- Audit pipeline orchestrator (3CX -> Telegram search -> alerts -> DB tracking)
+- [x] 13-02-PLAN.md -- Follow-up reminder logic (24-hour timing) and pipeline integration
+- [x] 13-03-PLAN.md -- Gap closure: call time extraction and propagation (fixes "Unknown"/"N/A")
+- [x] 13-04-PLAN.md -- Gap closure: response handling verification (deferred -- code confirmed correct)
+- [x] 13-05-PLAN.md -- Gap closure: unify response tracking onto caller_alerts table (fixes ALERT-04)
 
 #### Phase 14: Scheduling & Orchestration
 **Goal**: Audit runs automatically Monday-Friday at 5:00 PM Cyprus time
@@ -176,17 +176,16 @@ Plans:
   3. All execution events and errors are logged with timestamps
   4. System handles timezone calculations correctly across DST changes
   5. Failed executions recover gracefully without corrupting state
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 14-01: pg_cron scheduled Edge Function setup
-- [ ] 14-02: Weekday/weekend logic with timezone handling
-- [ ] 14-03: Execution logging and error recovery
+- [ ] 14-01-PLAN.md -- pg_cron migration with timezone-aware scheduling and execution logging
+- [ ] 14-02-PLAN.md -- Deploy Edge Function and verify end-to-end scheduling
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
+Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -203,7 +202,7 @@ Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
 | 11. 3CX Integration | v1.2 | 3/3 | Code complete (checkpoint pending) | 2026-02-26 |
 | 12. Telegram Integration | v1.2 | 3/3 | Complete | 2026-02-26 |
 | 13. Alerting Logic | v1.2 | 5/5 | Complete | 2026-02-26 |
-| 14. Scheduling & Orchestration | v1.2 | 0/3 | Not started | - |
+| 14. Scheduling & Orchestration | v1.2 | 0/2 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-26 for v1.2 milestone*
