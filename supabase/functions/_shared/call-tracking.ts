@@ -54,6 +54,7 @@ export type CallerAlert = {
   status: AlertStatus;
   alert_message_id: string | null;
   follow_up_message_id: string | null;
+  chat_id: number | null;
   resolution_type: ResolutionType | null;
   resolution_note: string | null;
   alternative_phone: string | null;
@@ -70,12 +71,14 @@ export type CreateCallerAlertParams = {
   call_record_id?: string;
   status?: AlertStatus;
   call_time?: string;
+  chat_id?: number;
 };
 
 export type UpdateAlertStatusParams = {
   status: AlertStatus;
   alert_message_id?: string;
   follow_up_message_id?: string;
+  chat_id?: number;
   resolution_type?: ResolutionType;
   resolution_note?: string;
   alternative_phone?: string;
@@ -360,6 +363,7 @@ export const createCallerAlert = async (
           call_record_id: params.call_record_id || null,
           status: params.status || "pending",
           call_time: params.call_time || null,
+          chat_id: params.chat_id || null,
         },
       ])
       .select()
@@ -431,6 +435,7 @@ export const updateAlertStatus = async (
   // Add optional fields
   if (params.alert_message_id) updates.alert_message_id = params.alert_message_id;
   if (params.follow_up_message_id) updates.follow_up_message_id = params.follow_up_message_id;
+  if (params.chat_id) updates.chat_id = params.chat_id;
   if (params.resolution_type) updates.resolution_type = params.resolution_type;
   if (params.resolution_note) updates.resolution_note = params.resolution_note;
   if (params.alternative_phone) updates.alternative_phone = params.alternative_phone;

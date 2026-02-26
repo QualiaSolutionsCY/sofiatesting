@@ -10,7 +10,7 @@
 
 import { getSupabaseAdmin } from "./db.ts";
 import { VASYA_TELEGRAM_USER_ID } from "./telegram-search.ts";
-import type { AuditAlert } from "./telegram-alerts.ts";
+import type { CallerAlert } from "./call-tracking.ts";
 import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
 
 // ---------------------------------------------------------------------------
@@ -97,20 +97,20 @@ export function parseVasyaResponse(messageText: string): ParsedResponse {
 // ---------------------------------------------------------------------------
 
 /**
- * Find an audit alert by the Telegram message ID it was sent as.
+ * Find a caller alert by the Telegram message ID it was sent as.
  * Used to match a reply-to-message back to the original alert.
  */
 export async function findAlertByReplyMessageId(
   replyToMessageId: number,
   chatId: number,
-): Promise<AuditAlert | null> {
+): Promise<CallerAlert | null> {
   try {
     const supabase = getSupabaseAdmin();
 
     const { data, error } = await supabase
-      .from("audit_alerts")
+      .from("caller_alerts")
       .select("*")
-      .eq("telegram_message_id", replyToMessageId)
+      .eq("alert_message_id", String(replyToMessageId))
       .eq("chat_id", chatId)
       .limit(1)
       .maybeSingle();
@@ -124,7 +124,7 @@ export async function findAlertByReplyMessageId(
       return null;
     }
 
-    return (data as AuditAlert) ?? null;
+    return (data as CallerAlert) ?? null;
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error("Exception finding alert by reply message ID", err, {
@@ -140,12 +140,12 @@ export async function findAlertByReplyMessageId(
 // ---------------------------------------------------------------------------
 
 /**
- * Update the audit alert based on the parsed response.
+ * Update the caller alert based on the parsed response.
  *
- * - found            -> status = 'resolved', store response_text
- * - not_found        -> status = 'pending' (keep for follow-up), store response_text
- * - alternative_number -> status = 'resolved', store alt number in response_text
- * - unknown          -> keep current status, store response_text for manual review
+ * - found            -> status = 'resolved', resolution_type = 'found_in_telegram'
+ * - not_found        -> status = 'alerted' (keep for follow-up - NOT 'pending' which means pre-alert)
+ * - alternative_number -> status = 'resolved', resolution_type = 'alternative_phone', store number
+ * - unknown          -> keep current status, store in resolution_note for manual review
  */
 export async function processAlertResponse(
   alertId: string,
@@ -157,37 +157,39 @@ export async function processAlertResponse(
     const now = new Date().toISOString();
 
     const updateFields: Record<string, unknown> = {
-      response_text: response.rawText,
-      responded_by_telegram_id: respondedByTelegramId,
-      responded_at: now,
       updated_at: now,
     };
 
     switch (response.type) {
       case "found":
         updateFields.status = "resolved";
+        updateFields.resolution_type = "found_in_telegram";
+        updateFields.resolution_note = response.rawText;
+        updateFields.resolved_at = now;
         break;
 
       case "not_found":
-        // Keep as pending for follow-up
-        updateFields.status = "pending";
+        // Keep as 'alerted' for follow-up (NOT 'pending' which means pre-alert in caller_alerts)
+        updateFields.status = "alerted";
+        updateFields.resolution_note = response.rawText;
         break;
 
       case "alternative_number":
         updateFields.status = "resolved";
-        // Store the alternative number alongside the raw text
-        updateFields.response_text = response.alternativeNumber
-          ? `Alternative number: ${response.alternativeNumber} | ${response.rawText}`
-          : response.rawText;
+        updateFields.resolution_type = "alternative_phone";
+        updateFields.alternative_phone = response.alternativeNumber;
+        updateFields.resolution_note = response.rawText;
+        updateFields.resolved_at = now;
         break;
 
       case "unknown":
-        // Don't change status -- leave for manual review
+        // Don't change status -- store raw text for manual review
+        updateFields.resolution_note = response.rawText;
         break;
     }
 
     const { error } = await supabase
-      .from("audit_alerts")
+      .from("caller_alerts")
       .update(updateFields)
       .eq("id", alertId);
 
