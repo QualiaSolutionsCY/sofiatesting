@@ -10,6 +10,7 @@ import {
 } from "../db/schema";
 import { logger } from "../logger";
 import { getTelegramClient } from "./client";
+import { indexGroupMessage } from "./message-indexer";
 
 const log = logger.telegram.child("lead-router");
 import {
@@ -549,6 +550,9 @@ async function logLead(data: {
 export async function handleGroupMessage(
   message: TelegramMessage
 ): Promise<void> {
+  // Index message for phone number search (fire-and-forget)
+  indexGroupMessage(message).catch(() => {});
+
   const telegramClient = getTelegramClient();
   const chatId = message.chat.id;
   const messageText = message.text || message.caption || "";
@@ -559,6 +563,15 @@ export async function handleGroupMessage(
     message.chat.title,
     message.chat.type
   );
+
+  // Check DB flag — allows toggling groups on/off from Supabase dashboard without redeploying
+  if (group && !group.leadRoutingEnabled) {
+    log.debug("Ignoring group message — lead routing disabled for this group", {
+      groupName: group.groupName,
+      region: group.region,
+    });
+    return;
+  }
 
   // Extract property IDs from message
   const propertyIds = extractPropertyIds(messageText);

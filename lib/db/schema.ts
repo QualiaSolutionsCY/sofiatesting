@@ -898,6 +898,21 @@ export const supabaseTelegramLead = pgTable("telegram_leads", {
 
 export type SupabaseTelegramLead = InferSelectModel<typeof supabaseTelegramLead>;
 
+// Telegram group message index (for phone number search)
+export const supabaseTelegramGroupMessage = pgTable("telegram_group_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  groupChatId: bigint("group_chat_id", { mode: "number" }).notNull(),
+  groupName: text("group_name"),
+  messageId: bigint("message_id", { mode: "number" }).notNull(),
+  senderTelegramId: bigint("sender_telegram_id", { mode: "number" }),
+  senderName: text("sender_name"),
+  messageText: text("message_text"),
+  messageDate: timestamp("message_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type SupabaseTelegramGroupMessage = InferSelectModel<typeof supabaseTelegramGroupMessage>;
+
 export const supabaseLeadForwardingRotation = pgTable("lead_forwarding_rotation", {
   id: uuid("id").primaryKey().defaultRandom(),
   region: text("region").notNull(),
