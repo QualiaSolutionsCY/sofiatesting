@@ -150,7 +150,6 @@ export async function findAlertByReplyMessageId(
 export async function processAlertResponse(
   alertId: string,
   response: ParsedResponse,
-  respondedByTelegramId: number,
 ): Promise<void> {
   try {
     const supabase = getSupabaseAdmin();
@@ -275,7 +274,7 @@ export async function handleAuditAlertResponse(
 
   // 6. Parse and process the response
   const parsed = parseVasyaResponse(message.text);
-  await processAlertResponse(alert.id, parsed, message.from.id);
+  await processAlertResponse(alert.id, parsed);
 
   logger.info("Audit alert response handled", {
     category: LogCategory.GENERAL,
