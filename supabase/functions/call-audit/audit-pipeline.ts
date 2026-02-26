@@ -246,7 +246,7 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
             caller_phone: caller.phoneNumber,
             audit_run_id: runId,
             status: "pending",
-            call_time: callTimeMap[caller.phoneNumber] || null,
+            call_time: callTimeMap[caller.phoneNumber] || undefined,
           });
 
           if (!alert) {
