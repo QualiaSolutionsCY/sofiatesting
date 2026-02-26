@@ -141,12 +141,12 @@ Plans:
   2. System can send formatted alerts to "Zypress Others" group with call details
   3. System can track message responses from Vasya and handle alternative number scenarios
   4. System stops follow-up alerts when Vasya responds positively or number is found
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 12-01: Telegram group search implementation
-- [ ] 12-02: Alert sending to Zypress Others
-- [ ] 12-03: Response tracking and conversation state
+- [ ] 12-01-PLAN.md — Deno Telegram client, group message search, and message indexing
+- [ ] 12-02-PLAN.md — Alert sending to Zypress Others with DB persistence
+- [ ] 12-03-PLAN.md — Response tracking from Vasya and alert state management
 
 #### Phase 13: Alerting Logic
 **Goal**: System sends correct alerts and handles all response scenarios
