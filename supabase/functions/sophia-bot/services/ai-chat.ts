@@ -257,7 +257,7 @@ async function callOpenRouter(
         "X-Title": "SOPHIA WhatsApp Bot",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash",
+        model: "google/gemini-3.1-pro-preview",
         messages: messages,
         temperature: 0.1,
         max_tokens: 8192,

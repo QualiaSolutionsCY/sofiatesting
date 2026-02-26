@@ -129,6 +129,8 @@ export function isCompletedReservationAgreement(content: string): boolean {
  * 3. Blank - all fields are placeholders ([ ], dots, etc.)
  */
 export function isCompletedViewingForm(content: string): boolean {
+  // Strip markdown bold markers so regexes work regardless of AI formatting
+  content = content.replace(/\*\*/g, '');
   const lowerContent = content.toLowerCase();
 
   // Must have the "Herein, I" opening
@@ -198,7 +200,20 @@ export function isCompletedViewingForm(content: string): boolean {
  * Checks if content looks like a completed marketing agreement document
  */
 export function isCompletedMarketingAgreement(content: string): boolean {
+  // Strip markdown bold markers so regexes work regardless of AI formatting
+  content = content.replace(/\*\*/g, '');
   const lowerContent = content.toLowerCase();
+
+  // STRUCTURED FORMAT (new): "Marketing Agreement" + "Seller:" + "Property:" lines
+  const hasStructuredFormat =
+    lowerContent.includes('marketing agreement') &&
+    /^seller[:\s]/im.test(content) &&
+    /^property[:\s]/im.test(content);
+
+  if (hasStructuredFormat) {
+    logger.debug("[Detection] Marketing Agreement structured format detected", { category: LogCategory.GENERAL });
+    return true;
+  }
 
   // NEW FORMAT: Terms and Conditions for Property Listing
   const hasNewFormat =
@@ -454,6 +469,10 @@ export function containsPlaceholders(content: string): boolean {
  * - Non-Exclusive Marketing Agreement
  */
 export function shouldSendAsDocx(response: string): boolean {
+  // Strip markdown bold markers so all regexes work regardless of AI formatting
+  // e.g., "**Seller:** John" becomes "Seller: John"
+  response = response.replace(/\*\*/g, '');
+
   // Rule 0: If it's a clarification question, NEVER send as DOCX
   if (isClarificationQuestion(response)) {
     logger.debug("[Detection] Clarification response -> TEXT", { category: LogCategory.GENERAL });
@@ -478,6 +497,18 @@ export function shouldSendAsDocx(response: string): boolean {
   if (/Dear\s+X{6,}/i.test(response)) {
     logger.debug("[Detection] Contains 'Dear XXXXXXXX' registration pattern -> TEXT", { category: LogCategory.GENERAL });
     return false;
+  }
+
+  // Rule 1.7: Marketing Agreement structured format - bypass length check
+  // New simplified format: "Marketing Agreement" + "Seller:" + "Property:" lines
+  const responseLower = response.toLowerCase();
+  if (
+    responseLower.includes("marketing agreement") &&
+    /^seller[:\s]/im.test(response) &&
+    /^property[:\s]/im.test(response)
+  ) {
+    logger.debug("[Detection] Marketing Agreement structured format -> DOCX (bypassing length check)", { category: LogCategory.GENERAL });
+    return true;
   }
 
   // Rule 2: Response must be long enough to be a real document

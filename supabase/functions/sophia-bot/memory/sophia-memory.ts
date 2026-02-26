@@ -16,7 +16,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_API_KEY") || Deno.env.get("GEMINI_API_KEY");
 
 // Embedding model configuration
-const EMBEDDING_MODEL = "text-embedding-004";
+// text-embedding-004 was deprecated Jan 14, 2026 → replaced by gemini-embedding-001
+const EMBEDDING_MODEL = "gemini-embedding-001";
 
 // =====================================================
 // Embedding Cache (LRU with TTL)
@@ -129,6 +130,7 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
           content: {
             parts: [{ text }],
           },
+          outputDimensionality: 768, // Match existing vector(768) columns
         }),
       }
     );
@@ -314,7 +316,7 @@ export async function searchMemoryWithEmbedding(
     });
 
     if (error) {
-      logger.error("[Memory] Error searching memory", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
+      logger.error("[Memory] Error searching memory", new Error(typeof error === "object" ? JSON.stringify(error) : String(error)), { category: LogCategory.DATABASE });
       return [];
     }
 
@@ -401,7 +403,7 @@ export async function searchKnowledgeWithEmbedding(
     });
 
     if (error) {
-      logger.error("[Memory] Error searching knowledge", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
+      logger.error("[Memory] Error searching knowledge", new Error(typeof error === "object" ? JSON.stringify(error) : String(error)), { category: LogCategory.DATABASE });
       return [];
     }
 

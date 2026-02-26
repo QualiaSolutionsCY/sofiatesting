@@ -57,12 +57,14 @@ export interface ListingData {
   priceModifier?: "no_vat" | "plus_vat" | "vat_included";
   floorPlanUrls?: string[]; // Floor plan images (uploaded to field_floor_plan)
   titleDeedFileUrls?: string[]; // Title deed documents (uploaded to field_title_deed_file)
+  energyClass?: string; // Energy rating (A, B, C, D) - goes to field_energy_class
   // For Own Reference ID format: Owner - {Agent} - {Seller} - {Phone} - {Email}
   agentName?: string;
   ownerName?: string;
   ownerPhone?: string;
   ownerEmail?: string;
   registrationNumber?: string;
+  buildingName?: string; // Name of building/complex for Reference ID
 }
 
 export interface CreateResult {
@@ -167,15 +169,44 @@ export async function getAccessToken(config: ZyprusConfig): Promise<string> {
  * Pin should land on a general area like a roundabout or supermarket nearby
  */
 function addPrivacyOffset(coords: { lat: number; lon: number }): { lat: number; lon: number } {
-  // ~0.01 degrees ≈ 1.1km offset, random direction
-  // Minimum 0.008 (~900m), maximum 0.012 (~1.3km)
-  const minOffset = 0.008;
-  const range = 0.004;
-  const latOffset = (Math.random() > 0.5 ? 1 : -1) * (minOffset + Math.random() * range);
-  const lonOffset = (Math.random() > 0.5 ? 1 : -1) * (minOffset + Math.random() * range);
+  // ~0.008 degrees ≈ 900m offset — pin should NOT be near the actual property
+  // Must be far enough that the property location is NOT identifiable
+  const minOffset = 0.007;
+  const range = 0.005;
+
+  // Cyprus center of mass (Troodos area) — always offset TOWARD this point
+  const CYPRUS_CENTER = { lat: 35.0, lon: 33.0 };
+
+  // Calculate direction toward inland center
+  const dirLat = CYPRUS_CENTER.lat - coords.lat; // positive = north (inland for south coast)
+  const dirLon = CYPRUS_CENTER.lon - coords.lon;
+  const dirMag = Math.hypot(dirLat, dirLon);
+
+  if (dirMag === 0) {
+    // Already at center (unlikely), small random offset
+    return {
+      lat: coords.lat + (minOffset + Math.random() * range),
+      lon: coords.lon + (Math.random() > 0.5 ? 1 : -1) * (minOffset + Math.random() * range),
+    };
+  }
+
+  // Normalize direction toward center
+  const normLat = dirLat / dirMag;
+  const normLon = dirLon / dirMag;
+
+  // Offset magnitude with some randomness
+  const offsetMag = minOffset + Math.random() * range;
+
+  // Add perpendicular jitter so pins aren't all on the same line toward center
+  const jitterAngle = (Math.random() - 0.5) * Math.PI * 0.6; // ±54 degrees jitter
+  const cosJ = Math.cos(jitterAngle);
+  const sinJ = Math.sin(jitterAngle);
+  const jitteredLat = normLat * cosJ - normLon * sinJ;
+  const jitteredLon = normLat * sinJ + normLon * cosJ;
+
   return {
-    lat: coords.lat + latOffset,
-    lon: coords.lon + lonOffset,
+    lat: coords.lat + jitteredLat * offsetMag,
+    lon: coords.lon + jitteredLon * offsetMag,
   };
 }
 
@@ -190,12 +221,18 @@ function generateOwnReferenceId(
   ownerName?: string,
   ownerPhone?: string,
   ownerEmail?: string,
-  registrationNumber?: string
+  registrationNumber?: string,
+  buildingName?: string
 ): string {
   const parts: string[] = ["Owner"];
 
   if (agentName) {
     parts.push(agentName);
+  }
+
+  // Building/complex name (e.g., "Flow Residence") for quick identification
+  if (buildingName) {
+    parts.push(buildingName);
   }
 
   if (ownerName) {
@@ -236,8 +273,7 @@ function buildJsonApiPayload(
   indoorFeatureUuids: string[],
   outdoorFeatureUuids: string[],
   viewUuids: string[],
-  floorPlanFileIds: string[] = [],
-  titleDeedFileIds: string[] = []
+  floorPlanFileIds: string[] = []
 ): Record<string, unknown> {
   // Generate Own Reference ID for quick reviewer reference
   // Format: Owner - {Agent Name} - {Seller Name} - {Seller Phone} - {Email}
@@ -246,7 +282,8 @@ function buildJsonApiPayload(
     listing.ownerName,
     listing.ownerPhone,
     listing.ownerEmail,
-    listing.registrationNumber
+    listing.registrationNumber,
+    listing.buildingName
   );
 
   // Build proper title: "2 Bedroom Bungalow (125m²) For Sale in Kamares, Tala"
@@ -283,7 +320,7 @@ function buildJsonApiPayload(
     status: false, // Always unpublished draft
     field_price: listing.price,
     field_no_bedrooms: listing.bedrooms,
-    field_no_bathrooms: listing.bathrooms,
+    ...(listing.bathrooms > 0 ? { field_no_bathrooms: listing.bathrooms } : {}),
     // NOTE: field_no_kitchens and field_no_living_rooms intentionally NOT set
     // Zyprus auto-generates titles from room counts — only bedrooms/bathrooms are standard
     field_covered_area: listing.coveredArea,
@@ -298,7 +335,8 @@ function buildJsonApiPayload(
     field_ai_state: "draft",
     // Price negotiable: default TRUE unless explicitly set to false
     // NOTE: Drupal list fields may expect integer (1/0) instead of boolean (true/false)
-    field_negotiable: listing.priceNegotiable !== false ? 1 : 0,
+    // NOTE: field_negotiable does NOT exist in Zyprus API (not in Postman spec)
+    // "Negotiable" display is controlled by field_price_modifier taxonomy term
     // Own Reference ID: Owner - {Agent} - {Seller} - {Phone} - Reg No.{Reg}
     field_own_reference_id: ownReferenceId,
     field_ai_draft_own_reference_id: ownReferenceId,
@@ -327,7 +365,7 @@ function buildJsonApiPayload(
     attributes.field_floor = listing.floor;
   }
   if (listing.potentialDuplicate) {
-    attributes.field_potential_duplicate = true;
+    attributes.field_ai_probably_exists = true;
   }
   // Merge aiNotes and aiMessage into field_ai_message
   // NOTE: myNotes is NOT included here - it goes to field_property_notes instead
@@ -335,9 +373,16 @@ function buildJsonApiPayload(
   if (aiMessageParts.length > 0) {
     attributes.field_ai_message = aiMessageParts.join("\n\n");
   }
-  // New build flag
-  if (listing.isNewBuild) {
+  // New build flag — ONLY set when VAT applies (+VAT)
+  // For No VAT new builds (resale), don't set this flag because
+  // Zyprus shows "New Build +VAT" badge which implies buyer pays VAT
+  if (listing.isNewBuild && listing.priceModifier !== "no_vat") {
     attributes.field_new_build = true;
+  }
+
+  // Energy class (A, B, C, D) — dedicated field, NOT in description
+  if (listing.energyClass) {
+    attributes.field_energy_class = listing.energyClass;
   }
 
   // Coordinates - Full object format per Postman spec
@@ -406,15 +451,9 @@ function buildJsonApiPayload(
     };
   }
 
-  // Title deed files (PDFs/scans of title deeds)
-  if (titleDeedFileIds.length > 0) {
-    relationships.field_title_deed_file = {
-      data: titleDeedFileIds.map((id) => ({
-        type: "file--file",
-        id,
-      })),
-    };
-  }
+  // NOTE: field_title_deed_file is NOT included in the initial POST payload.
+  // The service account does not have permission to POST this field (403).
+  // Title deed files are attached via PATCH after listing creation instead.
 
   // Indoor features (AC, heating, etc.)
   // Note: field is field_indoor_property_features but references taxonomy_term--indoor_property_views
@@ -706,7 +745,44 @@ async function uploadFloorPlans(
           "uploadFloorPlan"
         );
 
-        if (!response.ok) return null;
+        if (!response.ok) {
+          const errorBody = await response.text().catch(() => "");
+          logger.error("Floor plan upload failed", undefined, {
+            category: LogCategory.ZYPRUS,
+            operation: "uploadFloorPlan",
+            imageIndex: index,
+            status: response.status,
+            statusText: response.statusText,
+            errorBody: errorBody.substring(0, 500),
+            url: url.substring(0, 100),
+          });
+          // If field_floor_plan endpoint fails, try uploading via field_gallery_ as fallback
+          // The file ID can still be referenced in field_floor_plan relationship
+          const fallbackRes = await fetch(
+            `${config.apiUrl}/jsonapi/node/property/field_gallery_`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/octet-stream",
+                "Content-Disposition": `file; filename="${filename}"`,
+                "User-Agent": "SophiaAI",
+              },
+              body: imageBuffer,
+            }
+          );
+          if (fallbackRes.ok) {
+            const fallbackResult = await fallbackRes.json();
+            logger.info("Floor plan uploaded via gallery fallback", {
+              category: LogCategory.ZYPRUS,
+              operation: "uploadFloorPlan",
+              imageIndex: index,
+              fileId: fallbackResult.data?.id,
+            });
+            return fallbackResult.data?.id || null;
+          }
+          return null;
+        }
 
         const result = await response.json();
         return result.data?.id || null;
@@ -862,8 +938,8 @@ export async function createDraftListing(
   ] = await Promise.all([
     findListingTypeUuid(listing.listingType),
     findPropertyTypeUuid(listing.propertyType),
-    findPriceModifierUuid(listing.priceModifier), // Resolves VAT status or defaults to "No VAT"
-    findTitleDeedUuid(), // Uses default "Title Deed"
+    findPriceModifierUuid(listing.priceModifier, listing.priceNegotiable), // Default "Negotiable" unless explicitly non-negotiable
+    findTitleDeedUuid(listing.titleDeedStatus), // Maps status to Zyprus taxonomy (permits_only → "not available")
     findUserUuid(listing.listingOwner), // CRITICAL: Resolve listing owner email to UUID
     findUserUuids(reviewerEmails), // Resolve reviewer emails to UUIDs
     findIndoorFeatureUuids(listing.features || [], listing.bathrooms), // Resolve indoor features (auto-adds guest toilet + master bed if bathrooms >= 2)
@@ -891,38 +967,25 @@ export async function createDraftListing(
     viewCount: viewUuids.length,
   });
 
-  // Upload images first
-  const imageFileIds = await uploadImages(listing.images, token, config);
-  logger.info("Images uploaded for listing", {
+  // Upload all file types in parallel (gallery, floor plans, title deeds)
+  const [imageFileIds, floorPlanFileIds, titleDeedFileIds] = await Promise.all([
+    uploadImages(listing.images, token, config),
+    listing.floorPlanUrls && listing.floorPlanUrls.length > 0
+      ? uploadFloorPlans(listing.floorPlanUrls, token, config)
+      : Promise.resolve([] as string[]),
+    listing.titleDeedFileUrls && listing.titleDeedFileUrls.length > 0
+      ? uploadTitleDeedFiles(listing.titleDeedFileUrls, token, config)
+      : Promise.resolve([] as string[]),
+  ]);
+
+  logger.info("All files uploaded for listing", {
     category: LogCategory.ZYPRUS,
     operation: "createDraftListing",
-    uploadedCount: imageFileIds.length,
-    totalCount: listing.images.length,
+    galleryUploaded: imageFileIds.length,
+    galleryTotal: listing.images.length,
+    floorPlansUploaded: floorPlanFileIds.length,
+    titleDeedsUploaded: titleDeedFileIds.length,
   });
-
-  // Upload floor plans if provided (uses field_floor_plan endpoint)
-  let floorPlanFileIds: string[] = [];
-  if (listing.floorPlanUrls && listing.floorPlanUrls.length > 0) {
-    floorPlanFileIds = await uploadFloorPlans(listing.floorPlanUrls, token, config);
-    logger.info("Floor plans uploaded for listing", {
-      category: LogCategory.ZYPRUS,
-      operation: "createDraftListing",
-      uploadedCount: floorPlanFileIds.length,
-      totalCount: listing.floorPlanUrls.length,
-    });
-  }
-
-  // Upload title deed files if provided (uses field_title_deed_file endpoint)
-  let titleDeedFileIds: string[] = [];
-  if (listing.titleDeedFileUrls && listing.titleDeedFileUrls.length > 0) {
-    titleDeedFileIds = await uploadTitleDeedFiles(listing.titleDeedFileUrls, token, config);
-    logger.info("Title deed files uploaded for listing", {
-      category: LogCategory.ZYPRUS,
-      operation: "createDraftListing",
-      uploadedCount: titleDeedFileIds.length,
-      totalCount: listing.titleDeedFileUrls.length,
-    });
-  }
 
   // Build and send listing payload
   const payload = buildJsonApiPayload(
@@ -938,8 +1001,7 @@ export async function createDraftListing(
     indoorFeatureUuids,
     outdoorFeatureUuids,
     viewUuids,
-    floorPlanFileIds,
-    titleDeedFileIds
+    floorPlanFileIds
   );
 
   const response = await withRetry(
@@ -984,8 +1046,8 @@ export async function createDraftListing(
       status: response.status,
       errorDetail,
     });
-    // Return generic error to user (don't expose internal API details)
-    throw new Error("Unable to create listing. Please try again or contact support.");
+    // Include status and error detail in thrown error so executor can log the root cause
+    throw new Error(`Zyprus API ${response.status}: ${errorDetail || "Unknown error"}`);
   }
 
   const result = await response.json();
@@ -996,6 +1058,56 @@ export async function createDraftListing(
     operation: "createDraftListing",
     listingId,
   });
+
+  // Attach title deed files via PATCH (cannot be included in initial POST due to 403)
+  if (titleDeedFileIds.length > 0) {
+    try {
+      const patchPayload = {
+        data: {
+          type: "node--property",
+          id: listingId,
+          relationships: {
+            field_title_deed_file: {
+              data: titleDeedFileIds.map((id) => ({
+                type: "file--file",
+                id,
+              })),
+            },
+          },
+        },
+      };
+      const patchRes = await fetch(`${config.apiUrl}/jsonapi/node/property/${listingId}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/vnd.api+json",
+          Accept: "application/vnd.api+json",
+        },
+        body: JSON.stringify(patchPayload),
+      });
+      if (!patchRes.ok) {
+        logger.warn("Could not attach title deed files to listing (non-blocking)", {
+          category: LogCategory.ZYPRUS,
+          operation: "patchTitleDeedFiles",
+          listingId,
+          status: patchRes.status,
+        });
+      } else {
+        logger.info("Title deed files attached to listing via PATCH", {
+          category: LogCategory.ZYPRUS,
+          operation: "patchTitleDeedFiles",
+          listingId,
+          fileCount: titleDeedFileIds.length,
+        });
+      }
+    } catch (patchError) {
+      logger.warn("Failed to PATCH title deed files (non-blocking)", {
+        category: LogCategory.ZYPRUS,
+        operation: "patchTitleDeedFiles",
+        listingId,
+      });
+    }
+  }
 
   return {
     listingId,

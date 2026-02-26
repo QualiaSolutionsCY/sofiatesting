@@ -14,7 +14,7 @@ import {
   UnderlineType,
 } from "https://esm.sh/docx@8.5.0";
 
-import { FONTS, SPACING, COMPANY, createSignatureLine, formatDate, formatPropertyDescription, PLACEHOLDERS } from "../styles.ts";
+import { FONTS, SPACING, COMPANY, createSignatureLine, formatDate, formatPropertyDescription, PLACEHOLDERS, isPlaceholder } from "../styles.ts";
 import { logger, LogCategory } from "../../utils/logger.ts";
 
 /**
@@ -77,8 +77,8 @@ export function createViewingFormSingle(
           new ImageRun({
             data: logoData,
             transformation: {
-              width: 240,
-              height: 123,
+              width: 120,
+              height: 62,
             },
             type: logoType,
           }),
@@ -126,15 +126,17 @@ export function createViewingFormSingle(
     })
   );
 
-  // Declaration paragraph - no bold on names/IDs/company (matches reference doc)
+  // Declaration paragraph - bold placeholder fields so they stand out
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: `Herein, I ${data.person.fullName} with ID ${data.person.idNumber} Issued By: ${data.person.issuedBy} confirm that ${COMPANY.FULL_REFERENCE}, has introduced to me with a viewing the property with the following Registry details:`,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
+        new TextRun({ text: "Herein, I ", size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }),
+        new TextRun({ text: data.person.fullName, bold: isPlaceholder(data.person.fullName), size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }),
+        new TextRun({ text: " with ID ", size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }),
+        new TextRun({ text: data.person.idNumber, bold: isPlaceholder(data.person.idNumber), size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }),
+        new TextRun({ text: " Issued By: ", size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }),
+        new TextRun({ text: data.person.issuedBy, bold: isPlaceholder(data.person.issuedBy), size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }),
+        new TextRun({ text: ` confirm that ${COMPANY.FULL_REFERENCE}, has introduced to me with a viewing the property with the following Registry details:`, size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }),
       ],
       spacing: { after: SPACING.PARAGRAPH_AFTER, line: 366 },
     })
@@ -157,6 +159,7 @@ export function createViewingFormSingle(
         }),
         new TextRun({
           text: propertyDescription,
+          bold: isPlaceholder(propertyDescription),
           size: FONTS.SIZES.BODY,
           font: FONTS.PRIMARY,
         }),
@@ -274,7 +277,7 @@ export function parseViewingFormSingleData(response: string): ViewingFormSingleD
 
     // Extract person details using regex
     // IMPORTANT: issuedBy must stop at "confirm" to avoid capturing duplicate company text
-    const personMatch = cleanResponse.match(/(?:Herein,?\s*I\s+)([^,]+?)(?:\s+with\s+ID\s+)([^\s,]+)(?:,?\s+Issued\s+By:?\s*)([A-Za-z]+)(?:\s+confirm)?/i);
+    const personMatch = cleanResponse.match(/(?:Herein,?\s*I\s+)([^,]+?)(?:\s+with\s+ID\s+)(\[[^\]]*\]|[^\s,]+)(?:,?\s+Issued\s+By:?\s*)([A-Za-z]+|\[[\s\w]*\])(?:\s+confirm)?/i);
 
     // Capture full "Property:" line for smart formatting (includes building name, flat no)
     // IMPORTANT: Must anchor to line start and require colon to avoid matching "Property" in company name
@@ -293,12 +296,13 @@ export function parseViewingFormSingleData(response: string): ViewingFormSingleD
       return null;
     }
 
+    const rawId = personMatch[2].trim();
     return {
       date: dateMatch ? dateMatch[1] : undefined,
       person: {
         fullName: personMatch[1].trim(),
-        idNumber: personMatch[2].trim(),
-        issuedBy: personMatch[3].trim(),
+        idNumber: /^\[/.test(rawId) ? PLACEHOLDERS.ID_NUMBER : rawId,
+        issuedBy: /^\[/.test(personMatch[3].trim()) ? PLACEHOLDERS.ISSUED_BY : personMatch[3].trim(),
       },
       property: {
         registrationNo: regNoMatch ? regNoMatch[1].trim() : "",

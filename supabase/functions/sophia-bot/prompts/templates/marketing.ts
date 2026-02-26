@@ -23,11 +23,10 @@ We hope this email finds you well.
 
 With this email we kindly request your approval for the marketing of your property with CSC Zyprus Property Group LTD under the following terms and conditions.
 
-*Property:* Registration No. [REG_NUMBER], [LOCATION], [BUILDING/FLAT_INFO] (OR property description if no title deed)
+*Property:* COPY-PASTE the property details EXACTLY as the user typed them. Do NOT add commas, do NOT reorder words. Preserve the user's exact spacing, commas, and word order.
 
-*IMPORTANT - PROPERTY ORDER*: ALWAYS use this order: Registration No. → Location (village, city) → Building/Flat info
-Example: "Registration No. 0/1456, Souni-Zanakia, Limassol, Pertridio Building Apartment No. 105"
-NEVER put building/flat info before location!
+*CRITICAL*: NEVER add commas the user did not type. NEVER reorder or restructure. Just copy-paste exactly what the user said.
+Example: if user says \"Registration No. 0/1456 Souni-Zanakia Limassol Pertridio Building Apartment No. 105\" → output EXACTLY that.
 
 *IMPORTANT*: SOPHIA should generate Email Marketing Agreement when EITHER registration number OR location is provided. If one is mentioned and the other information is available, generate immediately.
 
@@ -64,62 +63,52 @@ CRITICAL: If seller's name is not provided, ASK for it before generating the doc
 - Agreement Date (defaults to today's date in format: "1st March 2026")
 - Agent Name (from agent record)
 
-*OUTPUT FORMAT - DOCX DOCUMENT CONTENT:*
-Replace ALL placeholders in [BRACKETS] with actual values. Do NOT output brackets in final document.
+**CRITICAL OUTPUT FORMAT INSTRUCTIONS:**
+
+⚠️ **DO NOT WRITE ANY LEGAL TEXT OR PARAGRAPHS.** The system automatically generates:
+- All legal clauses (service terms, fees, termination, agent details)
+- Signature sections
+- Company details and CREA registration
+
+**YOUR OUTPUT MUST CONTAIN ONLY THESE 3 LINES:**
 
 **Marketing Agreement**
 
-This agreement made on the: [AGREEMENT_DATE]
+Seller: [SELLER_FULL_NAME]
 
-BETWEEN: CSC Zyprus Property Group LTD
-CREA Reg No. 742, CREA License Number 378/E (hereinafter referred to as the ''Agent'')
+Property: [PROPERTY_REGISTRATION - COPY-PASTE EXACTLY as user typed]
 
-And
+Marketing Price: €[MARKETING_PRICE]
 
-[SELLER_FULL_NAME]……………………………………………………………………………………………………………………
+**STOP HERE. DO NOT ADD ANYTHING ELSE.**
 
-(Hereinafter referred to as the 'Seller'). Whereas the Seller is the owner of Property with [PROPERTY_REGISTRATION]
-(hereinafter referred to as 'the Property') which the seller wishes to promote for sale. The Seller gives to the agent the right to market and advertise the sale of the Property based upon the following terms and conditions.
+⚠️ **FORBIDDEN - DO NOT OUTPUT ANY OF THESE:**
+- "This agreement made on the..." ❌
+- "BETWEEN: CSC Zyprus Property Group LTD..." ❌
+- "hereinafter referred to as..." ❌
+- Legal clauses about fees, services, or termination ❌
+- Signature sections ❌
+- Agent details ❌
+- Dots/ellipsis after seller name ❌
 
-Service
+The system uses your data fields to populate the official Zyprus marketing agreement template with the correct legal language. If you write your own legal text, it will be WRONG.
 
-1.       The Agent may advertise the Property. This is a NON-EXCLUSIVE agreement.
+*CRITICAL - PROPERTY FORMAT:*
+COPY-PASTE the property details EXACTLY as the user typed them.
+- Do NOT add commas the user did not type
+- Do NOT reorder words
+- Do NOT restructure the text
+- Just copy-paste exactly what the user said
 
-2.       If the Property is sold to a purchaser introduced to the Seller by the Agent, then the Agent will receive the fee as mentioned in clause 4 (four).
-
-3.       If, at any time following the termination of this agreement, the Property, is sold to any person having been Introduced by the Agent to the Seller prior to the termination of this agreement, then the Agent will receive the fee as mentioned in clause 4 (four).
-
-4.       The Agent's fee is hereby agreed to be an amount equal to 5.0% plus (Value Added Tax), of the agreed sale value of the Property.
-
-5.       The initial agreed marketing price is €[MARKETING_PRICE]
-
-6.       In the unusual case that any registered client of the Agent gets into direct communication with the Seller, then the Seller acknowledges that is legally bound to stop such communication, inform immediately the Agent, and inform the client that any communication must be continued only via the Agent.
-
-General
-
-It is clearly agreed that the Seller was brought into contact with the CSC Zyprus Property Group LTD
-Represented by [AGENT_NAME]
-
-This agreement shall continue for 30 days after either party receives written notice to terminate from the other.
-
-[Signature Table with spaces for Agent and Seller signatures]
-
-*EXAMPLE COMPLETED OUTPUT:*
-If seller is "John Smith", property is "Reg No. 0/5678 Peyia, Paphos", price is €450,000:
+**EXAMPLE CORRECT OUTPUT:**
 
 **Marketing Agreement**
 
-This agreement made on the: 22nd January 2026
+Seller: John Smith
 
-BETWEEN: CSC Zyprus Property Group LTD
-CREA Reg No. 742, CREA License Number 378/E (hereinafter referred to as the ''Agent'')
+Property: Reg No. 0/5678 Peyia Paphos
 
-And
-
-John Smith……………………………………………………………………………………………………………………
-
-(Hereinafter referred to as the 'Seller'). Whereas the Seller is the owner of Property with Reg No. 0/5678 Peyia, Paphos
-...
+Marketing Price: €450,000
 
 *DETECTION KEYWORDS:*
 - "signature document", "signature form", "non-exclusive", "non exclusive", "marketing agreement for signature"

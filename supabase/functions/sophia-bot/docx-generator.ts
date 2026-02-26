@@ -101,11 +101,15 @@ export function isDocxTemplate(
   aiResponse: string,
   _conversationHistory?: Array<{role: string, parts: Array<{text: string}>}>
 ): boolean {
+  // Strip markdown bold markers so all regexes work regardless of AI formatting
+  // e.g., "**Seller:** John" becomes "Seller: John"
+  aiResponse = aiResponse.replace(/\*\*/g, '');
   logger.info(`[DOCX CHECK] Starting check - length: ${aiResponse.length}`, { category: LogCategory.GENERAL });
 
   // STRICT CHECK 0: Short responses are NEVER DOCX
   // EXCEPTION: Blank viewing forms are naturally short (300-400 chars)
   // EXCEPTION: Reservation agreements with only data fields (no legal text) can be ~250-350 chars
+  // EXCEPTION: Marketing agreements in structured format ("Marketing Agreement" + "Seller:" + "Property:") can be ~100-200 chars
   const lowerResponse = aiResponse.toLowerCase();
   const isViewingFormShort = lowerResponse.includes('viewing form') &&
                             lowerResponse.includes('herein, i') &&
@@ -117,7 +121,12 @@ export function isDocxTemplate(
                              lowerResponse.includes('purchase price') &&
                              aiResponse.length >= 200;
 
-  if (aiResponse.length < 400 && !isViewingFormShort && !isReservationShort) {
+  const isMarketingShort = lowerResponse.includes('marketing agreement') &&
+                           /^seller[:\s]/im.test(aiResponse) &&
+                           /^property[:\s]/im.test(aiResponse) &&
+                           aiResponse.length >= 50;
+
+  if (aiResponse.length < 400 && !isViewingFormShort && !isReservationShort && !isMarketingShort) {
     logger.info(`[DOCX CHECK] BLOCKED at length check: ${aiResponse.length} < 400`, { category: LogCategory.GENERAL });
     return false;
   }
@@ -125,6 +134,8 @@ export function isDocxTemplate(
     logger.info(`[DOCX CHECK] Viewing form exception: length ${aiResponse.length} >= 300`, { category: LogCategory.GENERAL });
   } else if (isReservationShort) {
     logger.info(`[DOCX CHECK] Reservation agreement exception: length ${aiResponse.length} >= 200`, { category: LogCategory.GENERAL });
+  } else if (isMarketingShort) {
+    logger.info(`[DOCX CHECK] Marketing agreement structured format exception: length ${aiResponse.length} >= 80`, { category: LogCategory.GENERAL });
   } else {
     logger.info(`[DOCX CHECK] Passed length check: ${aiResponse.length} >= 400`, { category: LogCategory.GENERAL });
   }

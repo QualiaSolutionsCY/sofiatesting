@@ -5,36 +5,7 @@
 
 import { Agent } from "../agents/identifier.ts";
 import { logger, LogCategory } from "../utils/logger.ts";
-
-// Location to region mapping
-const REGION_LOCATIONS: Record<string, string[]> = {
-  paphos: [
-    'tala', 'peyia', 'chloraka', 'kato paphos', 'paphos', 'yeroskipou', 'universal',
-    'coral bay', 'polis', 'kissonerga', 'emba', 'mesogi', 'geroskipou', 'kouklia',
-    'aphrodite hills', 'mandria', 'pegeia', 'tremithousa', 'anarita', 'timi'
-  ],
-  limassol: [
-    'limassol', 'potamos germasogeia', 'germasogeia', 'agios tychonas', 'mesa geitonia',
-    'zakaki', 'amathus', 'mouttagiaka', 'pareklisia', 'erimi', 'episkopi', 'kolossi',
-    'pyrgos', 'parekklisia', 'polemidia', 'agios athanasios', 'agios nikolaos',
-    'neapoli', 'agia zoni', 'kapsalos', 'enaerios', 'pentadromos', 'naafi', 'ypsonas'
-  ],
-  larnaca: [
-    'larnaca', 'larnaka', 'oroklini', 'pervolia', 'livadia', 'dhekelia', 'dekelia',
-    'pyla', 'kiti', 'tersefanou', 'dromolaxia', 'meneou', 'voroklini', 'aradippou',
-    'kamares', 'droshia'
-  ],
-  nicosia: [
-    'nicosia', 'lefkosia', 'lakatamia', 'strovolos', 'engomi', 'aglandjia', 'latsia',
-    'geri', 'dali', 'tseri', 'kokkinotrimithia', 'mammari', 'deftera', 'anthoupoli',
-    'makedonitissa'
-  ],
-  famagusta: [
-    'famagusta', 'paralimni', 'ayia napa', 'agia napa', 'protaras', 'deryneia',
-    'sotira', 'frenaros', 'vrysoulles', 'liopetri', 'cape greco', 'kapparis',
-    'pernera', 'fig tree bay'
-  ]
-};
+import { REGION_LOCATIONS } from "../config/business-rules.ts";
 
 export interface ValidationResult {
   allowed: boolean;

@@ -80,6 +80,7 @@ ALTER TABLE call_audit_runs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE call_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE caller_alerts ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Service role full access" ON call_audit_runs FOR ALL USING (true);
-CREATE POLICY "Service role full access" ON call_records FOR ALL USING (true);
-CREATE POLICY "Service role full access" ON caller_alerts FOR ALL USING (true);
+-- Only service_role (used by Edge Functions) can access these tables
+CREATE POLICY "Service role full access" ON call_audit_runs FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role full access" ON call_records FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role full access" ON caller_alerts FOR ALL TO service_role USING (true) WITH CHECK (true);

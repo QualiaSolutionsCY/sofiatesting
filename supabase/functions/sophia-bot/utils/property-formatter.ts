@@ -97,17 +97,6 @@ export const CYPRUS_AREAS = [
   "protaras",
   "sotira",
   "derynia",
-  // Municipality areas (dimos = municipality, used as neighborhood/area names)
-  "dimos lemesou",
-  "dimos pafou",
-  "dimos larnakas",
-  "dimos lefkosias",
-  "dimos strovolou",
-  "dimos germasogeias",
-  "dimos ypsonas",
-  "dimos polemidia",
-  "dimos agios athanasios",
-  "dimos mesa geitonia",
   // Limassol neighborhoods/localities
   "katholiki",
   "agios ioannis",
@@ -165,238 +154,94 @@ export function titleCase(str: string): string {
 }
 
 /**
- * Smart property description formatter - extracts reg number, location, building name, flat number,
- * sheet/plan, block, and plot info from a raw string. Used by all document templates.
+ * Lightweight property description formatter.
  *
- * Output formats:
- * Apartment: "Reg No. 0/1567, Konia, Paphos (Maroula Court Flat No. 105)"
- * Land/Plot: "Reg No. 0/1346, Sheet/Plan 44/55, Block 0, Plot No. 122, Amathounta, Agios Athanasios, Limassol"
- * Municipality: "Reg No. 0/14567, Dimos Lemesou, Katholiki, Limassol, Plot"
+ * Philosophy: PRESERVE the user's exact input (spacing, commas, numbering, order).
+ * Only apply minimal normalizations:
+ *   1. Normalize "reg no" / "reg. no" / "registration no" → "Reg. No."
+ *   2. Capitalize recognized Cyprus place names (districts + areas)
+ *   3. Keep parentheses and all other structure as-is
+ *
+ * This is the SINGLE SOURCE OF TRUTH — used by viewing forms, reservation agreements,
+ * and marketing agreements (via styles.ts re-export).
  */
 export function formatPropertyDescription(rawInput: string): string {
   if (!rawInput || rawInput.length < 3) {
     return "Property as described";
   }
 
-  // Clean the input - remove common prefixes and connectors
-  let input = rawInput
-    .toLowerCase()
-    .replace(/^property\s+(with\s+)?/i, "")
-    .replace(/^title\s+deed\s+/i, "")
-    .replace(/\bsituated\s+in\b/gi, "")
-    .replace(/\bwith\s+registration\s+number\b/gi, "")
-    .replace(/\bwith\s+reg\s*(?:no\.?)?\b/gi, "")
-    .replace(/\bwith\b/gi, "") // Remove standalone "with"
-    .replace(/\bin\s+(?=[a-z])/gi, "")
-    // Normalize Greek transliterations: "demos" → "dimos" (Δήμος = municipality)
-    .replace(/\bdemos\b/gi, "dimos")
-    .trim();
+  let result = rawInput.trim();
 
-  // Extract registration number (format: X/XXXX like 0/1234 or 1/12345)
-  // Must appear near "reg" prefix OR be the first number/slash pattern
-  let regNumber: string | null = null;
-  const regMatch = input.match(
-    /(?:reg(?:istration)?\.?\s*(?:no\.?|number)?\s*)?(\d+\/\d+)/i
+  // 1. Normalize registration number prefix → "Reg No."
+  //    Handles: "reg no", "reg. no", "reg no.", "Reg No", "registration no",
+  //    "registration no.", "Registration Number", etc.
+  result = result.replace(
+    /\breg(?:istration)?\.?\s*(?:no\.?|number)\b\.?/gi,
+    "Reg No."
   );
-  if (regMatch) {
-    regNumber = regMatch[1];
-    input = input
-      .replace(/reg(?:istration)?\.?\s*(?:no\.?|number)?\s*\d+\/\d+/gi, "")
-      .replace(regNumber, "")
-      .trim();
-  }
+  // Clean up any double dots from "Reg No.." edge cases
+  result = result.replace(/Reg\s*No\.\./g, "Reg No.");
 
-  // Extract sheet/plan pattern: "sheet/plan 44/55", "sheet plan 44/55", "sheet 44/55"
-  let sheetPlanInfo = "";
-  const sheetMatch = input.match(
-    /\bsheet\s*\/?\s*plan\s*(\d+\s*\/?\s*\d*)/i
-  );
-  if (sheetMatch) {
-    const spNum = sheetMatch[1].replace(/\s+/g, "");
-    sheetPlanInfo = `Sheet/Plan ${spNum}`;
-    input = input.replace(sheetMatch[0], " ").trim();
-  }
+  // 1b. Detect bare registration numbers at the start (e.g., "0/1456, Dimos...")
+  //     and prepend "Reg No." prefix — universal for all templates
+  result = result.replace(/^(\d+\/\d+)/, "Reg No. $1");
 
-  // Extract block pattern: "block 0", "block 12", "block:1"
-  let blockInfo = "";
-  const blockMatch = input.match(/\bblock[\s:]+(\d+)/i);
-  if (blockMatch) {
-    blockInfo = `Block ${blockMatch[1]}`;
-    input = input.replace(blockMatch[0], " ").trim();
-  }
-
-  // Extract flat/unit/plot number pattern
-  // Supports: "flat no 105", "plot no 122", "unit 5b", etc.
-  let unitInfo = "";
-  const unitMatch = input.match(
-    /\b(flat|unit|apt|apartment|house|townhouse|villa|bungalow|penthouse|maisonette|plot)\s*(?:no\.?|number)?\s*(\d+\s*[A-Za-z]?|\d+-?[A-Za-z])/i
-  );
-  if (unitMatch) {
-    const unitNum = unitMatch[2].replace(/\s+/g, "").toUpperCase();
-    const unitType =
-      unitMatch[1].charAt(0).toUpperCase() +
-      unitMatch[1].slice(1).toLowerCase();
-    unitInfo = `${unitType} No. ${unitNum}`;
-    input = input.replace(unitMatch[0], " ").trim();
-  }
-
-  // Extract standalone property type (e.g., "plot", "land") when no unit number
-  // These are property descriptors, not locations - should appear at end of description
-  let propertyType = "";
-  if (!unitInfo) {
-    const standaloneTypeMatch = input.match(/\b(plot|land)\b/i);
-    if (standaloneTypeMatch) {
-      propertyType = titleCase(standaloneTypeMatch[1]);
-      input = input.replace(standaloneTypeMatch[0], " ").trim();
+  // 2. Capitalize recognized Cyprus place names (districts and areas)
+  //    Process multi-word names first (longer matches before shorter)
+  //    e.g., "kato paphos" → "Kato Paphos", "agios theodoros" → "Agios Theodoros"
+  const allAreas = [...CYPRUS_AREAS].sort((a, b) => b.length - a.length);
+  for (const areaName of allAreas) {
+    const regex = new RegExp(`\\b${areaName}\\b`, "gi");
+    if (regex.test(result)) {
+      result = result.replace(regex, titleCase(areaName));
     }
   }
 
-  // Clean up and normalize whitespace
-  input = input.replace(/,/g, " ").replace(/\s+/g, " ").trim();
-
-  // Check for multi-word areas BEFORE splitting into individual words
-  // This handles "agios theodoros", "kato paphos", "coral bay", etc.
-  // Find ALL multi-word matches (not just first) to handle cases like
-  // "agios athanasios agia paraskevi" where both are valid areas
-  let area = "";
-  const extraMultiWordAreas: string[] = [];
-  // Sort by length descending so longer matches (e.g. "dimos mesa geitonia") match before shorter ones ("mesa geitonia")
-  const multiWordAreas = CYPRUS_AREAS.filter((a) => a.includes(" ")).slice().sort((a, b) => b.length - a.length);
-  for (const multiWordArea of multiWordAreas) {
-    const regex = new RegExp(`\\b${multiWordArea}\\b`, "i");
-    if (regex.test(input)) {
-      if (!area) {
-        area = titleCase(multiWordArea);
-      } else {
-        extraMultiWordAreas.push(titleCase(multiWordArea));
-      }
-      input = input.replace(regex, " ").trim();
+  // Capitalize district names
+  for (const district of CYPRUS_DISTRICTS) {
+    const regex = new RegExp(`\\b${district}\\b`, "gi");
+    if (regex.test(result)) {
+      result = result.replace(regex, titleCase(district));
     }
   }
 
-  // Split into words
-  const words = input.split(/\s+/).filter((w) => w.length > 0);
+  // 3. Capitalize "Flat No.", "Plot No.", "Unit No.", "Block" etc. if lowercase
+  result = result.replace(/\b(flat|plot|unit|apt|apartment|block|sheet|plan)\b/gi, (match) => {
+    return match.charAt(0).toUpperCase() + match.slice(1).toLowerCase();
+  });
 
-  // Identify district (Paphos, Limassol, etc.)
-  let district = "";
-  const remainingWords: string[] = [];
+  // 4. Normalize "no" / "no." after Flat/Plot/Unit/Apt → "No."
+  result = result.replace(/\b(Flat|Plot|Unit|Apt|Apartment)\s+no\.?\b/gi, (_, type) => {
+    return `${type} No.`;
+  });
 
-  for (const word of words) {
-    const wordLower = word.toLowerCase();
-    if (CYPRUS_DISTRICTS.includes(wordLower as typeof CYPRUS_DISTRICTS[number])) {
-      district = titleCase(word);
-    } else {
-      remainingWords.push(word);
-    }
-  }
+  // 5. Universal "Dimos" (municipality prefix) — capitalize and keep as one unit with following word
+  result = result.replace(/\bdimos\b/gi, "Dimos");
 
-  // Identify single-word areas - collect all recognized areas
-  const additionalAreas: string[] = [];
-  const afterAreaWords: string[] = [];
-
-  for (const word of remainingWords) {
-    const wordLower = word.toLowerCase();
-    if (!area && CYPRUS_AREAS.includes(wordLower as typeof CYPRUS_AREAS[number])) {
-      area = titleCase(word);
-    } else if (CYPRUS_AREAS.includes(wordLower as typeof CYPRUS_AREAS[number])) {
-      additionalAreas.push(titleCase(word));
-    } else {
-      afterAreaWords.push(word);
-    }
-  }
-
-  // Add extra multi-word areas found in first pass
-  additionalAreas.push(...extraMultiWordAreas);
-
-  // Identify complex name (contains court, complex, tower, etc.)
-  // Build complex name from consecutive words that form a complex
-  let complexName = "";
-  const finalWords: string[] = [];
-  const complexWords: string[] = [];
-  let foundComplexIndicator = false;
-
-  for (const word of afterAreaWords) {
-    const wordLower = word.toLowerCase();
-
-    // Skip standalone property types when we have a unit number
-    if (unitInfo && PROPERTY_TYPES.includes(wordLower as typeof PROPERTY_TYPES[number])) {
-      continue;
-    }
-
-    if (COMPLEX_INDICATORS.includes(wordLower as typeof COMPLEX_INDICATORS[number])) {
-      foundComplexIndicator = true;
-      complexWords.push(titleCase(word));
-    } else if (foundComplexIndicator) {
-      // Word after complex indicator - add to final words
-      finalWords.push(word);
-    } else {
-      // Potential complex name word (before indicator)
-      complexWords.push(titleCase(word));
-    }
-  }
-
-  // If we found a complex indicator, complexWords contains the full complex name
-  if (foundComplexIndicator) {
-    complexName = complexWords.join(" ");
-    // Check finalWords (words after complex indicator) for areas/districts
-    for (const word of finalWords) {
-      const wordLower = word.toLowerCase();
-      if (!district && CYPRUS_DISTRICTS.includes(wordLower as typeof CYPRUS_DISTRICTS[number])) {
-        district = titleCase(word);
-      } else if (CYPRUS_AREAS.includes(wordLower as typeof CYPRUS_AREAS[number])) {
-        additionalAreas.push(titleCase(word));
-      }
-      // Non-area/district words after complex are intentionally dropped
-    }
+  // 6. Universal title-case: capitalize first letter of every word in location/area parts
+  //    This ensures even unrecognized locations get proper capitalization
+  //    Apply to each comma-separated segment after the reg number
+  const regNoMatch = result.match(/^(Reg No\.\s*\d+\/\d+)(.*)$/);
+  if (regNoMatch) {
+    const regPart = regNoMatch[1];
+    let rest = regNoMatch[2];
+    // Title-case each comma-separated part (but preserve already-capitalized words)
+    rest = rest.replace(/(?:^|,\s*)([a-z])/g, (match, letter) => {
+      return match.slice(0, -1) + letter.toUpperCase();
+    });
+    // Also capitalize first letter of any lowercase word (excluding common connectors)
+    rest = rest.replace(/\b([a-z])/g, (match) => match.toUpperCase());
+    result = regPart + rest;
   } else {
-    // No complex name found - unrecognized words are likely location/area names
-    // Preserve them in the output rather than silently dropping them
-    for (const word of complexWords) {
-      if (word.replace(/[^a-zA-Z]/g, "").length > 1) {
-        additionalAreas.push(word);
-      }
-    }
+    // No reg number — just title-case everything
+    result = result.replace(/\b([a-z])/g, (match) => match.toUpperCase());
   }
 
-  // Build location string: municipality (area) first, then neighborhoods, then district
-  const locationParts: string[] = [];
-  if (area) locationParts.push(area);
-  locationParts.push(...additionalAreas);
-  if (district) locationParts.push(district);
-  const location = locationParts.join(", ");
+  // Universal double-dot cleanup (e.g., "Flat No.. 105" → "Flat No. 105")
+  result = result.replace(/\.{2,}/g, ".");
 
-  // Build description parts (comma-separated)
-  const descParts: string[] = [];
-  if (regNumber) descParts.push(`Reg No. ${regNumber}`);
-  if (sheetPlanInfo) descParts.push(sheetPlanInfo);
-  if (blockInfo) descParts.push(blockInfo);
-  // Unit info outside parentheses only when no complex name
-  if (unitInfo && !complexName) descParts.push(unitInfo);
-  if (location) descParts.push(location);
-  // Standalone property type (e.g., "Plot", "Land") appended after location
-  if (propertyType) descParts.push(propertyType);
+  // Clean up any extra whitespace (but preserve commas, parentheses, etc.)
+  result = result.replace(/  +/g, " ").trim();
 
-  // Build final description
-  let description: string;
-  if (descParts.length > 0 && complexName && unitInfo) {
-    description = `${descParts.join(", ")} (${complexName} ${unitInfo})`;
-  } else if (descParts.length > 0 && complexName) {
-    description = `${descParts.join(", ")} (${complexName})`;
-  } else if (descParts.length > 0) {
-    description = descParts.join(", ");
-  } else if (complexName && unitInfo) {
-    description = `${complexName} ${unitInfo}`;
-  } else if (complexName) {
-    description = complexName;
-  } else if (location) {
-    description = location;
-  } else {
-    // Fallback: title case the original input
-    description = titleCase(rawInput);
-  }
-
-  return description
-    .replace(/,\s*$/, "")
-    .replace(/\(\s*\)/g, "")
-    .trim();
+  return result;
 }

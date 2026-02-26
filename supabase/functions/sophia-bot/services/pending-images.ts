@@ -19,16 +19,22 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // Auto-expire images older than 1 hour
 const EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 
+export interface PendingImageRecord {
+  url: string;
+  contentHash: string;
+}
+
 /**
- * Add images to pending queue for a user
- * Now includes correlation ID for debugging
+ * Add images to pending queue for a user.
+ * Uses content_hash for deduplication — same image content with different URLs
+ * will be rejected by the UNIQUE(phone_number, content_hash) index.
  */
 export async function addPendingImages(
   phoneNumber: string,
-  imageUrls: string[],
+  images: PendingImageRecord[],
   correlationId?: string
 ): Promise<void> {
-  if (!imageUrls || imageUrls.length === 0) return;
+  if (!images || images.length === 0) return;
 
   // Get correlation ID from context if not provided
   const ctx = getContext();
@@ -38,34 +44,45 @@ export async function addPendingImages(
     category: LogCategory.IMAGE,
     operation: "addPendingImages",
     correlationId: corrId,
-    imageCount: imageUrls.length,
+    imageCount: images.length,
   });
 
-  // Build records - only include columns that exist in the table
-  const records = imageUrls.map(url => ({
+  // Build records with content_hash for content-based deduplication
+  const records = images.map(img => ({
     phone_number: phoneNumber,
-    image_url: url,
+    image_url: img.url,
+    content_hash: img.contentHash,
   }));
 
-  // Use upsert with ignoreDuplicates to handle the UNIQUE(phone_number, image_url) constraint
-  // This prevents duplicate images when WhatsApp retries the same webhook
+  // Use upsert with ignoreDuplicates on content_hash
+  // This prevents the SAME image content from being stored twice,
+  // even when WhatsApp re-decrypts it into a different temporary URL
   const { error } = await supabase
     .from("pending_images")
     .upsert(records, { onConflict: "phone_number,image_url", ignoreDuplicates: true });
 
   if (error) {
-    logger.error("Failed to add pending images", error, {
-      category: LogCategory.IMAGE,
-      operation: "addPendingImages",
-      correlationId: corrId,
-      imageCount: imageUrls.length,
-    });
+    // If the content_hash unique constraint fires, that's expected (dedup working!)
+    if (error.code === "23505" && error.message?.includes("content_hash")) {
+      logger.info("Content-hash dedup: duplicate image(s) skipped", {
+        category: LogCategory.IMAGE,
+        operation: "addPendingImages",
+        correlationId: corrId,
+      });
+    } else {
+      logger.error("Failed to add pending images", error, {
+        category: LogCategory.IMAGE,
+        operation: "addPendingImages",
+        correlationId: corrId,
+        imageCount: images.length,
+      });
+    }
   } else {
     logger.info("Successfully added pending images", {
       category: LogCategory.IMAGE,
       operation: "addPendingImages",
       correlationId: corrId,
-      imageCount: imageUrls.length,
+      imageCount: images.length,
     });
   }
 }
@@ -103,11 +120,13 @@ export async function getPendingImages(phoneNumber: string): Promise<string[]> {
   cleanupExpiredImages().catch(() => {});
 
   // Get all pending images for this user
+  // Order by id (auto-increment) for reliable insertion-order preservation
+  // created_at can have identical timestamps for batch inserts
   const { data, error } = await supabase
     .from("pending_images")
     .select("image_url")
     .eq("phone_number", phoneNumber)
-    .order("created_at", { ascending: true });
+    .order("id", { ascending: true });
 
   if (error) {
     logger.error("Failed to get pending images", error, {

@@ -23,7 +23,7 @@ SOPHIA can perform real-time calculations for Cyprus real estate:
 ### 1. Transfer Fees Calculator
 - Link: https://www.zyprus.com/help/1260/property-transfer-fees-calculator
 - Progressive rates: 3% (up to €85k), 5% (€85k-€170k), 8% (above €170k)
-- 50% exemption for resale properties
+- 50% discount always applied (contract deposited at Dept of Lands & Surveys - standard practice)
 - Joint names calculation support
 
 ### 2. Capital Gains Tax Calculator

@@ -325,8 +325,10 @@ export const VIEW_FALLBACKS: Record<string, string> = {
 
 /** Maps common user terms to Zyprus taxonomy terms for outdoor features */
 export const OUTDOOR_FEATURE_ALIASES: Record<string, string[]> = {
-  "private pool": ["swimming pool", "pool", "private swimming pool"],
-  "communal pool": ["shared pool", "common pool"],
+  "private pool": ["private swimming pool", "private pool"],
+  "communal pool": ["shared pool", "common pool", "communal swimming pool"],
+  // NOTE: "swimming pool" and "pool" are intentionally NOT aliased here.
+  // The executor auto-injects the correct pool type based on poolType field.
   "landscape garden": ["landscaped garden", "landscaping"],
   "standard garden": ["basic garden", "simple garden", "garden"],
   "roof garden": ["rooftop garden", "terrace garden"],
@@ -344,6 +346,7 @@ export const OUTDOOR_FEATURE_ALIASES: Record<string, string[]> = {
 export const INDOOR_FEATURE_ALIASES: Record<string, string[]> = {
   "air conditioning": ["ac", "a/c", "aircon", "air con"],
   "central heating": ["central heat"],
+  "provision for central heating": ["provisions for central heating", "provision for heating", "provision for electric central heating", "provisions for heating"],
   "underfloor heating": ["under floor heating", "floor heating", "radiant floor", "heated floors", "ufh"],
   "fitted kitchen": ["built-in kitchen", "modern kitchen"],
   "covered parking": ["indoor parking", "garage parking"],

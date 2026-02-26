@@ -27,6 +27,8 @@ export interface PropertyDetails {
   airConditioning?: boolean;
   centralHeating?: boolean;
   pool?: boolean;
+  /** Pool type: private, communal, or provisions (overrides pool boolean when set) */
+  poolType?: "private" | "communal" | "provisions";
   garden?: boolean;
   seaView?: boolean;
   mountainView?: boolean;
@@ -34,6 +36,18 @@ export interface PropertyDetails {
   areaDescription?: string;
   /** Number of bedrooms/rooms in the basement (shown separately, e.g., "5 Bedrooms + 1 Basement Bedroom") */
   basementRooms?: number;
+  /** Number of rooms on the roof garden (shown separately, e.g., "3 Bedrooms + 1 Roof Garden Room") */
+  roofRooms?: number;
+  /** VAT status: no_vat (resale), plus_vat, vat_included */
+  priceModifier?: string;
+  /** Free text describing units in multi-unit buildings (e.g., "4 x 2 Bedroom Units 83m2-84m2") */
+  unitBreakdown?: string;
+  /** Year the property was last renovated */
+  yearRenovated?: number;
+  /** Whether this is a new build / key ready property */
+  isNewBuild?: boolean;
+  /** Multi-structure property description (e.g., "a 3-bedroom main house and a separate 2-bedroom bungalow") */
+  structureDescription?: string;
 }
 
 // Location descriptions for common Cyprus areas
@@ -48,6 +62,7 @@ const LOCATION_DESCRIPTIONS: Record<string, string> = {
   universal: "Universal is a prestigious residential area just 5 minutes from Paphos town center, Kings Avenue Mall, and all major amenities.",
   yeroskipou: "Yeroskipou offers traditional village living with excellent schools, just 10 minutes from Paphos center and 5 minutes to the airport.",
   kissonerga: "Kissonerga provides sea views and village charm, just 10 minutes to Coral Bay beaches and 15 minutes to Paphos center.",
+  "mesa chorio": "Mesa Chorio is a peaceful hillside village overlooking Paphos, just 10 minutes to the town center and close to local amenities.",
   emba: "Emba is an affordable village just 10 minutes from Paphos town center and the beach, with local shops and traditional tavernas nearby.",
   geroskipou: "Geroskipou is a traditional town between Paphos airport and the city center, offering easy highway access and local amenities.",
   kouklia: "Kouklia offers rural village living near the Sanctuary of Aphrodite, 20 minutes from Paphos center and close to secret valley golf course.",
@@ -271,13 +286,33 @@ function categorizeFeatures(details: PropertyDetails): {
     f => f.toLowerCase().includes("underfloor") || f.toLowerCase().includes("floor heating")
   );
 
+  // Check if "provision for central heating" is in features (distinct from installed central heating)
+  const hasProvisionForCentralHeating = details.features?.some(
+    f => f.toLowerCase().includes("provision") && f.toLowerCase().includes("heating")
+  );
+
   // Boolean features - categorized
   if (details.airConditioning) indoor.push("Air Conditioning");
-  // ONLY add central heating if underfloor heating is NOT present
-  if (details.centralHeating && !hasUnderfloorHeating) indoor.push("Central Heating");
+  // ONLY add central heating if underfloor heating is NOT present AND it's not just a provision
+  if (details.centralHeating && !hasUnderfloorHeating && !hasProvisionForCentralHeating) indoor.push("Central Heating");
   if (details.storage) indoor.push("Storage Room");
 
-  if (details.pool) outdoor.push("Private Swimming Pool");
+  // Pool handling: poolType takes precedence over boolean pool flag
+  if (details.poolType) {
+    switch (details.poolType) {
+      case "private":
+        outdoor.push("Private Swimming Pool");
+        break;
+      case "communal":
+        outdoor.push("Communal Swimming Pool");
+        break;
+      case "provisions":
+        outdoor.push("Provisions For Swimming Pool");
+        break;
+    }
+  } else if (details.pool) {
+    outdoor.push("Private Swimming Pool");
+  }
   if (details.garden) outdoor.push("Landscaped Garden");
   if (details.parking) {
     // Map parking types to proper Zyprus terminology
@@ -315,7 +350,25 @@ function categorizeFeatures(details: PropertyDetails): {
 
     for (const feature of details.features) {
       const lower = feature.toLowerCase().trim();
+
+      // NEVER include energy class in description — it goes to dedicated field_energy_class only
+      if (lower.startsWith("energy class") || lower.startsWith("energy rating") || /^energy\s+[a-d]$/i.test(lower)) {
+        continue;
+      }
+
+      // Filter out generic/vague features that don't add value to the listing
+      const isGenericFeature = [
+        "provisions for a/c", "provision for a/c", "provisions for ac",
+        "new condition",                  // Redundant with isNewBuild
+      ].some(gf => lower === gf || lower.includes(gf));
+      if (isGenericFeature) continue;
+
       let formatted = formatFeature(feature);
+
+      // Handle "provision for central heating" — display as "Provision For Central Heating"
+      if (lower.includes("provision") && lower.includes("heating")) {
+        formatted = "Provision For Central Heating";
+      }
 
       // CRITICAL: Rename "open parking" to "Uncovered Parking" (Zyprus terminology)
       if (lower.includes("open parking") || lower === "open parking") {
@@ -342,7 +395,23 @@ function categorizeFeatures(details: PropertyDetails): {
     }
   }
 
-  return { indoor, outdoor, views };
+  // Combine multiple views into a single line: "Mountain and City View"
+  // ["Mountain View", "City View"] → ["Mountain and City View"]
+  // ["Sea View", "Mountain View", "City View"] → ["Sea, Mountain and City View"]
+  const combinedViews: string[] = [];
+  if (views.length > 1) {
+    // Extract view type names (strip " View" suffix for combining)
+    const viewNames = views.map(v => v.replace(/\s*view\s*$/i, "").trim());
+    // Join with commas and "and" before the last one
+    const combined = viewNames.length === 2
+      ? `${viewNames[0]} and ${viewNames[1]} View`
+      : `${viewNames.slice(0, -1).join(", ")} and ${viewNames[viewNames.length - 1]} View`;
+    combinedViews.push(combined);
+  } else {
+    combinedViews.push(...views);
+  }
+
+  return { indoor, outdoor, views: combinedViews };
 }
 
 /**
@@ -356,12 +425,19 @@ function formatTitleDeedStatus(status?: string): string {
     case "final_approval":
     case "final approval":
       return "Final Approval";
+    case "in_process":
+    case "in process":
+    case "being_issued":
+      return "Title Deeds In the Process of Being Issued";
     case "pending":
     case "application":
       return "Title Deed Pending";
     case "share_of_land":
     case "share of land":
       return "Share of Land";
+    case "permits_only":
+    case "permits only":
+      return "Building Permits";
     default:
       return "";
   }
@@ -478,33 +554,83 @@ export function generateDescription(details: PropertyDetails): string {
   const adjective = getRandomAdjective(); // Already capitalized from ADJECTIVES array
   const propertyType = toTitleCase(details.type); // Title Case: Detached House, Villa, etc.
   const location = capitalizeLocation(details.location);
-  // Bedroom text for headline — show as "5+1 Bedroom" when basement rooms exist
+  // Bedroom text for headline — show as "5+1 Bedroom" when basement/roof rooms exist
   let bedroomText: string;
-  if (details.basementRooms && details.basementRooms > 0) {
-    bedroomText = `${details.bedrooms}+${details.basementRooms} Bedroom`;
+  const extraRooms = (details.basementRooms || 0) + (details.roofRooms || 0);
+  if (extraRooms > 0) {
+    bedroomText = `${details.bedrooms}+${extraRooms} Bedroom`;
   } else {
     bedroomText = details.bedrooms === 1 ? "1 Bedroom" : `${details.bedrooms} Bedroom`;
   }
   const listingTypeText = details.listingType === "rent" ? "For Rent" : "For Sale";
 
   const lines: string[] = [];
+  const isBuilding = details.type.toLowerCase().includes("building");
 
   // 1. HEADLINE - Title Case (per Lauren's feedback Jan 2026)
-  // Format: "Spacious 5+1 Bedroom Detached House For Sale In Moutagiaka, Limassol With Title Deeds"
-  let headline = `${adjective} ${bedroomText} ${propertyType} ${listingTypeText} In ${location}`;
-  if (details.titleDeedStatus && details.listingType === "sale" && details.titleDeedStatus !== "do_not_display") {
-    const titleDeedFormatted = formatTitleDeedStatus(details.titleDeedStatus);
-    if (titleDeedFormatted) {
-      headline += ` With ${titleDeedFormatted}`;
+  let headline: string;
+  let titleDeedSeparateLine: string | null = null;
+
+  if (isBuilding) {
+    // Building headline: [Key Ready] Residential Building For Sale in Location [with No VAT!/with Separate Title Deeds]
+    const isKeyReady = details.isNewBuild ||
+      details.condition?.toLowerCase()?.includes("key ready") ||
+      details.condition?.toLowerCase()?.includes("brand new");
+
+    headline = isKeyReady ? `Key Ready ${propertyType}` : propertyType;
+    headline += ` ${listingTypeText} in ${location}`;
+
+    // VAT suffix takes priority for new buildings
+    if (details.priceModifier === "no_vat" && details.listingType === "sale") {
+      headline += " with No VAT!";
+    } else if (!isKeyReady && details.titleDeedStatus && details.listingType === "sale"
+      && details.titleDeedStatus !== "do_not_display" && details.titleDeedStatus !== "unknown") {
+      // Older buildings: show title deed status (use "Separate Title Deeds" for buildings)
+      if (details.titleDeedStatus === "separate" || details.titleDeedStatus === "full") {
+        headline += " with Separate Title Deeds";
+      } else {
+        const titleDeedFormatted = formatTitleDeedStatus(details.titleDeedStatus);
+        if (titleDeedFormatted) {
+          headline += ` with ${titleDeedFormatted}`;
+        }
+      }
+    }
+  } else {
+    // Standard headline: "Spacious 5+1 Bedroom Detached House For Sale In Moutagiaka, Limassol With Title Deeds"
+    headline = `${adjective} ${bedroomText} ${propertyType} ${listingTypeText} In ${location}`;
+    if (details.titleDeedStatus && details.listingType === "sale" && details.titleDeedStatus !== "do_not_display") {
+      const titleDeedFormatted = formatTitleDeedStatus(details.titleDeedStatus);
+      if (titleDeedFormatted) {
+        // Long title deed text (e.g., "Title Deeds In the Process of Being Issued") goes on separate line
+        if (titleDeedFormatted.length > 20) {
+          titleDeedSeparateLine = titleDeedFormatted;
+        } else {
+          headline += ` With ${titleDeedFormatted}`;
+        }
+      }
+    }
+    // Append "- No VAT" for resale properties (priceModifier = no_vat)
+    if (details.priceModifier === "no_vat" && details.listingType === "sale") {
+      headline += " - No VAT";
     }
   }
   lines.push(headline);
+
+  // Title deed on separate line if too long for headline
+  if (titleDeedSeparateLine) {
+    lines.push(titleDeedSeparateLine);
+  }
 
   // 2. LOCATION SENTENCES (2-4 short sentences)
   // Use user-provided areaDescription if available, otherwise fall back to generic
   const locationSentences = getLocationSentences(details.location, details.areaDescription);
   for (const sentence of locationSentences) {
     lines.push(sentence);
+  }
+
+  // 2b. MULTI-STRUCTURE DESCRIPTION (e.g., "Property comprises a 3-bedroom main house and a separate bungalow")
+  if (details.structureDescription) {
+    lines.push(`This property comprises ${details.structureDescription}`);
   }
 
   // 3. Get and sort features by importance
@@ -528,6 +654,7 @@ export function generateDescription(details: PropertyDetails): string {
       featureLower.includes("cul de sac") ||
       featureLower.includes("swimming pool") ||
       featureLower.includes("private pool") ||
+      featureLower.includes("communal pool") ||
       featureLower.includes("roof garden") ||
       featureLower.includes("view"); // Catches: sea view, mountain view, city view, green area view, etc.
 
@@ -549,48 +676,103 @@ export function generateDescription(details: PropertyDetails): string {
                       (details.uncoveredVeranda && details.uncoveredVeranda > 0);
   const areaLabel = hasVeranda ? "Net Indoor Area" : "Covered Area";
 
-  // Floor level (above bedrooms/bathrooms when specified)
-  // SKIP for detached houses, villas, bungalows — "Ground Floor" is misleading
-  // since these property types inherently have multiple floors
-  if (details.floor) {
-    const floorLower = details.floor.toLowerCase();
-    const typeLower = details.type.toLowerCase();
-    const isMultiStoryType = typeLower.includes("detached") || typeLower.includes("villa")
-      || typeLower.includes("house") || typeLower.includes("bungalow")
-      || typeLower.includes("townhouse") || typeLower.includes("maisonette");
-    const isGroundFloor = floorLower === "ground" || floorLower === "ground floor";
-
-    // Only suppress ground floor for multi-story types; show specific floors like "1st" or "2nd" for apartments
-    if (!(isMultiStoryType && isGroundFloor)) {
-      const floorDisplay = details.floor.charAt(0).toUpperCase() + details.floor.slice(1);
-      lines.push(`${floorDisplay} Floor`);
+  if (isBuilding) {
+    // BUILDINGS: Show total areas then unit breakdown (skip bedroom/bathroom lines)
+    lines.push(`${details.coveredArea}m² Total ${areaLabel}`);
+    if (details.coveredVeranda) {
+      lines.push(`${details.coveredVeranda}m² Total Covered Veranda`);
     }
-  }
+    if (details.uncoveredVeranda) {
+      lines.push(`${details.uncoveredVeranda}m² Total Uncovered Veranda`);
+    }
+    if (details.plotSize) {
+      lines.push(`${details.plotSize}m² Plot Size`);
+    }
 
-  // Bedrooms — show basement rooms separately if provided (e.g., "5 Bedrooms + 1 Basement Bedroom")
-  if (details.basementRooms && details.basementRooms > 0) {
-    const mainBeds = details.bedrooms;
-    const basementText = details.basementRooms === 1 ? "1 Basement Bedroom" : `${details.basementRooms} Basement Bedrooms`;
-    lines.push(`${mainBeds} ${mainBeds === 1 ? "Bedroom" : "Bedrooms"} + ${basementText}`);
+    // Unit breakdown with proper formatting (blank lines between groups)
+    if (details.unitBreakdown) {
+      lines.push(""); // blank line before breakdown
+      const breakdownLines = details.unitBreakdown.split("\n");
+      for (const line of breakdownLines) {
+        lines.push(line);
+      }
+    }
   } else {
-    lines.push(`${details.bedrooms} ${details.bedrooms === 1 ? "Bedroom" : "Bedrooms"}`);
-  }
-  lines.push(`${details.bathrooms} ${details.bathrooms === 1 ? "Bathroom" : "Bathrooms"}`);
-  lines.push(`${details.coveredArea}m² ${areaLabel}`);
-  if (details.coveredVeranda) {
-    lines.push(`${details.coveredVeranda}m² Covered Veranda`);
-  }
-  if (details.uncoveredVeranda) {
-    lines.push(`${details.uncoveredVeranda}m² Uncovered Veranda`);
-  }
-  if (details.plotSize) {
-    lines.push(`${details.plotSize}m² Plot Size`);
-  }
+    // NON-BUILDINGS: Standard specs
 
-  // Orientation (compass facing direction)
-  if (details.orientation) {
-    const orientationCapitalized = details.orientation.charAt(0).toUpperCase() + details.orientation.slice(1);
-    lines.push(`${orientationCapitalized} Facing`);
+    // Floor level (above bedrooms/bathrooms when specified)
+    // SKIP for detached houses, villas, bungalows — "Ground Floor" is misleading
+    // since these property types inherently have multiple floors
+    if (details.floor) {
+      const floorLower = details.floor.toLowerCase().trim();
+      const typeLower = details.type.toLowerCase();
+      const isMultiStoryType = typeLower.includes("detached") || typeLower.includes("villa")
+        || typeLower.includes("house") || typeLower.includes("bungalow")
+        || typeLower.includes("townhouse") || typeLower.includes("maisonette");
+      const isGroundFloor = floorLower === "ground" || floorLower === "ground floor";
+
+      // Only suppress ground floor for multi-story types; show specific floors like "1st" or "2nd" for apartments
+      if (!(isMultiStoryType && isGroundFloor)) {
+        // Prevent duplication: "Top Floor Floor", "3rd Floor Floor"
+        // If the value already ends with "floor", don't append "Floor"
+        const alreadyHasFloor = floorLower.endsWith("floor");
+        // Handle "entire Xth floor" penthouses — display as "Entire 3rd Floor"
+        const isEntireFloor = floorLower.includes("entire");
+        let floorDisplay: string;
+
+        if (alreadyHasFloor) {
+          // Value is already "Top Floor", "3rd Floor", "Entire 3rd Floor" — use as-is
+          floorDisplay = toTitleCase(details.floor);
+        } else if (isEntireFloor) {
+          // "entire 3rd" → "Entire 3rd Floor"
+          floorDisplay = toTitleCase(details.floor) + " Floor";
+        } else {
+          // "3rd" → "3rd Floor", "top" → "Top Floor"
+          floorDisplay = details.floor.charAt(0).toUpperCase() + details.floor.slice(1) + " Floor";
+        }
+
+        lines.push(floorDisplay);
+      }
+    }
+
+    // Bedrooms — show basement/roof rooms separately if provided
+    // e.g., "5 Bedrooms + 1 Basement Bedroom" or "3 Bedrooms + 1 Roof Garden Room"
+    const bedroomParts: string[] = [];
+    bedroomParts.push(`${details.bedrooms} ${details.bedrooms === 1 ? "Bedroom" : "Bedrooms"}`);
+    if (details.basementRooms && details.basementRooms > 0) {
+      bedroomParts.push(details.basementRooms === 1 ? "1 Basement Bedroom" : `${details.basementRooms} Basement Bedrooms`);
+    }
+    if (details.roofRooms && details.roofRooms > 0) {
+      bedroomParts.push(details.roofRooms === 1 ? "1 Roof Garden Room" : `${details.roofRooms} Roof Garden Rooms`);
+    }
+    lines.push(bedroomParts.join(" + "));
+    // Bathrooms — skip for building types when not provided (0 or undefined)
+    if (details.bathrooms && details.bathrooms > 0) {
+      lines.push(`${details.bathrooms} ${details.bathrooms === 1 ? "Bathroom" : "Bathrooms"}`);
+    }
+
+    lines.push(`${details.coveredArea}m² ${areaLabel}`);
+    if (details.coveredVeranda) {
+      lines.push(`${details.coveredVeranda}m² Covered Veranda`);
+    }
+    if (details.uncoveredVeranda) {
+      // For penthouses or when features mention roof garden, display as "Roof Garden" instead of "Uncovered Veranda"
+      const isPenthouse = details.type.toLowerCase().includes("penthouse");
+      const hasRoofGardenFeature = details.features?.some(
+        f => f.toLowerCase().includes("roof garden") || f.toLowerCase().includes("roof terrace")
+      );
+      const uncoveredLabel = (isPenthouse || hasRoofGardenFeature) ? "Roof Garden" : "Uncovered Veranda";
+      lines.push(`${details.uncoveredVeranda}m² ${uncoveredLabel}`);
+    }
+    if (details.plotSize) {
+      lines.push(`${details.plotSize}m² Plot Size`);
+    }
+
+    // Orientation (compass facing direction)
+    if (details.orientation) {
+      const orientationCapitalized = details.orientation.charAt(0).toUpperCase() + details.orientation.slice(1);
+      lines.push(`${orientationCapitalized} Facing`);
+    }
   }
 
   // 6. REMAINING FEATURES with room suggestions injected after parking
@@ -598,13 +780,14 @@ export function generateDescription(details: PropertyDetails): string {
   const bottomFeatures = remainingFeatures.filter(f => isBottomFeature(f));
 
   // Build room suggestions for large properties (4+ total bedrooms)
-  const totalBeds = details.bedrooms + (details.basementRooms || 0);
+  const totalBeds = details.bedrooms + (details.basementRooms || 0) + (details.roofRooms || 0);
   const roomSuggestionItems: string[] = [];
   if (totalBeds >= 4) {
     const typeLower = details.type.toLowerCase();
-    const isHouseType = typeLower.includes("house") || typeLower.includes("villa")
+    const isHouseType = (typeLower.includes("house") || typeLower.includes("villa")
       || typeLower.includes("bungalow") || typeLower.includes("detached")
-      || typeLower.includes("townhouse");
+      || typeLower.includes("townhouse"))
+      && !typeLower.includes("building");
 
     if (isHouseType) {
       const allFeaturesLower = sortedFeatures.map(f => f.toLowerCase()).join(" ");
@@ -653,18 +836,21 @@ export function generateDescription(details: PropertyDetails): string {
     lines.push(feature);
   }
 
-  // 8. YEAR BUILT - Always the very last feature item
+  // 8. YEAR BUILT & RENOVATED - Always the very last feature items
   if (details.yearBuilt) {
     lines.push(`Year of Build: ${details.yearBuilt}`);
   }
+  if (details.yearRenovated) {
+    lines.push(`Renovated in ${details.yearRenovated}`);
+  }
 
-  // 9. CLOSING SENTENCES (2 short sentences about the opportunity)
+  // CLOSING SENTENCES (suitable for / investment opportunity)
   const closingSentences = getClosingSentences(details);
   for (const sentence of closingSentences) {
     lines.push(sentence);
   }
 
-  // 5. CTA (with empty row before)
+  // CTA (with empty row before)
   lines.push("");
   lines.push("Contact us for full information and for a private viewing!");
 
@@ -679,8 +865,13 @@ export function generateDescription(details: PropertyDetails): string {
  * - Skip generic intro lines like "Located in the central area of X"
  * - Start with the useful content (proximity, amenities, access)
  */
-function parseUserAreaDescription(areaDescription: string): string[] {
+function parseUserAreaDescription(areaDescription: string, location?: string): string[] {
   const sentences: string[] = [];
+
+  // Extract location parts for deduplication (e.g., "Zakaki, Limassol" → ["zakaki", "limassol"])
+  const locationParts = location
+    ? location.toLowerCase().split(/[,\s]+/).filter(p => p.length > 2)
+    : [];
 
   // Split by newlines, bullet points, or sentence-ending punctuation
   const parts = areaDescription
@@ -696,15 +887,40 @@ function parseUserAreaDescription(areaDescription: string): string[] {
     // Skip price mentions
     if (/^\s*€?\d+[,.]?\d*k?\s*$/i.test(part)) continue;
 
-    // Skip generic intro lines that just state the location name
-    // e.g., "Located in the central residential area of Kapsalos, Limassol"
-    const isGenericIntro = /^(located|situated)\s+(in|at|on)\s+(the|a)\s+\w+\s+(residential|central|coastal|popular|quiet|peaceful)\s+(area|neighborhood|neighbourhood|district|community)\s+of\b/i.test(part);
+    // Skip generic intro lines that repeat the location name
+    // Catches: "Located in the Zakaki area of Limassol, this property..."
+    // Catches: "Situated in the central residential area of..."
+    const isGenericIntro = /^(located|situated)\s+(in|at|on)\s+(the|a)\s+/i.test(part);
     if (isGenericIntro) continue;
+
+    // Skip sentences that mention "this property is" or similar filler
+    const isPropertyFiller = /this\s+(property|building|apartment|villa|house)\s+(is|offers|provides|represents|features)/i.test(part);
+    if (isPropertyFiller) continue;
+
+    // Skip sentences that just name the location area without adding useful info
+    // e.g., "Zakaki is a developing area in Limassol" — this is already in the headline
+    if (locationParts.length > 0) {
+      const partLower = part.toLowerCase();
+      const startsWithLocation = locationParts.some(lp =>
+        partLower.startsWith(lp + " is") || partLower.startsWith(lp + ",")
+      );
+      const isJustLocationDescription = startsWithLocation &&
+        /\b(is a|is an|is the|area|neighborhood|neighbourhood|district|suburb)\b/i.test(part);
+      if (isJustLocationDescription) continue;
+    }
 
     // Clean up and format as a proper sentence
     let sentence = part
       .replace(/[.!]*$/, '') // Remove trailing punctuation
       .trim();
+
+    // Truncate long sentences to keep description mobile-friendly
+    if (sentence.length > 120) {
+      // Cut at last comma or space before 120 chars
+      const cutPoint = sentence.lastIndexOf(',', 120);
+      sentence = cutPoint > 60 ? sentence.substring(0, cutPoint) : sentence.substring(0, 120);
+      sentence = sentence.trim();
+    }
 
     // Ensure it starts with a capital letter
     if (sentence.length > 0) {
@@ -724,20 +940,21 @@ function parseUserAreaDescription(areaDescription: string): string[] {
 }
 
 /**
- * Get location sentences from user-provided areaDescription ONLY.
- * No static/generic location text is added — all location copy comes from AI-generated areaDescription.
+ * Get location sentences — prioritize user/AI-provided areaDescription,
+ * fall back to static generic location sentences if none provided.
+ * Descriptions should ALWAYS have at least one location line after the headline.
  */
-function getLocationSentences(_location: string, areaDescription?: string): string[] {
-  // ONLY use user/AI-provided area description
+function getLocationSentences(location: string, areaDescription?: string): string[] {
+  // Priority 1: User/AI-provided area description
   if (areaDescription && areaDescription.trim().length > 10) {
-    const userSentences = parseUserAreaDescription(areaDescription);
+    const userSentences = parseUserAreaDescription(areaDescription, location);
     if (userSentences.length > 0) {
       return userSentences;
     }
   }
 
-  // No static fallback — return empty array
-  return [];
+  // Priority 2: Static generic location sentences (ensures description always has location context)
+  return getGenericLocationSentences(location);
 }
 
 /**
@@ -864,6 +1081,10 @@ function getGenericLocationSentences(location: string): string[] {
       "Located in a sought-after hillside community with stunning panoramic views",
       "Many amenities are within a short drive, including shops and the town center!"
     ],
+    "mesa chorio": [
+      "Located in a peaceful hillside village with stunning views overlooking Paphos",
+      "Many amenities are within a short drive, and the town center is only 10 minutes away!"
+    ],
     emba: [
       "Located in a peaceful and attractive residential area with mountain views",
       "Many amenities are within walking distance, and the town center is only minutes away!"
@@ -922,10 +1143,27 @@ function getClosingSentences(details: PropertyDetails): string[] {
     sentences.push(`This ${propertyType} represents an excellent investment opportunity!`);
   }
 
-  if (propertyType.includes("villa") || propertyType.includes("house") || propertyType.includes("bungalow")) {
-    sentences.push("Suitable for a family for permanent living or as a holiday home");
-  } else if (propertyType.includes("apartment") || propertyType.includes("flat")) {
-    sentences.push("Perfect for permanent residence, holiday use or rental investment");
+  // Location-aware closing — Nicosia/Famagusta are NOT holiday destinations
+  const locationLower = details.location.toLowerCase();
+  const isInlandLocation = locationLower.includes("nicosia") || locationLower.includes("strovolos")
+    || locationLower.includes("lakatamia") || locationLower.includes("engomi")
+    || locationLower.includes("aglantzia") || locationLower.includes("latsia")
+    || locationLower.includes("famagusta") || locationLower.includes("paralimni");
+
+  if (propertyType.includes("building")) {
+    sentences.push("Ideal as an investment property or for rental income");
+  } else if (propertyType.includes("villa") || propertyType.includes("house") || propertyType.includes("bungalow")) {
+    if (isInlandLocation) {
+      sentences.push("Suitable for a family for permanent living or as a rental property");
+    } else {
+      sentences.push("Suitable for a family for permanent living or as a holiday home");
+    }
+  } else if (propertyType.includes("apartment") || propertyType.includes("flat") || propertyType.includes("penthouse")) {
+    if (isInlandLocation) {
+      sentences.push("Ideal for permanent residence, student accommodation or as a rental property");
+    } else {
+      sentences.push("Ideal for permanent residence, a holiday home or as a rental property");
+    }
   } else {
     sentences.push("Ideal for permanent living or as an investment property");
   }
@@ -950,10 +1188,12 @@ export function generateTitle(details: PropertyDetails): string {
   // If there's a COVERED veranda, show both covered area and covered veranda separately
   const hasCoveredVeranda = details.coveredVeranda && details.coveredVeranda > 0;
 
+  const noVatSuffix = (details.priceModifier === "no_vat" && details.listingType === "sale") ? " - No VAT" : "";
+
   if (hasCoveredVeranda) {
-    return `${bedroomText} ${propertyType} (${details.coveredArea}m² + ${details.coveredVeranda}m² covered veranda) in ${location}`;
+    return `${bedroomText} ${propertyType} (${details.coveredArea}m² + ${details.coveredVeranda}m² covered veranda) in ${location}${noVatSuffix}`;
   }
 
-  return `${bedroomText} ${propertyType} (${details.coveredArea}m²) in ${location}`;
+  return `${bedroomText} ${propertyType} (${details.coveredArea}m²) in ${location}${noVatSuffix}`;
 }
 

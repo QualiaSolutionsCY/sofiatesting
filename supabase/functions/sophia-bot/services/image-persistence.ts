@@ -22,7 +22,22 @@ const supabase = createClient(supabaseUrl, supabaseKey);
  * @param index - Image index for logging and filename generation
  * @returns Public Supabase Storage URL or null on failure
  */
-export async function persistImage(url: string, index: number): Promise<string | null> {
+/**
+ * Compute SHA-256 hash of image content for deduplication.
+ * Same image content = same hash, regardless of URL.
+ */
+async function hashImageContent(buffer: ArrayBuffer): Promise<string> {
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+export interface PersistResult {
+  url: string;
+  contentHash: string;
+}
+
+export async function persistImage(url: string, index: number): Promise<PersistResult | null> {
   try {
     // Fetch from temporary URL
     const response = await fetch(url);
@@ -43,6 +58,9 @@ export async function persistImage(url: string, index: number): Promise<string |
     // Get image data
     const imageBlob = await response.blob();
     const imageBuffer = await imageBlob.arrayBuffer();
+
+    // Compute content hash BEFORE upload — used for dedup
+    const contentHash = await hashImageContent(imageBuffer);
 
     // Generate unique filename
     const filename = `whatsapp-images/wa_img_${Date.now()}_${index}.${ext}`;
@@ -75,8 +93,9 @@ export async function persistImage(url: string, index: number): Promise<string |
       operation: "persistImage",
       imageIndex: index,
       publicUrl: urlData.publicUrl,
+      contentHash: contentHash.substring(0, 12),
     });
-    return urlData.publicUrl;
+    return { url: urlData.publicUrl, contentHash };
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
     logger.error("Error persisting image", error, {
@@ -163,7 +182,7 @@ export async function persistDocument(
   }
 }
 
-export async function persistImages(urls: string[]): Promise<string[]> {
+export async function persistImages(urls: string[]): Promise<PersistResult[]> {
   if (urls.length === 0) return [];
 
   logger.info("Persisting images to Supabase Storage", {
@@ -177,7 +196,7 @@ export async function persistImages(urls: string[]): Promise<string[]> {
   );
 
   // Filter out failures
-  const persisted = results.filter((url): url is string => url !== null);
+  const persisted = results.filter((r): r is PersistResult => r !== null);
 
   logger.info("Image persistence completed", {
     category: LogCategory.IMAGE,

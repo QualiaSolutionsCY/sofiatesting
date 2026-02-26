@@ -16,6 +16,7 @@ import { addPendingImages } from "./pending-images.ts";
 import { addPendingDocument } from "./pending-documents.ts";
 import { validateImagesAtIngress } from "./image-validator.ts";
 import { sendTextMessage } from "../utils/wasend.ts";
+import { formatPropertyDescription } from "../utils/property-formatter.ts";
 
 /**
  * Extracts message content from WaSend webhook payload
@@ -361,23 +362,29 @@ export async function extractMessage(payload: any): Promise<{
     if (validation.valid.length > 0) {
       const validUrls = validation.valid.map(i => i.url);
       logger.info(`Image: Persisting ${validUrls.length} valid image(s) to storage...`, { category: LogCategory.IMAGE });
-      persistedImageUrls = await persistImages(validUrls);
+      const persistResults = await persistImages(validUrls);
+      persistedImageUrls = persistResults.map(r => r.url);
 
-      if (persistedImageUrls.length > 0) {
-        logger.info(`Image: Persisted ${persistedImageUrls.length} images to Supabase Storage`, { category: LogCategory.IMAGE });
+      if (persistResults.length > 0) {
+        logger.info(`Image: Persisted ${persistResults.length} images to Supabase Storage`, { category: LogCategory.IMAGE });
 
-        // CRITICAL: Store images in pending_images table for accumulation
-        // This allows SOPHIA to track images across multiple webhook calls
+        // CRITICAL: Store images in pending_images table with content hash for dedup
+        // Content hash prevents the same image from being stored twice even if
+        // WhatsApp re-decrypts it into a different temporary URL
         const phoneNumber = remoteJid?.split("@")[0]?.replace(/\D/g, "") || "";
         if (phoneNumber) {
-          logger.info("Storing images to pending queue", {
+          logger.info("Storing images to pending queue with content hash", {
             category: LogCategory.IMAGE,
-            count: persistedImageUrls.length,
+            count: persistResults.length,
           });
-          await addPendingImages(phoneNumber, persistedImageUrls, getContext().correlationId);
+          await addPendingImages(
+            phoneNumber,
+            persistResults.map(r => ({ url: r.url, contentHash: r.contentHash })),
+            getContext().correlationId
+          );
           logger.info("Images queued for property upload", {
             category: LogCategory.IMAGE,
-            count: persistedImageUrls.length,
+            count: persistResults.length,
           });
         }
       } else if (validUrls.length > 0) {
@@ -495,6 +502,17 @@ export function formatForWhatsApp(text: string): string {
   formatted = formatted.replace(/^(\s*)(Fees:)/gm, '$1*$2*');
   formatted = formatted.replace(/^(\s*)(Marketing Price:)/gm, '$1*$2*');
 
+  // Step 5: Apply property description formatting to "Property Introduced" and "Property:" lines
+  // This normalizes reg numbers to "Reg No.", title-cases locations, and handles Dimos
+  formatted = formatted.replace(
+    /^(\s*\*?Property Introduced:\*?\s*)(.+)$/gm,
+    (_match, label, content) => `${label}${formatPropertyDescription(content)}`
+  );
+  formatted = formatted.replace(
+    /^(\s*\*?Property:\*?\s*)(.+)$/gm,
+    (_match, label, content) => `${label}${formatPropertyDescription(content)}`
+  );
+
   // Remove header markers # Header -> Header
   formatted = formatted.replace(/^#{1,6}\s+/gm, '');
   // Clean up excessive whitespace but preserve single newlines
@@ -557,11 +575,12 @@ export function parseTemplateResponse(text: string, agentLandline?: string): str
   const messages: string[] = [];
 
   // Check for CREA wording response - split into 3 messages
+  // Trigger if response contains the CREA block (Licensed Real Estate Agency + CREA Reg + CSC Zyprus)
   const lowerText = text.toLowerCase();
-  if (
-    (lowerText.includes("crea wording") || lowerText.includes("crea reg") || lowerText.includes("licensed real estate agency")) &&
-    lowerText.includes("social media") || lowerText.includes("online") || lowerText.includes("property post")
-  ) {
+  const hasCreaBlock = lowerText.includes("licensed real estate agency") &&
+    lowerText.includes("crea reg") &&
+    lowerText.includes("csc zyprus");
+  if (hasCreaBlock) {
     // This is a CREA wording response - split into 3 messages with agent's landline
     const creaSplit = parseCREAResponse(text, agentLandline);
     if (creaSplit.length > 1) {

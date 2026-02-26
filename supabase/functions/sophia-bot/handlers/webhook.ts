@@ -554,6 +554,18 @@ export async function handleWebhook(
     }
   }
 
+  // Image-only messages: images are already stored in pending_images by extractMessage().
+  // Skip AI processing - the AI will see accumulated images when the next TEXT message arrives.
+  const isImageOnlyMessage = sanitizedMessage === "[User sent image(s)]" ||
+                             sanitizedMessage === "[User sent image(s) but decryption failed]";
+  if (isImageOnlyMessage) {
+    logger.info("Image-only message - stored to pending, skipping AI", {
+      category: LogCategory.IMAGE,
+      phoneNumber,
+    });
+    return new Response("OK", { status: 200 });
+  }
+
   // Track inbound message (fire-and-forget)
   trackMessageReceived(phoneNumber, undefined, {
     hasImages: imageUrls.length > 0,

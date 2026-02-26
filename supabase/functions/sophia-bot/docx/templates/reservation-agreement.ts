@@ -25,6 +25,7 @@ import {
 import { numberToWords } from "../../utils/number-to-words.ts";
 import { logger } from "../../utils/logger.ts";
 import { formatPropertyDescription } from "../../utils/property-formatter.ts";
+import { isPlaceholder } from "../styles.ts";
 
 // NO LOGO on reservation agreements - matches reference templates
 
@@ -176,7 +177,7 @@ export function createReservationAgreement(data: ReservationAgreementData): Docu
     new Paragraph({
       children: [
         new TextRun({ text: "Date Reservation Fee Received: ", bold: true, size: 22, font: "Times New Roman" }),
-        new TextRun({ text: data.dateReceived || "[Date Reservation Fee Received]", size: 22, font: "Times New Roman" }),
+        new TextRun({ text: data.dateReceived || "[Date Reservation Fee Received]", bold: isPlaceholder(data.dateReceived || "[Date Reservation Fee Received]"), size: 22, font: "Times New Roman" }),
       ],
       spacing: { after: 200 },
     })
@@ -187,7 +188,7 @@ export function createReservationAgreement(data: ReservationAgreementData): Docu
     new Paragraph({
       children: [
         new TextRun({ text: "Prospective Buyer: ", bold: true, size: 22, font: "Times New Roman" }),
-        new TextRun({ text: buyerStr, size: 22, font: "Times New Roman" }),
+        new TextRun({ text: buyerStr, bold: isPlaceholder(buyerStr), size: 22, font: "Times New Roman" }),
       ],
       spacing: { after: 200 },
     })
@@ -198,7 +199,7 @@ export function createReservationAgreement(data: ReservationAgreementData): Docu
     new Paragraph({
       children: [
         new TextRun({ text: "Vendor: ", bold: true, size: 22, font: "Times New Roman" }),
-        new TextRun({ text: vendorStr, size: 22, font: "Times New Roman" }),
+        new TextRun({ text: vendorStr, bold: isPlaceholder(vendorStr), size: 22, font: "Times New Roman" }),
       ],
       spacing: { after: 200 },
     })
@@ -209,7 +210,7 @@ export function createReservationAgreement(data: ReservationAgreementData): Docu
     new Paragraph({
       children: [
         new TextRun({ text: "Property: ", bold: true, size: 22, font: "Times New Roman" }),
-        new TextRun({ text: data.property.description, size: 22, font: "Times New Roman" }),
+        new TextRun({ text: data.property.description, bold: isPlaceholder(data.property.description), size: 22, font: "Times New Roman" }),
       ],
       spacing: { after: 200 },
     })
@@ -671,8 +672,7 @@ export function parseReservationAgreementData(response: string): ReservationAgre
 
         for (let i = 0; i < buyerSegments.length; i++) {
           const segment = buyerSegments[i].trim();
-          // Ignore empty segments OR segments that are just empty brackets "[]" or "[ ]"
-          if (!segment || /^[\[\]\.…_\s]+$/.test(segment) || /^\[\s*\]$/.test(segment)) continue;
+          if (!segment || /^[\[\]\.…_\s]+$/.test(segment)) continue;
 
           // Try to match: "Name Country Passport: ID" or "Name Cyprus ID: ID"
           const idTypeMatch = segment.match(/^(.+?)\s+((?:\w+\s+)?(?:Passport|Cyprus\s+ID|ID))[:\s]+([A-Z0-9]+)/i);
@@ -689,8 +689,10 @@ export function parseReservationAgreementData(response: string): ReservationAgre
             }
           } else {
             // Just a name without ID
-            const nameOnly = segment.split(/\s+(?:Cyprus\s+ID|Passport|ID|\[)/i)[0].trim();
-            if (nameOnly && nameOnly.length > 1) {
+            const nameOnly = segment.split(/\s+(?:Cyprus\s+ID|Passport|ID|UK|\[)/i)[0].trim();
+            // Skip bracket-only placeholders like "[ ]", "[]", etc. — keep the default "[PROSPECTIVE BUYER]"
+            const isBracketPlaceholder = /^\[[\s]*\]$/.test(nameOnly);
+            if (nameOnly && nameOnly.length > 1 && !isBracketPlaceholder) {
               if (i === 0) {
                 blankData.buyers[0].fullName = nameOnly;
               } else {
@@ -718,7 +720,8 @@ export function parseReservationAgreementData(response: string): ReservationAgre
             }
           } else {
             const nameOnly = vendorText.split(/\s+(?:Cyprus\s+ID|Passport|ID|UK|\[)/i)[0].trim();
-            if (nameOnly && nameOnly.length > 1) {
+            const isBracketPlaceholder = /^\[[\s]*\]$/.test(nameOnly);
+            if (nameOnly && nameOnly.length > 1 && !isBracketPlaceholder) {
               blankData.vendor.name = nameOnly;
               if (blankData.vendors && blankData.vendors.length > 0) {
                 blankData.vendors[0].name = nameOnly;

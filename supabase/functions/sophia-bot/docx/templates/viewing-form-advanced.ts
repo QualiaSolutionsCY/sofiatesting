@@ -16,7 +16,7 @@ import {
   UnderlineType,
 } from "https://esm.sh/docx@8.5.0";
 
-import { FONTS, SPACING, COMPANY, LEGAL_TEXT, createSignatureLine, formatDate, formatPropertyDescription, PLACEHOLDERS } from "../styles.ts";
+import { FONTS, SPACING, COMPANY, LEGAL_TEXT, createSignatureLine, formatDate, formatPropertyDescription, PLACEHOLDERS, isPlaceholder } from "../styles.ts";
 import { logger } from "../../utils/logger.ts";
 
 /**
@@ -87,8 +87,8 @@ export function createViewingFormAdvanced(
           new ImageRun({
             data: logoData,
             transformation: {
-              width: 240,
-              height: 123,
+              width: 120,
+              height: 62,
             },
             type: logoType,
           }),
@@ -135,24 +135,23 @@ export function createViewingFormAdvanced(
   // Empty line
   children.push(new Paragraph({ text: "" }));
 
-  // Build declaration as single paragraph, no bold (matches reference)
-  const personParts = data.persons.map((p, idx) => {
-    const prefix = idx === 0 ? "Herein, I " : "I ";
-    return `${prefix}${p.fullName} with ID ${p.idNumber}, Issued By: ${p.issuedBy}`;
-  });
-  const personsText = personParts.join(" and ");
+  // Build declaration with bold placeholder fields
   const verb = isSingle ? "me" : "us";
-  const declarationText = `${personsText} confirm that ${COMPANY.FULL_REFERENCE}, has introduced to ${verb} with a viewing and/or digitally the property with the following Registry details:`;
+  const declarationRuns: TextRun[] = [];
+  data.persons.forEach((p, idx) => {
+    const prefix = idx === 0 ? "Herein, I " : " and I ";
+    declarationRuns.push(new TextRun({ text: prefix, size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }));
+    declarationRuns.push(new TextRun({ text: p.fullName, bold: isPlaceholder(p.fullName), size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }));
+    declarationRuns.push(new TextRun({ text: " with ID ", size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }));
+    declarationRuns.push(new TextRun({ text: p.idNumber, bold: isPlaceholder(p.idNumber), size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }));
+    declarationRuns.push(new TextRun({ text: ", Issued By: ", size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }));
+    declarationRuns.push(new TextRun({ text: p.issuedBy, bold: isPlaceholder(p.issuedBy), size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }));
+  });
+  declarationRuns.push(new TextRun({ text: ` confirm that ${COMPANY.FULL_REFERENCE}, has introduced to ${verb} with a viewing and/or digitally the property with the following Registry details:`, size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }));
 
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: declarationText,
-          size: FONTS.SIZES.BODY,
-          font: FONTS.PRIMARY,
-        }),
-      ],
+      children: declarationRuns,
     })
   );
 
@@ -178,6 +177,7 @@ export function createViewingFormAdvanced(
           ? [
               new TextRun({
                 text: ` ${propertyDescription}`,
+                bold: isPlaceholder(propertyDescription),
                 size: FONTS.SIZES.BODY,
                 font: FONTS.PRIMARY,
               }),
@@ -205,8 +205,8 @@ export function createViewingFormAdvanced(
 
   // Signatures as simple paragraphs (not table), no bold labels (matches reference)
   for (const _person of data.persons) {
-    // Empty line before each signature block
-    children.push(new Paragraph({ text: "" }));
+    // Space before each signature block
+    children.push(new Paragraph({ text: "", spacing: { after: 400 } }));
 
     children.push(
       new Paragraph({
@@ -217,11 +217,9 @@ export function createViewingFormAdvanced(
             font: FONTS.PRIMARY,
           }),
         ],
+        spacing: { after: 400 },
       })
     );
-
-    // Empty line between name and signature
-    children.push(new Paragraph({ text: "" }));
 
     children.push(
       new Paragraph({
@@ -232,6 +230,7 @@ export function createViewingFormAdvanced(
             font: FONTS.PRIMARY,
           }),
         ],
+        spacing: { after: 200 },
       })
     );
   }
@@ -268,15 +267,16 @@ export function parseViewingFormAdvancedData(response: string): ViewingFormAdvan
       const blankData = createBlankViewingFormAdvancedData(dateMatch ? dateMatch[1] : undefined);
 
       // Extract ALL persons using matchAll (supports multiple people)
-      const personMatches = cleanResponse.matchAll(/(?:Herein,?\s*)?I\s+([^,]+?)\s+with\s+ID\s+([^\s,]+),?\s+Issued\s+By:?\s*([A-Za-z]+)(?:\s+(?:and|confirm))?/gi);
+      const personMatches = cleanResponse.matchAll(/(?:Herein,?\s*)?I\s+([^,]+?)\s+with\s+ID\s+(\[[^\]]*\]|[^\s,]+),?\s+Issued\s+By:?\s*([A-Za-z]+|\[[\s\w]*\])(?:\s+(?:and|confirm))?/gi);
       const extractedPersons: PersonData[] = [];
       for (const m of personMatches) {
         const name = m[1].trim();
         if (name && !/^[\[\]\.…_\s]+$/.test(name) && name.length > 1) {
+          const rawId = m[2].trim();
           extractedPersons.push({
             fullName: name,
-            idNumber: m[2].trim(),
-            issuedBy: m[3].trim(),
+            idNumber: /^\[/.test(rawId) ? PLACEHOLDERS.ID_NUMBER : rawId,
+            issuedBy: /^\[/.test(m[3].trim()) ? PLACEHOLDERS.ISSUED_BY : m[3].trim(),
           });
         }
       }
@@ -301,12 +301,13 @@ export function parseViewingFormAdvancedData(response: string): ViewingFormAdvan
     // Extract all person matches
     // IMPORTANT: issuedBy captures only the country name (single word) to avoid duplicate company text
     const persons: PersonData[] = [];
-    const simpleMatches = cleanResponse.matchAll(/(?:Herein,?\s*)?I\s+([^,]+?)\s+with\s+ID\s+([^\s,]+),?\s+Issued\s+By:?\s*([A-Za-z]+)(?:\s+confirm)?/gi);
+    const simpleMatches = cleanResponse.matchAll(/(?:Herein,?\s*)?I\s+([^,]+?)\s+with\s+ID\s+(\[[^\]]*\]|[^\s,]+),?\s+Issued\s+By:?\s*([A-Za-z]+|\[[\s\w]*\])(?:\s+confirm)?/gi);
     for (const m of simpleMatches) {
+      const rawId = m[2].trim();
       persons.push({
         fullName: m[1].trim(),
-        idNumber: m[2].trim(),
-        issuedBy: m[3].trim(),
+        idNumber: /^\[/.test(rawId) ? PLACEHOLDERS.ID_NUMBER : rawId,
+        issuedBy: /^\[/.test(m[3].trim()) ? PLACEHOLDERS.ISSUED_BY : m[3].trim(),
       });
     }
 

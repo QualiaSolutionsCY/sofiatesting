@@ -245,7 +245,15 @@ export async function processImages(
     });
   }
 
-  // Sort by order priority
+  // Only sort when images have meaningful filenames (e.g., URL images from ibb.co).
+  // WhatsApp images from Supabase Storage all get "unknown" classification (generic UUIDs),
+  // so sorting is meaningless and can shuffle the agent's intended order.
+  const allUnknown = processed.every(img => img.classification === "unknown");
+  if (allUnknown) {
+    return processed; // Preserve original order (created_at ASC from getPendingImages)
+  }
+
+  // Sort by order priority when meaningful classifications exist
   return processed.sort((a, b) => a.order - b.order);
 }
 

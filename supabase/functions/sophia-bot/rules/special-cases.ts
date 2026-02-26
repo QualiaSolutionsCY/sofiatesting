@@ -4,6 +4,7 @@
  */
 
 import { Agent, getAgentByEmail } from "../agents/identifier.ts";
+import { REGIONAL_EMAILS } from "../config/business-rules.ts";
 
 export interface UploadRequest {
   listingType: "sale" | "rent";
@@ -80,16 +81,36 @@ export async function handleSpecialCases(
 
   // 4. Management trying to assign to wrong region
   if (agent.role === "management" && request.assignTo) {
-    const assigneeRegion = await getAgentRegion(request.assignTo, supabaseUrl, supabaseKey);
+    const assignToLower = request.assignTo.toLowerCase().trim();
 
-    if (assigneeRegion && assigneeRegion !== "all" && assigneeRegion !== propertyRegion) {
-      return {
-        rejected: true,
-        message:
-          `I'm not able to assign this ${propertyRegion} property to ${request.assignTo} ` +
-          `as they are based in ${assigneeRegion}. ` +
-          `Would you like me to assign it to a ${propertyRegion}-based agent instead?`,
-      };
+    // Check if this is a regional office email (requestpaphos@zyprus.com, etc.)
+    const regionalOfficeRegion = Object.entries(REGIONAL_EMAILS).find(
+      ([_, email]) => email === assignToLower
+    )?.[0];
+
+    if (regionalOfficeRegion) {
+      // Regional office email — validate region matches property
+      if (regionalOfficeRegion !== propertyRegion) {
+        return {
+          rejected: true,
+          message:
+            `I'm not able to assign this ${propertyRegion} property to the ${regionalOfficeRegion} office. ` +
+            `Would you like me to assign it to the ${propertyRegion} office (${REGIONAL_EMAILS[propertyRegion]}) instead?`,
+        };
+      }
+    } else {
+      // Regular agent — validate from database
+      const assigneeRegion = await getAgentRegion(request.assignTo, supabaseUrl, supabaseKey);
+
+      if (assigneeRegion && assigneeRegion !== "all" && assigneeRegion !== propertyRegion) {
+        return {
+          rejected: true,
+          message:
+            `I'm not able to assign this ${propertyRegion} property to ${request.assignTo} ` +
+            `as they are based in ${assigneeRegion}. ` +
+            `Would you like me to assign it to a ${propertyRegion}-based agent instead?`,
+        };
+      }
     }
   }
 
@@ -135,12 +156,17 @@ export function validateRequiredFields(data: Record<string, unknown>): {
     "propertyType",
     "location",
     "bedrooms",
-    "bathrooms",
     "coveredArea",
     "ownerName",
     "ownerPhone",
     "titleDeedStatus",
   ];
+
+  // Bathrooms are required for all types EXCEPT residential buildings
+  const propertyType = (data.propertyType as string || "").toLowerCase();
+  if (!propertyType.includes("building")) {
+    required.push("bathrooms");
+  }
 
   const missing = required.filter(
     (field) => data[field] === undefined || data[field] === null || data[field] === ""

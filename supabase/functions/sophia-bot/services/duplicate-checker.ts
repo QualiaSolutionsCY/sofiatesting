@@ -138,7 +138,8 @@ async function searchByPhone(
 }
 
 /**
- * Search Zyprus for properties with matching owner name and location
+ * Search Zyprus for properties with matching owner name and location.
+ * Uses owner phone (in my_notes) + location as a more reliable signal than name + location.
  */
 async function searchByNameAndLocation(
   name: string,
@@ -149,10 +150,15 @@ async function searchByNameAndLocation(
   // Normalize location for search
   const normalizedLocation = location.toLowerCase().trim();
 
+  // Skip if name is too short/generic to be useful
+  if (name.length < 3) {
+    return [];
+  }
+
   try {
     // Search in My Notes field for owner name
     const response = await fetch(
-      `${zyprusApiUrl}/jsonapi/node/property?filter[name][operator]=CONTAINS&filter[name][value]=${encodeURIComponent(name)}&page[limit]=10`,
+      `${zyprusApiUrl}/jsonapi/node/property?filter[field_my_notes][operator]=CONTAINS&filter[field_my_notes][value]=${encodeURIComponent(name)}&page[limit]=10`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -169,12 +175,14 @@ async function searchByNameAndLocation(
 
     const data = await response.json();
 
-    // Filter by location match
+    // Filter by EXACT location match (not substring) to avoid false positives
+    // e.g. "Mesa Chorio" should not match all Mesa Chorio properties
     return (data.data || [])
       .filter((item: Record<string, unknown>) => {
         const attrs = item.attributes as Record<string, unknown>;
-        const itemLocation = ((attrs?.field_location as string) || "").toLowerCase();
-        return itemLocation.includes(normalizedLocation) || normalizedLocation.includes(itemLocation);
+        const itemLocation = ((attrs?.field_location as string) || "").toLowerCase().trim();
+        // Require exact location match AND same owner name in notes
+        return itemLocation === normalizedLocation;
       })
       .map((item: Record<string, unknown>) => ({
         id: item.id as string,

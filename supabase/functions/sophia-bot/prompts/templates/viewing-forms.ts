@@ -26,10 +26,7 @@ export const VIEWING_FORMS = `
 2. Full Name (client's complete name)
 3. ID Number (passport or ID card number)
 4. Issued By (country that issued the ID)
-5. Property Registration Number (e.g., 0/1234)
-6. District (e.g., Paphos, Limassol)
-7. Municipality (e.g., Paphos, Germasogeia)
-8. Locality (e.g., Universal, Tala)
+5. Property registration information (e.g., Reg No. 0/1789 Germasogeia Limassol OR Limas Building Flat No. 103 Tala Paphos)
 
 *For Multiple People (2+ persons):*
 All above PLUS for each additional person:
@@ -42,31 +39,13 @@ All above PLUS for each additional person:
 *PARTIAL DATA HANDLING: Use [ ] for missing fields - NEVER use dots or XXXXXXXX!*
 *CRITICAL: In the declaration line, NEVER add a colon after "ID". The format is: "I [NAME] with ID [ID_NUMBER] Issued By: [COUNTRY]" - only "Issued By" has a colon!*
 
-*STRUCTURED DATA FORMAT FOR DOCX GENERATION:*
-When outputting viewing forms, include these fields clearly:
-- *Date:* [Actual date provided]
-- *Name:* [Actual name provided]
-- *ID:* [Actual ID provided]
-- *Issued By:* [Actual country provided]
-- *Property Registration:* [Actual reg number provided]
-- *District:* [Actual district provided]
-- *Municipality:* [Actual municipality provided]
-- *Locality:* [Actual locality provided]
-
-For multiple people, clearly label each person:
-- *Person 1 Name:* [First Person's Full Name]
-- *Person 1 ID:* [First Person's ID]
-- *Person 1 Issued By:* [First Person's Issuer]
-- *Person 2 Name:* [Second Person's Full Name]
-- *Person 2 ID:* [Second Person's ID]
-- *Person 2 Issued By:* [Second Person's Issuer]
-
 *IMPORTANT - PROPERTY LINE FORMAT:*
-The property details MUST be on a single "Property:" line that includes ALL details: registration number, location, building/complex name, flat/unit number.
-Examples:
-- Property: registration no 0/1457, Dimos Kato Polemidia, Agios Varnavas, Limassol, Arion Court, Flat No. 105
-- Property: registration no 0/1567, Konia, Paphos, Maroula Court, Flat No. 201
-- Property: registration no 5678, Tala, Paphos
+The property details MUST be on a single "Property:" line. COPY-PASTE the property details EXACTLY as the user typed them. Do NOT add commas, do NOT reorder words, do NOT restructure. Preserve the user's exact spacing, commas, and word order.
+Examples of CORRECT behavior (preserving user input exactly):
+- User says: "reg no 0/1457 Dimos Kato Polemidia Agios Varnavas Limassol Arion Court Flat No. 105" → Property: reg no 0/1457 Dimos Kato Polemidia Agios Varnavas Limassol Arion Court Flat No. 105
+- User says: "reg no 0/1567, Konia, Paphos, Maroula Court, Flat No. 201" → Property: reg no 0/1567, Konia, Paphos, Maroula Court, Flat No. 201
+- User says: "reg no 5678 Tala Paphos" → Property: reg no 5678 Tala Paphos
+NEVER add commas the user did not type. NEVER reorder the words. Just copy-paste exactly.
 NEVER split property details into separate Registration No/District/Municipality/Locality lines. ALWAYS combine into ONE "Property:" line.
 
 *Single Person Format:*
@@ -80,6 +59,7 @@ Herein, I [FULL_NAME] with ID [ID_NUMBER] Issued By: [COUNTRY] confirm that CSC 
 Property: [FULL PROPERTY DESCRIPTION - registration no, location, building name, flat number ALL on one line]
 
 Name: _________________________
+
 Signature: _________________________
 
 *BLANK TEMPLATE FORMAT (when user says "no information", "blank", "just template"):*
@@ -88,11 +68,12 @@ Signature: _________________________
 
 Date: [ ]
 
-Herein, I [ ] with ID [ ] Issued By: [ ] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to me with a viewing the property with the following Registry details:
+Herein, I [ ] with ID [ID NUMBER] Issued By: [ ] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to me with a viewing the property with the following Registry details:
 
 Property: [ ]
 
 Name: _________________________
+
 Signature: _________________________
 
 *Multiple People Format (2+ people) - just add extra name/ID lines and signature lines:*
@@ -106,9 +87,11 @@ Herein, I [PERSON1_NAME] with ID [PERSON1_ID] Issued By: [COUNTRY1] and I [PERSO
 Property: [FULL PROPERTY DESCRIPTION - registration no, location, building name, flat number ALL on one line]
 
 Name: _________________________
+
 Signature: _________________________
 
 Name: _________________________
+
 Signature: _________________________
 
 [Add more Name/Signature lines for additional people]
@@ -119,14 +102,16 @@ Signature: _________________________
 
 Date: [ ]
 
-Herein, I [ ] with ID [ ] Issued By: [ ] and I [ ] with ID [ ] Issued By: [ ] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to us with a viewing the property with the following Registry details:
+Herein, I [ ] with ID [ID NUMBER] Issued By: [ ] and I [ ] with ID [ID NUMBER] Issued By: [ ] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to us with a viewing the property with the following Registry details:
 
 Property: [ ]
 
 Name: _________________________
+
 Signature: _________________________
 
 Name: _________________________
+
 Signature: _________________________
 
 ---
@@ -145,10 +130,7 @@ Same fields as Standard Viewing Form:
 2. Full Name (client's complete name)
 3. ID Number (passport or ID card number)
 4. Issued By (country that issued the ID)
-5. Property Registration Number (e.g., 0/1234)
-6. District (e.g., Paphos, Limassol)
-7. Municipality (e.g., Paphos, Germasogeia)
-8. Locality (e.g., Universal, Tala)
+5. Property registration information (e.g., Reg No. 0/1789 Germasogeia Limassol OR Limas Building Flat No. 103 Tala Paphos)
 
 *PARTIAL DATA HANDLING: Use [ ] for missing fields - NEVER use dots or XXXXXXXX!*
 *If data is missing, use bracketed placeholders like [DATE], [FULL_NAME], [ID_NUMBER], [COUNTRY], [PROPERTY ADDRESS] - NEVER use dots!*
@@ -191,6 +173,42 @@ Name: _________________________
 
 Signature: _________________________
 
+*BLANK TEMPLATE FORMAT for Advanced Single Person (when user says "no information", "blank", "just template"):*
+
+**Viewing Form**
+
+Date: [ ]
+
+Herein, I [ ] with ID [ID NUMBER], Issued By: [ ] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to me with a viewing and/or digitally the property with the following Registry details:
+
+Property: [ ]
+
+By signing the subject viewing form, you confirm that CSC Zyprus Property Group LTD (hereinafter referred to as Agent) is your exclusive representative responsible for the introduction of the subject property and any negotiations, inquiries, or communications with property owners and/or sellers and/or developers regarding the subject property should be directed through the Agent. Your liabilities are also that you need to provide honest replies to the Agent's questions and/or feedback. Failure to do so will automatically/by default consider you as liable for monetary compensation of the subject commission fee as agreed with the property owners and/or sellers and/or developers plus any other relevant expenses. The Agent is entitled to the agreed commission upon successful completion of the purchase of the property, regardless of the involvement of other parties in the final transaction. This term ensures that the conditions under which the agent earns their commission are clear, preventing potential disputes or any attempts or events of bypassing our agency and ensures that the agent is fairly compensated for their efforts in introducing you the subject property.
+
+Name: _________________________
+
+Signature: _________________________
+
+*BLANK TEMPLATE FORMAT for Advanced Multiple People (when user says "no information", "blank", "just template"):*
+
+**Viewing Form**
+
+Date: [ ]
+
+Herein, I [ ] with ID [ID NUMBER], Issued By: [ ] and I [ ] with ID [ID NUMBER], Issued By: [ ] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to us with a viewing and/or digitally the property with the following Registry details:
+
+Property: [ ]
+
+By signing the subject viewing form, you confirm that CSC Zyprus Property Group LTD (hereinafter referred to as Agent) is your exclusive representative responsible for the introduction of the subject property and any negotiations, inquiries, or communications with property owners and/or sellers and/or developers regarding the subject property should be directed through the Agent. Your liabilities are also that you need to provide honest replies to the Agent's questions and/or feedback. Failure to do so will automatically/by default consider you as liable for monetary compensation of the subject commission fee as agreed with the property owners and/or sellers and/or developers plus any other relevant expenses. The Agent is entitled to the agreed commission upon successful completion of the purchase of the property, regardless of the involvement of other parties in the final transaction. This term ensures that the conditions under which the agent earns their commission are clear, preventing potential disputes or any attempts or events of bypassing our agency and ensures that the agent is fairly compensated for their efforts in introducing you the subject property.
+
+Name: _________________________
+
+Signature: _________________________
+
+Name: _________________________
+
+Signature: _________________________
+
 ---
 
 ### Property Reservation Agreement
@@ -219,14 +237,11 @@ You MUST collect ALL of these fields before generating the reservation agreement
    - ID number (e.g., "945119" or "HE 376359")
 
 3. *Property Details*:
-   - FULL PROPERTY DESCRIPTION as a single sentence
-   - *CRITICAL*: Include ALL location parts EXACTLY as provided by the user. If the user gives a neighborhood (e.g., "Amathounta"), municipality (e.g., "Agios Athanasios"), and district (e.g., "Limassol"), include ALL of them. NEVER drop any location component.
-   - *IMPORTANT - PROPERTY ORDER*: ALWAYS use this order: Registration No. → Location (neighborhood, village/municipality, district) → Building/Flat info
-   - WITH registration: "Registration No. 0/9029, Mouttayiaka, Limassol" or "Registration No. 0/1456, Amathounta, Agios Athanasios, Limassol, Arion Court Flat No. 107"
-   - WITHOUT registration (description only): "Arion Court, Flat No. 105, Mesa Geitonia, Limassol" — still put location AFTER building
-   - NEVER put building/flat info before location!
-   - NEVER drop neighborhood/area names even if you don't recognize them — always include exactly what the user provided
-   - Include: property type, registration number, plot/unit number, sheet/plan if applicable, location
+   - COPY-PASTE the property details EXACTLY as the user typed them — same words, same order, same spacing, same commas (or lack of commas)
+   - *CRITICAL*: Do NOT add commas the user did not type. Do NOT reorder words. Do NOT restructure the text. Just copy-paste exactly.
+   - NEVER drop any word the user provided — include everything exactly as given
+   - Example: if user says "reg no 0/1456 plot dimos aglantzias platy nicosia" → output EXACTLY "reg no 0/1456 plot dimos aglantzias platy nicosia"
+   - Example: if user says "Reg No. 0/9029, Mouttayiaka, Limassol" → output EXACTLY "Reg No. 0/9029, Mouttayiaka, Limassol"
 
 4. *Reservation Fee* - Amount in EUR (auto-convert to words)
 5. *Purchase Price* - Amount in EUR (auto-convert to words)
@@ -324,7 +339,7 @@ Prospective Buyer: Fawzi Goussous Jordan Passport: Q240245 and Sally Goussous Jo
 
 Vendor: Charalambous Pitros Cyprus ID: 1242455
 
-Property: Flat No. 103, Cynthiana Complex, Tala, Paphos
+Property: Flat No. 103 Cynthiana Complex Tala Paphos
 
 Reservation Fee: €10,000 (In words ten thousand euro only)
 

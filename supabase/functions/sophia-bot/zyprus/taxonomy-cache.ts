@@ -355,7 +355,6 @@ async function refreshTaxonomyInBackground(): Promise<void> {
       listingTypes,
       priceModifiers,
       titleDeeds,
-      features,
       indoorFeatures,
       outdoorFeatures,
       propertyViews,
@@ -366,7 +365,6 @@ async function refreshTaxonomyInBackground(): Promise<void> {
       fetchTaxonomy("listing_type", token, config.apiUrl),
       fetchTaxonomy("price_modifier", token, config.apiUrl),
       fetchTaxonomy("title_deed", token, config.apiUrl),
-      fetchTaxonomy("property_features", token, config.apiUrl),
       fetchTaxonomy("indoor_property_views", token, config.apiUrl),
       fetchTaxonomy("outdoor_property_features", token, config.apiUrl),
       fetchTaxonomy("property_views", token, config.apiUrl),
@@ -379,7 +377,7 @@ async function refreshTaxonomyInBackground(): Promise<void> {
       listingTypes,
       priceModifiers,
       titleDeeds,
-      features,
+      features: [], // property_features vocab doesn't exist on Zyprus API; indoor/outdoor cover all features
       indoorFeatures,
       outdoorFeatures,
       propertyViews,
@@ -443,7 +441,6 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
         listingTypes,
         priceModifiers,
         titleDeeds,
-        features,
         indoorFeatures,
         outdoorFeatures,
         propertyViews,
@@ -454,7 +451,6 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
         fetchTaxonomy("listing_type", token, config.apiUrl),
         fetchTaxonomy("price_modifier", token, config.apiUrl),
         fetchTaxonomy("title_deed", token, config.apiUrl),
-        fetchTaxonomy("property_features", token, config.apiUrl),
         fetchTaxonomy("indoor_property_views", token, config.apiUrl), // Note: uses "views" not "features"
         fetchTaxonomy("outdoor_property_features", token, config.apiUrl),
         fetchTaxonomy("property_views", token, config.apiUrl), // Sea View, Mountain View, etc.
@@ -467,7 +463,7 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
         listingTypes,
         priceModifiers,
         titleDeeds,
-        features,
+        features: [], // property_features vocab doesn't exist on Zyprus API; indoor/outdoor cover all features
         indoorFeatures,
         outdoorFeatures,
         propertyViews,
@@ -486,6 +482,15 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
   return taxonomyLoadPromise;
 }
 
+/** Result from location UUID lookup — includes matched taxonomy name for title/description */
+export interface LocationResult {
+  uuid: string;
+  /** The taxonomy name Zyprus uses for this location (e.g., "Strovolos, Nicosia") */
+  matchedName: string;
+  /** The detected district from the input (e.g., "nicosia") */
+  district: string | null;
+}
+
 /**
  * Find location UUID by name
  * MANDATORY field - always returns a valid UUID
@@ -497,13 +502,22 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
  *
  * e.g., "Neapoli, Limassol" should match "Neapoli" in Limassol district,
  * NOT "Neapoli" in Nicosia district.
+ *
+ * Returns LocationResult with uuid, matchedName (taxonomy name), and district.
  */
-export async function findLocationUuid(locationName: string): Promise<string> {
+export async function findLocationUuid(locationName: string): Promise<LocationResult> {
   const normalized = locationName.toLowerCase().trim();
   let specifiedDistrict: string | null = null; // Declare outside try for error logging
 
   try {
     const taxonomy = await loadTaxonomy();
+
+    // Helper to build LocationResult from a matched location
+    const buildResult = (loc: TaxonomyItem, district: string | null): LocationResult => ({
+      uuid: loc.id,
+      matchedName: loc.name,
+      district,
+    });
 
     // Try exact match first
     const exact = taxonomy.locations.find(
@@ -511,7 +525,7 @@ export async function findLocationUuid(locationName: string): Promise<string> {
     );
     if (exact) {
       logger.debug(`[Taxonomy] Exact match for "${locationName}": ${exact.name}`);
-      return exact.id;
+      return buildResult(exact, null);
     }
 
     // Extract words from input (filter short words)
@@ -520,7 +534,7 @@ export async function findLocationUuid(locationName: string): Promise<string> {
     if (words.length === 0) {
       // No meaningful words, use default
       logger.debug(`[Taxonomy] No meaningful words in "${locationName}", using default`);
-      return DEFAULT_LOCATION_UUID;
+      return { uuid: DEFAULT_LOCATION_UUID, matchedName: locationName, district: null };
     }
 
     // CRITICAL: Detect the EXPLICITLY SPECIFIED district from input
@@ -656,7 +670,7 @@ export async function findLocationUuid(locationName: string): Promise<string> {
             logger.debug(`[Taxonomy] Alternative ${i}: ${alt.location.name} (score: ${alt.score}, ${alt.bonusReason})`);
           }
 
-          return best.location.id;
+          return buildResult(best.location, specifiedDistrict);
         }
       } else {
         logger.debug(`[Taxonomy] Best match for "${locationName}": ${best.location.name} (score: ${best.score}, matched: ${best.matchedWords.join(", ")}, bonus: ${best.bonusReason})`);
@@ -667,7 +681,7 @@ export async function findLocationUuid(locationName: string): Promise<string> {
           logger.debug(`[Taxonomy] Alternative ${i}: ${alt.location.name} (score: ${alt.score}, ${alt.bonusReason})`);
         }
 
-        return best.location.id;
+        return buildResult(best.location, specifiedDistrict);
       }
     }
 
@@ -700,7 +714,7 @@ export async function findLocationUuid(locationName: string): Promise<string> {
 
       if (regionFallback) {
         logger.debug(`[Taxonomy] Using region fallback for "${locationName}" (district: ${specifiedDistrict}): ${regionFallback.name}`);
-        return regionFallback.id;
+        return buildResult(regionFallback, specifiedDistrict);
       }
 
       logger.warn(`[Taxonomy] No location found for district "${specifiedDistrict}" in "${locationName}", will use default`, { category: LogCategory.ZYPRUS });
@@ -709,7 +723,7 @@ export async function findLocationUuid(locationName: string): Promise<string> {
     // Ultimate fallback: return first location if available (ONLY when no district specified)
     if (!specifiedDistrict && taxonomy.locations.length > 0) {
       logger.debug(`[Taxonomy] WARNING: Using first available location for "${locationName}": ${taxonomy.locations[0].name}`);
-      return taxonomy.locations[0].id;
+      return buildResult(taxonomy.locations[0], null);
     }
   } catch (error) {
     logger.error("[Taxonomy] Error finding location", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
@@ -724,7 +738,7 @@ export async function findLocationUuid(locationName: string): Promise<string> {
   } else {
     logger.debug(`[Taxonomy] Using hardcoded default location UUID for: ${locationName}`);
   }
-  return DEFAULT_LOCATION_UUID;
+  return { uuid: DEFAULT_LOCATION_UUID, matchedName: locationName, district: specifiedDistrict };
 }
 
 /**
@@ -908,21 +922,41 @@ export async function getLocationsByRegion(region: string): Promise<TaxonomyItem
  * Live API values: Price, Guide Price, Offers in region of, Offers over, Negotiable
  * Uses DEFAULT_PRICE_MODIFIER_UUID from config as fallback
  */
-export async function findPriceModifierUuid(modifier?: string): Promise<string> {
+export async function findPriceModifierUuid(modifier?: string, negotiable?: boolean): Promise<string> {
   try {
     const taxonomy = await loadTaxonomy();
 
-    // Map SOPHIA tool values to Zyprus taxonomy search terms
-    // Live API values: Price, Guide Price, Offers in region of, Offers over, Negotiable
-    const modifierMappings: Record<string, string[]> = {
-      "no_vat": ["price"],
-      "plus_vat": ["price"],      // "Plus VAT" isn't a price modifier in Zyprus — it's the default "Price"
-      "vat_included": ["price"],   // Same — VAT status doesn't map to price_modifier taxonomy
-    };
+    // price_modifier taxonomy contains BOTH display types AND VAT terms:
+    // Display: "Negotiable", "Price", "Guide Price", "Offers in region of", "Offers over"
+    // VAT: "No VAT", "Plus VAT", "VAT Included"
+    //
+    // PRIORITY: "Negotiable" display is the MOST important for listings.
+    // Lauren's rule: "Set Negotiable to YES by default"
+    // Only use VAT-specific terms when agent says "+VAT" AND price is non-negotiable.
+    //
+    // For no_vat + negotiable (most common): use "Negotiable"
+    // For plus_vat: use "Plus VAT" (VAT status matters more here)
+    // For non-negotiable: use "Price"
 
-    const searchTerms = modifier && modifierMappings[modifier]
-      ? modifierMappings[modifier]
-      : modifier ? [modifier.toLowerCase()] : ["price"];
+    let searchTerms: string[];
+
+    if (modifier === "plus_vat") {
+      // +VAT is always shown — overrides negotiable display
+      searchTerms = ["plus vat", "+vat"];
+    } else if (modifier === "vat_included") {
+      searchTerms = ["vat included"];
+    } else if (negotiable === false) {
+      // Explicitly non-negotiable
+      searchTerms = ["price"];
+    } else {
+      // Default: "Negotiable" — most common case (including no_vat)
+      // "No VAT" status is communicated via description text, not this field
+      searchTerms = ["negotiable"];
+    }
+
+    // Log available terms for debugging
+    logger.debug(`[Taxonomy] Price modifier search: terms=${searchTerms.join(",")}, modifier=${modifier}, negotiable=${negotiable}`, { category: LogCategory.CACHE });
+    logger.debug(`[Taxonomy] Available price modifiers: ${taxonomy.priceModifiers.map(pm => pm.name).join(", ")}`, { category: LogCategory.CACHE });
 
     for (const term of searchTerms) {
       const match = taxonomy.priceModifiers.find(
@@ -960,8 +994,8 @@ export async function findTitleDeedUuid(status?: string): Promise<string> {
     const statusMappings: Record<string, string[]> = {
       "available": ["available", "yes", "title deed", "full ownership", "has title"],
       "title deed": ["title deed", "full ownership", "has title", "available"],
-      "not available": ["not available", "no", "pending", "no title", "without title"],
-      "on application": ["on application", "applied", "in progress", "final approval"],
+      "not available": ["not available", "no", "pending", "no title", "without title", "permits_only", "permits only"],
+      "on application": ["on application", "applied", "in progress", "in process", "being issued", "in_process", "final approval"],
       "share of land": ["share of land", "shared", "fractional"],
     };
 
@@ -1088,17 +1122,16 @@ export async function findUserUuid(email: string): Promise<string> {
  * Only returns UUIDs for emails that can be resolved to actual users
  */
 export async function findUserUuids(emails: string[]): Promise<string[]> {
+  const validEmails = emails.filter(Boolean);
+  const results = await Promise.all(validEmails.map(email => findUserUuid(email)));
+
   const uuids: string[] = [];
-  for (const email of emails) {
-    if (email) {
-      const uuid = await findUserUuid(email);
-      // Skip SOPHIA_AI_UUID - we don't want "Sophia AI" showing as a reviewer
-      // The regional request emails (requestlimassol@zyprus.com, etc.) don't have real user accounts
-      if (uuid !== SOPHIA_AI_UUID && !uuids.includes(uuid)) {
-        uuids.push(uuid);
-      } else if (uuid === SOPHIA_AI_UUID) {
-        logger.debug(`[Taxonomy] Skipping SOPHIA_AI_UUID for reviewer email: ${email}`);
-      }
+  for (let i = 0; i < results.length; i++) {
+    const uuid = results[i];
+    if (uuid !== SOPHIA_AI_UUID && !uuids.includes(uuid)) {
+      uuids.push(uuid);
+    } else if (uuid === SOPHIA_AI_UUID) {
+      logger.debug(`[Taxonomy] Skipping SOPHIA_AI_UUID for reviewer email: ${validEmails[i]}`);
     }
   }
   return uuids;

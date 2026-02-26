@@ -28,6 +28,7 @@ import {
 
 import { FONTS } from "../styles.ts";
 import { logger, LogCategory } from "../../utils/logger.ts";
+import { formatPropertyDescription } from "../../utils/property-formatter.ts";
 
 /**
  * Structured property info for single line display
@@ -92,213 +93,14 @@ function formatPrice(price: string): string {
 }
 
 /**
- * Format property information into single line format
- *
- * Target format (matches reservation agreement with "in"):
- * "Registration No. 0/654 in Tala, Paphos (Cynthiana Complex, Flat No. 103B)"
- *
- * Input examples:
- * - "0/1547 Cynthiana Complex Agios Theodoros, Paphos Flat No. 105"
- * - "Flat No. 103, Cynthiana Complex, Tala, Paphos reg no 0/1234"
- * - "Limas Building 1045 Limassol"
+ * Format raw property input into a PropertyInfo object.
+ * Delegates to the shared formatPropertyDescription() from property-formatter.ts.
  */
 export function formatPropertyInfo(rawInput: string): PropertyInfo {
   if (!rawInput || rawInput.length < 3) {
-    return {
-      description: "[Property Information]",
-    };
+    return { description: "[Property Information]" };
   }
-
-  // Clean the input
-  let input = rawInput
-    .replace(/^Property\s+(with\s+)?/i, '')
-    .replace(/^Title\s+Deed\s+/i, '')
-    .replace(/\bsituated\s+in\b/gi, '')
-    .replace(/\bwith\s+Registration\s+Number\b/gi, '')
-    .replace(/\bwith\s+reg\s*(?:no\.?)?\b/gi, '')
-    .replace(/\b(penthouse|townhouse|detached|semi-detached|maisonette|bungalow|villa)\s+(apartment|house|property)?\b/gi, '$1')
-    .replace(/\bin\s+(?=[A-Z])/g, '')
-    .trim();
-
-  // Extract registration number (format: 0/1234 or 1/12345)
-  const regMatch = input.match(/(?:Reg(?:istration)?\.?\s*(?:No\.?|Number)?\s*)?(\d+\/\d+)/i);
-  const regNumber = regMatch ? regMatch[1] : null;
-
-  // Remove registration number and related text from input
-  if (regNumber) {
-    input = input
-      .replace(/Reg(?:istration)?\.?\s*(?:No\.?|Number)?\s*\d+\/\d+/gi, '')
-      .replace(regNumber, '')
-      .trim();
-  }
-
-  // Clean up remaining input
-  input = input
-    .replace(/^,\s*/, '')
-    .replace(/,\s*,/g, ',')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  // ===== EXTRACT FLAT/UNIT AND COMPLEX/BUILDING BEFORE location detection =====
-  // This prevents building names from being swallowed into location text
-
-  // Extract Flat No, Unit No, House No (including letter suffixes like "103B", "103 B")
-  let flatInfo = "";
-  const flatNoMatch = input.match(/\b(flat|unit|apt|apartment|house|townhouse|villa|bungalow|penthouse|maisonette)\s*(?:no\.?|number)?\s*(\d+\s*[A-Za-z]?|\d+-?[A-Za-z])/i);
-  if (flatNoMatch) {
-    const flatNum = flatNoMatch[2].replace(/\s+/g, '').toUpperCase();
-    const flatType = flatNoMatch[1].charAt(0).toUpperCase() + flatNoMatch[1].slice(1).toLowerCase();
-    flatInfo = `${flatType} No. ${flatNum}`;
-    input = input.replace(flatNoMatch[0], '').trim();
-  }
-
-  // Extract complex/building name (e.g., "Marion Court", "Limas Building", "Cynthiana Complex")
-  // Only ONE word before indicator to avoid capturing location names (e.g., "nicosia marion court" → just "Marion Court")
-  // Also capture optional "Block X" suffix (e.g., "Arion Court Block 2")
-  let complexInfo = "";
-  const complexIndicators = 'Court|Complex|Tower|Building|Residence|Residences|Gardens|Heights|Village|Park|Plaza|Villas|Apartments';
-  const complexMatch = input.match(new RegExp(`\\b([A-Za-z]+\\s+(?:${complexIndicators}))(?:\\s+(Block\\s*\\d+[A-Za-z]?))?\\b`, 'i'));
-  if (complexMatch) {
-    let name = complexMatch[1].replace(/\b\w/g, c => c.toUpperCase());
-    if (complexMatch[2]) {
-      name += `, ${complexMatch[2].replace(/\b\w/g, c => c.toUpperCase())}`;
-    }
-    complexInfo = name;
-    input = input.replace(complexMatch[0], '').trim();
-  } else {
-    // Try standalone "Block X" (e.g., "Block 2", "Block A")
-    const blockMatch = input.match(/\b(Block\s*\d+[A-Za-z]?)\b/i);
-    if (blockMatch) {
-      complexInfo = blockMatch[1].replace(/\b\w/g, c => c.toUpperCase());
-      input = input.replace(blockMatch[0], '').trim();
-    }
-  }
-
-  // Clean up after extractions (including trailing commas)
-  input = input.replace(/^,\s*/, '').replace(/,\s*$/, '').replace(/,\s*,/g, ',').replace(/\s+/g, ' ').trim();
-
-  // ===== NOW do location detection on the remaining clean text =====
-
-  // Major districts/cities - insert comma before these when preceded by a town name
-  const majorDistricts = [
-    'paphos', 'pafos', 'limassol', 'larnaca', 'nicosia', 'famagusta',
-    'lakatamia', 'strovolos', 'engomi', 'latsia', 'aglantzia', // Nicosia municipalities
-    'germasogeia', 'agios tychonas', 'mesa geitonia', // Limassol municipalities
-  ];
-
-  // Insert comma before major district names when they follow a word (town name)
-  for (const district of majorDistricts) {
-    const pattern = new RegExp(`(\\b[A-Za-z]+)\\s+(${district})\\b`, 'gi');
-    input = input.replace(pattern, '$1, $2');
-  }
-
-  // Cyprus locations for identifying the location part
-  const cyprusLocations = [
-    // Major districts
-    'paphos', 'pafos', 'limassol', 'larnaca', 'nicosia', 'famagusta',
-    // Paphos areas
-    'tala', 'universal', 'chloraka', 'geroskipou', 'kato paphos',
-    'coral bay', 'peyia', 'kissonerga', 'emba', 'mesogi', 'tremithousa',
-    'yeroskipou', 'konia', 'mandria', 'kouklia', 'polis', 'latchi',
-    // Limassol areas
-    'agios tychonas', 'agios theodoros', 'germasogeia', 'mouttayiaka',
-    'mesa geitonia', 'zakaki', 'potamos germasogeia', 'columbia', 'polemidia',
-    'souni-zanakia', 'souni', 'zanakia', 'parekklisia', 'pyrgos', 'mouttagiaka',
-    'erimi', 'episkopi', 'kolossi', 'ypsonas', 'agios athanasios',
-    // Nicosia areas
-    'strovolos', 'engomi', 'lakatamia', 'latsia', 'aglantzia',
-    'anthoupoli', 'acropolis', 'makedonitissa', 'kaimakli', 'pallouriotissa',
-    'agios dometios', 'agios andreas', 'dasoupolis', 'aglanzia',
-    // Larnaca areas
-    'oroklini', 'livadia', 'pervolia', 'kiti', 'mazotos', 'aradippou',
-    'kamares', 'vergina', 'finikoudes', 'drosia', 'chrysopolitissa',
-    // Famagusta areas
-    'paralimni', 'ayia napa', 'protaras', 'sotira', 'derynia',
-    'kapparis', 'pernera', 'vrysoulles', 'liopetri',
-  ];
-
-  // Split by comma to identify parts (filter empty strings from trailing commas)
-  const parts = input.split(/,\s*/).filter(p => p.trim());
-
-  // Find location parts (from the end)
-  let locationStartIdx = parts.length;
-  for (let i = parts.length - 1; i >= 0; i--) {
-    const partLower = parts[i].toLowerCase().trim();
-    const isLocation = cyprusLocations.some(loc => partLower === loc || partLower.includes(loc));
-    if (isLocation) {
-      locationStartIdx = i;
-    } else {
-      break;
-    }
-  }
-
-  // Extract property description and location
-  const propertyParts = parts.slice(0, locationStartIdx);
-  let locationParts = parts.slice(locationStartIdx);
-
-  // If no location found, try to extract from the property parts
-  if (locationParts.length === 0 && propertyParts.length > 0) {
-    const lastPart = propertyParts[propertyParts.length - 1].toLowerCase();
-    if (cyprusLocations.some(loc => lastPart === loc || lastPart.includes(loc))) {
-      locationParts = [propertyParts.pop()!];
-    }
-  }
-
-  // Remaining propertyParts: if we already have complexInfo AND known locations,
-  // unrecognized parts before the location are likely village/area names (e.g., "Souni-Zanakia")
-  // Prepend them to locationParts so they're not lost
-  if (propertyParts.length > 0 && locationParts.length > 0 && complexInfo) {
-    locationParts = [...propertyParts.map(p => p.trim()).filter(p => p), ...locationParts];
-  } else {
-    // Pick up any extra complex/property info from propertyParts not already captured
-    for (const part of propertyParts) {
-      if (part.trim() && !complexInfo) {
-        complexInfo = part.trim().replace(/\b\w/g, c => c.toUpperCase());
-      } else if (part.trim() && complexInfo) {
-        // If complexInfo already set, treat as location
-        locationParts = [part.trim(), ...locationParts];
-      }
-    }
-  }
-
-  // Build location string
-  const location = locationParts.join(', ').trim();
-
-  // Build building/flat info (without location)
-  const buildingParts: string[] = [];
-  if (complexInfo) buildingParts.push(complexInfo);
-  if (flatInfo) buildingParts.push(flatInfo);
-  const buildingInfo = buildingParts.join(', ').replace(/,\s*,/g, ',').trim();
-
-  // Format: "Registration No. 0/654 in Tala, Paphos (Cynthiana Complex, Flat No. 103B)"
-  // Always use "in" before location/building, always include flat numbers
-  let description: string;
-  if (regNumber && location && buildingInfo) {
-    description = `Registration No. ${regNumber} in ${location} (${buildingInfo})`;
-  } else if (regNumber && location) {
-    // Add flat info if we have it even without building
-    if (flatInfo) {
-      description = `Registration No. ${regNumber} in ${location} (${flatInfo})`;
-    } else {
-      description = `Registration No. ${regNumber} in ${location}`;
-    }
-  } else if (regNumber && buildingInfo) {
-    // Use "in" for building/complex names
-    description = `Registration No. ${regNumber} in ${buildingInfo}`;
-  } else if (regNumber && flatInfo) {
-    // Just flat number with reg
-    description = `Registration No. ${regNumber} (${flatInfo})`;
-  } else if (regNumber) {
-    description = `Registration No. ${regNumber}`;
-  } else if (buildingInfo && location) {
-    description = `${buildingInfo} in ${location}`;
-  } else {
-    description = buildingInfo || location || input;
-  }
-
-  return {
-    description: description.replace(/,\s*$/, '').replace(/\(\s*\)/g, '').trim(),
-  };
+  return { description: formatPropertyDescription(rawInput) };
 }
 
 /**
@@ -323,6 +125,9 @@ export function createMarketingAgreement(
   const priceDisplay = formatPrice(data.marketingPrice);
   const agentDisplay = data.agentName || "[Agent's Name]";
   const dateDisplay = agreementDate || "[Date]";
+
+  // Check if value contains placeholder brackets [FIELD] or [ ]
+  const checkPlaceholder = (val: string) => !val ? false : /\[.*?\]/.test(val);
 
   // Border style for signature table only
   const tableBorder = {
@@ -450,6 +255,7 @@ export function createMarketingAgreement(
               }),
               new TextRun({
                 text: propertyDisplay,
+                bold: checkPlaceholder(propertyDisplay),
                 size: bodySize,
                 font: fontFamily,
               }),
@@ -527,7 +333,13 @@ export function createMarketingAgreement(
           new Paragraph({
             children: [
               new TextRun({
-                text: `5. The initial agreed marketing price is ${priceDisplay}`,
+                text: "5. The initial agreed marketing price is ",
+                size: bodySize,
+                font: fontFamily,
+              }),
+              new TextRun({
+                text: priceDisplay,
+                bold: checkPlaceholder(priceDisplay),
                 size: bodySize,
                 font: fontFamily,
               }),
@@ -782,7 +594,16 @@ export function parseMarketingAgreementData(
 
       if (partialSellerMatch) {
         const name = partialSellerMatch[1].trim();
-        if (name && !/^[\[\]\.…_\s]+$/.test(name) && name.length > 1) {
+        // Reject known invalid seller names (e.g., "by the Agent")
+        const invalidNames = [
+          /^(?:sign(?:ed)?\s+)?by\s+the\s+agent$/i,
+          /^the\s+agent$/i,
+          /^agent$/i,
+          /^name\s+of\s+(the\s+)?seller$/i,
+          /^seller$/i,
+          /^the\s+seller$/i,
+        ];
+        if (name && !/^[\[\]\.…_\s]+$/.test(name) && name.length > 1 && !invalidNames.some(p => p.test(name))) {
           blankData.sellerFullName = name;
         }
       }
@@ -917,7 +738,7 @@ export function parseMarketingAgreementData(
 
     // Validate seller name - reject known invalid patterns
     const invalidSellerPatterns = [
-      /^by\s+the\s+agent$/i,
+      /^(?:sign(?:ed)?\s+)?by\s+the\s+agent$/i,
       /^the\s+agent$/i,
       /^agent$/i,
       /^name\s+of\s+(the\s+)?seller$/i,
@@ -929,8 +750,8 @@ export function parseMarketingAgreementData(
     ];
 
     if (sellerName && invalidSellerPatterns.some(pattern => pattern.test(sellerName))) {
-      logger.debug(`[MarketingAgreement] Invalid seller name detected: "${sellerName}" - rejecting`, { category: LogCategory.GENERAL });
-      sellerName = "";
+      logger.debug(`[MarketingAgreement] Invalid seller name detected: "${sellerName}" - using placeholder`, { category: LogCategory.GENERAL });
+      sellerName = "[SELLER NAME]";
     }
 
     logger.debug("[MarketingAgreement] Extracted:", {

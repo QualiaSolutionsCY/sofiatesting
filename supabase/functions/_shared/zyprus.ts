@@ -810,7 +810,7 @@ const buildJsonApiPayload = (
     attributes.field_floor = listing.floor;
   }
   if (listing.potentialDuplicate) {
-    attributes.field_potential_duplicate = true;
+    attributes.field_ai_probably_exists = true;
   }
   // Merge aiNotes into aiMessage since field_ai_assistant_notes doesn't exist on live API
   const aiMessageParts = [listing.aiMessage, listing.aiNotes].filter(Boolean);

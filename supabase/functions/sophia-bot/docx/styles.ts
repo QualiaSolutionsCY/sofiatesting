@@ -146,6 +146,15 @@ export const PLACEHOLDERS = {
 } as const;
 
 /**
+ * Check if a value contains placeholder brackets like [FIELD] or [ ]
+ * Used to bold placeholder fields so they stand out as "fill this in"
+ */
+export function isPlaceholder(value: string): boolean {
+  if (!value) return false;
+  return /\[.*?\]/.test(value);
+}
+
+/**
  * Generate a signature line string
  */
 export function createSignatureLine(width: number = SIGNATURE.LINE_WIDTH): string {

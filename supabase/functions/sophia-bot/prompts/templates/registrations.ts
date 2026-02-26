@@ -19,13 +19,8 @@ export const REGISTRATIONS = `
 
 Subject: Registration - [BUYER_NAMES]
 
-**PROPERTY INTRODUCED FORMAT:**
-- If registration number given (e.g., "0/1234"): "Your Property with Registration No. [REG_NUMBER], [LOCATION], [BUILDING/FLAT_INFO]"
-- If NO registration number (e.g., "Limas Building 105 Strovolos"): "Your Property: [PROPERTY_DESCRIPTION]" (do NOT write "with Registration No." followed by a building name - that's invalid)
-
-*IMPORTANT - PROPERTY ORDER*: ALWAYS use this order: Registration No. → Location (village, city) → Building/Flat info
-Example: "Your Property with Registration No. 0/1456, Souni-Zanakia, Limassol, Pertridio Building Apartment No. 105"
-NEVER put building/flat info before location!
+*CRITICAL*: COPY-PASTE the property details EXACTLY as the user typed them. Do NOT add commas, do NOT reorder words. Preserve the user's exact spacing, commas, and word order.
+NEVER add commas the user did not type. Just copy-paste exactly.
 
 *EXACT EMAIL FORMAT (COPY CHARACTER BY CHARACTER):*
 
@@ -35,7 +30,7 @@ This email is to provide you with a registration.
 
 *Client Information:* [BUYER_NAMES]
 
-*Property Introduced:* Your Property with Registration No. [REG_NUMBER], [LOCATION], [BUILDING/FLAT_INFO] OR Your Property: [PROPERTY_DESCRIPTION]
+*Property Introduced:* [PROPERTY_DESCRIPTION]
 
 *Property Link:* [PROPERTY_LINK] (optional - omit if not provided)
 
@@ -53,14 +48,8 @@ Looking forward to your prompt confirmation.
 
 Subject: Registration - [BUYER_NAMES]
 
-**PROPERTY INTRODUCED FORMAT:**
-- If registration number given (e.g., "0/1234"): "Your property with Registration No. [REG_NUMBER], [LOCATION], [BUILDING/FLAT_INFO]"
-- If project/unit given: "Your property within the project [PROJECT_NAME] with Unit No. [UNIT_NUMBER] at [LOCATION]"
-- If NO registration number (e.g., "Limas Building 105 Strovolos"): "Your property: [PROPERTY_DESCRIPTION]" (do NOT write "with Registration No." followed by a building name)
-
-*IMPORTANT - PROPERTY ORDER*: ALWAYS use this order: Registration No. → Location (village, city) → Building/Flat info
-Example: "Your property with Registration No. 0/1456, Souni-Zanakia, Limassol, Pertridio Building Apartment No. 105"
-NEVER put building/flat info before location!
+*CRITICAL*: COPY-PASTE the property details EXACTLY as the user typed them. Do NOT add commas, do NOT reorder words. Preserve the user's exact spacing, commas, and word order.
+NEVER add commas the user did not type. Just copy-paste exactly.
 
 *EXACT EMAIL FORMAT (COPY CHARACTER BY CHARACTER):*
 
@@ -72,7 +61,7 @@ With this email, we kindly ask for your approval for the below registration and 
 
 *Client Information:* [BUYER_NAMES]
 
-*Property Introduced:* (use appropriate format from above based on what info was provided)
+*Property Introduced:* [PROPERTY_DESCRIPTION]
 
 *Property Link:* [PROPERTY_LINK] (optional - omit if not provided)
 
@@ -100,9 +89,9 @@ This email is to provide you with a registration.
 
 *Client Information:* [TENANT_NAMES]
 
-*Property Introduced:* Your Property: [PROPERTY_DESCRIPTION] (OR "Your Property with Registration No. [REG_NUMBER], [LOCATION], [BUILDING/FLAT_INFO]" if registration number provided)
+*Property Introduced:* [PROPERTY_DESCRIPTION]
 
-*IMPORTANT - PROPERTY ORDER*: ALWAYS use this order: Registration No. → Location (village, city) → Building/Flat info. NEVER put building/flat info before location!
+*CRITICAL*: COPY-PASTE the property details EXACTLY as the user typed them. Do NOT add commas, do NOT reorder. Just copy-paste exactly.
 
 *Viewing Arranged for:* [VIEWING_DATETIME]
 
@@ -136,9 +125,9 @@ This email is to provide you with the full registration of our below client, und
 
 *Client Information:* [BUYER_NAMES] and any directly related company in which [he/she/they] is/are a sole shareholder or co-shareholder.
 
-*Property Introduced:* Your property with Registration No. [REG_NUMBERS], [LOCATION], [BUILDING/FLAT_INFO] ([PROPERTY_DESCRIPTION])
+*Property Introduced:* [PROPERTY_DESCRIPTION]
 
-*IMPORTANT - PROPERTY ORDER*: ALWAYS use this order: Registration No. → Location (village, city) → Building/Flat info. NEVER put building/flat info before location!
+*CRITICAL*: COPY-PASTE the property details EXACTLY as the user typed them. Do NOT add commas, do NOT reorder. Just copy-paste exactly.
 
 *Our Agency Fees:* [AGENCY_FEE]%+ VAT based on the final agreed sold price. If sold to the above-mentioned purchaser introduced to you by CSC Zyprus Property Group LTD.
 
