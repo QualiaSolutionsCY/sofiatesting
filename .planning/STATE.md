@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 12 of 14 (Telegram Integration)
-Plan: 2 of 3 complete
-Status: In progress
-Last activity: 2026-02-26 — Completed 12-02-PLAN.md (Alert sending service + audit_alerts table)
+Plan: 3 of 3 complete
+Status: Phase complete
+Last activity: 2026-02-26 — Completed 12-03-PLAN.md (Response tracking for Vasya's alert replies)
 
-Progress: [██████████████████████░░] 83% (10 complete + 12-01 + 12-02, 11 code-complete pending verification)
+Progress: [███████████████████████░] 87% (10 complete + 12-01 + 12-02 + 12-03, 11 code-complete pending verification)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 32
+- Total plans completed: 33
 - Average duration: 3-5min (v1.2 plans)
-- Total execution time: ~4 hours (v1.0 + v1.1) + 16min (v1.2)
+- Total execution time: ~4 hours (v1.0 + v1.1) + 18min (v1.2)
 
 **By Milestone:**
 
@@ -67,6 +67,10 @@ Recent decisions from PROJECT.md and v1.2 execution:
 - Alert persistence: send Telegram first, then persist with message_id (non-blocking)
 - Duplicate alert dedup: unique constraint on (phone+date+type) + 23505 catch
 - Batch rate limiting: 1s delay between same-group messages
+- Response parsing priority: phone number > found keyword > not_found keyword > unknown
+- Dual-runtime pattern: Deno service + Node.js mirror for response tracking
+- Graceful skip on unconfigured VASYA_TELEGRAM_USER_ID (0 -> return false)
+- Alert response check runs before lead routing in handleGroupMessage
 
 **Previous milestones:**
 - v1.1: DB prompts take precedence over files (enables live editing)
@@ -104,9 +108,9 @@ None yet (v1.2 just started).
 
 ## Session Continuity
 
-Last activity: 2026-02-26 - Completed 12-02-PLAN.md (Alert sending service + audit_alerts table)
-Stopped at: Phase 12 Plan 02 complete, ready for Plan 03
-Resume file: .planning/phases/12-telegram-integration/12-03-PLAN.md
+Last activity: 2026-02-26 - Completed 12-03-PLAN.md (Response tracking for Vasya's alert replies)
+Stopped at: Phase 12 complete, ready for Phase 13 (orchestration)
+Resume file: .planning/phases/13-orchestration/
 
 ---
 *STATE.md initialized: 2026-02-26*
