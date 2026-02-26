@@ -128,9 +128,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 11-01-PLAN.md -- 3CX client scaffold, types, config, and authentication
-- [ ] 11-02-PLAN.md -- Call log extraction with filtering and phone normalization
-- [ ] 11-03-PLAN.md -- Error handling, retry logic, and live deployment test
+- [x] 11-01-PLAN.md -- 3CX client scaffold, types, config, and authentication
+- [x] 11-02-PLAN.md -- Call log extraction with filtering and phone normalization
+- [x] 11-03-PLAN.md -- Error handling, retry logic, and live deployment test (checkpoint pending: 3CX credentials)
 
 #### Phase 12: Telegram Integration
 **Goal**: System can search regional groups and send alerts
@@ -144,9 +144,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 12-01-PLAN.md — Deno Telegram client, group message search, and message indexing
-- [ ] 12-02-PLAN.md — Alert sending to Zypress Others with DB persistence
-- [ ] 12-03-PLAN.md — Response tracking from Vasya and alert state management
+- [x] 12-01-PLAN.md — Deno Telegram client, group message search, and message indexing
+- [x] 12-02-PLAN.md — Alert sending to Zypress Others with DB persistence
+- [x] 12-03-PLAN.md — Response tracking from Vasya and alert state management
 
 #### Phase 13: Alerting Logic
 **Goal**: System sends correct alerts and handles all response scenarios
@@ -198,11 +198,12 @@ Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
 | 8. Prompt Versioning | v1.1 | 5/5 | Complete | 2026-01-29 |
 | 9. Error Handling | v1.1 | 4/4 | Complete | 2026-01-29 |
 | 10. Call Tracking Infrastructure | v1.2 | 1/1 | Complete | 2026-02-26 |
-| 11. 3CX Integration | v1.2 | 0/3 | Planning complete | - |
-| 12. Telegram Integration | v1.2 | 0/3 | Not started | - |
+| 11. 3CX Integration | v1.2 | 3/3 | Code complete (checkpoint pending) | 2026-02-26 |
+| 12. Telegram Integration | v1.2 | 3/3 | Complete | 2026-02-26 |
 | 13. Alerting Logic | v1.2 | 0/3 | Not started | - |
 | 14. Scheduling & Orchestration | v1.2 | 0/3 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-26 for v1.2 milestone*
+*Last updated: 2026-02-26*
 *Last updated: 2026-02-26*
