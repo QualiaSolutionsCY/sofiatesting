@@ -11,7 +11,6 @@ import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
 import {
   getPendingFollowUps,
   updateAlertStatus,
-  type CallerAlert,
 } from "../_shared/call-tracking.ts";
 import {
   formatFollowUpReminder,
