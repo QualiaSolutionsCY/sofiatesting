@@ -31,6 +31,7 @@ import {
   sendMissingCallerAlert,
   type MissingCallerInfo,
 } from "../_shared/telegram-alerts.ts";
+import { processFollowUpReminders } from "./follow-up.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -47,6 +48,12 @@ export interface AuditPipelineResult {
   alertsFailed: number;
   skippedReason?: string; // e.g., "duplicate_run", "no_external_callers"
   errors: string[];
+  followUp?: {
+    checked: number;
+    remindersSent: number;
+    remindersFailed: number;
+    skippedReason?: string;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -323,8 +330,8 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
       alertsFailed,
     });
 
-    // Step 7: Return result
-    return {
+    // Step 7: Process follow-up reminders for stale alerts from previous days
+    const result: AuditPipelineResult = {
       success: true,
       auditRunId: runId,
       date: auditDate,
@@ -335,6 +342,25 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
       alertsFailed,
       errors,
     };
+
+    try {
+      const followUpResult = await processFollowUpReminders();
+      result.followUp = followUpResult;
+      logger.info("[Audit Pipeline] Follow-up reminders processed", {
+        category: LogCategory.GENERAL,
+        operation: "runDailyAudit",
+        ...followUpResult,
+      });
+    } catch (followUpError) {
+      // Follow-up failures should NOT fail the entire audit
+      logger.error("[Audit Pipeline] Follow-up processing failed", followUpError instanceof Error ? followUpError : new Error(String(followUpError)), {
+        category: LogCategory.GENERAL,
+        operation: "runDailyAudit",
+      });
+    }
+
+    // Step 8: Return result
+    return result;
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error("[Audit Pipeline] Fatal error", err, {

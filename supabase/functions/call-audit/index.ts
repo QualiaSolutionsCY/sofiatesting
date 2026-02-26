@@ -229,6 +229,31 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Handle follow-up-only mode
+    const isFollowUpOnly = url.searchParams.get('follow-up-only') === 'true';
+    if (isFollowUpOnly) {
+      const { processFollowUpReminders } = await import("./follow-up.ts");
+      const followUpResult = await processFollowUpReminders();
+      const executionMs = Math.round(performance.now() - startTime);
+
+      logger.info("[Call Audit] Follow-up-only mode completed", {
+        category: LogCategory.GENERAL,
+        ...followUpResult,
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          result: {
+            ...followUpResult,
+            timestamp: new Date().toISOString(),
+            executionMs,
+          },
+        }),
+        { headers: responseHeaders, status: 200 }
+      );
+    }
+
     // 1. Read and validate 3CX config
     let config;
     try {
