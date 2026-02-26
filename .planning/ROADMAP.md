@@ -157,12 +157,11 @@ Plans:
   2. Follow-up reminders send automatically 24 hours after initial alert
   3. System formats messages correctly and stops alerting based on Vasya's responses
   4. System handles all response scenarios per specification (found/not found/alternative number)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 13-01: Alert message templates and formatting
-- [ ] 13-02: Follow-up reminder logic (24-hour timing)
-- [ ] 13-03: Response scenario handling
+- [ ] 13-01-PLAN.md — Audit pipeline orchestrator (3CX -> Telegram search -> alerts -> DB tracking)
+- [ ] 13-02-PLAN.md — Follow-up reminder logic (24-hour timing) and pipeline integration
 
 #### Phase 14: Scheduling & Orchestration
 **Goal**: Audit runs automatically Monday-Friday at 5:00 PM Cyprus time
