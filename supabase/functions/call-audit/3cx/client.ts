@@ -284,6 +284,31 @@ export class ThreeCXClient {
   }
 
   /**
+   * Convenience method to get call logs with date filtering
+   *
+   * @param params Call log query parameters
+   * @returns Raw response from 3CX call log API
+   */
+  async getCallLog(params: { dateFrom: string; dateTo: string; filter?: string }): Promise<any> {
+    const { dateFrom, dateTo, filter } = params;
+
+    // Try the most common 3CX call log endpoint format first
+    const path = `/api/calllog?dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}${filter ? `&filter=${encodeURIComponent(filter)}` : ''}`;
+
+    const response = await this.makeAuthenticatedRequest(path);
+
+    if (!response.ok) {
+      throw new ThreeCXAPIError(
+        `Call log API error: ${response.status} ${response.statusText}`,
+        response.status,
+        path
+      );
+    }
+
+    return await response.json();
+  }
+
+  /**
    * Make an authenticated request to 3CX API
    *
    * Handles 401 responses by attempting re-authentication once.

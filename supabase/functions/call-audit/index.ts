@@ -15,6 +15,8 @@
 
 import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
 import { AUDIT_CONFIG, get3CXConfig } from "./config.ts";
+import { ThreeCXClient } from "./3cx/client.ts";
+import { extractTodayCalls, filterExternalCallers } from "./3cx/call-log-extractor.ts";
 
 const responseHeaders = {
   "Content-Type": "application/json",
@@ -56,18 +58,24 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const url = new URL(req.url);
+    const isDryRun = url.searchParams.get('dry-run') === 'true';
+    const dateOverride = url.searchParams.get('date');
+
     logger.info("[Call Audit] Function invoked", {
       category: LogCategory.GENERAL,
       method: req.method,
       url: req.url,
+      isDryRun,
+      dateOverride,
     });
 
-    // For now, return health status and configuration info
-    // Actual audit execution will be implemented in plan 11-02
-    const healthStatus = getHealthStatus();
-
-    if (healthStatus.status === "unhealthy") {
-      logger.error("[Call Audit] Configuration error", new Error(healthStatus.error || "Unknown config error"), {
+    // 1. Read and validate 3CX config
+    let config;
+    try {
+      config = get3CXConfig();
+    } catch (configError) {
+      logger.error("[Call Audit] Configuration validation failed", configError instanceof Error ? configError : new Error(String(configError)), {
         category: LogCategory.GENERAL,
       });
 
@@ -75,23 +83,117 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({
           success: false,
           error: "Configuration error",
-          message: healthStatus.error,
+          details: configError instanceof Error ? configError.message : String(configError),
         }),
         { headers: responseHeaders, status: 500 }
       );
     }
 
-    logger.info("[Call Audit] Health check passed", {
+    // 2. Create ThreeCXClient instance
+    const client = new ThreeCXClient(config);
+
+    // 3. Authenticate to 3CX
+    try {
+      await client.login();
+    } catch (authError) {
+      logger.error("[Call Audit] 3CX authentication failed", authError instanceof Error ? authError : new Error(String(authError)), {
+        category: LogCategory.GENERAL,
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "3CX authentication failed",
+          details: authError instanceof Error ? authError.message : String(authError),
+        }),
+        { headers: responseHeaders, status: 500 }
+      );
+    }
+
+    // If dry-run mode, return auth status only
+    if (isDryRun) {
+      logger.info("[Call Audit] Dry run completed - authentication successful", {
+        category: LogCategory.GENERAL,
+        targetNumber: AUDIT_CONFIG.TARGET_NUMBER,
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Dry run successful - 3CX authentication working",
+          config: {
+            targetNumber: AUDIT_CONFIG.TARGET_NUMBER,
+            internalExtensions: AUDIT_CONFIG.INTERNAL_EXTENSIONS,
+            timezone: AUDIT_CONFIG.TIMEZONE,
+            threeCXBaseUrl: config.baseUrl,
+          },
+          timestamp: new Date().toISOString(),
+        }),
+        { headers: responseHeaders, status: 200 }
+      );
+    }
+
+    // 4. Extract today's call log (or specific date if provided)
+    let entries;
+    try {
+      if (dateOverride) {
+        // For testing with specific dates, we'd need to modify extractTodayCalls
+        // For now, log the override and proceed with today
+        logger.info("[Call Audit] Date override requested (using today for now)", {
+          category: LogCategory.GENERAL,
+          requestedDate: dateOverride,
+        });
+      }
+
+      entries = await extractTodayCalls(client);
+    } catch (extractError) {
+      logger.error("[Call Audit] Call log extraction failed", extractError instanceof Error ? extractError : new Error(String(extractError)), {
+        category: LogCategory.GENERAL,
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Call log extraction failed",
+          details: extractError instanceof Error ? extractError.message : String(extractError),
+        }),
+        { headers: responseHeaders, status: 500 }
+      );
+    }
+
+    // 5. Filter external callers and deduplicate
+    let auditResult;
+    try {
+      auditResult = filterExternalCallers(entries);
+    } catch (filterError) {
+      logger.error("[Call Audit] Call filtering failed", filterError instanceof Error ? filterError : new Error(String(filterError)), {
+        category: LogCategory.GENERAL,
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Call filtering failed",
+          details: filterError instanceof Error ? filterError.message : String(filterError),
+        }),
+        { headers: responseHeaders, status: 500 }
+      );
+    }
+
+    // 6. Log summary and return result
+    logger.info("[Call Audit] Audit completed successfully", {
       category: LogCategory.GENERAL,
-      targetNumber: AUDIT_CONFIG.TARGET_NUMBER,
-      baseUrl: healthStatus.config.threeCXBaseUrl,
+      date: auditResult.date,
+      totalCalls: auditResult.totalCalls,
+      externalCallers: auditResult.externalCallers.length,
+      internalFiltered: auditResult.internalFiltered,
+      errors: auditResult.errors.length,
     });
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Call audit function ready",
-        ...healthStatus,
+        result: auditResult,
       }),
       { headers: responseHeaders, status: 200 }
     );
