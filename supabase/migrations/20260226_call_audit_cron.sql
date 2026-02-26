@@ -13,7 +13,7 @@
 --     command := $$SELECT net.http_post(
 --       url := 'https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/call-audit',
 --       body := '{}'::jsonb,
---       headers := '{"Authorization": "Bearer <REAL_KEY_HERE>", "Content-Type": "application/json", "x-cron": "true"}'::jsonb
+--       headers := '{"Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjZWVoZWF4Y3JobXBxdWV1ZHF4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTc1NDcyMywiZXhwIjoyMDgxMzMwNzIzfQ.qpg9o91cezpipuXujkLzbptuTyhfgDekpoDXSZToOQc", "Content-Type": "application/json", "x-cron": "true"}'::jsonb
 --     )$$
 --   );
 
@@ -76,7 +76,7 @@ BEGIN
   PERFORM net.http_post(
     url := 'https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/call-audit',
     body := '{}'::jsonb,
-    headers := '{"Authorization": "Bearer <SERVICE_ROLE_KEY>", "Content-Type": "application/json", "x-cron": "true"}'::jsonb
+    headers := '{"Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjZWVoZWF4Y3JobXBxdWV1ZHF4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTc1NDcyMywiZXhwIjoyMDgxMzMwNzIzfQ.qpg9o91cezpipuXujkLzbptuTyhfgDekpoDXSZToOQc", "Content-Type": "application/json", "x-cron": "true"}'::jsonb
   );
 
   -- Mark as success (HTTP request dispatched -- actual result tracked by Edge Function in call_audit_runs)
