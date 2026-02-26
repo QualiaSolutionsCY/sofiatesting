@@ -9,17 +9,17 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 
 ## Current Position
 
-Phase: 14 of 14 (Scheduling & Orchestration) — In progress
-Plan: 1 of 2 complete
-Status: Plan 14-01 complete — ready for Plan 14-02
-Last activity: 2026-02-26 — Completed Plan 14-01 (Cron Scheduling)
+Phase: 14 of 14 (Scheduling & Orchestration) — Code complete (migration pending)
+Plan: 2 of 2 complete
+Status: All v1.2 phases code-complete — pending: apply pg_cron migration + 3CX credentials
+Last activity: 2026-02-26 — Completed Plan 14-02 (Deploy & Verify)
 
-Progress: [████████████░░░░░░░░░░░░░] 50% (Phase 14)
+Progress: [█████████████████████████] 100% (Phase 14 code)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 36
+- Total plans completed: 37
 - Average duration: 2-3min (v1.2 plans)
 - Total execution time: ~4 hours (v1.0 + v1.1) + 20min (v1.2)
 
@@ -137,13 +137,13 @@ None yet (v1.2 just started).
 
 ## Session Continuity
 
-Last activity: 2026-02-26 - Completed Plan 14-01 (Cron Scheduling)
-Stopped at: Plan 14-01 complete — ready for Plan 14-02
-Resume file: .planning/phases/14-scheduling-orchestration/14-02-PLAN.md
+Last activity: 2026-02-26 - Completed Phase 14 (Scheduling & Orchestration)
+Stopped at: All phases code-complete — pending migration apply + credentials
+Resume file: N/A (milestone code complete)
 
 **Recent work:**
+- 14-02: Deployed call-audit Edge Function, checkpoint skipped (migration pending)
 - 14-01: pg_cron job for call-audit at 5PM Mon-Fri Europe/Nicosia (1min, 2 commits)
-- cron_execution_log table + invoke_call_audit() wrapper + x-cron header detection
 - 13-05: Unified alert response tracking onto caller_alerts table (4min, 3 commits)
 
 ---

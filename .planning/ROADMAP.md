@@ -179,8 +179,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 14-01-PLAN.md -- pg_cron migration with timezone-aware scheduling and execution logging
-- [ ] 14-02-PLAN.md -- Deploy Edge Function and verify end-to-end scheduling
+- [x] 14-01-PLAN.md -- pg_cron migration with timezone-aware scheduling and execution logging
+- [x] 14-02-PLAN.md -- Deploy Edge Function and verify end-to-end scheduling
 
 ## Progress
 
@@ -202,7 +202,7 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 11. 3CX Integration | v1.2 | 3/3 | Code complete (checkpoint pending) | 2026-02-26 |
 | 12. Telegram Integration | v1.2 | 3/3 | Complete | 2026-02-26 |
 | 13. Alerting Logic | v1.2 | 5/5 | Complete | 2026-02-26 |
-| 14. Scheduling & Orchestration | v1.2 | 0/2 | Not started | - |
+| 14. Scheduling & Orchestration | v1.2 | 2/2 | Code complete (migration pending) | 2026-02-26 |
 
 ---
 *Roadmap created: 2026-02-26 for v1.2 milestone*
