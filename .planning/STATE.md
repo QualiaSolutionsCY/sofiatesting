@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Agents can trust SOPHIA to do the right thing every time
-**Current focus:** Phase 10 - Call Tracking Infrastructure
+**Current focus:** Phase 11 - 3CX Integration
 
 ## Current Position
 
 Phase: 11 of 14 (3CX Integration)
-Plan: 1 of 5 complete
+Plan: 2 of 5 complete
 Status: In progress
-Last activity: 2026-02-26 — Completed 11-01-PLAN.md (3CX authentication foundation)
+Last activity: 2026-02-26 — Completed 11-02-PLAN.md (Call log extraction implementation)
 
 Progress: [██████████████████████░░] 78% (11 of 14 phases started, 10 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 29
-- Average duration: 3min (11-01)
-- Total execution time: ~4 hours (v1.0 + v1.1) + 3min (v1.2)
+- Total plans completed: 30
+- Average duration: 3min (11-01, 11-02)
+- Total execution time: ~4 hours (v1.0 + v1.1) + 6min (v1.2)
 
 **By Milestone:**
 
@@ -46,9 +46,12 @@ Recent decisions from PROJECT.md and v1.2 execution:
 
 **Phase 11 (3CX Integration):**
 - Dual authentication support: v18+ REST API with web client API fallback for maximum 3CX version compatibility
-- Session management using either bearer tokens or cookies based on 3CX response format
-- Environment variable configuration pattern with descriptive validation errors
-- Network resilience via existing withRetry utility from sophia-bot
+- Multi-endpoint call log extraction: v18+ REST, legacy POST, web client APIs with graceful fallback
+- Cyprus timezone handling: Europe/Nicosia with DST awareness for accurate date range calculation
+- Phone number normalization: Cyprus local/prefixed/international formats → consistent +357/+country format
+- External caller filtering: inbound calls only to target 22032770, exclude internal extensions [70,64,99,801,900]
+- Resilient API parsing: dynamic field mapping for different 3CX response formats (CallerNumber vs caller_number, etc.)
+- Testing modes: ?dry-run=true for auth testing, ?date= for historical queries
 
 **Phase 10 (Call Tracking Infrastructure):**
 - Use unique constraint on audit_date to prevent duplicate daily runs
@@ -92,9 +95,9 @@ None yet (v1.2 just started).
 
 ## Session Continuity
 
-Last activity: 2026-02-26 - Completed 11-01-PLAN.md (3CX authentication foundation)
-Stopped at: Plan 11-01 complete, Phase 11 in progress
-Resume file: .planning/phases/11-3cx-integration/11-01-SUMMARY.md
+Last activity: 2026-02-26 - Completed 11-02-PLAN.md (Call log extraction implementation)
+Stopped at: Plan 11-02 complete, Phase 11 in progress (2 of 5 plans complete)
+Resume file: .planning/phases/11-3cx-integration/11-02-SUMMARY.md
 
 ---
 *STATE.md initialized: 2026-02-26*
