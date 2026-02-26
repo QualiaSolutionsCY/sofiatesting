@@ -125,12 +125,12 @@ Plans:
   2. System can navigate to call log section and extract today's calls to target number
   3. System can filter out internal extensions and extract external caller phone numbers
   4. System can handle authentication failures and session timeouts gracefully
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 11-01: 3CX authentication and session management
-- [ ] 11-02: Call log extraction with filtering
-- [ ] 11-03: Error handling and retry logic
+- [ ] 11-01-PLAN.md -- 3CX client scaffold, types, config, and authentication
+- [ ] 11-02-PLAN.md -- Call log extraction with filtering and phone normalization
+- [ ] 11-03-PLAN.md -- Error handling, retry logic, and live deployment test
 
 #### Phase 12: Telegram Integration
 **Goal**: System can search regional groups and send alerts
@@ -198,7 +198,7 @@ Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
 | 8. Prompt Versioning | v1.1 | 5/5 | Complete | 2026-01-29 |
 | 9. Error Handling | v1.1 | 4/4 | Complete | 2026-01-29 |
 | 10. Call Tracking Infrastructure | v1.2 | 0/1 | Planning complete | - |
-| 11. 3CX Integration | v1.2 | 0/3 | Not started | - |
+| 11. 3CX Integration | v1.2 | 0/3 | Planning complete | - |
 | 12. Telegram Integration | v1.2 | 0/3 | Not started | - |
 | 13. Alerting Logic | v1.2 | 0/3 | Not started | - |
 | 14. Scheduling & Orchestration | v1.2 | 0/3 | Not started | - |
