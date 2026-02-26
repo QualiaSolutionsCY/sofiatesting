@@ -201,6 +201,7 @@ Deno.serve(async (req: Request) => {
     const isHealthCheck = url.searchParams.get('health') !== null;
     const isDryRun = url.searchParams.get('dry-run') === 'true';
     const dateOverride = url.searchParams.get('date');
+    const isCronInvocation = req.headers.get('x-cron') === 'true';
 
     logger.info("[Call Audit] Function invoked", {
       category: LogCategory.GENERAL,
@@ -209,6 +210,8 @@ Deno.serve(async (req: Request) => {
       isHealthCheck,
       isDryRun,
       dateOverride,
+      isCronInvocation,
+      trigger: isCronInvocation ? "pg_cron" : "manual",
     });
 
     // Handle health check
@@ -344,6 +347,7 @@ Deno.serve(async (req: Request) => {
         success: result.success,
         result: {
           ...result,
+          trigger: isCronInvocation ? "pg_cron" : "manual",
           timestamp: new Date().toISOString(),
           executionMs,
         },
