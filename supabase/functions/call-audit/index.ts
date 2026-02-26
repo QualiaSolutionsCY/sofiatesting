@@ -239,7 +239,7 @@ Deno.serve(async (req: Request) => {
 
       logger.error("[Call Audit] Configuration validation failed", configError instanceof Error ? configError : new Error(String(configError)), {
         category: LogCategory.GENERAL,
-        errorCategory,
+        auditErrorCategory: errorCategory,
       });
 
       return new Response(
@@ -267,7 +267,7 @@ Deno.serve(async (req: Request) => {
 
       logger.error("[Call Audit] 3CX authentication failed", authError instanceof Error ? authError : new Error(String(authError)), {
         category: LogCategory.GENERAL,
-        errorCategory,
+        auditErrorCategory: errorCategory,
       });
 
       return new Response(
@@ -329,7 +329,7 @@ Deno.serve(async (req: Request) => {
 
       logger.error("[Call Audit] Call log extraction failed", extractError instanceof Error ? extractError : new Error(String(extractError)), {
         category: LogCategory.GENERAL,
-        errorCategory,
+        auditErrorCategory: errorCategory,
       });
 
       return new Response(
@@ -355,7 +355,7 @@ Deno.serve(async (req: Request) => {
 
       logger.error("[Call Audit] Call filtering failed", filterError instanceof Error ? filterError : new Error(String(filterError)), {
         category: LogCategory.GENERAL,
-        errorCategory,
+        auditErrorCategory: errorCategory,
       });
 
       return new Response(
@@ -408,7 +408,7 @@ Deno.serve(async (req: Request) => {
 
     logger.error("[Call Audit] Fatal error", error instanceof Error ? error : new Error(String(error)), {
       category: LogCategory.GENERAL,
-      errorCategory,
+      auditErrorCategory: errorCategory,
       executionMs,
     });
 

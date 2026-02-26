@@ -194,6 +194,14 @@ export async function extractTodayCalls(client: ThreeCXClient): Promise<ThreeCXC
       }
 
       return entries;
+    } catch (endpointError) {
+      lastError = endpointError instanceof Error ? endpointError : new Error(String(endpointError));
+      logger.warn(`[Call Log Extractor] ${endpoint.name} failed`, {
+        category: LogCategory.GENERAL,
+        error: lastError.message,
+      });
+      continue;
+    }
   }
 
   // All endpoints failed
@@ -407,7 +415,7 @@ export function filterExternalCallers(entries: ThreeCXCallLogEntry[]): CallAudit
       }
 
       // Check if caller is an internal extension
-      const isInternal = AUDIT_CONFIG.INTERNAL_EXTENSIONS.includes(entry.callerNumber) ||
+      const isInternal = (AUDIT_CONFIG.INTERNAL_EXTENSIONS as readonly string[]).includes(entry.callerNumber) ||
         AUDIT_CONFIG.INTERNAL_EXTENSIONS.some(ext => entry.callerNumber.endsWith(ext));
 
       if (isInternal) {

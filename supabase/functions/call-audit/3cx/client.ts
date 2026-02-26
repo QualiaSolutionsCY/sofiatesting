@@ -17,8 +17,7 @@ import { withRetry } from "../../sophia-bot/utils/retry.ts";
 import {
   ThreeCXConfig,
   ThreeCXLoginResponse,
-  ThreeCXAuthError,
-  ThreeCXAPIError
+  ThreeCXAPIError,
 } from "./types.ts";
 
 /**
