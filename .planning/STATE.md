@@ -64,9 +64,7 @@ None yet (v1.2 just started).
 ### Blockers/Concerns
 
 **Before Phase 11 (3CX Integration):**
-- **USER ACTION REQUIRED:** Apply database migration manually via Supabase Dashboard SQL Editor (2-minute task)
-  - File: `supabase/migrations/20260226_call_tracking.sql`
-  - Dashboard: https://supabase.com/dashboard/project/vceeheaxcrhmpqueudqx/sql/new
+- ~~Apply database migration~~ — DONE (applied via MCP 2026-02-26)
 - Need 3CX credentials and web interface URL from Fawzi
 - Need confirmation of target phone number (22032770) and internal extensions list
 - May need to test 3CX web scraping approach on live system
