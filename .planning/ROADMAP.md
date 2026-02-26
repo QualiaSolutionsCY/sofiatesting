@@ -157,11 +157,13 @@ Plans:
   2. Follow-up reminders send automatically 24 hours after initial alert
   3. System formats messages correctly and stops alerting based on Vasya's responses
   4. System handles all response scenarios per specification (found/not found/alternative number)
-**Plans**: 2 plans
+**Plans**: 4 plans
 
 Plans:
-- [ ] 13-01-PLAN.md — Audit pipeline orchestrator (3CX -> Telegram search -> alerts -> DB tracking)
-- [ ] 13-02-PLAN.md — Follow-up reminder logic (24-hour timing) and pipeline integration
+- [x] 13-01-PLAN.md — Audit pipeline orchestrator (3CX -> Telegram search -> alerts -> DB tracking)
+- [x] 13-02-PLAN.md — Follow-up reminder logic (24-hour timing) and pipeline integration
+- [ ] 13-03-PLAN.md — Gap closure: call time extraction and propagation (fixes "Unknown"/"N/A")
+- [ ] 13-04-PLAN.md — Gap closure: response handling verification (human checkpoint)
 
 #### Phase 14: Scheduling & Orchestration
 **Goal**: Audit runs automatically Monday-Friday at 5:00 PM Cyprus time
@@ -199,10 +201,9 @@ Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
 | 10. Call Tracking Infrastructure | v1.2 | 1/1 | Complete | 2026-02-26 |
 | 11. 3CX Integration | v1.2 | 3/3 | Code complete (checkpoint pending) | 2026-02-26 |
 | 12. Telegram Integration | v1.2 | 3/3 | Complete | 2026-02-26 |
-| 13. Alerting Logic | v1.2 | 0/3 | Not started | - |
+| 13. Alerting Logic | v1.2 | 2/4 | Gap closure in progress | - |
 | 14. Scheduling & Orchestration | v1.2 | 0/3 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-26 for v1.2 milestone*
-*Last updated: 2026-02-26*
 *Last updated: 2026-02-26*
