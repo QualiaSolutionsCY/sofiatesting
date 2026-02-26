@@ -5,16 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Agents can trust SOPHIA to do the right thing every time
-**Current focus:** Phase 14 - Scheduling & Orchestration
+**Current focus:** v1.2 complete — planning next milestone
 
 ## Current Position
 
-Phase: 14 of 14 (Scheduling & Orchestration) — Code complete (migration pending)
-Plan: 2 of 2 complete
-Status: All v1.2 phases code-complete — pending: apply pg_cron migration + 3CX credentials
-Last activity: 2026-02-26 — Completed Plan 14-02 (Deploy & Verify)
+Milestone: v1.2 3CX Call Log Audit — SHIPPED 2026-02-26
+Status: All code complete. Pending operational setup (credentials + migration).
+Last activity: 2026-02-26 — v1.2 milestone archived
 
-Progress: [█████████████████████████] 100% (Phase 14 code)
+Progress: [█████████████████████████] 100% (v1.2)
 
 ## Performance Metrics
 
@@ -29,7 +28,7 @@ Progress: [███████████████████████
 |-----------|--------|-------------|--------|
 | v1.0 MVP | 1-5 | 10 plans | Shipped 2026-01-27 |
 | v1.1 Reliability | 6-9 | 16 plans | Shipped 2026-01-29 |
-| v1.2 Call Audit | 10-14 | 15 plans (est) | In progress |
+| v1.2 Call Audit | 10-14 | 14 plans | Shipped 2026-02-26 |
 
 **Recent Trend:**
 - v1.0: ~10 plans in 1 day
@@ -137,14 +136,13 @@ None yet (v1.2 just started).
 
 ## Session Continuity
 
-Last activity: 2026-02-26 - Completed Phase 14 (Scheduling & Orchestration)
-Stopped at: All phases code-complete — pending migration apply + credentials
-Resume file: N/A (milestone code complete)
+Last activity: 2026-02-26 - v1.2 milestone completed and archived
+Stopped at: Milestone complete — ready for `/gsd:new-milestone`
+Resume file: N/A
 
 **Recent work:**
-- 14-02: Deployed call-audit Edge Function, checkpoint skipped (migration pending)
-- 14-01: pg_cron job for call-audit at 5PM Mon-Fri Europe/Nicosia (1min, 2 commits)
-- 13-05: Unified alert response tracking onto caller_alerts table (4min, 3 commits)
+- v1.2 milestone archived (5 phases, 14 plans, 57 commits)
+- Phases 10-14: Call tracking, 3CX, Telegram, Alerting, Scheduling
 
 ---
 *STATE.md initialized: 2026-02-26*

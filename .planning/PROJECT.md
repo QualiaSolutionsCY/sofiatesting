@@ -8,39 +8,34 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 
 **Agents can trust SOPHIA to do the right thing every time** — correct templates, correct routing, correct uploads, user-friendly errors, no manual intervention needed.
 
-## Current Milestone: v1.2 3CX Call Log Audit
+## Current State (v1.2 Shipped)
 
-**Goal:** Add automated daily call log auditing to ensure no leads are missed from the main call center line.
-
-**Target features:**
-- Daily 3CX system login and call log extraction (5:00 PM Cyprus time)
-- Telegram group search for caller phone numbers across 4 regional groups
-- Automated alerts in "Zypress Others" group for missing callers
-- Follow-up reminder system for unprocessed numbers
-- Scheduled Edge Function with credential management
-
-## Current State (v1.1 Shipped)
-
-**Shipped:** 2026-01-29
+**Shipped:** 2026-02-26
 
 **Infrastructure:**
-- Supabase Edge Function `sophia-bot` (WhatsApp)
+- Supabase Edge Functions: `sophia-bot` (WhatsApp), `call-audit` (3CX audit), `listing-notifier`, `draft-cleanup`
 - Structured JSON logging with correlation IDs
 - 5-minute prompt cache with version-based invalidation
+- pg_cron scheduled jobs for automated execution
 - Admin endpoints for cache and prompt management
 - User-friendly error messages (no technical jargon)
 
 **Key capabilities:**
-- WhatsApp image uploads from phone gallery
-- Property listing creation on Zyprus
+- WhatsApp AI assistant (SOPHIA) for Zyprus agents
+- Property listing creation on Zyprus with image uploads
 - 37 DOCX document templates
 - Telegram lead routing by region
-- Health check endpoint for monitoring
+- Automated daily 3CX call log audit (Mon-Fri 5PM Cyprus)
+- Telegram group search for caller phone numbers
+- Missing caller alerts with 24-hour follow-up reminders
+- Response tracking for alert lifecycle management
 
 **Tech stack:**
-- Supabase (Edge Functions, PostgreSQL, Storage)
+- Supabase (Edge Functions, PostgreSQL, Storage, pg_cron, pg_net)
 - OpenRouter (Gemini 2.0 Flash)
 - WaSenderAPI (WhatsApp)
+- Telegram Bot API
+- 3CX REST API
 - Deno runtime
 
 ## Requirements
@@ -67,14 +62,16 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 - ERR-01 to ERR-04: Error handling
 - IMG-01 to IMG-03: Image validation
 
+**v1.2 (shipped 2026-02-26):**
+- 3CX-01 to 3CX-06: 3CX integration
+- TG-01 to TG-05: Telegram integration
+- TRACK-01 to TRACK-05: Call tracking
+- ALERT-01 to ALERT-05: Alerting logic
+- SCHED-01 to SCHED-05: Scheduling
+
 ### Active
 
-**v1.2 3CX Call Log Audit Integration:**
-- 3CX system integration for daily call log extraction
-- Telegram group search functionality
-- Missing caller alert system
-- Scheduled audit execution (Mon-Fri 5:00 PM)
-- Call tracking database tables
+(No active milestone — run `/gsd:new-milestone` to start next)
 
 ### Out of Scope
 
@@ -89,13 +86,19 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 ## Context
 
 **Codebase:**
-- Edge Functions: ~15 files in `supabase/functions/sophia-bot/`
+- Edge Functions: `sophia-bot/` (~15 files), `call-audit/` (~12 files), `listing-notifier/`, `draft-cleanup/`
 - Prompt files: 7 files with DB ownership headers
-- Test coverage: Unit tests for key modules
+- Migrations: 2 SQL files (call tracking + cron scheduling)
+- 40 plans shipped across 3 milestones
 
 **Known issues:**
 - SOPHIA_ADMIN_SECRET needs to be set for admin endpoints
 - correlation_id column migration for pending_images (code handles gracefully)
+
+**Pending operational setup (v1.2):**
+- Apply pg_cron migration (replace SERVICE_ROLE_KEY placeholder)
+- Set 3CX credentials (CX3_BASE_URL, CX3_USERNAME, CX3_PASSWORD)
+- Set Telegram group chat IDs and Vasya's user ID
 
 ## Key Decisions
 
@@ -109,6 +112,13 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 | MAX(updated_at) version check | No migration needed | Good |
 | Append-only rollback | Never mutates history | Good |
 | Validate images at ingress | Fail fast, immediate feedback | Good |
+| Atomic audit run claiming | Unique constraint + 23505 catch prevents duplicates | Good |
+| Dual 3CX auth (REST + web) | Maximum version compatibility | Good |
+| Europe/Nicosia timezone | PostgreSQL handles DST automatically | Good |
+| Single-table alert lifecycle | caller_alerts owns full state, eliminated dual-table | Good |
+| pg_cron + pg_net scheduling | Proven Supabase pattern (draft-cleanup precedent) | Good |
+| 24-hour follow-up threshold | Balances urgency with avoiding spam | Good |
+| Per-caller error isolation | One failure doesn't abort entire audit | Good |
 
 ## Constraints
 
@@ -118,4 +128,4 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 - **Backwards Compatible**: Changes must not break existing functionality
 
 ---
-*Last updated: 2026-02-26 after v1.2 milestone start*
+*Last updated: 2026-02-26 after v1.2 milestone completion*

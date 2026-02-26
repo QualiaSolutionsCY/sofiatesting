@@ -1,5 +1,39 @@
 # Project Milestones: SOPHIA Production Hardening
 
+## v1.2 3CX Call Log Audit (Shipped: 2026-02-26)
+
+**Delivered:** Automated daily call center audit — 3CX integration, Telegram group search, missing caller alerts, follow-up reminders, and pg_cron scheduling.
+
+**Phases completed:** 10-14 (14 plans total)
+
+**Key accomplishments:**
+
+- Call tracking database with atomic duplicate prevention and alert lifecycle management
+- 3CX HTTP client with dual authentication (REST API + web client fallback)
+- Telegram Bot API client for group message search and alert sending
+- Full audit pipeline orchestrator: 3CX extraction -> Telegram search -> alerts -> DB tracking
+- Follow-up reminder system (24-hour threshold) with per-caller error isolation
+- Response tracking from Vasya with automatic alert resolution
+- pg_cron scheduled execution at 5:00 PM Mon-Fri Cyprus time with DST handling
+
+**Stats:**
+
+- 5 phases, 14 plans
+- 57 commits
+- 60 files changed, 11,015 lines added
+- 1 day (2026-02-26)
+
+**Git range:** Phase 10 → Phase 14
+
+**Pending operational setup:**
+- Apply pg_cron migration (replace SERVICE_ROLE_KEY placeholder)
+- Set 3CX credentials (CX3_BASE_URL, CX3_USERNAME, CX3_PASSWORD)
+- Set Telegram group IDs and Vasya's user ID
+
+**What's next:** Operational setup, then live testing with real 3CX system
+
+---
+
 ## v1.1 Reliability & Hardening (Shipped: 2026-01-29)
 
 **Delivered:** Production-ready system reliability — structured logging, cache management, prompt versioning, and user-friendly error handling.
