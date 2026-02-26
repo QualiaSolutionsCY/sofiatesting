@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Agents can trust SOPHIA to do the right thing every time
-**Current focus:** Phase 11 - 3CX Integration
+**Current focus:** Phase 12 - Telegram Integration
 
 ## Current Position
 
-Phase: 11 of 14 (3CX Integration)
-Plan: 2 of 5 complete
+Phase: 12 of 14 (Telegram Integration)
+Plan: 1 of 3 complete
 Status: In progress
-Last activity: 2026-02-26 — Completed 11-02-PLAN.md (Call log extraction implementation)
+Last activity: 2026-02-26 — Completed 12-01-PLAN.md (Telegram Bot API client + group message search)
 
-Progress: [██████████████████████░░] 78% (11 of 14 phases started, 10 complete)
+Progress: [██████████████████████░░] 80% (10 complete + 12-01, 11 code-complete pending verification)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 30
-- Average duration: 3min (11-01, 11-02)
-- Total execution time: ~4 hours (v1.0 + v1.1) + 6min (v1.2)
+- Total plans completed: 31
+- Average duration: 3-5min (v1.2 plans)
+- Total execution time: ~4 hours (v1.0 + v1.1) + 11min (v1.2)
 
 **By Milestone:**
 
@@ -59,6 +59,12 @@ Recent decisions from PROJECT.md and v1.2 execution:
 - Atomic claiming pattern: INSERT + SELECT single, handle 23505 → return null (not error)
 - Status-based timestamp logic: alerted_at set when status=alerted, resolved_at when status=resolved/ignored
 
+**Phase 12 (Telegram Integration):**
+- Deno Telegram client kept minimal (sendMessage + getChat) -- expand as needed
+- Phone normalization returns multiple variant strings for ilike search
+- Fire-and-forget indexing pattern: indexGroupMessage(msg).catch(() => {})
+- Regional group IDs as placeholders (0) with loud failure guard
+
 **Previous milestones:**
 - v1.1: DB prompts take precedence over files (enables live editing)
 - v1.1: Structured logging with correlation IDs (will help debug audit runs)
@@ -95,9 +101,9 @@ None yet (v1.2 just started).
 
 ## Session Continuity
 
-Last activity: 2026-02-26 - Completed 11-02-PLAN.md (Call log extraction implementation)
-Stopped at: Plan 11-02 complete, Phase 11 in progress (2 of 5 plans complete)
-Resume file: .planning/phases/11-3cx-integration/11-02-SUMMARY.md
+Last activity: 2026-02-26 - Completed 12-01-PLAN.md (Telegram Bot API client + group message search)
+Stopped at: Phase 12 Plan 01 complete, ready for Plan 02
+Resume file: .planning/phases/12-telegram-integration/12-02-PLAN.md
 
 ---
 *STATE.md initialized: 2026-02-26*
