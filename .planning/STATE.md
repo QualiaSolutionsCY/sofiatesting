@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 13 of 14 (Alerting Logic) — Complete
-Plan: 4 of 4 complete (Plan 04 checkpoint deferred)
+Plan: 5 of 5 complete (all plans executed)
 Status: Phase 13 complete — ready for Phase 14 (Scheduling)
-Last activity: 2026-02-26 — Completed Phase 13 (Alerting Logic)
+Last activity: 2026-02-26 — Completed Plan 13-05 (Response Tracking Unification)
 
 Progress: [█████████████████████████] 100% (Phase 13)
 
@@ -72,7 +72,7 @@ Recent decisions from PROJECT.md and v1.2 execution:
 - Graceful skip on unconfigured VASYA_TELEGRAM_USER_ID (0 -> return false)
 - Alert response check runs before lead routing in handleGroupMessage
 
-**Phase 13 (Alerting Logic) - Plans 01-04:**
+**Phase 13 (Alerting Logic) - All Plans:**
 - Pipeline orchestration with per-caller error isolation
 - Graceful degradation on unconfigured Telegram IDs (skip with warning)
 - Atomic audit run claiming with duplicate detection (23505 → return null)
@@ -87,7 +87,12 @@ Recent decisions from PROJECT.md and v1.2 execution:
 - Keep earliest call time per phone when multiple calls exist (most relevant timestamp)
 - Format call times as HH:MM in Cyprus timezone for display (business hours context)
 - Fallback to current timestamp if call time unavailable (better than "Unknown")
-- Response verification deferred — code review confirms getPendingFollowUps correctly excludes resolved alerts
+- **Response tracking unification (Plan 05):** Single-table alert state (caller_alerts owns full lifecycle)
+- Map audit_alerts "pending" → caller_alerts "alerted" (NOT "pending" which means pre-alert)
+- Store alert_message_id as TEXT (not BIGINT) consistent with caller_alerts schema
+- telegram-alerts.ts contains only formatting + sending functions (zero DB operations)
+- Both Deno and Node.js response trackers write to caller_alerts with identical field mapping
+- chat_id column added to caller_alerts for response lookup by (alert_message_id, chat_id) pair
 
 **Previous milestones:**
 - v1.1: DB prompts take precedence over files (enables live editing)
@@ -125,9 +130,14 @@ None yet (v1.2 just started).
 
 ## Session Continuity
 
-Last activity: 2026-02-26 - Completed Phase 13 (Alerting Logic)
+Last activity: 2026-02-26 - Completed Plan 13-05 (Response Tracking Unification)
 Stopped at: Phase 13 complete — ready for Phase 14 (Scheduling)
 Resume file: .planning/phases/14-scheduling/14-01-PLAN.md
+
+**Recent work:**
+- 13-05: Unified alert response tracking onto caller_alerts table (4min, 3 commits)
+- Eliminated dual-table architecture, fixed ALERT-04 blocker
+- Zero audit_alerts references remain in runtime code
 
 ---
 *STATE.md initialized: 2026-02-26*
