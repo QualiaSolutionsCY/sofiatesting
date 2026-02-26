@@ -42,6 +42,8 @@ export type TelegramMessage = {
     file_size?: number;
   };
   caption?: string;
+  /** Present when this message is a reply to another message */
+  reply_to_message?: TelegramMessage;
 };
 
 export type TelegramUpdate = {

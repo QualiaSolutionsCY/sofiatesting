@@ -27,6 +27,7 @@ import {
   RUSSIAN_SPEAKER_AGENT,
 } from "./routing-constants";
 import type { TelegramMessage } from "./types";
+import { handleAuditAlertResponse } from "./audit-response-handler";
 
 // Top-level regex for lead mention detection
 const LEAD_MENTION_PATTERN =
@@ -550,6 +551,12 @@ async function logLead(data: {
 export async function handleGroupMessage(
   message: TelegramMessage
 ): Promise<void> {
+  // Check if this is a response to an audit alert (before lead routing)
+  const isAlertResponse = await handleAuditAlertResponse(message);
+  if (isAlertResponse) {
+    return; // Don't process as a lead
+  }
+
   // Index message for phone number search (fire-and-forget)
   indexGroupMessage(message).catch(() => {});
 
