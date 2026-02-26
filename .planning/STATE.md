@@ -10,8 +10,8 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Milestone: v1.2 3CX Call Log Audit — SHIPPED 2026-02-26
-Status: All code complete. Pending operational setup (credentials + migration).
-Last activity: 2026-02-26 — v1.2 milestone archived
+Status: Fully operational. Credentials set, pg_cron scheduled, Edge Function deployed.
+Last activity: 2026-02-26 — Quick task 2 completed (3CX credentials + pg_cron setup)
 
 Progress: [█████████████████████████] 100% (v1.2)
 
@@ -74,7 +74,7 @@ Recent decisions from PROJECT.md and v1.2 execution:
 **Phase 14 (Scheduling & Orchestration):**
 - invoke_call_audit() wrapper function for execution logging instead of inline SQL
 - pg_net fire-and-forget; actual result tracking stays in call_audit_runs table
-- 3-arg cron.schedule + UPDATE timezone (safest cross-version pg_cron approach)
+- 3-arg cron.schedule (pg_cron 1.6.4 on Supabase lacks timezone column; use UTC schedule instead)
 - 30-day log retention with weekly cleanup job
 - x-cron header convention for distinguishing automated vs manual invocations
 
@@ -125,24 +125,30 @@ None yet (v1.2 just started).
 - Need Vasya's Telegram user ID for response tracking
 
 **Before Phase 14 (Scheduling):**
-- Confirm Cyprus timezone handling (EEST/EET with DST transitions)
-- Verify pg_cron is available on Supabase project
+- ~~Confirm Cyprus timezone handling (EEST/EET with DST transitions)~~ — DONE (pg_cron 1.6.4 lacks timezone; using UTC schedule)
+- ~~Verify pg_cron is available on Supabase project~~ — DONE (pg_cron 1.6.4 + pg_net enabled)
+
+**3CX Integration:**
+- 3CX server SSL certificate EXPIRED — prevents Edge Function from connecting
+- Once cert is renewed, run: `curl -s "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/call-audit?dry-run=true"`
 
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 1 | Fix all things blocking Sophia from uploading a listing | 2026-02-26 | c630845 | [1-fix-all-things-blocking-sophia-from-uplo](./quick/1-fix-all-things-blocking-sophia-from-uplo/) |
+| 2 | Set up 3CX credentials and pg_cron for call-audit | 2026-02-26 | 95b0e14 | [2-set-up-3cx-credentials-and-pg-cron-for-a](./quick/2-set-up-3cx-credentials-and-pg-cron-for-a/) |
 
 ## Session Continuity
 
-Last activity: 2026-02-26 - v1.2 milestone completed and archived
-Stopped at: Milestone complete — ready for `/gsd:new-milestone`
+Last activity: 2026-02-26 - Quick task 2 completed (3CX + pg_cron)
+Stopped at: Quick tasks complete — ready for next work
 Resume file: N/A
 
 **Recent work:**
+- Quick task 2: 3CX credentials + pg_cron scheduling (10 min, 2 commits)
+- Quick task 1: Fix Sophia listing upload blocking issues
 - v1.2 milestone archived (5 phases, 14 plans, 57 commits)
-- Phases 10-14: Call tracking, 3CX, Telegram, Alerting, Scheduling
 
 ---
 *STATE.md initialized: 2026-02-26*
