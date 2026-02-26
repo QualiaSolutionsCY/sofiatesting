@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 
 ## Current Position
 
-Phase: 12 of 14 (Telegram Integration)
-Plan: 3 of 3 complete
-Status: Phase complete
-Last activity: 2026-02-26 — Completed 12-03-PLAN.md (Response tracking for Vasya's alert replies)
+Phase: 13 of 14 (Alerting Logic)
+Plan: 1 of 2 complete
+Status: In progress
+Last activity: 2026-02-26 — Completed 13-01-PLAN.md (Audit pipeline orchestrator)
 
-Progress: [███████████████████████░] 87% (10 complete + 12-01 + 12-02 + 12-03, 11 code-complete pending verification)
+Progress: [████████████████████████░] 90% (13-01 complete, 13-02 pending)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 33
-- Average duration: 3-5min (v1.2 plans)
-- Total execution time: ~4 hours (v1.0 + v1.1) + 18min (v1.2)
+- Total plans completed: 34
+- Average duration: 2-3min (v1.2 plans)
+- Total execution time: ~4 hours (v1.0 + v1.1) + 20min (v1.2)
 
 **By Milestone:**
 
@@ -72,6 +72,13 @@ Recent decisions from PROJECT.md and v1.2 execution:
 - Graceful skip on unconfigured VASYA_TELEGRAM_USER_ID (0 -> return false)
 - Alert response check runs before lead routing in handleGroupMessage
 
+**Phase 13 (Alerting Logic):**
+- Pipeline orchestration with per-caller error isolation
+- Graceful degradation on unconfigured Telegram IDs (skip with warning)
+- Atomic audit run claiming with duplicate detection (23505 → return null)
+- Pipeline handles all errors internally, always returns JSON result
+- Rate limiting: 1s delay between alert sends for Telegram API compliance
+
 **Previous milestones:**
 - v1.1: DB prompts take precedence over files (enables live editing)
 - v1.1: Structured logging with correlation IDs (will help debug audit runs)
@@ -108,9 +115,9 @@ None yet (v1.2 just started).
 
 ## Session Continuity
 
-Last activity: 2026-02-26 - Completed 12-03-PLAN.md (Response tracking for Vasya's alert replies)
-Stopped at: Phase 12 complete, ready for Phase 13 (orchestration)
-Resume file: .planning/phases/13-orchestration/
+Last activity: 2026-02-26 - Completed 13-01-PLAN.md (Audit pipeline orchestrator)
+Stopped at: Phase 13, Plan 1 complete - ready for 13-02 (follow-up reminders)
+Resume file: .planning/phases/13-alerting-logic/13-02-PLAN.md
 
 ---
 *STATE.md initialized: 2026-02-26*
