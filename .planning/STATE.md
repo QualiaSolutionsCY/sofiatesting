@@ -9,17 +9,17 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 
 ## Current Position
 
-Phase: 13 of 14 (Alerting Logic) — Complete
-Plan: 5 of 5 complete (all plans executed)
-Status: Phase 13 complete — ready for Phase 14 (Scheduling)
-Last activity: 2026-02-26 — Completed Plan 13-05 (Response Tracking Unification)
+Phase: 14 of 14 (Scheduling & Orchestration) — In progress
+Plan: 1 of 2 complete
+Status: Plan 14-01 complete — ready for Plan 14-02
+Last activity: 2026-02-26 — Completed Plan 14-01 (Cron Scheduling)
 
-Progress: [█████████████████████████] 100% (Phase 13)
+Progress: [████████████░░░░░░░░░░░░░] 50% (Phase 14)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 35
+- Total plans completed: 36
 - Average duration: 2-3min (v1.2 plans)
 - Total execution time: ~4 hours (v1.0 + v1.1) + 20min (v1.2)
 
@@ -71,6 +71,13 @@ Recent decisions from PROJECT.md and v1.2 execution:
 - Dual-runtime pattern: Deno service + Node.js mirror for response tracking
 - Graceful skip on unconfigured VASYA_TELEGRAM_USER_ID (0 -> return false)
 - Alert response check runs before lead routing in handleGroupMessage
+
+**Phase 14 (Scheduling & Orchestration):**
+- invoke_call_audit() wrapper function for execution logging instead of inline SQL
+- pg_net fire-and-forget; actual result tracking stays in call_audit_runs table
+- 3-arg cron.schedule + UPDATE timezone (safest cross-version pg_cron approach)
+- 30-day log retention with weekly cleanup job
+- x-cron header convention for distinguishing automated vs manual invocations
 
 **Phase 13 (Alerting Logic) - All Plans:**
 - Pipeline orchestration with per-caller error isolation
@@ -130,14 +137,14 @@ None yet (v1.2 just started).
 
 ## Session Continuity
 
-Last activity: 2026-02-26 - Completed Plan 13-05 (Response Tracking Unification)
-Stopped at: Phase 13 complete — ready for Phase 14 (Scheduling)
-Resume file: .planning/phases/14-scheduling/14-01-PLAN.md
+Last activity: 2026-02-26 - Completed Plan 14-01 (Cron Scheduling)
+Stopped at: Plan 14-01 complete — ready for Plan 14-02
+Resume file: .planning/phases/14-scheduling-orchestration/14-02-PLAN.md
 
 **Recent work:**
+- 14-01: pg_cron job for call-audit at 5PM Mon-Fri Europe/Nicosia (1min, 2 commits)
+- cron_execution_log table + invoke_call_audit() wrapper + x-cron header detection
 - 13-05: Unified alert response tracking onto caller_alerts table (4min, 3 commits)
-- Eliminated dual-table architecture, fixed ALERT-04 blocker
-- Zero audit_alerts references remain in runtime code
 
 ---
 *STATE.md initialized: 2026-02-26*
