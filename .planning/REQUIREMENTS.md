@@ -82,38 +82,38 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| 3CX-01 | TBD | Pending |
-| 3CX-02 | TBD | Pending |
-| 3CX-03 | TBD | Pending |
-| 3CX-04 | TBD | Pending |
-| 3CX-05 | TBD | Pending |
-| 3CX-06 | TBD | Pending |
-| TG-01 | TBD | Pending |
-| TG-02 | TBD | Pending |
-| TG-03 | TBD | Pending |
-| TG-04 | TBD | Pending |
-| TG-05 | TBD | Pending |
-| TRACK-01 | TBD | Pending |
-| TRACK-02 | TBD | Pending |
-| TRACK-03 | TBD | Pending |
-| TRACK-04 | TBD | Pending |
-| TRACK-05 | TBD | Pending |
-| SCHED-01 | TBD | Pending |
-| SCHED-02 | TBD | Pending |
-| SCHED-03 | TBD | Pending |
-| SCHED-04 | TBD | Pending |
-| SCHED-05 | TBD | Pending |
-| ALERT-01 | TBD | Pending |
-| ALERT-02 | TBD | Pending |
-| ALERT-03 | TBD | Pending |
-| ALERT-04 | TBD | Pending |
-| ALERT-05 | TBD | Pending |
+| TRACK-01 | Phase 10 | Pending |
+| TRACK-02 | Phase 10 | Pending |
+| TRACK-03 | Phase 10 | Pending |
+| TRACK-04 | Phase 10 | Pending |
+| TRACK-05 | Phase 10 | Pending |
+| 3CX-01 | Phase 11 | Pending |
+| 3CX-02 | Phase 11 | Pending |
+| 3CX-03 | Phase 11 | Pending |
+| 3CX-04 | Phase 11 | Pending |
+| 3CX-05 | Phase 11 | Pending |
+| 3CX-06 | Phase 11 | Pending |
+| TG-01 | Phase 12 | Pending |
+| TG-02 | Phase 12 | Pending |
+| TG-03 | Phase 12 | Pending |
+| TG-04 | Phase 12 | Pending |
+| TG-05 | Phase 12 | Pending |
+| ALERT-01 | Phase 13 | Pending |
+| ALERT-02 | Phase 13 | Pending |
+| ALERT-03 | Phase 13 | Pending |
+| ALERT-04 | Phase 13 | Pending |
+| ALERT-05 | Phase 13 | Pending |
+| SCHED-01 | Phase 14 | Pending |
+| SCHED-02 | Phase 14 | Pending |
+| SCHED-03 | Phase 14 | Pending |
+| SCHED-04 | Phase 14 | Pending |
+| SCHED-05 | Phase 14 | Pending |
 
 **Coverage:**
 - v1 requirements: 25 total
-- Mapped to phases: 0 (awaiting roadmap)
-- Unmapped: 25 ⚠️
+- Mapped to phases: 25/25 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-26*
-*Last updated: 2026-02-26 after initial definition*
+*Last updated: 2026-02-26 after roadmap creation*
