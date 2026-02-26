@@ -82,7 +82,7 @@ None yet (v1.2 just started).
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 1 | Fix all things blocking Sophia from uploading a listing | 2026-02-26 | pending | [1-fix-all-things-blocking-sophia-from-uplo](./quick/1-fix-all-things-blocking-sophia-from-uplo/) |
+| 1 | Fix all things blocking Sophia from uploading a listing | 2026-02-26 | c630845 | [1-fix-all-things-blocking-sophia-from-uplo](./quick/1-fix-all-things-blocking-sophia-from-uplo/) |
 
 ## Session Continuity
 
