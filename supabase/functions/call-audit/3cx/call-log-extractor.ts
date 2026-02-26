@@ -392,6 +392,7 @@ export function filterExternalCallers(entries: ThreeCXCallLogEntry[]): CallAudit
   });
 
   const externalCallerSet = new Set<string>();
+  const callTimeMap: Record<string, string> = {};
   let internalFiltered = 0;
   const errors: string[] = [];
 
@@ -427,6 +428,10 @@ export function filterExternalCallers(entries: ThreeCXCallLogEntry[]): CallAudit
       const normalizedNumber = normalizePhoneNumber(entry.callerNumber);
       if (normalizedNumber) {
         externalCallerSet.add(normalizedNumber);
+        // Record call time (keep earliest call if multiple calls from same number)
+        if (!callTimeMap[normalizedNumber]) {
+          callTimeMap[normalizedNumber] = entry.callTime;
+        }
       } else {
         // Log warning but don't fail the entire process
         const errorMsg = `Invalid phone number format: ${entry.callerNumber}`;
@@ -465,6 +470,7 @@ export function filterExternalCallers(entries: ThreeCXCallLogEntry[]): CallAudit
     externalCallers,
     internalFiltered,
     errors,
+    callTimeMap,
   };
 }
 

@@ -65,6 +65,7 @@ export interface CallAuditResult {
   externalCallers: string[]; // List of external phone numbers that called
   internalFiltered: number; // Count of internal calls filtered out
   errors: string[]; // Any errors encountered during processing
+  callTimeMap: Record<string, string>; // phone -> ISO timestamp of earliest call
 }
 
 /**

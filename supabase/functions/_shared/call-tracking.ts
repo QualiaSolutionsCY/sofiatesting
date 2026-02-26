@@ -50,6 +50,7 @@ export type CallerAlert = {
   caller_phone: string;
   audit_run_id: string;
   call_record_id: string | null;
+  call_time: string | null; // ISO datetime
   status: AlertStatus;
   alert_message_id: string | null;
   follow_up_message_id: string | null;
@@ -68,6 +69,7 @@ export type CreateCallerAlertParams = {
   audit_run_id: string;
   call_record_id?: string;
   status?: AlertStatus;
+  call_time?: string;
 };
 
 export type UpdateAlertStatusParams = {
@@ -357,6 +359,7 @@ export const createCallerAlert = async (
           audit_run_id: params.audit_run_id,
           call_record_id: params.call_record_id || null,
           status: params.status || "pending",
+          call_time: params.call_time || null,
         },
       ])
       .select()
