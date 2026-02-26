@@ -16,7 +16,7 @@
 import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
 import { AUDIT_CONFIG, get3CXConfig } from "./config.ts";
 import { ThreeCXClient } from "./3cx/client.ts";
-import { extractTodayCalls, filterExternalCallers } from "./3cx/call-log-extractor.ts";
+import { runDailyAudit } from "./audit-pipeline.ts";
 
 const responseHeaders = {
   "Content-Type": "application/json",
@@ -310,96 +310,23 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 4. Extract today's call log (or specific date if provided)
-    let entries;
-    try {
-      if (dateOverride) {
-        // For testing with specific dates, we'd need to modify extractTodayCalls
-        // For now, log the override and proceed with today
-        logger.info("[Call Audit] Date override requested (using today for now)", {
-          category: LogCategory.GENERAL,
-          requestedDate: dateOverride,
-        });
-      }
-
-      entries = await extractTodayCalls(client);
-    } catch (extractError) {
-      const errorCategory = classifyError(extractError instanceof Error ? extractError : new Error(String(extractError)));
-      const executionMs = Math.round(performance.now() - startTime);
-
-      logger.error("[Call Audit] Call log extraction failed", extractError instanceof Error ? extractError : new Error(String(extractError)), {
-        category: LogCategory.GENERAL,
-        auditErrorCategory: errorCategory,
-      });
-
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: errorCategory,
-          message: extractError instanceof Error ? extractError.message : String(extractError),
-          timestamp: new Date().toISOString(),
-          retryable: isRetryableError(errorCategory),
-          executionMs,
-        }),
-        { headers: responseHeaders, status: 500 }
-      );
-    }
-
-    // 5. Filter external callers and deduplicate
-    let auditResult;
-    try {
-      auditResult = filterExternalCallers(entries);
-    } catch (filterError) {
-      const errorCategory = classifyError(filterError instanceof Error ? filterError : new Error(String(filterError)));
-      const executionMs = Math.round(performance.now() - startTime);
-
-      logger.error("[Call Audit] Call filtering failed", filterError instanceof Error ? filterError : new Error(String(filterError)), {
-        category: LogCategory.GENERAL,
-        auditErrorCategory: errorCategory,
-      });
-
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: errorCategory,
-          message: filterError instanceof Error ? filterError.message : String(filterError),
-          timestamp: new Date().toISOString(),
-          retryable: isRetryableError(errorCategory),
-          executionMs,
-        }),
-        { headers: responseHeaders, status: 500 }
-      );
-    }
-
-    // 6. Log summary and return result
+    // Run the full audit pipeline
+    const result = await runDailyAudit(dateOverride || undefined);
     const executionMs = Math.round(performance.now() - startTime);
-
-    // Check if no external callers found
-    const noDataFound = auditResult.externalCallers.length === 0;
-    const resultCategory = noDataFound ? ErrorCategory.NO_DATA : "SUCCESS";
-
-    logger.info("[Call Audit] Audit completed successfully", {
-      category: LogCategory.GENERAL,
-      date: auditResult.date,
-      totalCalls: auditResult.totalCalls,
-      externalCallers: auditResult.externalCallers.length,
-      internalFiltered: auditResult.internalFiltered,
-      errors: auditResult.errors.length,
-      executionMs,
-      resultCategory,
-    });
 
     return new Response(
       JSON.stringify({
-        success: true,
+        success: result.success,
         result: {
-          ...auditResult,
+          ...result,
           timestamp: new Date().toISOString(),
           executionMs,
-          ...(noDataFound && { note: "No external callers found for today" }),
         },
       }),
-      { headers: responseHeaders, status: 200 }
+      {
+        headers: responseHeaders,
+        status: result.success ? 200 : 500,
+      }
     );
 
   } catch (error) {
