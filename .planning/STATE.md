@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 13 of 14 (Alerting Logic)
-Plan: 1 of 2 complete
-Status: In progress
-Last activity: 2026-02-26 — Completed 13-01-PLAN.md (Audit pipeline orchestrator)
+Plan: 2 of 2 complete
+Status: Phase complete - ready for Phase 14 (Scheduling)
+Last activity: 2026-02-26 — Completed 13-02-PLAN.md (Follow-up reminders)
 
-Progress: [████████████████████████░] 90% (13-01 complete, 13-02 pending)
+Progress: [█████████████████████████] 100% (Phase 13 complete)
 
 ## Performance Metrics
 
@@ -72,12 +72,16 @@ Recent decisions from PROJECT.md and v1.2 execution:
 - Graceful skip on unconfigured VASYA_TELEGRAM_USER_ID (0 -> return false)
 - Alert response check runs before lead routing in handleGroupMessage
 
-**Phase 13 (Alerting Logic):**
+**Phase 13 (Alerting Logic) - Plans 01-02:**
 - Pipeline orchestration with per-caller error isolation
 - Graceful degradation on unconfigured Telegram IDs (skip with warning)
 - Atomic audit run claiming with duplicate detection (23505 → return null)
 - Pipeline handles all errors internally, always returns JSON result
 - Rate limiting: 1s delay between alert sends for Telegram API compliance
+- Follow-up threshold: 24 hours (balances urgency with avoiding spam)
+- Follow-ups run AFTER completing audit (Step 7) so current day's stats are saved
+- Individual follow-up send failures don't abort batch (maximize delivery)
+- ?follow-up-only=true endpoint for independent testing/debugging
 
 **Previous milestones:**
 - v1.1: DB prompts take precedence over files (enables live editing)
@@ -115,9 +119,9 @@ None yet (v1.2 just started).
 
 ## Session Continuity
 
-Last activity: 2026-02-26 - Completed 13-01-PLAN.md (Audit pipeline orchestrator)
-Stopped at: Phase 13, Plan 1 complete - ready for 13-02 (follow-up reminders)
-Resume file: .planning/phases/13-alerting-logic/13-02-PLAN.md
+Last activity: 2026-02-26 - Completed 13-02-PLAN.md (Follow-up reminders)
+Stopped at: Phase 13 complete - ready for Phase 14 (Scheduling)
+Resume file: .planning/phases/14-scheduling/14-01-PLAN.md
 
 ---
 *STATE.md initialized: 2026-02-26*
