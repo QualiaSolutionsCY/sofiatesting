@@ -8,6 +8,17 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 
 **Agents can trust SOPHIA to do the right thing every time** — correct templates, correct routing, correct uploads, user-friendly errors, no manual intervention needed.
 
+## Current Milestone: v1.2 3CX Call Log Audit
+
+**Goal:** Add automated daily call log auditing to ensure no leads are missed from the main call center line.
+
+**Target features:**
+- Daily 3CX system login and call log extraction (5:00 PM Cyprus time)
+- Telegram group search for caller phone numbers across 4 regional groups
+- Automated alerts in "Zypress Others" group for missing callers
+- Follow-up reminder system for unprocessed numbers
+- Scheduled Edge Function with credential management
+
 ## Current State (v1.1 Shipped)
 
 **Shipped:** 2026-01-29
@@ -58,7 +69,12 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 
 ### Active
 
-(None — defining next milestone)
+**v1.2 3CX Call Log Audit Integration:**
+- 3CX system integration for daily call log extraction
+- Telegram group search functionality
+- Missing caller alert system
+- Scheduled audit execution (Mon-Fri 5:00 PM)
+- Call tracking database tables
 
 ### Out of Scope
 
@@ -102,4 +118,4 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 - **Backwards Compatible**: Changes must not break existing functionality
 
 ---
-*Last updated: 2026-01-29 after v1.1 milestone*
+*Last updated: 2026-02-26 after v1.2 milestone start*
