@@ -124,11 +124,12 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
 
     const entries = await extractTodayCalls(client);
     const auditResult = filterExternalCallers(entries);
+    const { callTimeMap } = auditResult;
 
     // Save all call records
     const callRecords = auditResult.externalCallers.map((phone) => ({
       caller_phone: phone,
-      call_time: new Date().toISOString(), // TODO: Extract actual call time from entries
+      call_time: callTimeMap[phone] || new Date().toISOString(),
       target_number: AUDIT_CONFIG.TARGET_NUMBER,
       is_internal: false,
     }));
@@ -158,7 +159,7 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
       for (const phone of auditResult.externalCallers) {
         missingCallers.push({
           phoneNumber: phone,
-          callTime: "Unknown", // TODO: Extract from entries
+          callTime: formatCallTimeDisplay(callTimeMap[phone] || new Date().toISOString()),
           callDate: auditDate,
           searchedGroups: [],
         });
@@ -192,7 +193,7 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
             // Not found - add to missing callers
             missingCallers.push({
               phoneNumber: phone,
-              callTime: "Unknown", // TODO: Extract from entries
+              callTime: formatCallTimeDisplay(callTimeMap[phone] || new Date().toISOString()),
               callDate: auditDate,
               searchedGroups: Object.keys(REGIONAL_GROUP_IDS),
             });
@@ -218,7 +219,7 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
           // Treat search failure as "not found" - safer to alert
           missingCallers.push({
             phoneNumber: phone,
-            callTime: "Unknown",
+            callTime: formatCallTimeDisplay(callTimeMap[phone] || new Date().toISOString()),
             callDate: auditDate,
             searchedGroups: [],
           });
@@ -245,6 +246,7 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
             caller_phone: caller.phoneNumber,
             audit_run_id: runId,
             status: "pending",
+            call_time: callTimeMap[caller.phoneNumber] || null,
           });
 
           if (!alert) {
@@ -390,6 +392,23 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
 // ---------------------------------------------------------------------------
 // Helper Functions
 // ---------------------------------------------------------------------------
+
+/**
+ * Format ISO timestamp to HH:MM display format in Cyprus timezone.
+ */
+function formatCallTimeDisplay(isoTimestamp: string): string {
+  try {
+    const date = new Date(isoTimestamp);
+    return date.toLocaleTimeString("en-GB", {
+      timeZone: AUDIT_CONFIG.TIMEZONE,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  } catch {
+    return "Unknown";
+  }
+}
 
 /**
  * Calculate today's date in Cyprus timezone (YYYY-MM-DD format).

@@ -31,6 +31,27 @@ export interface FollowUpResult {
 }
 
 // ---------------------------------------------------------------------------
+// Helper Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Format ISO timestamp to HH:MM display format in Cyprus timezone.
+ */
+function formatCallTimeDisplay(isoTimestamp: string): string {
+  try {
+    const date = new Date(isoTimestamp);
+    return date.toLocaleTimeString("en-GB", {
+      timeZone: "Europe/Nicosia",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  } catch {
+    return "N/A";
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Follow-Up Processing
 // ---------------------------------------------------------------------------
 
@@ -106,7 +127,9 @@ export async function processFollowUpReminders(): Promise<FollowUpResult> {
         // Create MissingCallerInfo from alert
         const callerInfo: MissingCallerInfo = {
           phoneNumber: alert.caller_phone,
-          callTime: "N/A",
+          callTime: alert.call_time
+            ? formatCallTimeDisplay(alert.call_time)
+            : "N/A",
           callDate: alert.created_at.split("T")[0],
           searchedGroups: [],
         };
