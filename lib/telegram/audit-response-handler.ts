@@ -8,12 +8,12 @@ import type { TelegramMessage } from "./types";
  * Audit Alert Response Handler (Next.js / Node.js)
  *
  * Detects when Vasya replies to a missing-caller alert in the Zypress Others
- * group and updates the corresponding audit_alerts record.
+ * group and updates the corresponding caller_alerts record.
  *
  * This mirrors the Deno telegram-response-tracker.ts but uses Node.js-compatible
  * Supabase client (process.env, not Deno.env).
  *
- * Phase 12, Plan 03
+ * Phase 12, Plan 03 | Phase 13, Plan 05
  */
 
 const log = logger.telegram.child("audit-response");
@@ -149,9 +149,9 @@ export async function handleAuditAlertResponse(
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped table
     const { data: alert, error } = await (supabase as any)
-      .from("audit_alerts")
+      .from("caller_alerts")
       .select("*")
-      .eq("telegram_message_id", message.reply_to_message.message_id)
+      .eq("alert_message_id", String(message.reply_to_message.message_id))
       .eq("chat_id", message.chat.id)
       .limit(1)
       .maybeSingle();
@@ -172,33 +172,37 @@ export async function handleAuditAlertResponse(
     // Build update payload
     const now = new Date().toISOString();
     const updateFields: Record<string, unknown> = {
-      response_text: parsed.rawText,
-      responded_by_telegram_id: message.from.id,
-      responded_at: now,
       updated_at: now,
     };
 
     switch (parsed.type) {
       case "found":
         updateFields.status = "resolved";
+        updateFields.resolution_type = "found_in_telegram";
+        updateFields.resolution_note = parsed.rawText;
+        updateFields.resolved_at = now;
         break;
       case "not_found":
-        updateFields.status = "pending";
+        // Keep as 'alerted' for follow-up (NOT 'pending' which means pre-alert in caller_alerts)
+        updateFields.status = "alerted";
+        updateFields.resolution_note = parsed.rawText;
         break;
       case "alternative_number":
         updateFields.status = "resolved";
-        updateFields.response_text = parsed.alternativeNumber
-          ? `Alternative number: ${parsed.alternativeNumber} | ${parsed.rawText}`
-          : parsed.rawText;
+        updateFields.resolution_type = "alternative_phone";
+        updateFields.alternative_phone = parsed.alternativeNumber;
+        updateFields.resolution_note = parsed.rawText;
+        updateFields.resolved_at = now;
         break;
       case "unknown":
-        // Leave status unchanged -- manual review
+        // Leave status unchanged -- store raw text for manual review
+        updateFields.resolution_note = parsed.rawText;
         break;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped table
     const { error: updateError } = await (supabase as any)
-      .from("audit_alerts")
+      .from("caller_alerts")
       .update(updateFields)
       .eq("id", alert.id);
 
@@ -212,7 +216,7 @@ export async function handleAuditAlertResponse(
     log.info("Audit alert response processed", {
       alertId: alert.id,
       responseType: parsed.type,
-      phone: alert.phone_number,
+      phone: alert.caller_phone,
     });
 
     return true;
