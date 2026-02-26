@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 13 of 14 (Alerting Logic)
-Plan: 2 of 2 complete
-Status: Phase complete - ready for Phase 14 (Scheduling)
-Last activity: 2026-02-26 — Completed 13-02-PLAN.md (Follow-up reminders)
+Plan: 3 of 4 complete (including gap closure Plan 03)
+Status: In progress - Plan 04 (Response verification) remaining
+Last activity: 2026-02-26 — Completed 13-03-PLAN.md (Call time extraction)
 
-Progress: [█████████████████████████] 100% (Phase 13 complete)
+Progress: [███████████████████░░░░░░] 75% (Phase 13)
 
 ## Performance Metrics
 
@@ -72,7 +72,7 @@ Recent decisions from PROJECT.md and v1.2 execution:
 - Graceful skip on unconfigured VASYA_TELEGRAM_USER_ID (0 -> return false)
 - Alert response check runs before lead routing in handleGroupMessage
 
-**Phase 13 (Alerting Logic) - Plans 01-02:**
+**Phase 13 (Alerting Logic) - Plans 01-03:**
 - Pipeline orchestration with per-caller error isolation
 - Graceful degradation on unconfigured Telegram IDs (skip with warning)
 - Atomic audit run claiming with duplicate detection (23505 → return null)
@@ -82,6 +82,11 @@ Recent decisions from PROJECT.md and v1.2 execution:
 - Follow-ups run AFTER completing audit (Step 7) so current day's stats are saved
 - Individual follow-up send failures don't abort batch (maximize delivery)
 - ?follow-up-only=true endpoint for independent testing/debugging
+- Call time flow: 3CX entries → callTimeMap → MissingCallerInfo (display) + caller_alerts (storage)
+- Store call_time as nullable TIMESTAMPTZ in caller_alerts (allows NULL for historical alerts)
+- Keep earliest call time per phone when multiple calls exist (most relevant timestamp)
+- Format call times as HH:MM in Cyprus timezone for display (business hours context)
+- Fallback to current timestamp if call time unavailable (better than "Unknown")
 
 **Previous milestones:**
 - v1.1: DB prompts take precedence over files (enables live editing)
@@ -119,9 +124,9 @@ None yet (v1.2 just started).
 
 ## Session Continuity
 
-Last activity: 2026-02-26 - Completed 13-02-PLAN.md (Follow-up reminders)
-Stopped at: Phase 13 complete - ready for Phase 14 (Scheduling)
-Resume file: .planning/phases/14-scheduling/14-01-PLAN.md
+Last activity: 2026-02-26 - Completed 13-03-PLAN.md (Call time extraction - gap closure)
+Stopped at: Phase 13 Plan 03 complete - Plan 04 (Response verification) remaining
+Resume file: .planning/phases/13-alerting-logic/13-04-PLAN.md
 
 ---
 *STATE.md initialized: 2026-02-26*
