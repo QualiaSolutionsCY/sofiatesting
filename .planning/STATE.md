@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 12 of 14 (Telegram Integration)
-Plan: 1 of 3 complete
+Plan: 2 of 3 complete
 Status: In progress
-Last activity: 2026-02-26 — Completed 12-01-PLAN.md (Telegram Bot API client + group message search)
+Last activity: 2026-02-26 — Completed 12-02-PLAN.md (Alert sending service + audit_alerts table)
 
-Progress: [██████████████████████░░] 80% (10 complete + 12-01, 11 code-complete pending verification)
+Progress: [██████████████████████░░] 83% (10 complete + 12-01 + 12-02, 11 code-complete pending verification)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 31
+- Total plans completed: 32
 - Average duration: 3-5min (v1.2 plans)
-- Total execution time: ~4 hours (v1.0 + v1.1) + 11min (v1.2)
+- Total execution time: ~4 hours (v1.0 + v1.1) + 16min (v1.2)
 
 **By Milestone:**
 
@@ -64,6 +64,9 @@ Recent decisions from PROJECT.md and v1.2 execution:
 - Phone normalization returns multiple variant strings for ilike search
 - Fire-and-forget indexing pattern: indexGroupMessage(msg).catch(() => {})
 - Regional group IDs as placeholders (0) with loud failure guard
+- Alert persistence: send Telegram first, then persist with message_id (non-blocking)
+- Duplicate alert dedup: unique constraint on (phone+date+type) + 23505 catch
+- Batch rate limiting: 1s delay between same-group messages
 
 **Previous milestones:**
 - v1.1: DB prompts take precedence over files (enables live editing)
@@ -101,9 +104,9 @@ None yet (v1.2 just started).
 
 ## Session Continuity
 
-Last activity: 2026-02-26 - Completed 12-01-PLAN.md (Telegram Bot API client + group message search)
-Stopped at: Phase 12 Plan 01 complete, ready for Plan 02
-Resume file: .planning/phases/12-telegram-integration/12-02-PLAN.md
+Last activity: 2026-02-26 - Completed 12-02-PLAN.md (Alert sending service + audit_alerts table)
+Stopped at: Phase 12 Plan 02 complete, ready for Plan 03
+Resume file: .planning/phases/12-telegram-integration/12-03-PLAN.md
 
 ---
 *STATE.md initialized: 2026-02-26*
