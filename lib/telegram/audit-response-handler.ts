@@ -147,7 +147,8 @@ export async function handleAuditAlertResponse(
   try {
     const supabase = getSupabase();
 
-    const { data: alert, error } = await supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped table
+    const { data: alert, error } = await (supabase as any)
       .from("audit_alerts")
       .select("*")
       .eq("telegram_message_id", message.reply_to_message.message_id)
