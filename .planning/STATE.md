@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 10 of 14 (Call Tracking Infrastructure)
-Plan: Ready to plan (v1.2 milestone just started)
-Status: Ready to plan
-Last activity: 2026-02-26 — Roadmap created for v1.2 3CX Call Log Audit
+Plan: 1 of 1 complete
+Status: Phase complete
+Last activity: 2026-02-26 — Completed 10-01-PLAN.md (Database foundation)
 
-Progress: [████████████████████░░░░] 64% (9 of 14 phases complete)
+Progress: [████████████████████░░░░] 71% (10 of 14 phases complete)
 
 ## Performance Metrics
 
@@ -42,8 +42,15 @@ Progress: [████████████████████░░░
 
 ### Decisions
 
-Recent decisions from PROJECT.md affecting v1.2 work:
+Recent decisions from PROJECT.md and v1.2 execution:
 
+**Phase 10 (Call Tracking Infrastructure):**
+- Use unique constraint on audit_date to prevent duplicate daily runs
+- Use unique constraint on (caller_phone, audit_run_id) to prevent duplicate alerts
+- Atomic claiming pattern: INSERT + SELECT single, handle 23505 → return null (not error)
+- Status-based timestamp logic: alerted_at set when status=alerted, resolved_at when status=resolved/ignored
+
+**Previous milestones:**
 - v1.1: DB prompts take precedence over files (enables live editing)
 - v1.1: Structured logging with correlation IDs (will help debug audit runs)
 - v1.0: Region-based routing (pattern to reuse for Telegram group search)
@@ -57,6 +64,9 @@ None yet (v1.2 just started).
 ### Blockers/Concerns
 
 **Before Phase 11 (3CX Integration):**
+- **USER ACTION REQUIRED:** Apply database migration manually via Supabase Dashboard SQL Editor (2-minute task)
+  - File: `supabase/migrations/20260226_call_tracking.sql`
+  - Dashboard: https://supabase.com/dashboard/project/vceeheaxcrhmpqueudqx/sql/new
 - Need 3CX credentials and web interface URL from Fawzi
 - Need confirmation of target phone number (22032770) and internal extensions list
 - May need to test 3CX web scraping approach on live system
@@ -72,9 +82,9 @@ None yet (v1.2 just started).
 
 ## Session Continuity
 
-Last session: 2026-02-26 (roadmap creation)
-Stopped at: v1.2 roadmap created, ready to plan Phase 10
-Resume file: None
+Last session: 2026-02-26 (Phase 10 execution)
+Stopped at: Phase 10 complete (database foundation for call tracking)
+Resume file: .planning/phases/10-call-tracking-infrastructure/10-01-SUMMARY.md
 
 ---
 *STATE.md initialized: 2026-02-26*
