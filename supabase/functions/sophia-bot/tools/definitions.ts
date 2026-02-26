@@ -37,8 +37,8 @@ export const TOOLS: ToolDefinition[] = [
           },
           propertyType: {
             type: "string",
-            enum: ["apartment", "house", "detached house", "villa", "maisonette", "bungalow", "penthouse", "townhouse", "studio", "semi-detached"],
-            description: "The type of property (use 'detached house' for standalone houses, 'semi-detached' for joined houses)",
+            enum: ["apartment", "house", "detached house", "villa", "maisonette", "bungalow", "penthouse", "townhouse", "studio", "semi-detached", "residential building"],
+            description: "The type of property (use 'detached house' for standalone houses, 'semi-detached' for joined houses, 'residential building' for multi-unit buildings)",
           },
           price: {
             type: "number",
@@ -46,7 +46,7 @@ export const TOOLS: ToolDefinition[] = [
           },
           location: {
             type: "string",
-            description: "The specific area/location of the property. MUST include district (Paphos, Limassol, Larnaca, Nicosia, Famagusta). If user omits district, ASK which district. Example formats: 'Neapoli, Nicosia', 'Germasogeia, Limassol', 'Tala, Paphos'. NEVER assume district - always clarify if missing.",
+            description: "The specific area/neighborhood EXACTLY as the agent stated it, plus the district. MUST include district (Paphos, Limassol, Larnaca, Nicosia, Famagusta). Example: agent says 'Mesa Geitonia' → pass 'Mesa Geitonia, Limassol'. ⛔ CRITICAL: NEVER extract location names from Google Maps URLs — the /place/ path often contains STREET ADDRESSES (e.g., 'Michali Sougioul 21') which are NOT valid area names. If agent only provides a Google Maps URL without stating the area, you MUST ASK: 'What is the area/neighborhood name?' ALWAYS pass the Google Maps URL separately as locationUrl.",
           },
           bedrooms: {
             type: "integer",
@@ -86,8 +86,8 @@ export const TOOLS: ToolDefinition[] = [
           },
           titleDeedStatus: {
             type: "string",
-            enum: ["separate", "final_approval", "pending", "share_of_land", "unknown", "do_not_display"],
-            description: "Status of the title deeds: separate (full title deeds), final_approval, pending, share_of_land (shared ownership of land), unknown, do_not_display (agent explicitly asked to NOT show deed status in the description — still capture the actual status in specialNotes for reviewers)",
+            enum: ["separate", "final_approval", "in_process", "pending", "share_of_land", "permits_only", "unknown", "do_not_display"],
+            description: "Status of the title deeds: separate (full title deeds), final_approval, in_process (title deeds currently being issued / in the process of issuance — use when agent says 'being issued', 'in process', 'issuance process'), pending (applied but not yet in process), share_of_land (shared ownership of land), permits_only (NO title deeds — only building/planning permits exist. Use when agent says 'permits only', 'no title deeds only permits', 'building permit only'), unknown, do_not_display (agent explicitly asked to NOT show deed status)",
           },
           priceNegotiable: {
             type: "boolean",
@@ -136,14 +136,46 @@ export const TOOLS: ToolDefinition[] = [
             items: { type: "string" },
             description: "Array of title deed document URLs (PDF or scanned image of title deeds). When agent sends a document attachment during property upload, pass the URL here. These are uploaded to the title deed documents field on the listing.",
           },
+          titleDeedImageIndices: {
+            type: "array",
+            items: { type: "integer" },
+            description: "1-based indices of photos that are title deed images (not property photos). Example: if photo #3 is a title deed, pass [3]. These images will be moved from gallery to title deed documents field.",
+          },
+          floorPlanImageIndices: {
+            type: "array",
+            items: { type: "integer" },
+            description: "1-based indices of photos that are floor plans. Example: if photo #4 is a floor plan, pass [4]. These images will be placed as the LAST photos in the gallery AND also added to the dedicated floor plan section.",
+          },
+          imageOrder: {
+            type: "array",
+            items: { type: "integer" },
+            description: "Reordered 1-based photo indices for the gallery. Correct order: exterior shots first, then living areas, kitchen, additional rooms, bedrooms, bathrooms, floor plans last. Example: if agent says photos 5,6 are exterior, 1 is living room, 3 is kitchen, 2,4 are bedrooms, 7 is bathroom → pass [5, 6, 1, 3, 2, 4, 7]. Only pass this if the agent provides photo classifications.",
+          },
+          unitBreakdown: {
+            type: "string",
+            description: "For residential buildings / multi-unit properties: describes the unit breakdown. Format with NEWLINES between lines and BLANK LINES between unit groups. Example:\n4 x 2 Bedroom Units\n83m2 - 84m2 of Net Indoor area each\n21m2 - 26m2 of Covered Veranda each\n\n2 x 3 Bedroom Penthouse\n98m2 - 100m2 of Net Indoor area each\n19m2 - 24m2 of Covered Veranda each\n31m2 - 32m2 of Roof Garden area each",
+          },
+          poolType: {
+            type: "string",
+            enum: ["private", "communal", "provisions"],
+            description: "Type of swimming pool. 'private' = private pool on the property. 'communal' = shared pool in the complex/building. 'provisions' = plumbing/infrastructure ready to ADD a pool but NO pool exists yet. CRITICAL: 'provisions' means there is NO pool — do NOT list pool as a feature.",
+          },
           features: {
             type: "array",
             items: { type: "string" },
-            description: "Property features. Include: INDOOR (fitted kitchen, air conditioning, central heating, underfloor heating, fireplace, storage room, elevator), OUTDOOR (private pool, communal pool, garden, BBQ area, covered parking, open parking, garage), VIEWS (sea view, mountain view, city view). Infer features from images when possible.",
+            description: "Property features. Include: INDOOR (fitted kitchen, air conditioning, central heating, underfloor heating, fireplace, storage room, elevator, furnished, electrical appliances), OUTDOOR (garden, BBQ area, covered parking, open parking, garage, solar system, water heater), VIEWS (sea view, mountain view, city view). Do NOT include pool in features — use poolType field instead.",
+          },
+          energyClass: {
+            type: "string",
+            description: "Energy performance rating (e.g., 'A', 'B', 'C', 'D'). Goes to the dedicated Energy Class field ONLY — do NOT include energy class in description or features array.",
           },
           yearBuilt: {
             type: "integer",
             description: "Year the property was built",
+          },
+          yearRenovated: {
+            type: "integer",
+            description: "Year the property was last renovated. Capture when agent mentions renovation (e.g., 'renovated in 2025', 'recently renovated'). A recently renovated property is a major selling point.",
           },
           floor: {
             type: "string",
@@ -153,13 +185,25 @@ export const TOOLS: ToolDefinition[] = [
             type: "integer",
             description: "Number of bedrooms/rooms in the basement (e.g., if agent says '5 bedrooms plus 1 in the basement', pass bedrooms=5 and basementRooms=1). These will be shown as '5 Bedrooms + 1 Basement Bedroom' in the description.",
           },
+          roofRooms: {
+            type: "integer",
+            description: "Number of rooms on the roof garden (e.g., if agent says '3 bedrooms + 1 room on the roof garden', pass bedrooms=3 and roofRooms=1). These will be shown as '3+1 Bedroom Penthouse' in the title and '3 Bedrooms + 1 Roof Garden Room' in the description. Use for penthouses with extra rooms on the roof level.",
+          },
           assignTo: {
             type: "string",
             description: "For management only: email of agent to assign as listing owner. CRITICAL: If the user says 'assign to [name]' or 'assign to [email]', extract the email and pass it here. Check the agent name-to-email mapping in your instructions. If user provides the email directly (e.g., 'danae@zyprus.com'), use it as-is.",
           },
+          buildingName: {
+            type: "string",
+            description: "Name of the building/complex (e.g., 'Flow Residence', 'Kings Tower'). Added to the Reference ID for quick identification. Capture when the agent mentions a building or complex name.",
+          },
           specialNotes: {
             type: "string",
-            description: "Any special notes from the owner or agent",
+            description: "Any special notes from the owner or agent. Include ALL agent notes verbatim, especially: multi-structure info (e.g., 'main house + separate bungalow'), title deed details, provisions info, and anything else the reviewer needs to know.",
+          },
+          structureDescription: {
+            type: "string",
+            description: "For multi-structure properties ONLY. Describe the full property structure for the listing description. Example: 'a 3-bedroom main house and a separate 2-bedroom bungalow/maid\\'s quarters'. This text appears in the description body. ALWAYS use when the property has multiple buildings/structures (house+bungalow, villa+guest house, etc.).",
           },
           areaDescription: {
             type: "string",
@@ -184,7 +228,6 @@ export const TOOLS: ToolDefinition[] = [
           "price",
           "location",
           "bedrooms",
-          "bathrooms",
           "coveredArea",
           "ownerName",
           "ownerPhone",
@@ -255,13 +298,17 @@ export const TOOLS: ToolDefinition[] = [
     function: {
       name: "calculateTransferFees",
       description:
-        "Calculate property transfer fees for a Cyprus property purchase.",
+        "Calculate property transfer fees for a Cyprus property purchase. Always ask if buying in joint names.",
       parameters: {
         type: "object",
         properties: {
           price: {
             type: "number",
             description: "Property price in EUR",
+          },
+          jointNames: {
+            type: "boolean",
+            description: "Whether the property is being bought in joint names (splits price between 2 buyers for lower progressive rates)",
           },
           isFirstProperty: {
             type: "boolean",

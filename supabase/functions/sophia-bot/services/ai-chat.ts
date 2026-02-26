@@ -190,7 +190,7 @@ ${accumulatedImages.map((url, i) => `${i + 1}. ${url}`).join('\n')}
 
 **When the user is ready to create a property listing, use ALL of these image URLs in the \`imageUrls\` parameter of the createPropertyListing or createLandListing tool. INCLUDE EVERY IMAGE - do not leave any out.**
 
-**REMEMBER: Ask the user to confirm all photos have been sent before uploading!**
+**REMEMBER: Ask the user to confirm all photos have been sent before uploading! Also ask if any photos are title deed images (not property photos) — if yes, pass their numbers in titleDeedImageIndices.**
 
 ---
 `;
@@ -257,7 +257,7 @@ async function callOpenRouter(
         "X-Title": "SOPHIA WhatsApp Bot",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.0-flash",
         messages: messages,
         temperature: 0.1,
         max_tokens: 8192,
