@@ -630,7 +630,7 @@ export async function handleCreateLandListing(
       landSize: args.landSize as number,
       description,
       myNotes,
-      images: validImages,
+      images: validImages.map((img) => img.url),
       reviewer1: reviewers.reviewer1,
       reviewer2: reviewers.reviewer2 || null,
       listingOwner: reviewers.listingOwner,
@@ -652,14 +652,15 @@ export async function handleCreateLandListing(
       registrationNumber: args.registrationNumber as string | undefined,
     });
 
-    // Track upload in listing_uploads table
+    // Track listing for publication notification (non-blocking, fire-and-forget)
     const listingTitle = `Plot (${args.landSize}m²) For ${listingType === "rent" ? "Rent" : "Sale"} in ${descriptionLocation}`;
-    await trackListingUpload(
+    trackListingUpload(
       result.listingId,
       agentPhone,
-      agent.id || "",
-      listingTitle
-    );
+      agent.fullName,
+      listingTitle,
+      result.listingUrl,
+    ).catch(() => {}); // Swallow errors — tracking is non-critical
 
     // Clear pending images and documents
     if (agentPhone) {
@@ -693,6 +694,9 @@ export async function handleCreateLandListing(
       category: LogCategory.TOOL,
       operation: "createLandListing",
       errorType,
+      errorMessage: err.message,
+      errorName: err.name,
+      stack: err.stack?.split("\n").slice(0, 5).join(" | "),
     });
 
     return {

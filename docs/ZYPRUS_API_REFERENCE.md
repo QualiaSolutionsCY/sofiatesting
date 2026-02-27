@@ -344,6 +344,7 @@ GET /jsonapi/taxonomy_term/{vocabulary}?filter[name]={TERM_NAME}
 | `field_floor_plan` | Image | Floor plan images |
 | `field_pdf_floor_plan` | PDF | Floor plan documents |
 | `field_epc` | PDF | Energy certificate |
+| `field_title_deed_file` | PDF | Scanned title deed (upload endpoint works, but PATCH attach returns 403 — needs Drupal permission grant) |
 
 **Land** (`node--land`):
 | Field | Type | Description |

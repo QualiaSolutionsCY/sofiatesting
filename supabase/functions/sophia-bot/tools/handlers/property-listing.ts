@@ -14,6 +14,7 @@ import { processImages, validateImages, generateImageWarnings, hasEnoughImages }
 import { createDraftListing, getZyprusConfig, getAccessToken } from "../../zyprus/client.ts";
 import { findLocationUuid } from "../../zyprus/taxonomy-cache.ts";
 import { clearPendingImages, getPendingImages } from "../../services/pending-images.ts";
+import { classifyImagesWithVision } from "../../services/image-classifier.ts";
 import { getPendingDocuments, clearPendingDocuments } from "../../services/pending-documents.ts";
 import { logger, LogCategory } from "../../utils/logger.ts";
 import { classifyError, ErrorType } from "../../utils/error-mapper.ts";
@@ -30,6 +31,7 @@ export interface ToolResult {
   question?: string;
   message?: string;
   data?: unknown;
+  retryable?: boolean;
 }
 
 /**
@@ -120,8 +122,18 @@ export async function handleCreatePropertyListing(
   // 2. Validate required fields
   const validation = validateRequiredFields(args);
   if (!validation.valid) {
+    // Mark as retryable so ai-chat.ts feeds this back to the AI loop
+    // instead of showing the generic "I still need..." message to the user.
+    // The AI already has the data in conversation context — it just failed to extract it.
+    logger.warn("Validation failed — missing fields in tool call args", {
+      category: LogCategory.TOOL,
+      operation: "createPropertyListing",
+      missingFields: validation.missing,
+      providedFields: Object.keys(args).filter(k => args[k] !== undefined && args[k] !== null),
+    });
     return {
       needsInput: true,
+      retryable: true,
       question: getMissingFieldsMessage(validation.missing),
     };
   }
@@ -382,8 +394,32 @@ export async function handleCreatePropertyListing(
     });
   }
 
-  // 7a. Split title deed images from gallery based on agent-identified indices
-  const titleDeedImageIndices = (args.titleDeedImageIndices as number[]) || [];
+  // 7a.0 AI Vision classification — auto-detect title deeds and floor plans
+  // Only runs if agent didn't already identify them explicitly
+  let titleDeedImageIndices = (args.titleDeedImageIndices as number[]) || [];
+  let floorPlanImageIndicesFromArgs = (args.floorPlanImageIndices as number[]) || [];
+  if (titleDeedImageIndices.length === 0 && floorPlanImageIndicesFromArgs.length === 0 && imageUrls.length >= 2) {
+    const visionResult = await classifyImagesWithVision(imageUrls);
+    if (visionResult.titleDeedIndices.length > 0) {
+      // Convert 0-based to 1-based for existing split logic
+      titleDeedImageIndices = visionResult.titleDeedIndices.map(i => i + 1);
+      logger.info("Vision auto-detected title deed images", {
+        category: LogCategory.IMAGE,
+        operation: "createPropertyListing",
+        indices: titleDeedImageIndices,
+      });
+    }
+    if (visionResult.floorPlanIndices.length > 0) {
+      floorPlanImageIndicesFromArgs = visionResult.floorPlanIndices.map(i => i + 1);
+      logger.info("Vision auto-detected floor plan images", {
+        category: LogCategory.IMAGE,
+        operation: "createPropertyListing",
+        indices: floorPlanImageIndicesFromArgs,
+      });
+    }
+  }
+
+  // 7a. Split title deed images from gallery based on agent-identified or vision-detected indices
   let titleDeedImageUrls: string[] = [];
   if (titleDeedImageIndices.length > 0 && imageUrls.length > 0) {
     const validIndices = new Set(
@@ -402,7 +438,7 @@ export async function handleCreatePropertyListing(
 
   // 7a.2 Floor plan images: move to END of gallery AND add to floorPlanUrls
   // Floor plans appear as last photos in the gallery AND in the dedicated floor plans section
-  const floorPlanImageIndices = (args.floorPlanImageIndices as number[]) || [];
+  const floorPlanImageIndices = floorPlanImageIndicesFromArgs;
   let floorPlanImageUrls: string[] = [];
   if (floorPlanImageIndices.length > 0 && imageUrls.length > 0) {
     const validFloorPlanIndices = new Set(
@@ -446,6 +482,19 @@ export async function handleCreatePropertyListing(
       orderProvided: imageOrder.length,
       totalImages: imageUrls.length,
     });
+  } else if (args.mainPhotoIndex && imageUrls.length > 0) {
+    // Simpler alternative: just move one photo to the front
+    const mainIdx = (args.mainPhotoIndex as number) - 1; // Convert 1-based to 0-based
+    if (mainIdx >= 0 && mainIdx < imageUrls.length) {
+      const mainPhoto = imageUrls[mainIdx];
+      imageUrls = [mainPhoto, ...imageUrls.filter((_, i) => i !== mainIdx)];
+      logger.info("Main photo moved to first position", {
+        category: LogCategory.IMAGE,
+        operation: "createPropertyListing",
+        mainPhotoIndex: args.mainPhotoIndex,
+        totalImages: imageUrls.length,
+      });
+    }
   }
 
   // 7b. Retrieve pending documents (title deeds, PDFs sent via WhatsApp)
@@ -912,6 +961,11 @@ export async function handleCreatePropertyListing(
   } else if (resolvedCoordinates) {
     const mapsUrl = `https://www.google.com/maps/place/${resolvedCoordinates.lat},${resolvedCoordinates.lon}`;
     message += `\n📍 **Google Maps:** ${mapsUrl}\n`;
+  }
+
+  // Add location mismatch warning if taxonomy resolved to a different name
+  if (locationResult.matchedName && locationResult.matchedName.toLowerCase() !== location.toLowerCase()) {
+    message += `\n⚠️ **Location dropdown:** I couldn't find "${location}" in the Zyprus locations dropdown, so I set it to "${locationResult.matchedName}". Please update the location dropdown on the listing if needed.\n`;
   }
 
   // Add warnings

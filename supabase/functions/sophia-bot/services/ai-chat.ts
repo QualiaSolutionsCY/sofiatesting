@@ -263,7 +263,7 @@ async function callOpenRouter(
             "X-Title": "SOPHIA WhatsApp Bot",
           },
           body: JSON.stringify({
-            model: "google/gemini-3.1-pro-preview",
+            model: "google/gemini-3.1-pro-preview-customtools",
             messages: messages,
             temperature: 0.1,
             max_tokens: 8192,
@@ -499,7 +499,15 @@ export async function chat(
         });
 
         // If tool needs user input, send the question and stop
+        // EXCEPT: if the result is retryable (validation failure where AI didn't extract fields),
+        // feed it back as a tool result so the AI can retry with correct args
         if (toolResult.needsInput && toolResult.question) {
+          if (toolResult.retryable && toolCallCount < maxToolCalls) {
+            logger.info(`[Retry] Tool ${toolName} returned retryable needsInput — feeding back to AI loop instead of returning to user`, { category: LogCategory.TOOL });
+            // The tool result is already in currentMessages (added above)
+            // Break out of the for loop so the while loop makes a new AI call
+            break;
+          }
           return {
             response: toolResult.question,
             success: true,

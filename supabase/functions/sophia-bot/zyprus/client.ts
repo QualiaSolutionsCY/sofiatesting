@@ -1244,7 +1244,8 @@ function buildJsonApiPayloadLand(
   );
 
   // Build proper title: "Plot (2,500m²) For Sale in Mesa Chorio, Paphos"
-  const landTypeCapitalized = listing.landType.charAt(0).toUpperCase() + listing.landType.slice(1).toLowerCase();
+  const landTypeStr = listing.landType || "Plot";
+  const landTypeCapitalized = landTypeStr.charAt(0).toUpperCase() + landTypeStr.slice(1).toLowerCase();
   const listingTypeText = listing.listingType === "rent" ? "For Rent" : "For Sale";
   const generatedTitle = `${landTypeCapitalized} (${listing.landSize.toLocaleString()}m²) ${listingTypeText} in ${listing.location}`;
 
@@ -1334,14 +1335,13 @@ function buildJsonApiPayloadLand(
   }
 
   // Gallery images (note: field_land_gallery, NOT field_gallery_)
-  if (imageFileIds.length > 0) {
-    relationships.field_land_gallery = {
-      data: imageFileIds.map((id) => ({
-        type: "file--file",
-        id,
-      })),
-    };
-  }
+  // ALWAYS include field_land_gallery — it's REQUIRED on the land node (unlike property)
+  relationships.field_land_gallery = {
+    data: imageFileIds.map((id) => ({
+      type: "file--file",
+      id,
+    })),
+  };
 
   // Infrastructure (electricity, water, etc.)
   if (infrastructureUuids.length > 0) {
@@ -1467,11 +1467,12 @@ async function uploadLandImages(
           filename = `land_image_${index + 1}.jpg`;
         }
 
-        // Upload to field_land_gallery (NOT field_gallery_)
+        // Upload via property gallery endpoint — file IDs are universal in Drupal
+        // The /jsonapi/node/land/field_land_gallery endpoint doesn't support standalone file uploads
         const uploadResponse = await withRetry(
           async () => {
             const res = await fetch(
-              `${config.apiUrl}/jsonapi/node/land/field_land_gallery`,
+              `${config.apiUrl}/jsonapi/node/property/field_gallery_`,
               {
                 method: "POST",
                 headers: {
@@ -1614,6 +1615,11 @@ export async function createDraftLandListing(
     galleryTotal: listing.images.length,
     titleDeedsUploaded: titleDeedFileIds.length,
   });
+
+  // Land gallery is REQUIRED by Zyprus — fail early if no images uploaded
+  if (imageFileIds.length === 0 && listing.images.length > 0) {
+    throw new Error("All land image uploads failed — cannot create listing without gallery images");
+  }
 
   // Build and send listing payload
   const payload = buildJsonApiPayloadLand(

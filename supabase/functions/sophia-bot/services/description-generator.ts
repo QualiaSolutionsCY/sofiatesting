@@ -957,6 +957,9 @@ function parseUserAreaDescription(areaDescription: string, location?: string): s
       sentence = sentence.trim();
     }
 
+    // Skip sentences that are too short to be useful (avoids "Residential!" or "Quiet area!" one-word lines)
+    if (sentence.length < 20) continue;
+
     // Ensure it starts with a capital letter
     if (sentence.length > 0) {
       sentence = sentence.charAt(0).toUpperCase() + sentence.slice(1);
@@ -1025,6 +1028,10 @@ function getGenericLocationSentences(location: string): string[] {
       "Many amenities are within walking distance, and the town center and beaches are only minutes away!"
     ],
     yeroskipou: [
+      "Located in a peaceful and family-friendly community",
+      "Many amenities are within walking distance, including schools and local shops. The beaches are only a short drive away!"
+    ],
+    geroskipou: [
       "Located in a peaceful and family-friendly community",
       "Many amenities are within walking distance, including schools and local shops. The beaches are only a short drive away!"
     ],

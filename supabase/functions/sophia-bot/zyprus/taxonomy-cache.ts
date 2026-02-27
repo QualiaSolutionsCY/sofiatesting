@@ -1415,6 +1415,7 @@ export async function findPropertyViewUuids(featureNames: string[]): Promise<str
  * Returns empty string as fallback if not found
  */
 export async function findLandTypeUuid(landType: string): Promise<string> {
+  if (!landType) return "";
   const normalized = landType.toLowerCase().trim();
   logger.debug(`[Taxonomy] Finding land type UUID for: "${landType}" (normalized: "${normalized}")`);
 

@@ -103,65 +103,58 @@ ALTER TABLE pending_images ADD CONSTRAINT unique_phone_image
 
 ---
 
-## Issue 2: Documents — Upload Title Deeds to Back Office
+## Issue 2: Documents — Upload Title Deeds to Back Office — RESOLVED (with caveat)
 
 **Lauren's feedback**: "Documents: we need her to add the deeds to the documents folder in the back office (I gave her the document attachment)"
 
-### What This Means
+### Status: IMPLEMENTED (Feb 2026)
 
-When an agent sends a document (PDF/image of title deeds) via WhatsApp during the property upload flow, SOPHIA should upload it to the Zyprus listing's `field_title_deed_file` field. Currently, documents sent via WhatsApp are detected but NOT uploaded to Zyprus — they're only stored in Supabase Storage.
+Title deed file upload has been **fully implemented** in the codebase. The feature was built after the original handoff doc was written.
 
-### Current Document Flow
+### What Was Built
 
-1. Agent sends a document via WhatsApp
-2. Webhook receives it → `message-processor.ts` extracts it
-3. It's detected as a document (not an image) via `isDocumentUrl()` in `executor.ts:32-52`
-4. Document URLs are **filtered OUT** from imageUrls at `executor.ts:384-394`
-5. **No upload to Zyprus happens for documents**
+| Component | Location | What It Does |
+|-----------|----------|--------------|
+| Tool definitions | `tools/definitions.ts:134, 308` | `titleDeedFileUrls` and `titleDeedImageIndices` params on both `createPropertyListing` and `createLandListing` |
+| Property handler | `tools/handlers/property-listing.ts:499-518` | Collects deed URLs from vision-classified images, pending docs, and AI params |
+| Land handler | `tools/handlers/land-listing.ts:409-424` | Same collection logic for land |
+| Upload function | `zyprus/client.ts:843-940` | `uploadTitleDeedFiles()` — uploads files via `POST /jsonapi/node/property/field_title_deed_file` |
+| Land upload | `zyprus/client.ts:1532` | `uploadLandTitleDeedFiles()` reuses same pattern |
+| Pending docs service | `services/pending-documents.ts` | Full CRUD for queuing WhatsApp doc attachments in DB |
+| Image classifier | `services/image-classifier.ts` | Vision-based auto-detection of deed images in gallery |
 
-### What Needs to Happen
+### Document Flow (Current)
 
-1. When agent sends a document (PDF, image of deeds) during property creation, persist it to Supabase Storage (like images)
-2. Pass the document URL(s) to `createPropertyListing` via a new parameter (e.g., `titleDeedFileUrls`)
-3. In `zyprus/client.ts`, upload the file to `field_title_deed_file` (similar to how `field_floor_plan` works at lines 639-713)
-4. Add the relationship in `buildJsonApiPayload()`
+1. Agent sends document via WhatsApp → stored in `pending_documents` table
+2. Agent triggers listing creation → handler collects deed URLs from 3 sources:
+   - Vision-classified images (auto-detect deed photos)
+   - Pending documents from WhatsApp
+   - AI-passed `titleDeedFileUrls`
+3. Files uploaded in parallel with gallery/floor plans
+4. Attached to listing via PATCH after creation (initial POST returns 403 for this field)
 
-### Files to Modify
+### API Test Results (Feb 2026)
 
-| File | Change |
-|------|--------|
-| `tools/definitions.ts` | Add `titleDeedFileUrls` parameter to `createPropertyListing` tool schema |
-| `tools/executor.ts` | Stop filtering out document URLs; pass them as `titleDeedFileUrls` to the Zyprus client |
-| `zyprus/client.ts` | Add `uploadTitleDeedFiles()` function (copy pattern from `uploadFloorPlans` at line 639), add to `ListingData` interface, add `field_title_deed_file` relationship in `buildJsonApiPayload()` |
-| `prompts/behaviors/property-upload.ts` | Add instruction telling AI to pass document attachments as title deed files |
-| DB: `sophia_prompts` key `property_upload` | Same update as the file fallback |
+| Test | Result | Notes |
+|------|--------|-------|
+| `POST /jsonapi/node/property/field_title_deed_file` | **201** | File upload endpoint exists on property nodes |
+| `POST /jsonapi/node/land/field_title_deed_file` | **201** | File upload endpoint exists on land nodes |
+| `PATCH /jsonapi/node/property/{id}` with `field_title_deed_file` | **403** | "edit any property content" permission required |
 
-### Implementation Pattern (Copy from Floor Plans)
+### Known Limitation: Property Nodes
 
-The `field_floor_plan` implementation at `zyprus/client.ts:639-713` is the exact pattern to follow:
+The `field_title_deed_file` upload endpoint works (files get stored), but **attaching them to property listings fails** because:
+- Including `field_title_deed_file` in the initial POST payload → 403
+- PATCH after creation → 403 ("edit any property content" permission)
+- The code handles this gracefully as a non-blocking warning (listing creation still succeeds)
 
-```typescript
-// 1. Upload endpoint for title deed files
-// Endpoint: ${config.apiUrl}/jsonapi/node/property/field_title_deed_file
-// Method: POST with application/octet-stream
-// Same auth header pattern as uploadFloorPlans
+**Land listings** should work correctly since `field_title_deed_file` is an official field on land content type.
 
-// 2. In buildJsonApiPayload, add relationship:
-if (titleDeedFileIds.length > 0) {
-  relationships.field_title_deed_file = {
-    data: titleDeedFileIds.map((id) => ({
-      type: "file--file",
-      id,
-    })),
-  };
-}
-```
+### Action Needed
 
-### Important
+**Ask Denys** to grant the Sophia OAuth client permission to write `field_title_deed_file` on property nodes (either via initial POST or PATCH). The Drupal permission needed is `edit any property content` or a field-level permission for `field_title_deed_file`.
 
-- Verify the Zyprus API field name is `field_title_deed_file` by checking the API docs or doing a GET on an existing property that has deeds uploaded. See `docs/ZYPRUS_API_REFERENCE.md` for field names.
-- Documents should be tracked separately from gallery images (don't mix them into `field_gallery_`)
-- The document could be PDF or image (JPG/PNG of scanned deeds)
+Once permission is granted, **no code changes are needed** — the existing implementation will work automatically.
 
 ---
 
