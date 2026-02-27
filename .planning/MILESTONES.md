@@ -1,5 +1,35 @@
 # Project Milestones: SOPHIA Production Hardening
 
+## v1.3 Production Audit Fixes (Shipped: 2026-02-28)
+
+**Delivered:** Fixed all 10 critical and high-severity security/reliability issues from Cowork code review audit — password hash, race conditions, injection prevention, rate limiting, query optimization.
+
+**Phases completed:** 15-17 (8 plans total)
+
+**Key accomplishments:**
+
+- Password hash column expanded (varchar(64) to varchar(255)) to prevent bcrypt truncation
+- Chat creation race condition fixed with INSERT ON CONFLICT DO NOTHING
+- 9 Zod schemas for tool argument validation with runtime constraints
+- SQL injection audit (10 queries audited, .or() filter injection fixed)
+- 50KB payload size limit on admin prompt endpoints (413 response)
+- Single-inflight-request pattern prevents prompt cache thundering herd
+- Per-user rate limiting on file uploads (10/60s with 429 + Retry-After)
+- Data export N+1 query replaced with JOIN + json_agg (1 query vs 1+N)
+
+**Stats:**
+
+- 3 phases, 8 plans
+- 31 commits
+- 28 files changed, 2,272 lines added
+- 2 days (Feb 27-28, 2026)
+
+**Git range:** Phase 15 → Phase 17
+
+**What's next:** v1.4 medium-severity audit fixes (code quality, per-tool rate limiting, pagination)
+
+---
+
 ## v1.2 3CX Call Log Audit (Shipped: 2026-02-26)
 
 **Delivered:** Automated daily call center audit — 3CX integration, Telegram group search, missing caller alerts, follow-up reminders, and pg_cron scheduling.

@@ -8,20 +8,9 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 
 **Agents can trust SOPHIA to do the right thing every time** — correct templates, correct routing, correct uploads, user-friendly errors, no manual intervention needed.
 
-## Current Milestone: v1.3 Production Audit Fixes
+## Current State (v1.3 Shipped)
 
-**Goal:** Fix critical and high-severity security/reliability issues identified by comprehensive code review audit (Cowork report).
-
-**Target fixes:**
-- 2 critical: password hash truncation, chat creation race condition
-- 5 high security: hardcoded dev URL, tool arg validation, SQL injection audit, admin input limits, email enumeration
-- 3 high reliability: prompt cache race, upload rate limiting, N+1 queries
-
-**Source:** `Sophia-Code-Review-Report.docx` (26 issues total, 8 already fixed, 10 in scope, 8 deferred to v1.4)
-
-## Current State (v1.2 Shipped)
-
-**Shipped:** 2026-02-26
+**Shipped:** 2026-02-28
 
 **Infrastructure:**
 - Supabase Edge Functions: `sophia-bot` (WhatsApp), `call-audit` (3CX audit), `listing-notifier`, `draft-cleanup`
@@ -80,11 +69,13 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 - ALERT-01 to ALERT-05: Alerting logic
 - SCHED-01 to SCHED-05: Scheduling
 
+**v1.3 (shipped 2026-02-28):**
+- SEC-01 to SEC-07: Security fixes (password hash, race conditions, validation, enumeration)
+- REL-01 to REL-03: Reliability fixes (cache race, rate limiting, N+1 queries)
+
 ### Active
 
-**v1.3 Production Audit Fixes:**
-- SEC-01 to SEC-07: Security fixes (password hash, race conditions, SSRF, validation, enumeration)
-- REL-01 to REL-03: Reliability fixes (cache race, rate limiting, N+1 queries)
+(No active milestone — run `/gsd:new-milestone` to start v1.4)
 
 ### Out of Scope
 
@@ -107,7 +98,7 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 - Edge Functions: `sophia-bot/` (~15 files), `call-audit/` (~12 files), `listing-notifier/`, `draft-cleanup/`
 - Prompt files: 7 files with DB ownership headers
 - Migrations: 2 SQL files (call tracking + cron scheduling)
-- 40 plans shipped across 3 milestones
+- 48 plans shipped across 4 milestones
 
 **Known issues:**
 - SOPHIA_ADMIN_SECRET needs to be set for admin endpoints
@@ -145,7 +136,7 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 - **Testing**: Real agent phone numbers from `agents` table
 - **Backwards Compatible**: Changes must not break existing functionality
 
-| Cowork audit → Claude Code pipeline | External review identifies issues, Claude Code fixes them | — Pending |
+| Cowork audit → Claude Code pipeline | External review identifies issues, Claude Code fixes them | Good |
 
 ---
-*Last updated: 2026-02-27 after v1.3 milestone start*
+*Last updated: 2026-02-28 after v1.3 milestone complete*

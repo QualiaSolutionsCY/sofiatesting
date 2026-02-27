@@ -112,44 +112,16 @@ See: `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
 </details>
 
-### 🚧 v1.3 Production Audit Fixes (In Progress)
+<details>
+<summary>v1.3 Production Audit Fixes (Phases 15-17) - SHIPPED 2026-02-28</summary>
 
-**Milestone Goal:** Fix critical and high-severity security/reliability issues from comprehensive code review audit.
+See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
 
-#### Phase 15: Critical Security Fixes ✓
-**Goal**: Critical vulnerabilities and quick wins resolved
-**Depends on**: Phase 14
-**Requirements**: SEC-01, SEC-02, SEC-03, SEC-07
-**Completed**: 2026-02-27
-**Plans**: 2 plans
+- [x] Phase 15: Critical Security Fixes (2/2 plans)
+- [x] Phase 16: Validation Hardening (3/3 plans)
+- [x] Phase 17: Reliability Improvements (3/3 plans)
 
-Plans:
-- [x] 15-01-PLAN.md — Database security fixes (password hash expansion + chat race condition)
-- [x] 15-02-PLAN.md — Configuration security fixes (environment-based URLs + timing-safe responses)
-
-#### Phase 16: Validation Hardening ✓
-**Goal**: Input validation prevents injection attacks and malicious payloads
-**Depends on**: Phase 15
-**Requirements**: SEC-04, SEC-05, SEC-06
-**Completed**: 2026-02-28
-**Plans**: 3 plans
-
-Plans:
-- [x] 16-01-PLAN.md — Tool argument validation with Zod schemas in executor (SEC-04)
-- [x] 16-02-PLAN.md — Fix .or() filter injection in taxonomy-cache + SQL audit (SEC-05)
-- [x] 16-03-PLAN.md — 50KB payload size limit on admin prompt endpoints (SEC-06)
-
-#### Phase 17: Reliability Improvements ✓
-**Goal**: System handles high load and concurrent requests without data corruption
-**Depends on**: Phase 16
-**Requirements**: REL-01, REL-02, REL-03
-**Completed**: 2026-02-28
-**Plans**: 3 plans
-
-Plans:
-- [x] 17-01-PLAN.md — Prompt cache race condition fix using single-inflight-request pattern (REL-01)
-- [x] 17-02-PLAN.md — Per-user rate limiting on file upload endpoint (REL-02)
-- [x] 17-03-PLAN.md — Data export N+1 query fix using Drizzle JOINs (REL-03)
+</details>
 
 ## Progress
 

@@ -2,26 +2,25 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-27)
+See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Agents can trust SOPHIA to do the right thing every time
-**Current focus:** v1.3 Production Audit Fixes
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Milestone: v1.3 Production Audit Fixes
-Phase: Phase 17 (Reliability Improvements) — COMPLETE (3/3 plans)
-Status: All 3 phases complete (cache race + rate limiting + N+1 query fixes)
-Last activity: 2026-02-28 — Completed 17-01-PLAN.md (prompt cache race fix)
+Milestone: v1.3 Production Audit Fixes — COMPLETE
+Phase: All 17 phases shipped
+Status: v1.3 shipped, ready for next milestone
+Last activity: 2026-02-28 — v1.3 milestone complete (3 phases, 8 plans, 10/10 requirements)
 
-Progress: ████████████████████████ 100% (v1.3 - All 3 phases complete, ready to ship)
+Progress: ████████████████████████ 100% (v1.3 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 43
-- Average duration: 60s (v1.3 Phase 17 plans), 2-3min (v1.2 plans)
-- Total execution time: ~4 hours (v1.0 + v1.1) + 20min (v1.2) + 7min (v1.3)
+- Total plans completed: 48
+- Total phases shipped: 17
 
 **By Milestone:**
 
@@ -30,205 +29,21 @@ Progress: ███████████████████████�
 | v1.0 MVP | 1-5 | 10 plans | Shipped 2026-01-27 |
 | v1.1 Reliability | 6-9 | 16 plans | Shipped 2026-01-29 |
 | v1.2 Call Audit | 10-14 | 14 plans | Shipped 2026-02-26 |
-| v1.3 Audit Fixes | 15-17 | TBD | Roadmap created |
-
-**Recent Trend:**
-- v1.0: ~10 plans in 1 day
-- v1.1: 16 plans in 2 days
-- v1.2: 14 plans in 1 day
-- Trend: Stable velocity (~10-15 plans/day)
-
-## Accumulated Context
-
-### Decisions
-
-Recent decisions from PROJECT.md and v1.2 execution:
-
-**Phase 16 Plan 01 (Tool Input Validation):**
-- Zod validation happens before switch statement for early rejection of malicious payloads (SEC-04)
-- Runtime constraints beyond OpenRouter schema: price max 100M, arrays max 100 items, strings have min/max lengths
-- Validation failures return non-retryable errors with detailed issues array for debugging
-- Handlers receive validated data (validArgs) with runtime type guarantees
-
-**Phase 15 Plan 01 (Database Security):**
-- Password column expanded to varchar(255) to accommodate all bcrypt variants and future hash formats
-- onConflictDoNothing() for chat creation leverages existing PRIMARY KEY constraint for race-safe idempotent inserts
-
-**Phase 15 Plan 02 (Configuration Security):**
-- Environment variable with fallback instead of production URL default (maintains backward compatibility while alerting ops team)
-- Documentation-only fix for guest endpoint (endpoint not vulnerable, but docs prevent future mistakes)
-
-**Phase 16 Plan 02 (SQL Injection Audit):**
-- Use separate .eq() queries instead of .or() string interpolation to prevent filter injection
-- Email sanitization allows only valid email characters (alphanumeric, @, ., _, -, +)
-- Audit confirmed all .rpc() calls use object parameters, all .ilike() calls use sanitized input
-- Zero SQL string concatenation detected across sophia-bot (10 queries audited, 1 fixed, 0 remaining)
-
-**Phase 16 Plan 03 (Admin Prompt Size Limits):**
-- Use TextEncoder for byte-accurate size measurement (not string length) to handle multi-byte UTF-8 characters
-- Different validation strategies: PUT validates content field, POST rollback validates entire request body
-- 413 Payload Too Large status follows RFC standard for size limit responses
-
-**Phase 17 Plan 01 (Prompt Cache Race Condition Fix):**
-- Single-inflight-request pattern prevents duplicate DB queries during concurrent cache loads
-- loadingPromise shared across all concurrent getPromptSections calls during cache miss
-- finally block clears loadingPromise on success or failure (prevents stuck state)
-- Concurrent requests wait for same promise instead of triggering N duplicate DB queries
-- Debug log added when concurrent request detected ("waiting for inflight load")
-
-**Phase 17 Plan 02 (File Upload Rate Limiting):**
-- Sliding window rate limiter with in-memory storage (10 req/60s per user)
-- Automatic cleanup every 5 minutes to prevent unbounded memory growth
-- RFC-compliant headers: Retry-After, X-RateLimit-Remaining, X-RateLimit-Reset
-- Rate limit check after auth, before file processing to fail fast
-
-**Phase 17 Plan 03 (Data Export N+1 Query Fix):**
-- Use PostgreSQL json_agg with FILTER instead of Drizzle relational queries (schema lacks relations definition)
-- leftJoin with COALESCE ensures chats without messages return empty array instead of NULL
-- Query optimization pattern: Replace Promise.all(array.map(async)) with leftJoin + json_agg for O(1) instead of O(N+1)
-
-**v1.3 Roadmap Structure:**
-- 3 phases derived from audit severity grouping (critical → validation → reliability)
-- Phase 15: 4 critical/quick security fixes (password hash, chat race, env var, registration)
-- Phase 16: 3 validation hardening fixes (tool args, SQL audit, admin input limits)
-- Phase 17: 3 reliability improvements (cache race, upload rate limiting, N+1 queries)
-- Success criteria: 3-4 observable behaviors per phase (system-level, not user-facing)
-- 100% coverage: All 10 v1.3 requirements mapped to exactly one phase
-
-**Phase 11 (3CX Integration):**
-- Dual authentication support: v18+ REST API with web client API fallback for maximum 3CX version compatibility
-- Multi-endpoint call log extraction: v18+ REST, legacy POST, web client APIs with graceful fallback
-- Cyprus timezone handling: Europe/Nicosia with DST awareness for accurate date range calculation
-- Phone number normalization: Cyprus local/prefixed/international formats → consistent +357/+country format
-- External caller filtering: inbound calls only to target 22032770, exclude internal extensions [70,64,99,801,900]
-- Resilient API parsing: dynamic field mapping for different 3CX response formats (CallerNumber vs caller_number, etc.)
-- Testing modes: ?dry-run=true for auth testing, ?date= for historical queries
-
-**Phase 10 (Call Tracking Infrastructure):**
-- Use unique constraint on audit_date to prevent duplicate daily runs
-- Use unique constraint on (caller_phone, audit_run_id) to prevent duplicate alerts
-- Atomic claiming pattern: INSERT + SELECT single, handle 23505 → return null (not error)
-- Status-based timestamp logic: alerted_at set when status=alerted, resolved_at when status=resolved/ignored
-
-**Phase 12 (Telegram Integration):**
-- Deno Telegram client kept minimal (sendMessage + getChat) -- expand as needed
-- Phone normalization returns multiple variant strings for ilike search
-- Fire-and-forget indexing pattern: indexGroupMessage(msg).catch(() => {})
-- Regional group IDs as placeholders (0) with loud failure guard
-- Alert persistence: send Telegram first, then persist with message_id (non-blocking)
-- Duplicate alert dedup: unique constraint on (phone+date+type) + 23505 catch
-- Batch rate limiting: 1s delay between same-group messages
-- Response parsing priority: phone number > found keyword > not_found keyword > unknown
-- Dual-runtime pattern: Deno service + Node.js mirror for response tracking
-- Graceful skip on unconfigured VASYA_TELEGRAM_USER_ID (0 -> return false)
-- Alert response check runs before lead routing in handleGroupMessage
-
-**Phase 14 (Scheduling & Orchestration):**
-- invoke_call_audit() wrapper function for execution logging instead of inline SQL
-- pg_net fire-and-forget; actual result tracking stays in call_audit_runs table
-- 3-arg cron.schedule (pg_cron 1.6.4 on Supabase lacks timezone column; use UTC schedule instead)
-- 30-day log retention with weekly cleanup job
-- x-cron header convention for distinguishing automated vs manual invocations
-
-**Phase 13 (Alerting Logic) - All Plans:**
-- Pipeline orchestration with per-caller error isolation
-- Graceful degradation on unconfigured Telegram IDs (skip with warning)
-- Atomic audit run claiming with duplicate detection (23505 → return null)
-- Pipeline handles all errors internally, always returns JSON result
-- Rate limiting: 1s delay between alert sends for Telegram API compliance
-- Follow-up threshold: 24 hours (balances urgency with avoiding spam)
-- Follow-ups run AFTER completing audit (Step 7) so current day's stats are saved
-- Individual follow-up send failures don't abort batch (maximize delivery)
-- ?follow-up-only=true endpoint for independent testing/debugging
-- Call time flow: 3CX entries → callTimeMap → MissingCallerInfo (display) + caller_alerts (storage)
-- Store call_time as nullable TIMESTAMPTZ in caller_alerts (allows NULL for historical alerts)
-- Keep earliest call time per phone when multiple calls exist (most relevant timestamp)
-- Format call times as HH:MM in Cyprus timezone for display (business hours context)
-- Fallback to current timestamp if call time unavailable (better than "Unknown")
-- **Response tracking unification (Plan 05):** Single-table alert state (caller_alerts owns full lifecycle)
-- Map audit_alerts "pending" → caller_alerts "alerted" (NOT "pending" which means pre-alert)
-- Store alert_message_id as TEXT (not BIGINT) consistent with caller_alerts schema
-- telegram-alerts.ts contains only formatting + sending functions (zero DB operations)
-- Both Deno and Node.js response trackers write to caller_alerts with identical field mapping
-- chat_id column added to caller_alerts for response lookup by (alert_message_id, chat_id) pair
-
-**Previous milestones:**
-- v1.1: DB prompts take precedence over files (enables live editing)
-- v1.1: Structured logging with correlation IDs (will help debug audit runs)
-- v1.0: Region-based routing (pattern to reuse for Telegram group search)
-
-Full decision log in PROJECT.md Key Decisions table.
-
-### Pending Todos
-
-**v1.3 Execution:**
-- Plan Phase 15 (Critical Security Fixes)
-- Execute Phase 15 plans
-- Plan Phase 16 (Validation Hardening)
-- Execute Phase 16 plans
-- Plan Phase 17 (Reliability Improvements)
-- Execute Phase 17 plans
-
-### Blockers/Concerns
-
-**Before Phase 11 (3CX Integration):**
-- ~~Apply database migration~~ — DONE (applied via MCP 2026-02-26)
-- Need 3CX credentials and web interface URL from Fawzi
-- Need confirmation of target phone number (22032770) and internal extensions list
-- May need to test 3CX web scraping approach on live system
-
-**Before Phase 12 (Telegram Integration):**
-- Need Telegram group chat IDs for 4 regional groups
-- Need "Zypress Others" group chat ID for alerts
-- Need Vasya's Telegram user ID for response tracking
-
-**Before Phase 14 (Scheduling):**
-- ~~Confirm Cyprus timezone handling (EEST/EET with DST transitions)~~ — DONE (pg_cron 1.6.4 lacks timezone; using UTC schedule)
-- ~~Verify pg_cron is available on Supabase project~~ — DONE (pg_cron 1.6.4 + pg_net enabled)
-
-**3CX Integration:**
-- 3CX server SSL certificate EXPIRED — prevents Edge Function from connecting
-- Once cert is renewed, run: `curl -s "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/call-audit?dry-run=true"`
-
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 1 | Fix all things blocking Sophia from uploading a listing | 2026-02-26 | c630845 | [1-fix-all-things-blocking-sophia-from-uplo](./quick/1-fix-all-things-blocking-sophia-from-uplo/) |
-| 2 | Set up 3CX credentials and pg_cron for call-audit | 2026-02-26 | 95b0e14 | [2-set-up-3cx-credentials-and-pg-cron-for-a](./quick/2-set-up-3cx-credentials-and-pg-cron-for-a/) |
-| 3 | Fix top 5 critical issues & re-enable prompt caching | 2026-02-27 | dfacc18 | [3-fix-top-5-critical-issues-re-enable-prom](./quick/3-fix-top-5-critical-issues-re-enable-prom/) |
-| 4 | Fix 3 security issues (service role key, auth, index) | 2026-02-27 | 3de3c93 | [4-fix-3-security-issues-service-role-key-s](./quick/4-fix-3-security-issues-service-role-key-s/) |
-| 5 | Fix tool execution timeout budget and add tests | 2026-02-27 | f505bf5 | [5-fix-tool-execution-timeout-budget-and-ad](./quick/5-fix-tool-execution-timeout-budget-and-ad/) |
-| 6 | Refactor tool executor monolith into focused modules | 2026-02-27 | 2c7e028 | [6-refactor-tool-executor-monolith-into-foc](./quick/6-refactor-tool-executor-monolith-into-foc/) |
-| 7 | Implement land listing support (createLandListing) | 2026-02-27 | d3fbc40 | [7-implement-land-listing-support-createlan](./quick/7-implement-land-listing-support-createlan/) |
+| v1.3 Audit Fixes | 15-17 | 8 plans | Shipped 2026-02-28 |
 
 ## Session Continuity
 
-Last activity: 2026-02-28 - Phase 17 COMPLETE (3/3 plans)
-Stopped at: v1.3 milestone complete, ready to ship
-Resume file: .planning/phases/17-reliability-improvements/17-01-SUMMARY.md
+Last activity: 2026-02-28 — v1.3 milestone complete
+Stopped at: Milestone archived, ready for /gsd:new-milestone
 
 **Recent work:**
-- Phase 17 complete: Reliability Improvements (3 plans, 3 commits)
-  - Plan 01: Prompt cache race fix (64s, 1 commit, single-inflight-request pattern)
-  - Plan 02: File upload rate limiting (53s, 1 commit, sliding window limiter)
-  - Plan 03: Data export N+1 query fix (43s, 1 commit, query optimization)
-- Phase 16 complete: Validation Hardening (3 plans, 10 commits, SEC-04/05/06 verified)
-  - Plan 01: Zod tool validation (schemas.ts + validation.ts + executor integration)
-  - Plan 02: SQL injection fix (taxonomy-cache .or() → .eq(), full audit)
-  - Plan 03: Admin prompt 50KB limits (PUT + POST rollback endpoints)
-- Phase 15 Plan 01: Database security fixes (2min, 2 commits, password hash + chat race condition)
-- Phase 15 Plan 02: Configuration security fixes (1min, 2 commits, 2 files modified)
-- v1.3 Roadmap: 3 phases (15-17) mapped from 10 requirements with 100% coverage
-- Quick task 7: Land listing support (8 min, 3 commits, 1,680 lines added, 7 files modified)
-- Quick task 6: Tool executor refactor (7 min, 3 commits, 1,929 → 139 lines, sophia-bot deployed)
-- Quick task 5: Time budget tracking + 40 tests (2 min, 2 commits, sophia-bot deployed)
-- Quick task 4: 3 security fixes (6 min, 3 commits, 23 files modified)
-- Quick task 3: 5 critical fixes + 51 tests (4 min, 2 commits, 2 Edge Functions deployed)
-- Quick task 2: 3CX credentials + pg_cron scheduling (10 min, 2 commits)
-- Quick task 1: Fix Sophia listing upload blocking issues
+- v1.3 milestone complete: 3 phases, 8 plans, 10/10 requirements, 31 commits
+- Phase 17: Reliability improvements (cache race, rate limiting, N+1 fix)
+- Phase 16: Validation hardening (Zod schemas, SQL audit, payload limits)
+- Phase 15: Critical security fixes (password hash, chat race, env var, timing-safe auth)
+- Deployed: sophia-bot to Supabase, web app to Vercel
 - v1.2 milestone archived (5 phases, 14 plans, 57 commits)
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-02-28 after Phase 16 execution complete*
+*Last updated: 2026-02-28 after v1.3 milestone complete*
