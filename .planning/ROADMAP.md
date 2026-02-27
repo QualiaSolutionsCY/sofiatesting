@@ -135,11 +135,12 @@ Plans:
   1. Tool executor validates all tool arguments against Zod schemas before execution
   2. All database queries use parameterized queries (no raw SQL string concatenation)
   3. Admin prompt update endpoints reject payloads exceeding 50KB with proper error response
-**Plans**: TBD
+**Plans**: 3
 
 Plans:
-- [ ] 16-01: TBD
-- [ ] 16-02: TBD
+- [ ] 16-01-PLAN.md — Tool argument validation with Zod schemas in executor (SEC-04)
+- [ ] 16-02-PLAN.md — Fix .or() filter injection in taxonomy-cache + SQL audit (SEC-05)
+- [ ] 16-03-PLAN.md — 50KB payload size limit on admin prompt endpoints (SEC-06)
 
 #### Phase 17: Reliability Improvements
 **Goal**: System handles high load and concurrent requests without data corruption
