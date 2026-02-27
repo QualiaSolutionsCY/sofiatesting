@@ -33,28 +33,62 @@ const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
+ * Sanitize email input for use in filter queries
+ * Prevents filter injection by only allowing valid email characters
+ */
+function sanitizeEmailForFilter(email: string): string {
+  // Only allow alphanumeric, @, ., _, -, and +
+  return email.replace(/[^a-zA-Z0-9@._+-]/g, '').toLowerCase().trim();
+}
+
+/**
  * Lookup agent's Zyprus UUID from Supabase agents table
  * Returns null if not found or no zyprus_user_id set
  */
 async function lookupAgentFromSupabase(email: string): Promise<string | null> {
+  // Sanitize email to prevent filter injection
+  const sanitizedEmail = sanitizeEmailForFilter(email);
+  if (!sanitizedEmail || !sanitizedEmail.includes('@')) {
+    logger.debug(`[Taxonomy] Invalid email format`, { category: LogCategory.ZYPRUS });
+    return null;
+  }
+
   try {
-    const { data, error } = await supabase
+    // Use separate queries to avoid filter injection with .or() string interpolation
+    // First try listing_owner_email
+    const { data: ownerData, error: ownerError } = await supabase
       .from("agents")
       .select("zyprus_user_id, full_name")
-      .or(`listing_owner_email.ilike.${email},communication_email.ilike.${email}`)
+      .eq("listing_owner_email", sanitizedEmail)
       .eq("is_active", true)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
-    if (error || !data) {
-      return null;
+    if (!ownerError && ownerData && ownerData.zyprus_user_id) {
+      logger.debug(`[Taxonomy] Found agent "${ownerData.full_name}" in Supabase with Zyprus UUID: ${ownerData.zyprus_user_id}`);
+      return ownerData.zyprus_user_id;
     }
 
-    if (data.zyprus_user_id) {
-      logger.debug(`[Taxonomy] Found agent "${data.full_name}" in Supabase with Zyprus UUID: ${data.zyprus_user_id}`);
-      return data.zyprus_user_id;
+    // Then try communication_email
+    const { data: commData, error: commError } = await supabase
+      .from("agents")
+      .select("zyprus_user_id, full_name")
+      .eq("communication_email", sanitizedEmail)
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+
+    if (!commError && commData && commData.zyprus_user_id) {
+      logger.debug(`[Taxonomy] Found agent "${commData.full_name}" in Supabase with Zyprus UUID: ${commData.zyprus_user_id}`);
+      return commData.zyprus_user_id;
     }
 
-    logger.debug(`[Taxonomy] Agent "${data.full_name}" found but no zyprus_user_id set`);
+    // Check if we found an agent without zyprus_user_id
+    if ((ownerData && !ownerData.zyprus_user_id) || (commData && !commData.zyprus_user_id)) {
+      const agentData = ownerData || commData;
+      logger.debug(`[Taxonomy] Agent "${agentData!.full_name}" found but no zyprus_user_id set`);
+    }
+
     return null;
   } catch (err) {
     logger.error("[Taxonomy] Error looking up agent from Supabase", err instanceof Error ? err : new Error(String(err)), { category: LogCategory.ZYPRUS });
