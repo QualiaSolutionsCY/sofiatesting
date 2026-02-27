@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { auth } from "@/app/(auth)/auth";
 import { createLogger } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 
 const logger = createLogger("api:files:upload");
 
@@ -25,6 +26,25 @@ export async function POST(request: Request) {
 
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Apply rate limiting
+  const { allowed, remaining, resetAt } = rateLimit(session.user.id);
+  if (!allowed) {
+    return NextResponse.json(
+      {
+        error: "Rate limit exceeded",
+        retryAfter: Math.ceil((resetAt - Date.now()) / 1000),
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((resetAt - Date.now()) / 1000)),
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": String(Math.floor(resetAt / 1000)),
+        },
+      }
+    );
   }
 
   if (request.body === null) {
@@ -58,7 +78,12 @@ export async function POST(request: Request) {
         access: "public",
       });
 
-      return NextResponse.json(data);
+      return NextResponse.json(data, {
+        headers: {
+          "X-RateLimit-Remaining": String(remaining),
+          "X-RateLimit-Reset": String(Math.floor(resetAt / 1000)),
+        },
+      });
     } catch (error) {
       logger.error("Blob upload error", error, {
         filename,
