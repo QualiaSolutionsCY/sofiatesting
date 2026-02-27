@@ -13,6 +13,7 @@ import {
   lt,
   type SQL,
 } from "drizzle-orm";
+import { onConflictDoNothing } from "drizzle-orm/pg-core";
 import type { ArtifactKind } from "@/components/artifact";
 import type { VisibilityType } from "@/components/visibility-selector";
 import { ChatSDKError } from "../errors";
@@ -103,7 +104,7 @@ export async function saveChat({
       userId,
       title,
       visibility,
-    });
+    }).onConflictDoNothing();
   } catch (error) {
     log.error("Failed to save chat", error, { chatId: id, userId });
     throw new ChatSDKError("bad_request:database", "Failed to save chat");
