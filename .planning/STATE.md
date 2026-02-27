@@ -141,7 +141,7 @@ None yet (v1.2 just started).
 | 3 | Fix top 5 critical issues & re-enable prompt caching | 2026-02-27 | dfacc18 | [3-fix-top-5-critical-issues-re-enable-prom](./quick/3-fix-top-5-critical-issues-re-enable-prom/) |
 | 4 | Fix 3 security issues (service role key, auth, index) | 2026-02-27 | 3de3c93 | [4-fix-3-security-issues-service-role-key-s](./quick/4-fix-3-security-issues-service-role-key-s/) |
 | 5 | Fix tool execution timeout budget and add tests | 2026-02-27 | f505bf5 | [5-fix-tool-execution-timeout-budget-and-ad](./quick/5-fix-tool-execution-timeout-budget-and-ad/) |
-| 6 | Refactor tool executor monolith into focused components | 2026-02-27 | 9aa9934 | [6-refactor-tool-executor-monolith-into-foc](./quick/6-refactor-tool-executor-monolith-into-foc/) |
+| 6 | Refactor tool executor monolith into focused modules | 2026-02-27 | 2c7e028 | [6-refactor-tool-executor-monolith-into-foc](./quick/6-refactor-tool-executor-monolith-into-foc/) |
 
 ## Session Continuity
 
