@@ -373,7 +373,25 @@ export async function chat(
   const currentMessages = [...openrouterMessages];
   const toolsUsed: string[] = [];
 
+  // Edge Function timeout is 120s - use 90s budget with 30s buffer for response generation
+  const TIME_BUDGET_MS = 90_000;
+  const startTime = Date.now();
+
   while (toolCallCount < maxToolCalls) {
+    // Check time budget before each iteration
+    const elapsedMs = Date.now() - startTime;
+    if (elapsedMs > TIME_BUDGET_MS) {
+      logger.warn(
+        `Tool execution loop exceeded time budget (${elapsedMs}ms > ${TIME_BUDGET_MS}ms) after ${toolCallCount} tool calls`,
+        { category: LogCategory.GENERAL }
+      );
+      return {
+        response: "I'm taking longer than expected to complete this task. Please try again, and I'll work more efficiently.",
+        success: true, // Graceful degradation, not a failure
+        toolsUsed
+      };
+    }
+
     const { message, error } = await callOpenRouter(
       currentMessages,
       tools,
@@ -531,6 +549,17 @@ export async function chat(
 
     // ANTI-HALLUCINATION FIX: If upload intent detected but no tool called, force retry with tool_choice: "required"
     if (isPropertyUploadIntent && toolCallCount === 0 && imageUrls.length > 0) {
+      // Check budget before force retry
+      const elapsedMs = Date.now() - startTime;
+      if (elapsedMs > TIME_BUDGET_MS) {
+        logger.warn(
+          `Skipping force retry - time budget exceeded (${elapsedMs}ms > ${TIME_BUDGET_MS}ms)`,
+          { category: LogCategory.GENERAL }
+        );
+        // Return current response without retry
+        return { response: aiResponse, success: true, toolsUsed };
+      }
+
       logger.info("[FORCE TOOL] Upload intent with images but no tool call - forcing retry with required tool_choice", { category: LogCategory.GENERAL });
 
       const { message: retryMessage } = await callOpenRouter(currentMessages, tools, "required");
