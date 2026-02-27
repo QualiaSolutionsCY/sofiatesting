@@ -558,6 +558,7 @@ export async function handleWebhook(
 
   // Image-only messages: images are already stored in pending_images by extractMessage().
   // Skip AI processing - the AI will see accumulated images when the next TEXT message arrives.
+  // BUT still save to chat_history so the AI has conversation continuity.
   const isImageOnlyMessage = sanitizedMessage === "[User sent image(s)]" ||
                              sanitizedMessage === "[User sent image(s) but decryption failed]";
   if (isImageOnlyMessage) {
@@ -565,6 +566,13 @@ export async function handleWebhook(
       category: LogCategory.IMAGE,
       phoneNumber,
     });
+    // Save to chat_history so AI context isn't lost (fixes zero-history issue for image-heavy users)
+    await addMessage(remoteJid, "user", sanitizedMessage).catch((err) =>
+      logger.warn("Failed to save image-only message to chat_history", {
+        category: LogCategory.IMAGE,
+        error: String(err),
+      })
+    );
     return new Response("OK", { status: 200 });
   }
 

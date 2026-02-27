@@ -69,9 +69,8 @@ export async function handleCreatePropertyListing(
   // Uses property fingerprint (agent+location+price+owner) so different properties can upload in parallel
   // DB lock is atomic — only ONE concurrent Edge Function invocation wins
   const agentPhone = agent.mobile?.replace(/\D/g, "") || "";
-  // Per-agent lock (not per-property) — prevents race conditions where parallel AI calls
-  // generate slightly different location names and bypass the fingerprint-based lock
-  const propertyLockKey = `upload:${agentPhone}`;
+  // Per-property lock — agent+location+price+owner fingerprint so different properties can upload in parallel
+  const propertyLockKey = `upload:${agentPhone}:${(args.location as string || '').toLowerCase()}:${args.price}:${(args.ownerPhone as string || '').slice(-6)}`;
   const lockResult = await acquireUploadLock(propertyLockKey, agentPhone);
   if (!lockResult.acquired) {
     logger.warn("Upload blocked by DB lock - duplicate upload in progress", {
@@ -86,18 +85,18 @@ export async function handleCreatePropertyListing(
     };
   }
 
-  // 1.6 Check listing_uploads for recent duplicates (informational only - never blocks)
+  // 1.6 Check listing_uploads for recent duplicates — BLOCKS upload if match found within 24 hours
   let potentialDuplicateNote = "";
 
   const sb = createClient(supabaseUrl, supabaseKey);
 
   {
-    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { data: recentUploads } = await sb
       .from("listing_uploads")
       .select("id, property_title, created_at, zyprus_listing_id")
       .eq("agent_phone", agentPhone)
-      .gte("created_at", twoHoursAgo)
+      .gte("created_at", twentyFourHoursAgo)
       .order("created_at", { ascending: false })
       .limit(5);
 
@@ -107,14 +106,20 @@ export async function handleCreatePropertyListing(
         locationLower && (p.property_title as string || "").toLowerCase().includes(locationLower)
       );
       if (match) {
+        const minutesAgo = Math.round((Date.now() - new Date(match.created_at as string).getTime()) / 60000);
         potentialDuplicateNote = `POTENTIAL DUPLICATE - similar listing exists: ${match.property_title} (${match.zyprus_listing_id})`;
-        logger.warn("Potential duplicate detected - proceeding with upload anyway", {
+        logger.warn("Duplicate detected - blocking upload", {
           category: LogCategory.TOOL,
           operation: "createPropertyListing",
           existingId: match.zyprus_listing_id,
           existingTitle: match.property_title,
+          minutesAgo,
           agentPhone,
         });
+        return {
+          needsInput: true,
+          question: `This property was already uploaded ${minutesAgo < 60 ? `${minutesAgo} minutes` : `${Math.round(minutesAgo / 60)} hours`} ago: "${match.property_title}" (${match.zyprus_listing_id}). If you want to upload it again, please confirm by saying "upload anyway".`,
+        };
       }
     }
   }

@@ -1283,19 +1283,20 @@ function buildJsonApiPayloadLand(
     attributes.field_height = listing.maxHeight;
   }
 
-  // field_property_notes: Location URL goes here
+  // field_notes: Land uses field_notes (object with value), not field_property_notes (that's for properties)
   if (listing.myNotes) {
-    attributes.field_property_notes = listing.myNotes;
+    attributes.field_notes = { value: listing.myNotes };
   }
 
-  // Coordinates (with privacy offset)
+  // Coordinates (with privacy offset) — match property listing format + Postman spec
   if (listing.coordinates) {
     const offsetCoords = addPrivacyOffset(listing.coordinates);
     attributes.field_map = {
       value: `POINT (${offsetCoords.lon} ${offsetCoords.lat})`,
-      geo_type: "point",
+      geo_type: "Point",
       lat: offsetCoords.lat,
       lon: offsetCoords.lon,
+      latlon: `${offsetCoords.lat},${offsetCoords.lon}`,
     };
   }
 

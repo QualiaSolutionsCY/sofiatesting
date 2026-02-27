@@ -135,6 +135,13 @@ export function isStreetAddress(location: string): boolean {
     if (words.length >= 3) return true;
   }
 
+  // Known street names — checked before heuristic suffix detection
+  const knownStreets = [
+    "apostolou pavlou", "michali sougioul", "georgiou griva",
+    "archbishop makarios", "spyrou kyprianou", "makarios iii",
+    "grivas digenis", "evagora pallikaridi", "nikodimou mylona",
+  ];
+
   // CRITICAL: Detect Greek street name patterns extracted from Google Maps URLs
   // Google Maps uses "Street Name, District" format in /place/ path
   // Common pattern: Two-word name + district (e.g., "Michali Sougioul, Limassol")
@@ -143,6 +150,12 @@ export function isStreetAddress(location: string): boolean {
   const parts = location.split(",").map(p => p.trim());
   if (parts.length >= 2) {
     const firstPart = parts[0].toLowerCase();
+
+    // Check known streets blocklist first
+    if (knownStreets.some(street => firstPart.includes(street))) {
+      return true;
+    }
+
     const firstWords = firstPart.split(/\s+/);
 
     // Two-word name patterns that suggest street names (Greek personal names)
@@ -150,7 +163,7 @@ export function isStreetAddress(location: string): boolean {
     if (firstWords.length === 2) {
       // If both words look like Greek names (common suffixes), likely a street
       const looksLikeGreekName = (word: string) => {
-        const endings = ['ou', 'os', 'is', 'as', 'es', 'oul', 'ios', 'ias', 'eas', 'akis'];
+        const endings = ['ou', 'os', 'is', 'as', 'es', 'i', 'oul', 'ios', 'ias', 'eas', 'akis'];
         return endings.some(e => word.toLowerCase().endsWith(e));
       };
 
