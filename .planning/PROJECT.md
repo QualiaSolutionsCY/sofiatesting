@@ -8,6 +8,17 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 
 **Agents can trust SOPHIA to do the right thing every time** — correct templates, correct routing, correct uploads, user-friendly errors, no manual intervention needed.
 
+## Current Milestone: v1.3 Production Audit Fixes
+
+**Goal:** Fix critical and high-severity security/reliability issues identified by comprehensive code review audit (Cowork report).
+
+**Target fixes:**
+- 2 critical: password hash truncation, chat creation race condition
+- 5 high security: hardcoded dev URL, tool arg validation, SQL injection audit, admin input limits, email enumeration
+- 3 high reliability: prompt cache race, upload rate limiting, N+1 queries
+
+**Source:** `Sophia-Code-Review-Report.docx` (26 issues total, 8 already fixed, 10 in scope, 8 deferred to v1.4)
+
 ## Current State (v1.2 Shipped)
 
 **Shipped:** 2026-02-26
@@ -71,7 +82,9 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 
 ### Active
 
-(No active milestone — run `/gsd:new-milestone` to start next)
+**v1.3 Production Audit Fixes:**
+- SEC-01 to SEC-07: Security fixes (password hash, race conditions, SSRF, validation, enumeration)
+- REL-01 to REL-03: Reliability fixes (cache race, rate limiting, N+1 queries)
 
 ### Out of Scope
 
@@ -82,6 +95,11 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 | Circuit breaker pattern | Retry logic sufficient |
 | External logging services | Supabase dashboard sufficient |
 | Real-time dashboards | Manual review sufficient |
+| Code deduplication across channels (WA-013) | Deferred to v1.4 — refactoring, not security |
+| Per-tool rate limiting (EF-008) | Deferred to v1.4 — medium severity |
+| CSRF protection (WA-010) | Deferred to v1.4 — medium severity |
+| Pagination limits (WA-012) | Deferred to v1.4 — medium severity |
+| Hardcoded UUIDs (WA-014) | Deferred to v1.4 — medium severity |
 
 ## Context
 
@@ -127,5 +145,7 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 - **Testing**: Real agent phone numbers from `agents` table
 - **Backwards Compatible**: Changes must not break existing functionality
 
+| Cowork audit → Claude Code pipeline | External review identifies issues, Claude Code fixes them | — Pending |
+
 ---
-*Last updated: 2026-02-26 after v1.2 milestone completion*
+*Last updated: 2026-02-27 after v1.3 milestone start*
