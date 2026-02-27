@@ -11,10 +11,10 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 
 Milestone: v1.3 Production Audit Fixes
 Phase: Phase 16 (Validation Hardening) — IN PROGRESS
-Status: Phase 16 Plan 03 complete
-Last activity: 2026-02-27 — Completed 16-03 (Admin Prompt Size Limits)
+Status: Phase 16 Plan 02 complete
+Last activity: 2026-02-28 — Completed 16-02 (SQL Injection Audit)
 
-Progress: ████████░░░░░░░░░░░░░░░░░ 33% (v1.3 - Phase 15 complete, Phase 16: 1/3 plans done)
+Progress: ████████░░░░░░░░░░░░░░░░░ 35% (v1.3 - Phase 15 complete, Phase 16: 2/3 plans done)
 
 ## Performance Metrics
 
@@ -51,6 +51,12 @@ Recent decisions from PROJECT.md and v1.2 execution:
 **Phase 15 Plan 02 (Configuration Security):**
 - Environment variable with fallback instead of production URL default (maintains backward compatibility while alerting ops team)
 - Documentation-only fix for guest endpoint (endpoint not vulnerable, but docs prevent future mistakes)
+
+**Phase 16 Plan 02 (SQL Injection Audit):**
+- Use separate .eq() queries instead of .or() string interpolation to prevent filter injection
+- Email sanitization allows only valid email characters (alphanumeric, @, ., _, -, +)
+- Audit confirmed all .rpc() calls use object parameters, all .ilike() calls use sanitized input
+- Zero SQL string concatenation detected across sophia-bot (10 queries audited, 1 fixed, 0 remaining)
 
 **Phase 16 Plan 03 (Admin Prompt Size Limits):**
 - Use TextEncoder for byte-accurate size measurement (not string length) to handle multi-byte UTF-8 characters
@@ -174,11 +180,12 @@ Full decision log in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last activity: 2026-02-27 - Completed Phase 16 Plan 03
-Stopped at: .planning/phases/16-validation-hardening/16-03-SUMMARY.md
-Resume file: .planning/phases/16-validation-hardening/16-03-SUMMARY.md
+Last activity: 2026-02-28 - Completed Phase 16 Plan 02
+Stopped at: .planning/phases/16-validation-hardening/16-02-SUMMARY.md
+Resume file: .planning/phases/16-validation-hardening/16-02-SUMMARY.md
 
 **Recent work:**
+- Phase 16 Plan 02: SQL injection audit (2min, 2 commits, 1 file modified)
 - Phase 16 Plan 03: Admin prompt size limits (1min, 2 commits, 2 files modified)
 - Phase 15 Plan 01: Database security fixes (2min, 2 commits, password hash + chat race condition)
 - Phase 15 Plan 02: Configuration security fixes (1min, 2 commits, 2 files modified)
@@ -194,4 +201,4 @@ Resume file: .planning/phases/16-validation-hardening/16-03-SUMMARY.md
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-02-27 after Phase 16 Plan 03 completion*
+*Last updated: 2026-02-28 after Phase 16 Plan 02 completion*
