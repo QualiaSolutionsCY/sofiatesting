@@ -660,7 +660,7 @@ export async function handleCreateLandListing(
       agent.fullName,
       listingTitle,
       result.listingUrl,
-    ).catch(() => {}); // Swallow errors — tracking is non-critical
+    ).catch((err) => logger.warn("Failed to track listing upload (non-critical)", { category: LogCategory.TOOL, error: String(err) }));
 
     // Clear pending images and documents
     if (agentPhone) {

@@ -917,7 +917,7 @@ export async function handleCreatePropertyListing(
       agent.fullName,
       propertyTitle,
       result.listingUrl,
-    ).catch(() => {}); // Swallow errors — tracking is non-critical
+    ).catch((err) => logger.warn("Failed to track listing upload (non-critical)", { category: LogCategory.TOOL, error: String(err) }));
   } catch (createError) {
     const err = createError instanceof Error ? createError : new Error(String(createError));
     const errorType = classifyError(err);

@@ -369,8 +369,8 @@ export const TAXONOMY_CACHE_TTL_MS = 60 * 60 * 1000;
 /** Taxonomy stale TTL - serve stale while refreshing in background (2 hours) */
 export const TAXONOMY_STALE_TTL_MS = 2 * 60 * 60 * 1000;
 
-/** Upload lock duration to prevent parallel uploads (30 seconds) */
-export const UPLOAD_LOCK_DURATION_MS = 30000;
+/** Upload lock duration to prevent parallel uploads (2 minutes — listing creation with image uploads can exceed 30s) */
+export const UPLOAD_LOCK_DURATION_MS = 120_000;
 
 /** Prompt cache TTL in milliseconds (5 minutes) */
 export const PROMPT_CACHE_TTL_MS = 5 * 60 * 1000;

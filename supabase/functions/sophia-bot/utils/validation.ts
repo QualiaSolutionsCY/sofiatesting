@@ -103,6 +103,47 @@ export function sanitizeUserInput(message: string, maxLength = 5000): string {
 }
 
 /**
+ * Sanitize AI output before sending to WhatsApp.
+ * Strips suspicious URLs and patterns that could indicate prompt injection
+ * leaking through the AI's response. Non-destructive — only removes the
+ * dangerous parts, leaves the rest of the message intact.
+ */
+export function sanitizeAiOutput(response: string): string {
+  let sanitized = response;
+
+  // Strip URLs that aren't from trusted domains
+  // Trusted: zyprus.com, google.com (maps), whatsapp.com, supabase.co
+  const urlRegex = /https?:\/\/[^\s)>\]]+/gi;
+  sanitized = sanitized.replace(urlRegex, (url) => {
+    try {
+      const hostname = new URL(url).hostname.toLowerCase();
+      const trusted = [
+        "zyprus.com", "www.zyprus.com",
+        "google.com", "www.google.com", "maps.google.com", "goo.gl",
+        "whatsapp.com", "wa.me",
+        "supabase.co",
+      ];
+      if (trusted.some(d => hostname === d || hostname.endsWith("." + d))) {
+        return url; // Keep trusted URLs
+      }
+      return "[link removed]";
+    } catch {
+      return "[link removed]";
+    }
+  });
+
+  // Strip any leaked system prompt markers
+  sanitized = sanitized.replace(/---\s*system\s*prompt\s*---/gi, "");
+  sanitized = sanitized.replace(/\[SYSTEM\]/gi, "");
+
+  // Strip instruction override language that shouldn't appear in output
+  sanitized = sanitized.replace(/ignore\s+(all\s+)?previous\s+instructions/gi, "");
+  sanitized = sanitized.replace(/disregard\s+(all\s+)?previous\s+instructions/gi, "");
+
+  return sanitized.trim();
+}
+
+/**
  * Validates webhook payload has expected structure
  * Returns true if payload appears to be a valid WaSend webhook
  */

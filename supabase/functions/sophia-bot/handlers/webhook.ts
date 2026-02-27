@@ -20,6 +20,7 @@ import {
 import {
   validatePhoneNumber,
   sanitizeUserInput,
+  sanitizeAiOutput,
   validateWebhookPayload,
 } from "../utils/validation.ts";
 import { checkRateLimit } from "../utils/rate-limiter.ts";
@@ -222,7 +223,8 @@ async function processRequest(
       return;
     }
 
-    const aiResponse = aiResult.response;
+    // Sanitize AI output before sending to WhatsApp (strip untrusted URLs, injection markers)
+    const aiResponse = sanitizeAiOutput(aiResult.response);
 
     // Add AI response to database
     await addMessage(userId, "model", aiResponse);

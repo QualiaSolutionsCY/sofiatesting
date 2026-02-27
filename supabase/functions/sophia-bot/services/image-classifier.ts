@@ -11,6 +11,32 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const VISION_MODEL = "google/gemini-3.1-pro-preview-customtools";
 const VISION_TIMEOUT_MS = 15_000;
 
+/** Block private/internal IPs and cloud metadata endpoints to prevent SSRF */
+function isUnsafeUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    // Must be https (or http for dev, but block internal)
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return true;
+    const hostname = parsed.hostname.toLowerCase();
+    // Block cloud metadata endpoints
+    if (hostname === "169.254.169.254" || hostname === "metadata.google.internal") return true;
+    // Block loopback
+    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]") return true;
+    // Block private RFC 1918 ranges
+    const ipMatch = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+    if (ipMatch) {
+      const [, a, b] = ipMatch.map(Number);
+      if (a === 10) return true;                          // 10.0.0.0/8
+      if (a === 172 && b >= 16 && b <= 31) return true;  // 172.16.0.0/12
+      if (a === 192 && b === 168) return true;            // 192.168.0.0/16
+      if (a === 169 && b === 254) return true;            // 169.254.0.0/16 (link-local)
+    }
+    return false;
+  } catch {
+    return true; // Malformed URL = unsafe
+  }
+}
+
 interface ClassificationResult {
   titleDeedIndices: number[];
   floorPlanIndices: number[];
@@ -44,17 +70,36 @@ export async function classifyImagesWithVision(imageUrls: string[]): Promise<Cla
     return EMPTY_RESULT;
   }
 
+  // SSRF protection: filter out unsafe URLs before sending to vision API
+  const safeUrls = imageUrls.filter((url, idx) => {
+    if (isUnsafeUrl(url)) {
+      logger.warn("Blocked unsafe URL from vision classification (SSRF protection)", {
+        category: LogCategory.IMAGE,
+        operation: "classifyImages",
+        index: idx,
+        urlPreview: url.substring(0, 80),
+      });
+      return false;
+    }
+    return true;
+  });
+
+  if (safeUrls.length < 2) {
+    return EMPTY_RESULT;
+  }
+
   logger.info("Starting vision classification", {
     category: LogCategory.IMAGE,
     operation: "classifyImages",
-    imageCount: imageUrls.length,
+    imageCount: safeUrls.length,
+    filteredCount: imageUrls.length - safeUrls.length,
   });
 
   const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
     { type: "text", text: CLASSIFICATION_PROMPT },
   ];
 
-  for (const url of imageUrls) {
+  for (const url of safeUrls) {
     content.push({ type: "image_url", image_url: { url } });
   }
 
@@ -102,13 +147,21 @@ export async function classifyImagesWithVision(imageUrls: string[]): Promise<Cla
     }
 
     const parsed = JSON.parse(rawText);
+    if (!parsed || !parsed.classifications) {
+      logger.warn("Vision API returned malformed JSON — no classifications field", {
+        category: LogCategory.IMAGE,
+        operation: "classifyImages",
+        rawPreview: rawText.substring(0, 200),
+      });
+      return EMPTY_RESULT;
+    }
     const classifications: string[] = parsed.classifications;
 
-    if (!Array.isArray(classifications) || classifications.length !== imageUrls.length) {
+    if (!Array.isArray(classifications) || classifications.length !== safeUrls.length) {
       logger.warn("Vision classification count mismatch", {
         category: LogCategory.IMAGE,
         operation: "classifyImages",
-        expected: imageUrls.length,
+        expected: safeUrls.length,
         got: classifications?.length,
       });
       return EMPTY_RESULT;
@@ -125,7 +178,7 @@ export async function classifyImagesWithVision(imageUrls: string[]): Promise<Cla
 
     // False-positive guard: if only 1 title deed out of 10+ images, likely a misclassification
     // Real title deed uploads are typically 1-3 docs out of a handful of images, not 1 out of 15+
-    if (titleDeedIndices.length === 1 && imageUrls.length >= 10) {
+    if (titleDeedIndices.length === 1 && safeUrls.length >= 10) {
       logger.info("Dropping likely false-positive title deed classification (1 out of 10+ images)", {
         category: LogCategory.IMAGE,
         operation: "classifyImages",

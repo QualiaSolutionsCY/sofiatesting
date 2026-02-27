@@ -370,6 +370,8 @@ export async function chat(
   let aiResponse = "";
   const maxToolCalls = 5; // Prevent infinite loops
   let toolCallCount = 0;
+  let retryableCount = 0; // Cap retryable validation loops to avoid burning tokens
+  const MAX_RETRYABLE = 2;
   const currentMessages = [...openrouterMessages];
   const toolsUsed: string[] = [];
 
@@ -502,8 +504,9 @@ export async function chat(
         // EXCEPT: if the result is retryable (validation failure where AI didn't extract fields),
         // feed it back as a tool result so the AI can retry with correct args
         if (toolResult.needsInput && toolResult.question) {
-          if (toolResult.retryable && toolCallCount < maxToolCalls) {
-            logger.info(`[Retry] Tool ${toolName} returned retryable needsInput — feeding back to AI loop instead of returning to user`, { category: LogCategory.TOOL });
+          if (toolResult.retryable && toolCallCount < maxToolCalls && retryableCount < MAX_RETRYABLE) {
+            retryableCount++;
+            logger.info(`[Retry] Tool ${toolName} returned retryable needsInput (attempt ${retryableCount}/${MAX_RETRYABLE}) — feeding back to AI loop`, { category: LogCategory.TOOL });
             // The tool result is already in currentMessages (added above)
             // Break out of the for loop so the while loop makes a new AI call
             break;
