@@ -40,6 +40,10 @@ let lastVersionCheckTime: number = 0;
 // This reduces DB queries from ~50-100ms per request to once per 30s
 const VERSION_CHECK_INTERVAL_MS = 30_000;
 
+// Single-inflight-request pattern: Prevents concurrent cache loads during cache miss
+// When multiple requests arrive simultaneously, they share the same loading promise
+let loadingPromise: Promise<Map<string, string>> | null = null;
+
 // Fallback prompts imported from modular files (used if DB fails)
 import { IDENTITY } from "../prompts/core/identity.ts";
 import { SAFETY_RULES } from "../prompts/core/safety-rules.ts";
@@ -199,55 +203,73 @@ async function getPromptSections(
     }
   }
 
-  // Cache miss - log reason and reload
+  // Cache miss - check if already loading (race condition protection)
+  if (loadingPromise) {
+    logger.debug("Concurrent request detected - waiting for inflight load", {
+      category: LogCategory.CACHE,
+    });
+    return loadingPromise;
+  }
+
+  // Cache miss - log reason and start loading
   logger.info("Cache MISS", {
     category: LogCategory.CACHE,
     reason: cacheMissReason,
     previousCacheAge: cachedPromptSections ? now - cacheTimestamp : null,
   });
 
-  // Start with fallback prompts (full modular content)
-  const mergedPrompts = new Map(Object.entries(FALLBACK_PROMPTS));
+  // Create loading promise BEFORE async work starts
+  loadingPromise = (async () => {
+    try {
+      // Start with fallback prompts (full modular content)
+      const mergedPrompts = new Map(Object.entries(FALLBACK_PROMPTS));
 
-  // Try loading from DB and merge (DB takes precedence)
-  const dbPrompts = await loadPromptSectionsFromDB(supabase);
+      // Try loading from DB and merge (DB takes precedence)
+      const dbPrompts = await loadPromptSectionsFromDB(supabase);
 
-  if (dbPrompts && dbPrompts.size > 0) {
-    // Override fallback with DB values where available
-    for (const [key, value] of dbPrompts) {
-      mergedPrompts.set(key, value);
+      if (dbPrompts && dbPrompts.size > 0) {
+        // Override fallback with DB values where available
+        for (const [key, value] of dbPrompts) {
+          mergedPrompts.set(key, value);
+        }
+        const fallbackCount = Object.keys(FALLBACK_PROMPTS).length - dbPrompts.size;
+        logger.debug("Merged DB prompts with fallbacks", {
+          category: LogCategory.CACHE,
+          dbCount: dbPrompts.size,
+          fallbackCount: fallbackCount,
+        });
+      } else {
+        logger.warn("Using fallback hardcoded prompts (DB unavailable)", {
+          category: LogCategory.CACHE,
+        });
+      }
+
+      // Store the version - reuse from version check if available, otherwise fetch
+      // This avoids a duplicate DB call when we already fetched the version during mismatch detection
+      cacheVersion = detectedDbVersion ?? await getDatabaseVersion(supabase);
+
+      // Update cache
+      cachedPromptSections = mergedPrompts;
+      cacheTimestamp = now;
+
+      // Log cache population
+      logger.info("Cache populated", {
+        category: LogCategory.CACHE,
+        sectionCount: mergedPrompts.size,
+        dbPromptCount: dbPrompts?.size ?? 0,
+        fallbackPromptCount: Object.keys(FALLBACK_PROMPTS).length,
+        version: cacheVersion?.substring(0, 19) ?? "unknown",
+        ttlMs: CACHE_TTL_MS,
+      });
+
+      return mergedPrompts;
+    } finally {
+      // Clear loading promise whether success or failure
+      loadingPromise = null;
     }
-    const fallbackCount = Object.keys(FALLBACK_PROMPTS).length - dbPrompts.size;
-    logger.debug("Merged DB prompts with fallbacks", {
-      category: LogCategory.CACHE,
-      dbCount: dbPrompts.size,
-      fallbackCount: fallbackCount,
-    });
-  } else {
-    logger.warn("Using fallback hardcoded prompts (DB unavailable)", {
-      category: LogCategory.CACHE,
-    });
-  }
+  })();
 
-  // Store the version - reuse from version check if available, otherwise fetch
-  // This avoids a duplicate DB call when we already fetched the version during mismatch detection
-  cacheVersion = detectedDbVersion ?? await getDatabaseVersion(supabase);
-
-  // Update cache
-  cachedPromptSections = mergedPrompts;
-  cacheTimestamp = now;
-
-  // Log cache population
-  logger.info("Cache populated", {
-    category: LogCategory.CACHE,
-    sectionCount: mergedPrompts.size,
-    dbPromptCount: dbPrompts?.size ?? 0,
-    fallbackPromptCount: Object.keys(FALLBACK_PROMPTS).length,
-    version: cacheVersion?.substring(0, 19) ?? "unknown",
-    ttlMs: CACHE_TTL_MS,
-  });
-
-  return mergedPrompts;
+  return loadingPromise;
 }
 
 /**
