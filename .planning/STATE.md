@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 ## Current Position
 
 Milestone: v1.3 Production Audit Fixes
-Phase: Phase 16 (Validation Hardening) — COMPLETE
-Status: Phase 16 verified (8/8 must-haves), ready for Phase 17
-Last activity: 2026-02-28 — Phase 16 complete (3/3 plans, SEC-04/05/06 verified)
+Phase: Phase 17 (Reliability Improvements) — IN PROGRESS (1/3 complete)
+Status: Plan 17-03 complete (N+1 query fix), 2 plans remaining
+Last activity: 2026-02-28 — Completed 17-03-PLAN.md (data export optimization)
 
-Progress: ████████████████░░░░░░░░░ 67% (v1.3 - Phase 15-16 complete, 5/8 plans done)
+Progress: ████████████████░░░░░░░░░ 75% (v1.3 - Phase 15-16 complete, Phase 17: 1/3 done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 40
-- Average duration: 2-3min (v1.2 plans)
-- Total execution time: ~4 hours (v1.0 + v1.1) + 20min (v1.2)
+- Total plans completed: 41
+- Average duration: 43s (v1.3 Plan 17-03), 2-3min (v1.2 plans)
+- Total execution time: ~4 hours (v1.0 + v1.1) + 20min (v1.2) + 5min (v1.3)
 
 **By Milestone:**
 
@@ -68,6 +68,11 @@ Recent decisions from PROJECT.md and v1.2 execution:
 - Use TextEncoder for byte-accurate size measurement (not string length) to handle multi-byte UTF-8 characters
 - Different validation strategies: PUT validates content field, POST rollback validates entire request body
 - 413 Payload Too Large status follows RFC standard for size limit responses
+
+**Phase 17 Plan 03 (Data Export N+1 Query Fix):**
+- Use PostgreSQL json_agg with FILTER instead of Drizzle relational queries (schema lacks relations definition)
+- leftJoin with COALESCE ensures chats without messages return empty array instead of NULL
+- Query optimization pattern: Replace Promise.all(array.map(async)) with leftJoin + json_agg for O(1) instead of O(N+1)
 
 **v1.3 Roadmap Structure:**
 - 3 phases derived from audit severity grouping (critical → validation → reliability)
@@ -186,11 +191,12 @@ Full decision log in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last activity: 2026-02-28 - Phase 16 complete (3/3 plans, verified)
-Stopped at: Phase 16 complete, ready for Phase 17
-Resume file: .planning/phases/16-validation-hardening/16-VERIFICATION.md
+Last activity: 2026-02-28 - Phase 17 Plan 03 complete (N+1 query optimization)
+Stopped at: Phase 17: 1/3 plans complete, 2 remaining (17-01, 17-02)
+Resume file: .planning/phases/17-reliability-improvements/17-03-SUMMARY.md
 
 **Recent work:**
+- Phase 17 Plan 03: Data export N+1 query fix (43s, 1 commit, query optimization)
 - Phase 16 complete: Validation Hardening (3 plans, 10 commits, SEC-04/05/06 verified)
   - Plan 01: Zod tool validation (schemas.ts + validation.ts + executor integration)
   - Plan 02: SQL injection fix (taxonomy-cache .or() → .eq(), full audit)
