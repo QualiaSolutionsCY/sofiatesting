@@ -10,8 +10,8 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Milestone: v1.2 3CX Call Log Audit — SHIPPED 2026-02-26
-Status: Fully operational. Credentials set, pg_cron scheduled, Edge Function deployed.
-Last activity: 2026-02-26 — Quick task 2 completed (3CX credentials + pg_cron setup)
+Status: Fully operational. Land listing support added.
+Last activity: 2026-02-27 — Quick task 7 completed (Land listing support)
 
 Progress: [█████████████████████████] 100% (v1.2)
 
@@ -142,14 +142,16 @@ None yet (v1.2 just started).
 | 4 | Fix 3 security issues (service role key, auth, index) | 2026-02-27 | 3de3c93 | [4-fix-3-security-issues-service-role-key-s](./quick/4-fix-3-security-issues-service-role-key-s/) |
 | 5 | Fix tool execution timeout budget and add tests | 2026-02-27 | f505bf5 | [5-fix-tool-execution-timeout-budget-and-ad](./quick/5-fix-tool-execution-timeout-budget-and-ad/) |
 | 6 | Refactor tool executor monolith into focused modules | 2026-02-27 | 2c7e028 | [6-refactor-tool-executor-monolith-into-foc](./quick/6-refactor-tool-executor-monolith-into-foc/) |
+| 7 | Implement land listing support (createLandListing) | 2026-02-27 | d3fbc40 | [7-implement-land-listing-support-createlan](./quick/7-implement-land-listing-support-createlan/) |
 
 ## Session Continuity
 
-Last activity: 2026-02-27 - Quick task 6 completed (Tool executor refactor)
-Stopped at: Quick tasks complete — ready for next work
+Last activity: 2026-02-27 - Quick task 7 completed (Land listing support)
+Stopped at: Ready to deploy sophia-bot
 Resume file: N/A
 
 **Recent work:**
+- Quick task 7: Land listing support (8 min, 3 commits, 1,680 lines added, 7 files modified)
 - Quick task 6: Tool executor refactor (7 min, 3 commits, 1,929 → 139 lines, sophia-bot deployed)
 - Quick task 5: Time budget tracking + 40 tests (2 min, 2 commits, sophia-bot deployed)
 - Quick task 4: 3 security fixes (6 min, 3 commits, 23 files modified)
