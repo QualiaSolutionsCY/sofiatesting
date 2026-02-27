@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 ## Current Position
 
 Milestone: v1.3 Production Audit Fixes
-Phase: Phase 17 (Reliability Improvements) — IN PROGRESS (2/3 complete)
-Status: Plans 17-02 and 17-03 complete (rate limiting + N+1 query fix), 1 plan remaining
-Last activity: 2026-02-28 — Completed 17-02-PLAN.md (file upload rate limiting)
+Phase: Phase 17 (Reliability Improvements) — COMPLETE (3/3 plans)
+Status: All 3 phases complete (cache race + rate limiting + N+1 query fixes)
+Last activity: 2026-02-28 — Completed 17-01-PLAN.md (prompt cache race fix)
 
-Progress: ████████████████▓░░░░░░░░ 83% (v1.3 - Phase 15-16 complete, Phase 17: 2/3 done)
+Progress: ████████████████████████ 100% (v1.3 - All 3 phases complete, ready to ship)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 42
-- Average duration: 53s (v1.3 Plans 17-02, 17-03), 2-3min (v1.2 plans)
-- Total execution time: ~4 hours (v1.0 + v1.1) + 20min (v1.2) + 6min (v1.3)
+- Total plans completed: 43
+- Average duration: 60s (v1.3 Phase 17 plans), 2-3min (v1.2 plans)
+- Total execution time: ~4 hours (v1.0 + v1.1) + 20min (v1.2) + 7min (v1.3)
 
 **By Milestone:**
 
@@ -204,12 +204,15 @@ Full decision log in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last activity: 2026-02-28 - Phase 17 Plan 03 complete (N+1 query optimization)
-Stopped at: Phase 17: 1/3 plans complete, 2 remaining (17-01, 17-02)
-Resume file: .planning/phases/17-reliability-improvements/17-03-SUMMARY.md
+Last activity: 2026-02-28 - Phase 17 COMPLETE (3/3 plans)
+Stopped at: v1.3 milestone complete, ready to ship
+Resume file: .planning/phases/17-reliability-improvements/17-01-SUMMARY.md
 
 **Recent work:**
-- Phase 17 Plan 03: Data export N+1 query fix (43s, 1 commit, query optimization)
+- Phase 17 complete: Reliability Improvements (3 plans, 3 commits)
+  - Plan 01: Prompt cache race fix (64s, 1 commit, single-inflight-request pattern)
+  - Plan 02: File upload rate limiting (53s, 1 commit, sliding window limiter)
+  - Plan 03: Data export N+1 query fix (43s, 1 commit, query optimization)
 - Phase 16 complete: Validation Hardening (3 plans, 10 commits, SEC-04/05/06 verified)
   - Plan 01: Zod tool validation (schemas.ts + validation.ts + executor integration)
   - Plan 02: SQL injection fix (taxonomy-cache .or() → .eq(), full audit)
