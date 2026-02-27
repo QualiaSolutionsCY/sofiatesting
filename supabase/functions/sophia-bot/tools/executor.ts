@@ -8,6 +8,7 @@ import { RejectionError } from "../rules/reviewer-assignment.ts";
 import { logger, LogCategory } from "../utils/logger.ts";
 import { classifyError, getUserFriendlyMessage } from "../utils/error-mapper.ts";
 import { trackToolUsed, trackPropertyUploaded, trackDocumentGenerated, createTimer } from "../services/analytics.ts";
+import { validateToolArguments } from "./validation.ts";
 import { handleCreatePropertyListing } from "./handlers/property-listing.ts";
 import { handleCreateLandListing } from "./handlers/land-listing.ts";
 import { handleCalculateVAT, handleCalculateTransferFees, handleCalculateCapitalGains } from "./handlers/calculators.ts";
@@ -47,60 +48,78 @@ export async function executeTool(
     agentName: agent?.fullName,
   });
 
+  // Validate tool arguments against schema (SEC-04)
+  const validation = validateToolArguments(tool.name, tool.arguments);
+  if (!validation.valid) {
+    logger.warn("Tool validation failed", {
+      category: LogCategory.TOOL,
+      toolName: tool.name,
+      error: validation.error,
+      issues: validation.issues,
+    });
+    return {
+      error: `Invalid arguments for ${tool.name}: ${validation.error}`,
+      retryable: false,
+    };
+  }
+
+  // Use validated data (type-safe)
+  const validArgs = validation.data;
+
   try {
     let result: ToolResult;
 
     switch (tool.name) {
       case "createPropertyListing":
-        result = await handleCreatePropertyListing(tool.arguments, agent, supabaseUrl, supabaseKey);
+        result = await handleCreatePropertyListing(validArgs, agent, supabaseUrl, supabaseKey);
         // Track successful property upload
         if (result.success && phoneNumber) {
           trackPropertyUploaded(phoneNumber, agent?.id, {
-            propertyType: tool.arguments.propertyType,
-            location: tool.arguments.location,
+            propertyType: validArgs.propertyType,
+            location: validArgs.location,
           });
         }
         break;
 
       case "createLandListing":
-        result = await handleCreateLandListing(tool.arguments, agent, supabaseUrl, supabaseKey);
+        result = await handleCreateLandListing(validArgs, agent, supabaseUrl, supabaseKey);
         // Track successful land upload
         if (result.success && phoneNumber) {
           trackPropertyUploaded(phoneNumber, agent?.id, {
             propertyType: "land",
-            location: tool.arguments.location,
+            location: validArgs.location,
           });
         }
         break;
 
       case "getZyprusData":
-        result = await handleGetZyprusData(tool.arguments);
+        result = await handleGetZyprusData(validArgs);
         break;
 
       case "calculateVAT":
-        result = handleCalculateVAT(tool.arguments);
+        result = handleCalculateVAT(validArgs);
         break;
 
       case "calculateTransferFees":
-        result = handleCalculateTransferFees(tool.arguments);
+        result = handleCalculateTransferFees(validArgs);
         break;
 
       case "calculateCapitalGains":
-        result = handleCalculateCapitalGains(tool.arguments);
+        result = handleCalculateCapitalGains(validArgs);
         break;
 
       case "getRegionalAgents":
-        result = await handleGetRegionalAgents(tool.arguments);
+        result = await handleGetRegionalAgents(validArgs);
         break;
 
       case "extractFromBazaraki":
-        result = await handleExtractFromBazaraki(tool.arguments);
+        result = await handleExtractFromBazaraki(validArgs);
         break;
 
       case "sendEmail":
-        result = await handleSendEmail(tool.arguments, agent, phoneNumber);
+        result = await handleSendEmail(validArgs, agent, phoneNumber);
         // Track document sent via email
-        if (result.success && phoneNumber && (tool.arguments.attachmentUrl || (result.data as Record<string, unknown>)?.attachedDocument)) {
+        if (result.success && phoneNumber && (validArgs.attachmentUrl || (result.data as Record<string, unknown>)?.attachedDocument)) {
           trackDocumentGenerated(phoneNumber, "email_with_document", agent?.id);
         }
         break;
