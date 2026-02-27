@@ -125,11 +125,11 @@ See: `.planning/milestones/v1.2-ROADMAP.md` for full details.
   2. Chat creation never creates duplicate chat records for same WhatsApp conversation
   3. Listing notifier connects to correct Zyprus environment (no hardcoded dev URLs)
   4. User registration endpoint returns identical response regardless of email existence
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 15-01: TBD
-- [ ] 15-02: TBD
+- [ ] 15-01-PLAN.md — Database security fixes (password hash expansion + chat race condition)
+- [ ] 15-02-PLAN.md — Configuration security fixes (environment-based URLs + timing-safe responses)
 
 #### Phase 16: Validation Hardening
 **Goal**: Input validation prevents injection attacks and malicious payloads
@@ -166,10 +166,10 @@ Plans:
 | v1.0 MVP | 1-5 | 10 | Complete | 2026-01-27 |
 | v1.1 Reliability | 6-9 | 16 | Complete | 2026-01-29 |
 | v1.2 Call Audit | 10-14 | 14 | Complete | 2026-02-26 |
-| v1.3 Audit Fixes | 15-17 | TBD | Not started | - |
+| v1.3 Audit Fixes | 15-17 | TBD | In progress | - |
 
 **Total: 14 phases shipped, 3 phases planned**
 
 ---
 *Roadmap created: 2026-01-27*
-*Last updated: 2026-02-27 after v1.3 milestone roadmap creation*
+*Last updated: 2026-02-27 after Phase 15 planning complete*
