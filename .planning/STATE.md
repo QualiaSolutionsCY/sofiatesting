@@ -11,10 +11,10 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 
 Milestone: v1.3 Production Audit Fixes
 Phase: Phase 15 (Critical Security Fixes)
-Status: Roadmap created, ready for planning
-Last activity: 2026-02-27 — Roadmap created for v1.3
+Status: In progress (1 of 4 plans complete)
+Last activity: 2026-02-27 — Completed 15-02-PLAN.md (Configuration Security Fixes)
 
-Progress: ░░░░░░░░░░░░░░░░░░░░░░░░░ 0% (v1.3 - Phase 15/17)
+Progress: █░░░░░░░░░░░░░░░░░░░░░░░░ 10% (v1.3 - Phase 15/17, Plan 1/10 total)
 
 ## Performance Metrics
 
@@ -43,6 +43,10 @@ Progress: ░░░░░░░░░░░░░░░░░░░░░░░�
 ### Decisions
 
 Recent decisions from PROJECT.md and v1.2 execution:
+
+**Phase 15 Plan 02 (Configuration Security):**
+- Environment variable with fallback instead of production URL default (maintains backward compatibility while alerting ops team)
+- Documentation-only fix for guest endpoint (endpoint not vulnerable, but docs prevent future mistakes)
 
 **v1.3 Roadmap Structure:**
 - 3 phases derived from audit severity grouping (critical → validation → reliability)
@@ -161,11 +165,12 @@ Full decision log in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last activity: 2026-02-27 - v1.3 Roadmap created
-Stopped at: Ready to plan Phase 15
-Resume file: N/A
+Last activity: 2026-02-27 - Completed Phase 15 Plan 02
+Stopped at: .planning/phases/15-critical-security-fixes/15-02-SUMMARY.md
+Resume file: .planning/phases/15-critical-security-fixes/15-02-SUMMARY.md
 
 **Recent work:**
+- Phase 15 Plan 02: Configuration security fixes (1min, 2 commits, 2 files modified)
 - v1.3 Roadmap: 3 phases (15-17) mapped from 10 requirements with 100% coverage
 - Quick task 7: Land listing support (8 min, 3 commits, 1,680 lines added, 7 files modified)
 - Quick task 6: Tool executor refactor (7 min, 3 commits, 1,929 → 139 lines, sophia-bot deployed)
@@ -178,4 +183,4 @@ Resume file: N/A
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-02-27 after v1.3 roadmap creation*
+*Last updated: 2026-02-27 after Phase 15 Plan 02 completion*
