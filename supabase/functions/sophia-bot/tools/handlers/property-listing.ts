@@ -5,10 +5,10 @@
 
 import { Agent, getAgentByEmail } from "../../agents/identifier.ts";
 import { validateRegionalAccess, determineRegion } from "../../rules/region-validator.ts";
-import { assignReviewers, needsAssignmentInput, RejectionError } from "../../rules/reviewer-assignment.ts";
+import { assignReviewers, needsAssignmentInput } from "../../rules/reviewer-assignment.ts";
 import { handleSpecialCases, handleUnknownSender, validateRequiredFields, getMissingFieldsMessage } from "../../rules/special-cases.ts";
 import { checkForDuplicates, generateDuplicateWarning, createDuplicateNote } from "../../services/duplicate-checker.ts";
-import { generateDescription, generateTitle } from "../../services/description-generator.ts";
+import { generateDescription } from "../../services/description-generator.ts";
 import { generateMyNotes, generateAIAssistantNotes } from "../../services/my-notes-generator.ts";
 import { processImages, validateImages, generateImageWarnings, hasEnoughImages } from "../../services/image-handler.ts";
 import { createDraftListing, getZyprusConfig, getAccessToken } from "../../zyprus/client.ts";

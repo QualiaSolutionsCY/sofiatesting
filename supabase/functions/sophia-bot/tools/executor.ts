@@ -6,7 +6,7 @@
 import { Agent } from "../agents/identifier.ts";
 import { RejectionError } from "../rules/reviewer-assignment.ts";
 import { logger, LogCategory } from "../utils/logger.ts";
-import { classifyError, getUserFriendlyMessage, ErrorType } from "../utils/error-mapper.ts";
+import { classifyError, getUserFriendlyMessage } from "../utils/error-mapper.ts";
 import { trackToolUsed, trackPropertyUploaded, trackDocumentGenerated, createTimer } from "../services/analytics.ts";
 import { handleCreatePropertyListing } from "./handlers/property-listing.ts";
 import { handleCalculateVAT, handleCalculateTransferFees, handleCalculateCapitalGains } from "./handlers/calculators.ts";
@@ -87,7 +87,7 @@ export async function executeTool(
       case "sendEmail":
         result = await handleSendEmail(tool.arguments, agent, phoneNumber);
         // Track document sent via email
-        if (result.success && phoneNumber && (tool.arguments.attachmentUrl || result.data?.attachedDocument)) {
+        if (result.success && phoneNumber && (tool.arguments.attachmentUrl || (result.data as Record<string, unknown>)?.attachedDocument)) {
           trackDocumentGenerated(phoneNumber, "email_with_document", agent?.id);
         }
         break;
