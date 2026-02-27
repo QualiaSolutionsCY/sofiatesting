@@ -5,6 +5,7 @@
 - ✅ **v1.0 MVP** - Phases 1-5 (shipped 2026-01-27)
 - ✅ **v1.1 Reliability & Hardening** - Phases 6-9 (shipped 2026-01-29)
 - ✅ **v1.2 3CX Call Log Audit** - Phases 10-14 (shipped 2026-02-26)
+- 🚧 **v1.3 Production Audit Fixes** - Phases 15-17 (in progress)
 
 ## Phases
 
@@ -111,6 +112,53 @@ See: `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
 </details>
 
+### 🚧 v1.3 Production Audit Fixes (In Progress)
+
+**Milestone Goal:** Fix critical and high-severity security/reliability issues from comprehensive code review audit.
+
+#### Phase 15: Critical Security Fixes
+**Goal**: Critical vulnerabilities and quick wins resolved
+**Depends on**: Phase 14
+**Requirements**: SEC-01, SEC-02, SEC-03, SEC-07
+**Success Criteria** (what must be TRUE):
+  1. User passwords are stored with full bcrypt hashes (no truncation at 64 chars)
+  2. Chat creation never creates duplicate chat records for same WhatsApp conversation
+  3. Listing notifier connects to correct Zyprus environment (no hardcoded dev URLs)
+  4. User registration endpoint returns identical response regardless of email existence
+**Plans**: TBD
+
+Plans:
+- [ ] 15-01: TBD
+- [ ] 15-02: TBD
+
+#### Phase 16: Validation Hardening
+**Goal**: Input validation prevents injection attacks and malicious payloads
+**Depends on**: Phase 15
+**Requirements**: SEC-04, SEC-05, SEC-06
+**Success Criteria** (what must be TRUE):
+  1. Tool executor validates all tool arguments against Zod schemas before execution
+  2. All database queries use parameterized queries (no raw SQL string concatenation)
+  3. Admin prompt update endpoints reject payloads exceeding 50KB with proper error response
+**Plans**: TBD
+
+Plans:
+- [ ] 16-01: TBD
+- [ ] 16-02: TBD
+
+#### Phase 17: Reliability Improvements
+**Goal**: System handles high load and concurrent requests without data corruption
+**Depends on**: Phase 16
+**Requirements**: REL-01, REL-02, REL-03
+**Success Criteria** (what must be TRUE):
+  1. Prompt cache prevents race conditions using single-inflight-request pattern
+  2. File upload endpoints enforce per-user rate limiting to prevent abuse
+  3. Data export queries complete efficiently without N+1 pattern (JOINs or batch loading)
+**Plans**: TBD
+
+Plans:
+- [ ] 17-01: TBD
+- [ ] 17-02: TBD
+
 ## Progress
 
 | Milestone | Phases | Plans | Status | Shipped |
@@ -118,9 +166,10 @@ See: `.planning/milestones/v1.2-ROADMAP.md` for full details.
 | v1.0 MVP | 1-5 | 10 | Complete | 2026-01-27 |
 | v1.1 Reliability | 6-9 | 16 | Complete | 2026-01-29 |
 | v1.2 Call Audit | 10-14 | 14 | Complete | 2026-02-26 |
+| v1.3 Audit Fixes | 15-17 | TBD | Not started | - |
 
-**Total: 14 phases, 40 plans shipped across 3 milestones**
+**Total: 14 phases shipped, 3 phases planned**
 
 ---
 *Roadmap created: 2026-01-27*
-*Last updated: 2026-02-26 after v1.2 milestone completion*
+*Last updated: 2026-02-27 after v1.3 milestone roadmap creation*
