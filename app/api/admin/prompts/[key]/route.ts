@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { checkAdminAuth } from "@/lib/auth/admin";
 import { createLogger } from "@/lib/logger";
-import { getAdminSupabase } from "@/lib/getAdminSupabase()/admin";
+import { getAdminSupabase } from "@/lib/supabase/admin";
 
 const logger = createLogger("api:admin:prompts:key");
 
