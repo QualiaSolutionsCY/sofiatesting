@@ -139,14 +139,16 @@ None yet (v1.2 just started).
 | 1 | Fix all things blocking Sophia from uploading a listing | 2026-02-26 | c630845 | [1-fix-all-things-blocking-sophia-from-uplo](./quick/1-fix-all-things-blocking-sophia-from-uplo/) |
 | 2 | Set up 3CX credentials and pg_cron for call-audit | 2026-02-26 | 95b0e14 | [2-set-up-3cx-credentials-and-pg-cron-for-a](./quick/2-set-up-3cx-credentials-and-pg-cron-for-a/) |
 | 3 | Fix top 5 critical issues & re-enable prompt caching | 2026-02-27 | dfacc18 | [3-fix-top-5-critical-issues-re-enable-prom](./quick/3-fix-top-5-critical-issues-re-enable-prom/) |
+| 4 | Fix 3 security issues (service role key, auth, index) | 2026-02-27 | 3de3c93 | [4-fix-3-security-issues-service-role-key-s](./quick/4-fix-3-security-issues-service-role-key-s/) |
 
 ## Session Continuity
 
-Last activity: 2026-02-27 - Quick task 3 completed (Performance & reliability fixes)
+Last activity: 2026-02-27 - Quick task 4 completed (Security hardening)
 Stopped at: Quick tasks complete — ready for next work
 Resume file: N/A
 
 **Recent work:**
+- Quick task 4: 3 security fixes (6 min, 3 commits, 23 files modified)
 - Quick task 3: 5 critical fixes + 51 tests (4 min, 2 commits, 2 Edge Functions deployed)
 - Quick task 2: 3CX credentials + pg_cron scheduling (10 min, 2 commits)
 - Quick task 1: Fix Sophia listing upload blocking issues
