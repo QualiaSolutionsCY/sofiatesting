@@ -9,6 +9,7 @@ import { logger, LogCategory } from "../utils/logger.ts";
 import { classifyError, getUserFriendlyMessage } from "../utils/error-mapper.ts";
 import { trackToolUsed, trackPropertyUploaded, trackDocumentGenerated, createTimer } from "../services/analytics.ts";
 import { handleCreatePropertyListing } from "./handlers/property-listing.ts";
+import { handleCreateLandListing } from "./handlers/land-listing.ts";
 import { handleCalculateVAT, handleCalculateTransferFees, handleCalculateCapitalGains } from "./handlers/calculators.ts";
 import { handleGetZyprusData, handleGetRegionalAgents, handleExtractFromBazaraki } from "./handlers/data-retrieval.ts";
 import { handleSendEmail } from "./handlers/email.ts";
@@ -20,6 +21,7 @@ export interface ToolResult {
   question?: string;
   message?: string;
   data?: unknown;
+  retryable?: boolean;
 }
 
 export interface ToolCall {
@@ -55,6 +57,17 @@ export async function executeTool(
         if (result.success && phoneNumber) {
           trackPropertyUploaded(phoneNumber, agent?.id, {
             propertyType: tool.arguments.propertyType,
+            location: tool.arguments.location,
+          });
+        }
+        break;
+
+      case "createLandListing":
+        result = await handleCreateLandListing(tool.arguments, agent, supabaseUrl, supabaseKey);
+        // Track successful land upload
+        if (result.success && phoneNumber) {
+          trackPropertyUploaded(phoneNumber, agent?.id, {
+            propertyType: "land",
             location: tool.arguments.location,
           });
         }

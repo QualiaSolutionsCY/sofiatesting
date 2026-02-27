@@ -151,6 +151,10 @@ export const TOOLS: ToolDefinition[] = [
             items: { type: "integer" },
             description: "Reordered 1-based photo indices for the gallery. Correct order: exterior shots first, then living areas, kitchen, additional rooms, bedrooms, bathrooms, floor plans last. Example: if agent says photos 5,6 are exterior, 1 is living room, 3 is kitchen, 2,4 are bedrooms, 7 is bathroom → pass [5, 6, 1, 3, 2, 4, 7]. Only pass this if the agent provides photo classifications.",
           },
+          mainPhotoIndex: {
+            type: "integer",
+            description: "1-based index of the photo that should be FIRST in the gallery (the main listing image). Use this when the agent says 'photo X is the best exterior shot' or 'start with photo X'. This is simpler than imageOrder — just pass the single photo number and the system moves it to position 1. Example: agent says 'photo 3 is the best exterior' → pass mainPhotoIndex: 3. If you also pass imageOrder, imageOrder takes precedence.",
+          },
           unitBreakdown: {
             type: "string",
             description: "For residential buildings / multi-unit properties: describes the unit breakdown. Format with NEWLINES between lines and BLANK LINES between unit groups. Example:\n4 x 2 Bedroom Units\n83m2 - 84m2 of Net Indoor area each\n21m2 - 26m2 of Covered Veranda each\n\n2 x 3 Bedroom Penthouse\n98m2 - 100m2 of Net Indoor area each\n19m2 - 24m2 of Covered Veranda each\n31m2 - 32m2 of Roof Garden area each",
@@ -232,6 +236,144 @@ export const TOOLS: ToolDefinition[] = [
           "ownerName",
           "ownerPhone",
           "titleDeedStatus",
+          "imageUrls",
+        ],
+      },
+    },
+  },
+
+  // Land Listing Creation
+  {
+    type: "function",
+    function: {
+      name: "createLandListing",
+      description:
+        "Create a land/plot listing draft on zyprus.com. Use this when an agent wants to upload land, plot, field, or agricultural land for sale or rent. Collects all required information and creates an unpublished draft.",
+      parameters: {
+        type: "object",
+        properties: {
+          listingType: {
+            type: "string",
+            enum: ["sale", "rent"],
+            description: "Whether the land is for sale or rent",
+          },
+          landType: {
+            type: "string",
+            enum: ["plot", "field", "agricultural"],
+            description: "The type of land (plot for building plots, field for undeveloped land, agricultural for farming land)",
+          },
+          price: {
+            type: "number",
+            description: "The price in EUR",
+          },
+          location: {
+            type: "string",
+            description: "The specific area/neighborhood EXACTLY as the agent stated it, plus the district. MUST include district (Paphos, Limassol, Larnaca, Nicosia, Famagusta). Example: agent says 'Mesa Geitonia' → pass 'Mesa Geitonia, Limassol'. ⛔ CRITICAL: NEVER extract location names from Google Maps URLs — the /place/ path often contains STREET ADDRESSES (e.g., 'Michali Sougioul 21') which are NOT valid area names. If agent only provides a Google Maps URL without stating the area, you MUST ASK: 'What is the area/neighborhood name?' ALWAYS pass the Google Maps URL separately as locationUrl.",
+          },
+          landSize: {
+            type: "number",
+            description: "Total land size in square meters",
+          },
+          ownerName: {
+            type: "string",
+            description: "Name of the land owner",
+          },
+          ownerPhone: {
+            type: "string",
+            description: "Phone number of the land owner",
+          },
+          ownerEmail: {
+            type: "string",
+            description: "Email of the land owner (optional)",
+          },
+          titleDeedStatus: {
+            type: "string",
+            enum: ["separate", "final_approval", "in_process", "pending", "share_of_land", "permits_only", "unknown", "do_not_display"],
+            description: "Status of the title deeds: separate (full title deeds), final_approval, in_process (title deeds currently being issued / in the process of issuance), pending (applied but not yet in process), share_of_land (shared ownership of land), permits_only (NO title deeds — only building/planning permits exist), unknown, do_not_display (agent explicitly asked to NOT show deed status)",
+          },
+          priceModifier: {
+            type: "string",
+            enum: ["no_vat", "plus_vat", "vat_included"],
+            description: "VAT status of the price. Default 'no_vat' for resale land. Use 'plus_vat' if price is before VAT, 'vat_included' if VAT is already in the price.",
+          },
+          registrationNumber: {
+            type: "string",
+            description: "Land registration number from title deed (e.g., 0/1234)",
+          },
+          imageUrls: {
+            type: "array",
+            items: { type: "string" },
+            description: "Array of image URLs for the land (photos showing the plot, surrounding area, access roads, etc.)",
+          },
+          titleDeedFileUrls: {
+            type: "array",
+            items: { type: "string" },
+            description: "Array of title deed document URLs (PDF or scanned image of title deeds). When agent sends a document attachment during land upload, pass the URL here. These are uploaded to the title deed documents field on the listing.",
+          },
+          titleDeedImageIndices: {
+            type: "array",
+            items: { type: "integer" },
+            description: "1-based indices of photos that are title deed images (not land photos). Example: if photo #3 is a title deed, pass [3]. These images will be moved from gallery to title deed documents field.",
+          },
+          buildingDensity: {
+            type: "integer",
+            description: "Building density percentage allowed (e.g., 60 means 60% of land can be built)",
+          },
+          siteCoverage: {
+            type: "integer",
+            description: "Site coverage percentage allowed (e.g., 40 means 40% of land can be covered by buildings)",
+          },
+          maxFloors: {
+            type: "integer",
+            description: "Maximum number of floors allowed to build (e.g., 3)",
+          },
+          maxHeight: {
+            type: "number",
+            description: "Maximum building height allowed in meters (e.g., 12.5)",
+          },
+          infrastructure: {
+            type: "array",
+            items: { type: "string" },
+            description: "Available infrastructure on the plot. Options: electricity, water, road_access, sewage, telephone. Example: ['electricity', 'water', 'road_access']",
+          },
+          features: {
+            type: "array",
+            items: { type: "string" },
+            description: "Land features, primarily VIEWS: sea view, mountain view, city view, valley view, panoramic view, etc.",
+          },
+          assignTo: {
+            type: "string",
+            description: "For management only: email of agent to assign as listing owner. CRITICAL: If the user says 'assign to [name]' or 'assign to [email]', extract the email and pass it here. Check the agent name-to-email mapping in your instructions. If user provides the email directly (e.g., 'danae@zyprus.com'), use it as-is.",
+          },
+          specialNotes: {
+            type: "string",
+            description: "Any special notes from the owner or agent. Include ALL agent notes verbatim, especially: title deed details, zoning info, development potential, access restrictions, and anything else the reviewer needs to know.",
+          },
+          areaDescription: {
+            type: "string",
+            description: "Description of the area/neighborhood for the listing. IMPORTANT: When user provides a Google Maps link, analyze the location and describe what is specifically nearby (e.g., supermarkets, schools, parks, beach proximity, restaurants, highway access). Also capture any area details the user provides verbatim - these are valuable marketing points that should NOT be replaced with generic descriptions.",
+          },
+          locationUrl: {
+            type: "string",
+            description: "Google Maps URL or pin link provided by the agent for the land location. Pass the EXACT URL as-is — do NOT modify it. This goes directly into the listing notes for reviewers.",
+          },
+          coordinates: {
+            type: "object",
+            properties: {
+              lat: { type: "number", description: "Latitude (e.g., 35.17 for Nicosia, 34.68 for Limassol)" },
+              lon: { type: "number", description: "Longitude (e.g., 33.36 for Nicosia, 33.04 for Limassol)" },
+            },
+            description: "GPS coordinates for the land location. Extract from Google Maps URL if provided (the @lat,lon part). Otherwise use approximate city coordinates. Cyprus coordinates: Nicosia (35.17, 33.36), Limassol (34.68, 33.04), Paphos (34.77, 32.42), Larnaca (34.92, 33.63), Famagusta (35.12, 33.95)",
+          },
+        },
+        required: [
+          "listingType",
+          "landType",
+          "price",
+          "location",
+          "landSize",
+          "ownerName",
+          "ownerPhone",
           "imageUrls",
         ],
       },
