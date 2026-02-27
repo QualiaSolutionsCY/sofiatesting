@@ -63,6 +63,7 @@ const LOCATION_DESCRIPTIONS: Record<string, string> = {
   yeroskipou: "Yeroskipou offers traditional village living with excellent schools, just 10 minutes from Paphos center and 5 minutes to the airport.",
   kissonerga: "Kissonerga provides sea views and village charm, just 10 minutes to Coral Bay beaches and 15 minutes to Paphos center.",
   "mesa chorio": "Mesa Chorio is a peaceful hillside village overlooking Paphos, just 10 minutes to the town center and close to local amenities.",
+  tremithousa: "Tremithousa is a quiet hillside village with countryside views, just 10-15 minutes from Paphos town center and close to the highway.",
   emba: "Emba is an affordable village just 10 minutes from Paphos town center and the beach, with local shops and traditional tavernas nearby.",
   geroskipou: "Geroskipou is a traditional town between Paphos airport and the city center, offering easy highway access and local amenities.",
   kouklia: "Kouklia offers rural village living near the Sanctuary of Aphrodite, 20 minutes from Paphos center and close to secret valley golf course.",
@@ -235,6 +236,13 @@ function formatFeature(feature: string): string {
 }
 
 /**
+ * Format area numbers with commas for 1,000+ (e.g., 2285 → "2,285")
+ */
+function formatArea(area: number): string {
+  return area >= 1000 ? area.toLocaleString("en-US") : String(area);
+}
+
+/**
  * Format price in EUR
  */
 function formatPrice(price: number): string {
@@ -353,6 +361,19 @@ function categorizeFeatures(details: PropertyDetails): {
 
       // NEVER include energy class in description — it goes to dedicated field_energy_class only
       if (lower.startsWith("energy class") || lower.startsWith("energy rating") || /^energy\s+[a-d]$/i.test(lower)) {
+        continue;
+      }
+
+      // Skip guest W/C features — already shown in the bathrooms line
+      if (lower.includes("guest w/c") || lower.includes("guest wc") ||
+          (lower.includes("guest toilet") && !lower.includes("master"))) {
+        continue;
+      }
+
+      // Skip pool features — already handled by poolType/pool boolean above (prevents duplication)
+      if (lower.includes("swimming pool") || lower.includes("private pool") ||
+          lower.includes("communal pool") || lower === "pool" ||
+          lower.includes("provisions for pool") || lower.includes("provisions for swimming")) {
         continue;
       }
 
@@ -678,15 +699,15 @@ export function generateDescription(details: PropertyDetails): string {
 
   if (isBuilding) {
     // BUILDINGS: Show total areas then unit breakdown (skip bedroom/bathroom lines)
-    lines.push(`${details.coveredArea}m² Total ${areaLabel}`);
+    lines.push(`${formatArea(details.coveredArea)}m² Total ${areaLabel}`);
     if (details.coveredVeranda) {
-      lines.push(`${details.coveredVeranda}m² Total Covered Veranda`);
+      lines.push(`${formatArea(details.coveredVeranda!)}m² Total Covered Veranda`);
     }
     if (details.uncoveredVeranda) {
-      lines.push(`${details.uncoveredVeranda}m² Total Uncovered Veranda`);
+      lines.push(`${formatArea(details.uncoveredVeranda!)}m² Total Uncovered Veranda`);
     }
     if (details.plotSize) {
-      lines.push(`${details.plotSize}m² Plot Size`);
+      lines.push(`${formatArea(details.plotSize!)}m² Plot Size`);
     }
 
     // Unit breakdown with proper formatting (blank lines between groups)
@@ -746,14 +767,28 @@ export function generateDescription(details: PropertyDetails): string {
       bedroomParts.push(details.roofRooms === 1 ? "1 Roof Garden Room" : `${details.roofRooms} Roof Garden Rooms`);
     }
     lines.push(bedroomParts.join(" + "));
-    // Bathrooms — skip for building types when not provided (0 or undefined)
+    // Bathrooms — detect guest W/C in features for precise display
     if (details.bathrooms && details.bathrooms > 0) {
-      lines.push(`${details.bathrooms} ${details.bathrooms === 1 ? "Bathroom" : "Bathrooms"}`);
+      // Check if features mention guest W/C (agent distinguished ensuites from guest toilet)
+      const guestWcFeature = details.features?.find(f => {
+        const lower = f.toLowerCase();
+        return lower.includes("guest w/c") || lower.includes("guest wc") ||
+               (lower.includes("guest toilet") && !lower.includes("master"));
+      });
+      if (guestWcFeature) {
+        // Parse count from feature if present (e.g., "2 guest w/c"), default to 1
+        const countMatch = guestWcFeature.match(/^(\d+)\s/);
+        const guestCount = countMatch ? parseInt(countMatch[1]) : 1;
+        const ensuiteLabel = details.bathrooms === 1 ? "En-Suite Bathroom" : "En-Suite Bathrooms";
+        lines.push(`${details.bathrooms} ${ensuiteLabel} + ${guestCount} Guest W/C`);
+      } else {
+        lines.push(`${details.bathrooms} ${details.bathrooms === 1 ? "Bathroom" : "Bathrooms"}`);
+      }
     }
 
-    lines.push(`${details.coveredArea}m² ${areaLabel}`);
+    lines.push(`${formatArea(details.coveredArea)}m² ${areaLabel}`);
     if (details.coveredVeranda) {
-      lines.push(`${details.coveredVeranda}m² Covered Veranda`);
+      lines.push(`${formatArea(details.coveredVeranda!)}m² Covered Veranda`);
     }
     if (details.uncoveredVeranda) {
       // For penthouses or when features mention roof garden, display as "Roof Garden" instead of "Uncovered Veranda"
@@ -762,10 +797,10 @@ export function generateDescription(details: PropertyDetails): string {
         f => f.toLowerCase().includes("roof garden") || f.toLowerCase().includes("roof terrace")
       );
       const uncoveredLabel = (isPenthouse || hasRoofGardenFeature) ? "Roof Garden" : "Uncovered Veranda";
-      lines.push(`${details.uncoveredVeranda}m² ${uncoveredLabel}`);
+      lines.push(`${formatArea(details.uncoveredVeranda!)}m² ${uncoveredLabel}`);
     }
     if (details.plotSize) {
-      lines.push(`${details.plotSize}m² Plot Size`);
+      lines.push(`${formatArea(details.plotSize!)}m² Plot Size`);
     }
 
     // Orientation (compass facing direction)
@@ -791,7 +826,7 @@ export function generateDescription(details: PropertyDetails): string {
 
     if (isHouseType) {
       const allFeaturesLower = sortedFeatures.map(f => f.toLowerCase()).join(" ");
-      if (!allFeaturesLower.includes("office")) roomSuggestionItems.push("Office/Playroom");
+      if (!allFeaturesLower.includes("office") && !allFeaturesLower.includes("playroom")) roomSuggestionItems.push("Office/Playroom");
       if (!allFeaturesLower.includes("maid")) roomSuggestionItems.push("Maid's Room");
     }
   }
@@ -1085,6 +1120,10 @@ function getGenericLocationSentences(location: string): string[] {
       "Located in a peaceful hillside village with stunning views overlooking Paphos",
       "Many amenities are within a short drive, and the town center is only 10 minutes away!"
     ],
+    tremithousa: [
+      "Located in a quiet hillside village with beautiful countryside views",
+      "Just a short drive to Paphos town center, the highway and local amenities!"
+    ],
     emba: [
       "Located in a peaceful and attractive residential area with mountain views",
       "Many amenities are within walking distance, and the town center is only minutes away!"
@@ -1114,10 +1153,10 @@ function getGenericLocationSentences(location: string): string[] {
     }
   }
 
-  // Default generic sentences
+  // Default generic sentences — DO NOT claim "walking distance" for unknown areas
   return [
-    "Located in a desirable area with many amenities within walking distance",
-    "A convenient location with easy access to shops, restaurants and local services!"
+    "Located in a desirable residential area with a peaceful setting",
+    "A convenient location with easy access to local amenities and transport links!"
   ];
 }
 
@@ -1191,9 +1230,165 @@ export function generateTitle(details: PropertyDetails): string {
   const noVatSuffix = (details.priceModifier === "no_vat" && details.listingType === "sale") ? " - No VAT" : "";
 
   if (hasCoveredVeranda) {
-    return `${bedroomText} ${propertyType} (${details.coveredArea}m² + ${details.coveredVeranda}m² covered veranda) in ${location}${noVatSuffix}`;
+    return `${bedroomText} ${propertyType} (${formatArea(details.coveredArea)}m² + ${formatArea(details.coveredVeranda!)}m² covered veranda) in ${location}${noVatSuffix}`;
   }
 
-  return `${bedroomText} ${propertyType} (${details.coveredArea}m²) in ${location}${noVatSuffix}`;
+  return `${bedroomText} ${propertyType} (${formatArea(details.coveredArea)}m²) in ${location}${noVatSuffix}`;
+}
+
+/**
+ * Land Description Generator
+ * Creates professional marketing descriptions for land/plot listings
+ */
+export interface LandDetails {
+  landType: string;
+  listingType: "sale" | "rent";
+  landSize: number;
+  location: string;
+  titleDeedStatus?: string;
+  buildingDensity?: number;
+  siteCoverage?: number;
+  maxFloors?: number;
+  maxHeight?: number;
+  infrastructure?: string[];
+  views?: string[];
+  price: number;
+  areaDescription?: string;
+  priceModifier?: string;
+}
+
+/**
+ * Generate a professional land description
+ */
+export function generateLandDescription(details: LandDetails): string {
+  const lines: string[] = [];
+
+  // Opening paragraph: land type + size + location
+  const landTypeCapitalized = capitalize(details.landType);
+  const location = capitalizeLocation(details.location);
+  const formattedSize = formatArea(details.landSize);
+
+  if (details.listingType === "sale") {
+    lines.push(`${landTypeCapitalized} for sale in ${location}, offering ${formattedSize}m² of land.`);
+  } else {
+    lines.push(`${landTypeCapitalized} for rent in ${location}, offering ${formattedSize}m² of land.`);
+  }
+
+  // Building regulations paragraph (if any provided)
+  if (details.buildingDensity || details.siteCoverage || details.maxFloors || details.maxHeight) {
+    const regs: string[] = [];
+    if (details.buildingDensity !== undefined) {
+      regs.push(`${details.buildingDensity}% building density`);
+    }
+    if (details.siteCoverage !== undefined) {
+      regs.push(`${details.siteCoverage}% site coverage`);
+    }
+    if (details.maxFloors !== undefined) {
+      regs.push(`up to ${details.maxFloors} floors`);
+    }
+    if (details.maxHeight !== undefined) {
+      regs.push(`maximum height of ${details.maxHeight}m`);
+    }
+
+    if (regs.length > 0) {
+      lines.push("");
+      lines.push(`Building regulations allow ${regs.join(", ")}.`);
+    }
+  }
+
+  // Infrastructure paragraph (if provided)
+  if (details.infrastructure && details.infrastructure.length > 0) {
+    const infraList = details.infrastructure.map(i => {
+      // Convert "road_access" → "road access", "electricity" → "electricity"
+      return i.replace(/_/g, " ");
+    });
+
+    lines.push("");
+    if (infraList.length === 1) {
+      lines.push(`The plot has ${infraList[0]} available.`);
+    } else if (infraList.length === 2) {
+      lines.push(`The plot has ${infraList[0]} and ${infraList[1]} available.`);
+    } else {
+      const lastInfra = infraList.pop();
+      lines.push(`The plot has ${infraList.join(", ")} and ${lastInfra} available.`);
+    }
+  }
+
+  // Views/location paragraph (if views or area description provided)
+  if (details.views && details.views.length > 0) {
+    const viewsList = details.views.filter(v => v.toLowerCase().includes("view"))
+      .map(v => v.toLowerCase());
+
+    if (viewsList.length > 0) {
+      lines.push("");
+      if (viewsList.length === 1) {
+        lines.push(`The land offers ${viewsList[0]}.`);
+      } else if (viewsList.length === 2) {
+        lines.push(`The land offers ${viewsList[0]} and ${viewsList[1]}.`);
+      } else {
+        const lastView = viewsList.pop();
+        lines.push(`The land offers ${viewsList.join(", ")} and ${lastView}.`);
+      }
+    }
+  }
+
+  // Area description (if provided by agent)
+  if (details.areaDescription) {
+    lines.push("");
+    lines.push(details.areaDescription);
+  } else {
+    // Generic area info from LOCATION_DESCRIPTIONS if available
+    const locationLower = details.location.toLowerCase();
+    const areaKey = Object.keys(LOCATION_DESCRIPTIONS).find(key =>
+      locationLower.includes(key)
+    );
+    if (areaKey) {
+      lines.push("");
+      lines.push(LOCATION_DESCRIPTIONS[areaKey]);
+    }
+  }
+
+  // Title deed paragraph
+  if (details.titleDeedStatus) {
+    lines.push("");
+    switch (details.titleDeedStatus) {
+      case "separate":
+        lines.push("The land comes with separate title deeds.");
+        break;
+      case "final_approval":
+        lines.push("The title deeds are at final approval stage.");
+        break;
+      case "in_process":
+        lines.push("Title deeds are currently in the process of being issued.");
+        break;
+      case "pending":
+        lines.push("Title deeds have been applied for and are pending issuance.");
+        break;
+      case "share_of_land":
+        lines.push("The land has shared ownership with title deeds.");
+        break;
+      case "permits_only":
+        lines.push("Planning and building permits are available (title deeds not yet issued).");
+        break;
+    }
+  }
+
+  // Price paragraph
+  lines.push("");
+  const formattedPrice = `€${details.price.toLocaleString()}`;
+
+  if (details.priceModifier === "plus_vat") {
+    lines.push(`The asking price is ${formattedPrice} plus VAT.`);
+  } else if (details.priceModifier === "vat_included") {
+    lines.push(`The asking price is ${formattedPrice} (VAT included).`);
+  } else {
+    lines.push(`The asking price is ${formattedPrice}.`);
+  }
+
+  // Closing call to action
+  lines.push("");
+  lines.push("For more information or to arrange a viewing, please contact us today.");
+
+  return lines.join("\n");
 }
 
