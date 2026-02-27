@@ -40,6 +40,17 @@ export async function POST(
   try {
     const { key } = await context.params;
     const body = await request.json();
+
+    // SEC-06: Reject oversized request payloads (50KB limit)
+    const MAX_PAYLOAD_SIZE = 50 * 1024; // 50KB
+    const bodySize = new TextEncoder().encode(JSON.stringify(body)).byteLength;
+    if (bodySize > MAX_PAYLOAD_SIZE) {
+      return NextResponse.json(
+        { error: "Request payload exceeds maximum size of 50KB" },
+        { status: 413 }
+      );
+    }
+
     const { versionId, updatedBy } = body;
 
     if (!versionId) {
