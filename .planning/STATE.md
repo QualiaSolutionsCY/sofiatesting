@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 ## Current Position
 
 Milestone: v1.3 Production Audit Fixes
-Phase: Phase 15 (Critical Security Fixes) — COMPLETE
-Status: Phase 15 verified, ready for Phase 16
-Last activity: 2026-02-27 — Phase 15 complete (4/4 requirements verified)
+Phase: Phase 16 (Validation Hardening) — IN PROGRESS
+Status: Phase 16 Plan 03 complete
+Last activity: 2026-02-27 — Completed 16-03 (Admin Prompt Size Limits)
 
-Progress: ████████░░░░░░░░░░░░░░░░░ 33% (v1.3 - Phase 15/17 complete, 2/6 plans done)
+Progress: ████████░░░░░░░░░░░░░░░░░ 33% (v1.3 - Phase 15 complete, Phase 16: 1/3 plans done)
 
 ## Performance Metrics
 
@@ -51,6 +51,11 @@ Recent decisions from PROJECT.md and v1.2 execution:
 **Phase 15 Plan 02 (Configuration Security):**
 - Environment variable with fallback instead of production URL default (maintains backward compatibility while alerting ops team)
 - Documentation-only fix for guest endpoint (endpoint not vulnerable, but docs prevent future mistakes)
+
+**Phase 16 Plan 03 (Admin Prompt Size Limits):**
+- Use TextEncoder for byte-accurate size measurement (not string length) to handle multi-byte UTF-8 characters
+- Different validation strategies: PUT validates content field, POST rollback validates entire request body
+- 413 Payload Too Large status follows RFC standard for size limit responses
 
 **v1.3 Roadmap Structure:**
 - 3 phases derived from audit severity grouping (critical → validation → reliability)
@@ -169,11 +174,12 @@ Full decision log in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last activity: 2026-02-27 - Completed Phase 15 Plan 01
-Stopped at: .planning/phases/15-critical-security-fixes/15-01-SUMMARY.md
-Resume file: .planning/phases/15-critical-security-fixes/15-01-SUMMARY.md
+Last activity: 2026-02-27 - Completed Phase 16 Plan 03
+Stopped at: .planning/phases/16-validation-hardening/16-03-SUMMARY.md
+Resume file: .planning/phases/16-validation-hardening/16-03-SUMMARY.md
 
 **Recent work:**
+- Phase 16 Plan 03: Admin prompt size limits (1min, 2 commits, 2 files modified)
 - Phase 15 Plan 01: Database security fixes (2min, 2 commits, password hash + chat race condition)
 - Phase 15 Plan 02: Configuration security fixes (1min, 2 commits, 2 files modified)
 - v1.3 Roadmap: 3 phases (15-17) mapped from 10 requirements with 100% coverage
@@ -188,4 +194,4 @@ Resume file: .planning/phases/15-critical-security-fixes/15-01-SUMMARY.md
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-02-27 after Phase 15 Plan 01 completion*
+*Last updated: 2026-02-27 after Phase 16 Plan 03 completion*
