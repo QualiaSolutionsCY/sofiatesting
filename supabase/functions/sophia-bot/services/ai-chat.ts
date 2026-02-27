@@ -247,49 +247,73 @@ async function callOpenRouter(
   const maxRetries = 3;
   const baseDelay = 2000;
 
-  while (retries <= maxRetries) {
-    const aiRes = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://sophia-ai.vercel.app",
-        "X-Title": "SOPHIA WhatsApp Bot",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3.1-pro-preview",
-        messages: messages,
-        temperature: 0.1,
-        max_tokens: 8192,
-        tools: tools,
-        tool_choice: toolChoice,
-      }),
-    });
+  try {
+    while (retries <= maxRetries) {
+      // Create fresh AbortController for each retry
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds
 
-    if (aiRes.ok) {
-      const aiData = await aiRes.json();
-      return { message: aiData.choices?.[0]?.message };
+      try {
+        const aiRes = await fetch(OPENROUTER_URL, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://sophia-ai.vercel.app",
+            "X-Title": "SOPHIA WhatsApp Bot",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3.1-pro-preview",
+            messages: messages,
+            temperature: 0.1,
+            max_tokens: 8192,
+            tools: tools,
+            tool_choice: toolChoice,
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (aiRes.ok) {
+          const aiData = await aiRes.json();
+          return { message: aiData.choices?.[0]?.message };
+        }
+
+        const errorData = await aiRes.json().catch(() => ({
+          error: { status: aiRes?.status ?? 0 },
+        }));
+
+        if (aiRes.status === 429 && retries < maxRetries) {
+          const delay = baseDelay * Math.pow(2, retries);
+          logger.info(`OpenRouter rate limited (429). Retrying in ${delay}ms... (attempt ${retries + 1}/${maxRetries})`, { category: LogCategory.GENERAL });
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          retries++;
+          continue;
+        }
+
+        logger.error("OpenRouter Error: " + JSON.stringify(errorData, null, 2), undefined, { category: LogCategory.GENERAL });
+        logger.error("Status: " + String(aiRes.status), undefined, { category: LogCategory.GENERAL });
+
+        return { message: null, error: "OpenRouter API error" };
+      } catch (error) {
+        clearTimeout(timeoutId);
+        // Re-throw to outer catch if it's an abort error
+        if (error instanceof Error && error.name === 'AbortError') {
+          throw error;
+        }
+        throw error;
+      }
     }
 
-    const errorData = await aiRes.json().catch(() => ({
-      error: { status: aiRes?.status ?? 0 },
-    }));
-
-    if (aiRes.status === 429 && retries < maxRetries) {
-      const delay = baseDelay * Math.pow(2, retries);
-      logger.info(`OpenRouter rate limited (429). Retrying in ${delay}ms... (attempt ${retries + 1}/${maxRetries})`, { category: LogCategory.GENERAL });
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      retries++;
-      continue;
+    return { message: null, error: "Max retries exceeded" };
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      logger.error("OpenRouter request timeout (30s)", error, { category: LogCategory.GENERAL });
+      return { message: null, error: "OpenRouter request timeout (30s)" };
     }
-
-    logger.error("OpenRouter Error: " + JSON.stringify(errorData, null, 2), undefined, { category: LogCategory.GENERAL });
-    logger.error("Status: " + String(aiRes.status), undefined, { category: LogCategory.GENERAL });
-
-    return { message: null, error: "OpenRouter API error" };
+    throw error;
   }
-
-  return { message: null, error: "Max retries exceeded" };
 }
 
 /**

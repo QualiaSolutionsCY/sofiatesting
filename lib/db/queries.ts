@@ -279,7 +279,8 @@ export async function getMessagesByChatIdWithHistory({
       .select()
       .from(message)
       .where(and(eq(message.chatId, id), gte(message.createdAt, cutoffDate)))
-      .orderBy(asc(message.createdAt));
+      .orderBy(asc(message.createdAt))
+      .limit(200);
   } catch (error) {
     log.error("Failed to get messages with history", error, { chatId: id, days });
     throw new ChatSDKError(

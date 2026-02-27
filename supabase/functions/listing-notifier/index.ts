@@ -113,39 +113,50 @@ Deno.serve(async (req: Request) => {
     // Get Zyprus auth token (one for all checks)
     const token = await getZyprusToken();
 
-    for (const listing of pendingListings) {
-      results.checked++;
+    // Process in batches of 5 to avoid overwhelming Zyprus API
+    const BATCH_SIZE = 5;
+    const batches = [];
+    for (let i = 0; i < pendingListings.length; i += BATCH_SIZE) {
+      batches.push(pendingListings.slice(i, i + BATCH_SIZE));
+    }
 
-      try {
-        const published = await isListingPublished(listing.zyprus_listing_id, token);
+    for (const batch of batches) {
+      await Promise.allSettled(
+        batch.map(async (listing) => {
+          results.checked++;
 
-        if (published) {
-          // Send WhatsApp notification to the agent
-          const phone = formatPhoneNumber(listing.agent_phone);
-          if (phone) {
-            const message =
-              `Your listing "${listing.property_title}" has been published and is now live on Zyprus.com.\n\n` +
-              `View it here: ${listing.listing_url}\n\n` +
-              `If you need any changes, please contact the office.`;
+          try {
+            const published = await isListingPublished(listing.zyprus_listing_id, token);
 
-            await sendTextMessage(phone, message);
-            results.notified++;
+            if (published) {
+              // Send WhatsApp notification to the agent
+              const phone = formatPhoneNumber(listing.agent_phone);
+              if (phone) {
+                const message =
+                  `Your listing "${listing.property_title}" has been published and is now live on Zyprus.com.\n\n` +
+                  `View it here: ${listing.listing_url}\n\n` +
+                  `If you need any changes, please contact the office.`;
+
+                await sendTextMessage(phone, message);
+                results.notified++;
+              }
+
+              await markListingPublished(listing.id);
+            } else {
+              // Check if listing is too old — stop polling after MAX_DRAFT_AGE_DAYS
+              const ageMs = Date.now() - new Date(listing.created_at).getTime();
+              const ageDays = ageMs / (1000 * 60 * 60 * 24);
+              if (ageDays > MAX_DRAFT_AGE_DAYS) {
+                await markListingExpired(listing.id);
+                results.expired++;
+              }
+            }
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            results.errors.push(`Error checking ${listing.zyprus_listing_id}: ${msg}`);
           }
-
-          await markListingPublished(listing.id);
-        } else {
-          // Check if listing is too old — stop polling after MAX_DRAFT_AGE_DAYS
-          const ageMs = Date.now() - new Date(listing.created_at).getTime();
-          const ageDays = ageMs / (1000 * 60 * 60 * 24);
-          if (ageDays > MAX_DRAFT_AGE_DAYS) {
-            await markListingExpired(listing.id);
-            results.expired++;
-          }
-        }
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        results.errors.push(`Error checking ${listing.zyprus_listing_id}: ${msg}`);
-      }
+        })
+      );
     }
 
     logger.info(`[Listing Notifier] Checked ${results.checked}, notified ${results.notified}, expired ${results.expired}`, {

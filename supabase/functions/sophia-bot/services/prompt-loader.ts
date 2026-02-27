@@ -24,7 +24,7 @@ import { logger, LogCategory } from "../utils/logger.ts";
  * - Freshness: DB changes detected within seconds (version check)
  * - Control: Admin can force refresh when needed
  */
-const CACHE_TTL_MS = 0; // Cache disabled for testing - change back to 5 * 60 * 1000 after testing
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 // Cache miss reason tracking
 type CacheMissReason = "first_load" | "expired" | "version_mismatch" | "manual_invalidation";
