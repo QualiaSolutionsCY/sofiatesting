@@ -112,6 +112,15 @@ export async function PUT(
       );
     }
 
+    // SEC-06: Reject oversized prompt content (50KB limit)
+    const MAX_PROMPT_SIZE = 50 * 1024; // 50KB
+    if (new TextEncoder().encode(content).byteLength > MAX_PROMPT_SIZE) {
+      return NextResponse.json(
+        { error: "Prompt content exceeds maximum size of 50KB" },
+        { status: 413 }
+      );
+    }
+
     // Get current prompt
     const { data: currentPrompt, error: fetchError } = await getAdminSupabase()
       .from("sophia_prompts")
