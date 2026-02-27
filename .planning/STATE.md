@@ -11,10 +11,10 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 
 Milestone: v1.3 Production Audit Fixes
 Phase: Phase 15 (Critical Security Fixes)
-Status: In progress (1 of 4 plans complete)
-Last activity: 2026-02-27 — Completed 15-02-PLAN.md (Configuration Security Fixes)
+Status: In progress (2 of 4 plans complete)
+Last activity: 2026-02-27 — Completed 15-01-PLAN.md (Database Security Fixes)
 
-Progress: █░░░░░░░░░░░░░░░░░░░░░░░░ 10% (v1.3 - Phase 15/17, Plan 1/10 total)
+Progress: ██░░░░░░░░░░░░░░░░░░░░░░░ 20% (v1.3 - Phase 15/17, Plan 2/10 total)
 
 ## Performance Metrics
 
@@ -43,6 +43,10 @@ Progress: █░░░░░░░░░░░░░░░░░░░░░░�
 ### Decisions
 
 Recent decisions from PROJECT.md and v1.2 execution:
+
+**Phase 15 Plan 01 (Database Security):**
+- Password column expanded to varchar(255) to accommodate all bcrypt variants and future hash formats
+- onConflictDoNothing() for chat creation leverages existing PRIMARY KEY constraint for race-safe idempotent inserts
 
 **Phase 15 Plan 02 (Configuration Security):**
 - Environment variable with fallback instead of production URL default (maintains backward compatibility while alerting ops team)
@@ -165,11 +169,12 @@ Full decision log in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last activity: 2026-02-27 - Completed Phase 15 Plan 02
-Stopped at: .planning/phases/15-critical-security-fixes/15-02-SUMMARY.md
-Resume file: .planning/phases/15-critical-security-fixes/15-02-SUMMARY.md
+Last activity: 2026-02-27 - Completed Phase 15 Plan 01
+Stopped at: .planning/phases/15-critical-security-fixes/15-01-SUMMARY.md
+Resume file: .planning/phases/15-critical-security-fixes/15-01-SUMMARY.md
 
 **Recent work:**
+- Phase 15 Plan 01: Database security fixes (2min, 2 commits, password hash + chat race condition)
 - Phase 15 Plan 02: Configuration security fixes (1min, 2 commits, 2 files modified)
 - v1.3 Roadmap: 3 phases (15-17) mapped from 10 requirements with 100% coverage
 - Quick task 7: Land listing support (8 min, 3 commits, 1,680 lines added, 7 files modified)
@@ -183,4 +188,4 @@ Resume file: .planning/phases/15-critical-security-fixes/15-02-SUMMARY.md
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-02-27 after Phase 15 Plan 02 completion*
+*Last updated: 2026-02-27 after Phase 15 Plan 01 completion*
