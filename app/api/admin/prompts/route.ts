@@ -1,14 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { checkAdminAuth } from "@/lib/auth/admin";
 import { createLogger } from "@/lib/logger";
+import { getAdminSupabase } from "@/lib/getAdminSupabase()/admin";
 
 const logger = createLogger("api:admin:prompts");
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
 
 type PromptRow = {
   id: string;
@@ -39,7 +34,7 @@ export async function GET(_request: NextRequest) {
   }
 
   try {
-    const { data: prompts, error } = await supabase
+    const { data: prompts, error } = await getAdminSupabase()
       .from("sophia_prompts")
       .select("*")
       .eq("is_active", true)

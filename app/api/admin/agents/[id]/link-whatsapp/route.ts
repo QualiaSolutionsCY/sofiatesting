@@ -1,13 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { createLogger } from "@/lib/logger";
+import { getAdminSupabase } from "@/lib/getAdminSupabase()/admin";
 
 const logger = createLogger("api:admin:agents:link-whatsapp");
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
 
 /**
  * POST /api/admin/agents/[id]/link-whatsapp
@@ -33,7 +28,7 @@ export async function POST(
     const normalizedPhone = body.whatsappPhoneNumber.trim();
 
     // Check if agent exists
-    const { data: agent, error: findError } = await supabase
+    const { data: agent, error: findError } = await getAdminSupabase()
       .from("agents")
       .select("id")
       .eq("id", id)
@@ -44,7 +39,7 @@ export async function POST(
     }
 
     // Check if WhatsApp number is already linked to another agent
-    const { data: existing } = await supabase
+    const { data: existing } = await getAdminSupabase()
       .from("agents")
       .select("id, full_name, communication_email")
       .eq("mobile", normalizedPhone)
@@ -66,7 +61,7 @@ export async function POST(
     }
 
     // Update mobile number
-    const { data: updated, error } = await supabase
+    const { data: updated, error } = await getAdminSupabase()
       .from("agents")
       .update({ mobile: normalizedPhone })
       .eq("id", id)
@@ -108,7 +103,7 @@ export async function DELETE(
   try {
     const { id } = await context.params;
 
-    const { data: updated, error } = await supabase
+    const { data: updated, error } = await getAdminSupabase()
       .from("agents")
       .update({ mobile: "" })
       .eq("id", id)

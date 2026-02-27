@@ -1,7 +1,6 @@
 // Prevent static generation - this page needs real-time data
 export const dynamic = "force-dynamic";
 
-import { createClient } from "@supabase/supabase-js";
 import { format, formatDistanceToNow } from "date-fns";
 import { Smartphone, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,13 +13,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
+import { getAdminSupabase } from "@/lib/supabase/admin";
 
 async function getActivityData() {
+  const supabase = getAdminSupabase();
+
   // 1. Get Online Agents (active in last 15 minutes) - checking whatsapp_analytics instead
   const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
 

@@ -1,14 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { checkAdminAuth } from "@/lib/auth/admin";
 import { createLogger } from "@/lib/logger";
+import { getAdminSupabase } from "@/lib/getAdminSupabase()/admin";
 
 const logger = createLogger("api:admin:prompts:key");
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
 
 type PromptRow = {
   id: string;
@@ -45,7 +40,7 @@ export async function GET(
   try {
     const { key } = await context.params;
 
-    const { data: prompt, error } = await supabase
+    const { data: prompt, error } = await getAdminSupabase()
       .from("sophia_prompts")
       .select("*")
       .eq("key", key)
@@ -118,7 +113,7 @@ export async function PUT(
     }
 
     // Get current prompt
-    const { data: currentPrompt, error: fetchError } = await supabase
+    const { data: currentPrompt, error: fetchError } = await getAdminSupabase()
       .from("sophia_prompts")
       .select("*")
       .eq("key", key)
@@ -135,7 +130,7 @@ export async function PUT(
     const current = currentPrompt as PromptRow;
 
     // Mark current version as not current
-    const { error: updateOldError } = await supabase
+    const { error: updateOldError } = await getAdminSupabase()
       .from("sophia_prompts")
       .update({
         is_current: false,
@@ -152,7 +147,7 @@ export async function PUT(
     }
 
     // Create new version
-    const { data: newPrompt, error: insertError } = await supabase
+    const { data: newPrompt, error: insertError } = await getAdminSupabase()
       .from("sophia_prompts")
       .insert({
         key: current.key,
@@ -172,7 +167,7 @@ export async function PUT(
     if (insertError || !newPrompt) {
       logger.error("Error creating new version", insertError);
       // Rollback: restore old version as current
-      await supabase
+      await getAdminSupabase()
         .from("sophia_prompts")
         .update({ is_current: true, replaced_at: null })
         .eq("id", current.id);

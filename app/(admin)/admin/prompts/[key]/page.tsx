@@ -1,11 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
 import { PromptEditor } from "@/components/admin/prompts/prompt-editor";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
+import { getAdminSupabase } from "@/lib/supabase/admin";
 
 type PromptRow = {
   id: string;
@@ -27,6 +22,8 @@ type PageProps = {
 };
 
 async function getPrompt(key: string) {
+  const supabase = getAdminSupabase();
+
   const { data: prompt, error } = await supabase
     .from("sophia_prompts")
     .select("*")

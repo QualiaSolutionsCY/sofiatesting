@@ -1,15 +1,10 @@
-import { createClient } from "@supabase/supabase-js";
 import { Building2, MapPin, Mail, User } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { createLogger } from "@/lib/logger";
+import { getAdminSupabase } from "@/lib/supabase/admin";
 
 const logger = createLogger("admin:regional-offices");
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
 
 type RegionalOffice = {
   id: string;
@@ -30,6 +25,8 @@ const REGIONAL_OFFICE_EMAILS = [
 ];
 
 async function getRegionalOffices() {
+  const supabase = getAdminSupabase();
+
   // Get agents that match regional office emails
   const { data: offices, error } = await supabase
     .from("agents")

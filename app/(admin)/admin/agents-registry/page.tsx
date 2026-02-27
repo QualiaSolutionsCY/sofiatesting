@@ -1,10 +1,10 @@
-import { createClient } from "@supabase/supabase-js";
 import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentsRegistryClient } from "./page-client";
+import { getAdminSupabase } from "@/lib/supabase/admin";
 
 type PageProps = {
   searchParams: Promise<{
@@ -49,25 +49,12 @@ type AgentRow = {
   user_id: string | null;
 };
 
-function getSupabaseClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !key) {
-    throw new Error(
-      `Missing Supabase env vars: URL=${url ? "set" : "MISSING"}, KEY=${key ? "set" : "MISSING"}`
-    );
-  }
-
-  return createClient(url, key);
-}
-
 async function getAgentsData(searchParams: SearchParams) {
   const page = Number.parseInt(searchParams.page || "1", 10);
   const limit = Number.parseInt(searchParams.limit || "50", 10);
   const offset = (page - 1) * limit;
 
-  const supabase = getSupabaseClient();
+  const supabase = getAdminSupabase();
 
   // Build query
   let query = supabase

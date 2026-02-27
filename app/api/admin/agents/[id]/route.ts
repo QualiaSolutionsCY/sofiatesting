@@ -1,13 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { createLogger } from "@/lib/logger";
+import { getAdminSupabase } from "@/lib/getAdminSupabase()/admin";
 
 const logger = createLogger("api:admin:agents:id");
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
 
 const transformAgent = (a: Record<string, unknown>) => ({
   id: a.id,
@@ -56,7 +51,7 @@ export async function GET(
   try {
     const { id } = await context.params;
 
-    const { data: agent, error } = await supabase
+    const { data: agent, error } = await getAdminSupabase()
       .from("agents")
       .select("*")
       .eq("id", id)
@@ -105,7 +100,7 @@ export async function PUT(
     const body = await request.json();
 
     // Check if agent exists
-    const { data: existing, error: findError } = await supabase
+    const { data: existing, error: findError } = await getAdminSupabase()
       .from("agents")
       .select("id, communication_email")
       .eq("id", id)
@@ -117,7 +112,7 @@ export async function PUT(
 
     // If email is being changed, check for conflicts
     if (body.email && body.email !== existing.communication_email) {
-      const { data: conflict } = await supabase
+      const { data: conflict } = await getAdminSupabase()
         .from("agents")
         .select("id")
         .eq("communication_email", body.email.toLowerCase())
@@ -149,7 +144,7 @@ export async function PUT(
       updateData.listing_owner_email = body.listingOwnerEmail;
     if (body.landline !== undefined) updateData.landline = body.landline;
 
-    const { data: updated, error } = await supabase
+    const { data: updated, error } = await getAdminSupabase()
       .from("agents")
       .update(updateData)
       .eq("id", id)
@@ -191,7 +186,7 @@ export async function DELETE(
   try {
     const { id } = await context.params;
 
-    const { data: deactivated, error } = await supabase
+    const { data: deactivated, error } = await getAdminSupabase()
       .from("agents")
       .update({ is_active: false })
       .eq("id", id)

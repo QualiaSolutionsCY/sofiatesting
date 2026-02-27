@@ -1,11 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
 import { VersionTimeline } from "@/components/admin/prompts/version-timeline";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
+import { getAdminSupabase } from "@/lib/supabase/admin";
 
 type PromptRow = {
   id: string;
@@ -25,6 +20,8 @@ type PageProps = {
 };
 
 async function getVersionHistory(key: string) {
+  const supabase = getAdminSupabase();
+
   const { data: versions, error } = await supabase
     .from("sophia_prompts")
     .select("*")

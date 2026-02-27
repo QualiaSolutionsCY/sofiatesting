@@ -1,13 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { createLogger } from "@/lib/logger";
+import { getAdminSupabase } from "@/lib/getAdminSupabase()/admin";
 
 const logger = createLogger("api:admin:agents:stats");
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
 
 /**
  * GET /api/admin/agents/stats
@@ -22,14 +17,14 @@ export async function GET(request: NextRequest) {
     const region = searchParams.get("region");
 
     // Total agents
-    let totalQuery = supabase
+    let totalQuery = getAdminSupabase()
       .from("agents")
       .select("*", { count: "exact", head: true });
     if (region) totalQuery = totalQuery.eq("region", region.toLowerCase());
     const { count: totalCount } = await totalQuery;
 
     // Active agents
-    let activeQuery = supabase
+    let activeQuery = getAdminSupabase()
       .from("agents")
       .select("*", { count: "exact", head: true })
       .eq("is_active", true);
@@ -37,7 +32,7 @@ export async function GET(request: NextRequest) {
     const { count: activeCount } = await activeQuery;
 
     // Agents with telegram (as proxy for "registered")
-    let registeredQuery = supabase
+    let registeredQuery = getAdminSupabase()
       .from("agents")
       .select("*", { count: "exact", head: true })
       .not("telegram_user_id", "is", null);
@@ -46,7 +41,7 @@ export async function GET(request: NextRequest) {
     const { count: registeredCount } = await registeredQuery;
 
     // Regional breakdown
-    const { data: allAgents } = await supabase
+    const { data: allAgents } = await getAdminSupabase()
       .from("agents")
       .select("region, is_active, telegram_user_id");
 
@@ -65,7 +60,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Role breakdown
-    const { data: roleAgents } = await supabase
+    const { data: roleAgents } = await getAdminSupabase()
       .from("agents")
       .select("role, is_active");
 

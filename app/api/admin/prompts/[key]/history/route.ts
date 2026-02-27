@@ -1,14 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { checkAdminAuth } from "@/lib/auth/admin";
 import { createLogger } from "@/lib/logger";
+import { getAdminSupabase } from "@/lib/getAdminSupabase()/admin";
 
 const logger = createLogger("api:admin:prompts:history");
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
 
 type PromptRow = {
   id: string;
@@ -45,7 +40,7 @@ export async function GET(
   try {
     const { key } = await context.params;
 
-    const { data: versions, error } = await supabase
+    const { data: versions, error } = await getAdminSupabase()
       .from("sophia_prompts")
       .select("*")
       .eq("key", key)

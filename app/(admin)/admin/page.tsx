@@ -1,4 +1,3 @@
-import { createClient } from "@supabase/supabase-js";
 import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
@@ -27,13 +26,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { createLogger } from "@/lib/logger";
+import { getAdminSupabase } from "@/lib/supabase/admin";
 
 const logger = createLogger("admin:dashboard");
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
 
 type AgentRow = {
   id: string;
@@ -47,6 +42,8 @@ type AgentRow = {
 
 async function getDashboardStats() {
   try {
+    const supabase = getAdminSupabase();
+
     // 1. Agent Stats - Total
     const { count: totalCount } = await supabase
       .from("agents")

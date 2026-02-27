@@ -1,14 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { checkAdminAuth, hasMinimumRole } from "@/lib/auth/admin";
 import { createLogger } from "@/lib/logger";
+import { getAdminSupabase } from "@/lib/supabase/admin";
 
 const logger = createLogger("api:admin:agents");
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
 
 /**
  * Transform a raw agents row from Supabase into the camelCase format
@@ -81,7 +76,7 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     // Build query
-    let query = supabase
+    let query = getAdminSupabase()
       .from("agents")
       .select("*", { count: "exact" })
       .order("created_at", { ascending: false })
@@ -185,7 +180,7 @@ export async function POST(request: NextRequest) {
     const email = body.email.toLowerCase();
 
     // Check if email already exists
-    const { data: existing } = await supabase
+    const { data: existing } = await getAdminSupabase()
       .from("agents")
       .select("id")
       .eq("communication_email", email)
@@ -199,7 +194,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create agent
-    const { data: agent, error } = await supabase
+    const { data: agent, error } = await getAdminSupabase()
       .from("agents")
       .insert({
         full_name: body.fullName,

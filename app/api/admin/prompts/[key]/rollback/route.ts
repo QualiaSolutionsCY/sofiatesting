@@ -1,14 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { checkAdminAuth } from "@/lib/auth/admin";
 import { createLogger } from "@/lib/logger";
+import { getAdminSupabase } from "@/lib/getAdminSupabase()/admin";
 
 const logger = createLogger("api:admin:prompts:rollback");
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
 
 type PromptRow = {
   id: string;
@@ -55,7 +50,7 @@ export async function POST(
     }
 
     // Get the version to rollback to
-    const { data: targetVersion, error: fetchTargetError } = await supabase
+    const { data: targetVersion, error: fetchTargetError } = await getAdminSupabase()
       .from("sophia_prompts")
       .select("*")
       .eq("id", versionId)
@@ -72,7 +67,7 @@ export async function POST(
     const target = targetVersion as PromptRow;
 
     // Get current version
-    const { data: currentVersion, error: fetchCurrentError } = await supabase
+    const { data: currentVersion, error: fetchCurrentError } = await getAdminSupabase()
       .from("sophia_prompts")
       .select("*")
       .eq("key", key)
@@ -97,7 +92,7 @@ export async function POST(
     }
 
     // Mark current as not current
-    const { error: updateCurrentError } = await supabase
+    const { error: updateCurrentError } = await getAdminSupabase()
       .from("sophia_prompts")
       .update({
         is_current: false,
@@ -115,7 +110,7 @@ export async function POST(
 
     // Create new version with content from target
     const newVersion = (current.version || 1) + 1;
-    const { data: newPrompt, error: insertError } = await supabase
+    const { data: newPrompt, error: insertError } = await getAdminSupabase()
       .from("sophia_prompts")
       .insert({
         key: target.key,
@@ -135,7 +130,7 @@ export async function POST(
     if (insertError || !newPrompt) {
       logger.error("Error creating rollback version", insertError);
       // Restore current as current
-      await supabase
+      await getAdminSupabase()
         .from("sophia_prompts")
         .update({ is_current: true, replaced_at: null })
         .eq("id", current.id);

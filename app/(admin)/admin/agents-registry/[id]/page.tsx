@@ -1,7 +1,6 @@
 // Prevent static generation - this page needs real-time data
 export const dynamic = "force-dynamic";
 
-import { createClient } from "@supabase/supabase-js";
 import { format } from "date-fns";
 import {
   ArrowLeft,
@@ -24,11 +23,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
+import { getAdminSupabase } from "@/lib/supabase/admin";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -47,6 +42,8 @@ type AgentRow = {
 };
 
 async function getAgentDetails(id: string) {
+  const supabase = getAdminSupabase();
+
   const { data: agent, error } = await supabase
     .from("agents")
     .select("*")

@@ -1,14 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { checkAdminAuth } from "@/lib/auth/admin";
 import { createLogger } from "@/lib/logger";
+import { getAdminSupabase } from "@/lib/getAdminSupabase()/admin";
 
 const logger = createLogger("api:admin:prompts:cache");
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
 
 /**
  * POST /api/admin/prompts/cache/invalidate
@@ -38,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     // Update a cache_invalidated_at timestamp in the database
     // The Edge Function can check this to determine if it should refresh
-    const { error } = await supabase
+    const { error } = await getAdminSupabase()
       .from("sophia_prompts")
       .update({
         updated_at: new Date().toISOString(),
@@ -90,7 +85,7 @@ export async function GET(_request: NextRequest) {
 
   try {
     // Get the most recent update time across all prompts
-    const { data: latestUpdate, error } = await supabase
+    const { data: latestUpdate, error } = await getAdminSupabase()
       .from("sophia_prompts")
       .select("updated_at")
       .eq("is_current", true)

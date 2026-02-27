@@ -1,14 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { read, utils } from "xlsx";
 import { createLogger } from "@/lib/logger";
+import { getAdminSupabase } from "@/lib/getAdminSupabase()/admin";
 
 const logger = createLogger("api:admin:agents:import");
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
 
 type AgentRow = {
   "Fulla Name": string;
@@ -134,7 +129,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert agents
-    const { data: inserted, error } = await supabase
+    const { data: inserted, error } = await getAdminSupabase()
       .from("agents")
       .insert(agents)
       .select("id, communication_email");

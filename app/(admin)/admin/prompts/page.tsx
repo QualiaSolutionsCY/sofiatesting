@@ -1,13 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
 import { createLogger } from "@/lib/logger";
 import { PromptList } from "@/components/admin/prompts/prompt-list";
+import { getAdminSupabase } from "@/lib/supabase/admin";
 
 const logger = createLogger("admin:prompts");
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
 
 type PromptRow = {
   id: string;
@@ -24,6 +19,8 @@ type PromptRow = {
 };
 
 async function getPrompts() {
+  const supabase = getAdminSupabase();
+
   const { data: prompts, error } = await supabase
     .from("sophia_prompts")
     .select("*")
