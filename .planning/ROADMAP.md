@@ -147,11 +147,12 @@ Plans:
   1. Prompt cache prevents race conditions using single-inflight-request pattern
   2. File upload endpoints enforce per-user rate limiting to prevent abuse
   3. Data export queries complete efficiently without N+1 pattern (JOINs or batch loading)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 17-01: TBD
-- [ ] 17-02: TBD
+- [ ] 17-01-PLAN.md — Prompt cache race condition fix using single-inflight-request pattern (REL-01)
+- [ ] 17-02-PLAN.md — Per-user rate limiting on file upload endpoint (REL-02)
+- [ ] 17-03-PLAN.md — Data export N+1 query fix using Drizzle JOINs (REL-03)
 
 ## Progress
 
@@ -166,4 +167,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-01-27*
-*Last updated: 2026-02-28 after Phase 16 execution complete*
+*Last updated: 2026-02-28 after Phase 17 planning complete*
