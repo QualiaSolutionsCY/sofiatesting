@@ -19,6 +19,11 @@ export interface ValidationResult {
 export function determineRegion(location: string): string | null {
   const normalizedLocation = location.toLowerCase().trim();
 
+  // Return null early for empty strings to avoid false matches
+  if (!normalizedLocation) {
+    return null;
+  }
+
   for (const [region, locations] of Object.entries(REGION_LOCATIONS)) {
     for (const loc of locations) {
       if (normalizedLocation.includes(loc) || loc.includes(normalizedLocation)) {
