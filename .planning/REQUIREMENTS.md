@@ -10,16 +10,16 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Critical Security
 
-- [ ] **SEC-01**: Password hash column expanded from `varchar(64)` to `varchar(255)` to prevent bcrypt truncation (WA-001)
-- [ ] **SEC-02**: Chat creation uses `INSERT ON CONFLICT` or transaction to prevent race condition duplicates (WA-003)
+- [x] **SEC-01**: Password hash column expanded from `varchar(64)` to `varchar(255)` to prevent bcrypt truncation (WA-001)
+- [x] **SEC-02**: Chat creation uses `INSERT ON CONFLICT` or transaction to prevent race condition duplicates (WA-003)
 
 ### Security Fixes
 
-- [ ] **SEC-03**: Listing notifier reads Zyprus API URL from environment variable instead of hardcoded `dev9.zyprus.com` (EF-003)
+- [x] **SEC-03**: Listing notifier reads Zyprus API URL from environment variable instead of hardcoded `dev9.zyprus.com` (EF-003)
 - [ ] **SEC-04**: Tool arguments validated with Zod schemas before execution in tool executor (EF-004)
 - [ ] **SEC-05**: All search queries audited; raw SQL fragments replaced with parameterized queries (WA-005)
 - [ ] **SEC-06**: Admin prompt update endpoints reject content exceeding 50KB with 413 response (WA-006)
-- [ ] **SEC-07**: Registration returns identical response regardless of whether email exists (WA-008)
+- [x] **SEC-07**: Registration returns identical response regardless of whether email exists (WA-008)
 
 ### Reliability Fixes
 
@@ -55,13 +55,13 @@ Medium-severity issues from the same audit. Tracked for next milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | Phase 15 | Pending |
-| SEC-02 | Phase 15 | Pending |
-| SEC-03 | Phase 15 | Pending |
+| SEC-01 | Phase 15 | Done |
+| SEC-02 | Phase 15 | Done |
+| SEC-03 | Phase 15 | Done |
 | SEC-04 | Phase 16 | Pending |
 | SEC-05 | Phase 16 | Pending |
 | SEC-06 | Phase 16 | Pending |
-| SEC-07 | Phase 15 | Pending |
+| SEC-07 | Phase 15 | Done |
 | REL-01 | Phase 17 | Pending |
 | REL-02 | Phase 17 | Pending |
 | REL-03 | Phase 17 | Pending |

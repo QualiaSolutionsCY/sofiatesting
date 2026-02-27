@@ -116,20 +116,16 @@ See: `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
 **Milestone Goal:** Fix critical and high-severity security/reliability issues from comprehensive code review audit.
 
-#### Phase 15: Critical Security Fixes
+#### Phase 15: Critical Security Fixes ✓
 **Goal**: Critical vulnerabilities and quick wins resolved
 **Depends on**: Phase 14
 **Requirements**: SEC-01, SEC-02, SEC-03, SEC-07
-**Success Criteria** (what must be TRUE):
-  1. User passwords are stored with full bcrypt hashes (no truncation at 64 chars)
-  2. Chat creation never creates duplicate chat records for same WhatsApp conversation
-  3. Listing notifier connects to correct Zyprus environment (no hardcoded dev URLs)
-  4. User registration endpoint returns identical response regardless of email existence
+**Completed**: 2026-02-27
 **Plans**: 2 plans
 
 Plans:
-- [ ] 15-01-PLAN.md — Database security fixes (password hash expansion + chat race condition)
-- [ ] 15-02-PLAN.md — Configuration security fixes (environment-based URLs + timing-safe responses)
+- [x] 15-01-PLAN.md — Database security fixes (password hash expansion + chat race condition)
+- [x] 15-02-PLAN.md — Configuration security fixes (environment-based URLs + timing-safe responses)
 
 #### Phase 16: Validation Hardening
 **Goal**: Input validation prevents injection attacks and malicious payloads
