@@ -17,7 +17,7 @@ import { getPendingListingUploads, markListingPublished, markListingExpired } fr
 import { sendTextMessage, formatPhoneNumber } from "../sophia-bot/utils/wasend.ts";
 import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
 
-const ZYPRUS_API_URL = "https://dev9.zyprus.com";
+const ZYPRUS_API_URL = Deno.env.get("ZYPRUS_API_URL") || "https://dev9.zyprus.com";
 const MAX_DRAFT_AGE_DAYS = 30;
 
 // Get Zyprus credentials from environment (set via supabase secrets)
@@ -26,6 +26,12 @@ const ZYPRUS_CLIENT_SECRET = Deno.env.get("ZYPRUS_CLIENT_SECRET");
 
 if (!ZYPRUS_CLIENT_ID || !ZYPRUS_CLIENT_SECRET) {
   throw new Error("ZYPRUS_CLIENT_ID and ZYPRUS_CLIENT_SECRET must be set as Supabase secrets");
+}
+
+if (!Deno.env.get("ZYPRUS_API_URL")) {
+  logger.warn("[Listing Notifier] ZYPRUS_API_URL not set, defaulting to dev9.zyprus.com", {
+    category: LogCategory.CONFIG,
+  });
 }
 
 const responseHeaders = {
