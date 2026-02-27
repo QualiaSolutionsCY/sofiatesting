@@ -115,7 +115,7 @@ Deno.serve(async (req: Request) => {
 
     // Process in batches of 5 to avoid overwhelming Zyprus API
     const BATCH_SIZE = 5;
-    const batches = [];
+    const batches: typeof pendingListings[] = [];
     for (let i = 0; i < pendingListings.length; i += BATCH_SIZE) {
       batches.push(pendingListings.slice(i, i + BATCH_SIZE));
     }
