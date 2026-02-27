@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 ## Current Position
 
 Milestone: v1.3 Production Audit Fixes
-Phase: Phase 16 (Validation Hardening) — IN PROGRESS
-Status: Phase 16 Plan 01 complete
-Last activity: 2026-02-28 — Completed 16-01 (Tool Input Validation)
+Phase: Phase 16 (Validation Hardening) — COMPLETE
+Status: Phase 16 verified (8/8 must-haves), ready for Phase 17
+Last activity: 2026-02-28 — Phase 16 complete (3/3 plans, SEC-04/05/06 verified)
 
-Progress: ████████░░░░░░░░░░░░░░░░░ 33% (v1.3 - Phase 15 complete, Phase 16: 1/3 plans done)
+Progress: ████████████████░░░░░░░░░ 67% (v1.3 - Phase 15-16 complete, 5/8 plans done)
 
 ## Performance Metrics
 
@@ -186,13 +186,15 @@ Full decision log in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last activity: 2026-02-28 - Completed Phase 16 Plan 01
-Stopped at: .planning/phases/16-validation-hardening/16-01-SUMMARY.md
-Resume file: .planning/phases/16-validation-hardening/16-01-SUMMARY.md
+Last activity: 2026-02-28 - Phase 16 complete (3/3 plans, verified)
+Stopped at: Phase 16 complete, ready for Phase 17
+Resume file: .planning/phases/16-validation-hardening/16-VERIFICATION.md
 
 **Recent work:**
-- Phase 16 Plan 01: Tool input validation (2min, 3 commits, 3 files added/modified)
-- Phase 16 Plan 03: Admin prompt size limits (1min, 2 commits, 2 files modified)
+- Phase 16 complete: Validation Hardening (3 plans, 10 commits, SEC-04/05/06 verified)
+  - Plan 01: Zod tool validation (schemas.ts + validation.ts + executor integration)
+  - Plan 02: SQL injection fix (taxonomy-cache .or() → .eq(), full audit)
+  - Plan 03: Admin prompt 50KB limits (PUT + POST rollback endpoints)
 - Phase 15 Plan 01: Database security fixes (2min, 2 commits, password hash + chat race condition)
 - Phase 15 Plan 02: Configuration security fixes (1min, 2 commits, 2 files modified)
 - v1.3 Roadmap: 3 phases (15-17) mapped from 10 requirements with 100% coverage
@@ -207,4 +209,4 @@ Resume file: .planning/phases/16-validation-hardening/16-01-SUMMARY.md
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-02-28 after Phase 16 Plan 02 completion*
+*Last updated: 2026-02-28 after Phase 16 execution complete*

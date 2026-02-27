@@ -127,20 +127,17 @@ Plans:
 - [x] 15-01-PLAN.md — Database security fixes (password hash expansion + chat race condition)
 - [x] 15-02-PLAN.md — Configuration security fixes (environment-based URLs + timing-safe responses)
 
-#### Phase 16: Validation Hardening
+#### Phase 16: Validation Hardening ✓
 **Goal**: Input validation prevents injection attacks and malicious payloads
 **Depends on**: Phase 15
 **Requirements**: SEC-04, SEC-05, SEC-06
-**Success Criteria** (what must be TRUE):
-  1. Tool executor validates all tool arguments against Zod schemas before execution
-  2. All database queries use parameterized queries (no raw SQL string concatenation)
-  3. Admin prompt update endpoints reject payloads exceeding 50KB with proper error response
-**Plans**: 3
+**Completed**: 2026-02-28
+**Plans**: 3 plans
 
 Plans:
-- [ ] 16-01-PLAN.md — Tool argument validation with Zod schemas in executor (SEC-04)
-- [ ] 16-02-PLAN.md — Fix .or() filter injection in taxonomy-cache + SQL audit (SEC-05)
-- [ ] 16-03-PLAN.md — 50KB payload size limit on admin prompt endpoints (SEC-06)
+- [x] 16-01-PLAN.md — Tool argument validation with Zod schemas in executor (SEC-04)
+- [x] 16-02-PLAN.md — Fix .or() filter injection in taxonomy-cache + SQL audit (SEC-05)
+- [x] 16-03-PLAN.md — 50KB payload size limit on admin prompt endpoints (SEC-06)
 
 #### Phase 17: Reliability Improvements
 **Goal**: System handles high load and concurrent requests without data corruption
@@ -163,10 +160,10 @@ Plans:
 | v1.0 MVP | 1-5 | 10 | Complete | 2026-01-27 |
 | v1.1 Reliability | 6-9 | 16 | Complete | 2026-01-29 |
 | v1.2 Call Audit | 10-14 | 14 | Complete | 2026-02-26 |
-| v1.3 Audit Fixes | 15-17 | TBD | In progress | - |
+| v1.3 Audit Fixes | 15-17 | 8 | In progress | - |
 
-**Total: 14 phases shipped, 3 phases planned**
+**Total: 16 phases shipped, 1 phase remaining**
 
 ---
 *Roadmap created: 2026-01-27*
-*Last updated: 2026-02-27 after Phase 15 planning complete*
+*Last updated: 2026-02-28 after Phase 16 execution complete*
