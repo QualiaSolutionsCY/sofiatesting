@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createLogger } from "@/lib/logger";
-import { getAdminSupabase } from "@/lib/getAdminSupabase()/admin";
+import { getAdminSupabase } from "@/lib/supabase/admin";
+import { checkAdminAuth, hasMinimumRole } from "@/lib/auth/admin";
 
 const logger = createLogger("api:admin:agents:link-whatsapp");
 
@@ -14,6 +15,23 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  // Check admin authentication
+  const adminCheck = await checkAdminAuth();
+  if (!adminCheck.isAdmin) {
+    return NextResponse.json(
+      { error: adminCheck.error },
+      { status: adminCheck.userId ? 403 : 401 }
+    );
+  }
+
+  // Require admin role for linking accounts
+  if (!hasMinimumRole(adminCheck.role, "admin")) {
+    return NextResponse.json(
+      { error: "Insufficient permissions. Admin role required." },
+      { status: 403 }
+    );
+  }
+
   try {
     const { id } = await context.params;
     const body = await request.json();
@@ -100,6 +118,23 @@ export async function DELETE(
   _request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  // Check admin authentication
+  const adminCheck = await checkAdminAuth();
+  if (!adminCheck.isAdmin) {
+    return NextResponse.json(
+      { error: adminCheck.error },
+      { status: adminCheck.userId ? 403 : 401 }
+    );
+  }
+
+  // Require admin role for unlinking accounts
+  if (!hasMinimumRole(adminCheck.role, "admin")) {
+    return NextResponse.json(
+      { error: "Insufficient permissions. Admin role required." },
+      { status: 403 }
+    );
+  }
+
   try {
     const { id } = await context.params;
 

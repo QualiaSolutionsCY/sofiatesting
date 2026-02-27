@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createLogger } from "@/lib/logger";
-import { getAdminSupabase } from "@/lib/getAdminSupabase()/admin";
+import { getAdminSupabase } from "@/lib/supabase/admin";
+import { checkAdminAuth } from "@/lib/auth/admin";
 
 const logger = createLogger("api:admin:agents:stats");
 
@@ -12,6 +13,15 @@ const logger = createLogger("api:admin:agents:stats");
  * - region: Filter by region
  */
 export async function GET(request: NextRequest) {
+  // Check admin authentication
+  const adminCheck = await checkAdminAuth();
+  if (!adminCheck.isAdmin) {
+    return NextResponse.json(
+      { error: adminCheck.error },
+      { status: adminCheck.userId ? 403 : 401 }
+    );
+  }
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const region = searchParams.get("region");

@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { read, utils } from "xlsx";
 import { createLogger } from "@/lib/logger";
-import { getAdminSupabase } from "@/lib/getAdminSupabase()/admin";
+import { getAdminSupabase } from "@/lib/supabase/admin";
+import { checkAdminAuth, hasMinimumRole } from "@/lib/auth/admin";
 
 const logger = createLogger("api:admin:agents:import");
 
@@ -45,6 +46,23 @@ const normalizeEmail = (email: string): string => {
  * Body: FormData with 'file' field containing Excel file
  */
 export async function POST(request: NextRequest) {
+  // Check admin authentication
+  const adminCheck = await checkAdminAuth();
+  if (!adminCheck.isAdmin) {
+    return NextResponse.json(
+      { error: adminCheck.error },
+      { status: adminCheck.userId ? 403 : 401 }
+    );
+  }
+
+  // Require admin role for bulk import
+  if (!hasMinimumRole(adminCheck.role, "admin")) {
+    return NextResponse.json(
+      { error: "Insufficient permissions. Admin role required." },
+      { status: 403 }
+    );
+  }
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;
