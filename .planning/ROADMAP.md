@@ -5,7 +5,7 @@
 - ✅ **v1.0 MVP** - Phases 1-5 (shipped 2026-01-27)
 - ✅ **v1.1 Reliability & Hardening** - Phases 6-9 (shipped 2026-01-29)
 - ✅ **v1.2 3CX Call Log Audit** - Phases 10-14 (shipped 2026-02-26)
-- 🚧 **v1.3 Production Audit Fixes** - Phases 15-17 (in progress)
+- ✅ **v1.3 Production Audit Fixes** - Phases 15-17 (shipped 2026-02-28)
 
 ## Phases
 
@@ -139,20 +139,17 @@ Plans:
 - [x] 16-02-PLAN.md — Fix .or() filter injection in taxonomy-cache + SQL audit (SEC-05)
 - [x] 16-03-PLAN.md — 50KB payload size limit on admin prompt endpoints (SEC-06)
 
-#### Phase 17: Reliability Improvements
+#### Phase 17: Reliability Improvements ✓
 **Goal**: System handles high load and concurrent requests without data corruption
 **Depends on**: Phase 16
 **Requirements**: REL-01, REL-02, REL-03
-**Success Criteria** (what must be TRUE):
-  1. Prompt cache prevents race conditions using single-inflight-request pattern
-  2. File upload endpoints enforce per-user rate limiting to prevent abuse
-  3. Data export queries complete efficiently without N+1 pattern (JOINs or batch loading)
+**Completed**: 2026-02-28
 **Plans**: 3 plans
 
 Plans:
-- [ ] 17-01-PLAN.md — Prompt cache race condition fix using single-inflight-request pattern (REL-01)
-- [ ] 17-02-PLAN.md — Per-user rate limiting on file upload endpoint (REL-02)
-- [ ] 17-03-PLAN.md — Data export N+1 query fix using Drizzle JOINs (REL-03)
+- [x] 17-01-PLAN.md — Prompt cache race condition fix using single-inflight-request pattern (REL-01)
+- [x] 17-02-PLAN.md — Per-user rate limiting on file upload endpoint (REL-02)
+- [x] 17-03-PLAN.md — Data export N+1 query fix using Drizzle JOINs (REL-03)
 
 ## Progress
 
@@ -161,10 +158,10 @@ Plans:
 | v1.0 MVP | 1-5 | 10 | Complete | 2026-01-27 |
 | v1.1 Reliability | 6-9 | 16 | Complete | 2026-01-29 |
 | v1.2 Call Audit | 10-14 | 14 | Complete | 2026-02-26 |
-| v1.3 Audit Fixes | 15-17 | 8 | In progress | - |
+| v1.3 Audit Fixes | 15-17 | 8 | Complete | 2026-02-28 |
 
-**Total: 16 phases shipped, 1 phase remaining**
+**Total: 17 phases shipped, 0 remaining**
 
 ---
 *Roadmap created: 2026-01-27*
-*Last updated: 2026-02-28 after Phase 17 planning complete*
+*Last updated: 2026-02-28 after Phase 17 execution complete — v1.3 milestone shipped*

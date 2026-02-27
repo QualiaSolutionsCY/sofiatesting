@@ -16,16 +16,16 @@ Requirements for this milestone. Each maps to roadmap phases.
 ### Security Fixes
 
 - [x] **SEC-03**: Listing notifier reads Zyprus API URL from environment variable instead of hardcoded `dev9.zyprus.com` (EF-003)
-- [ ] **SEC-04**: Tool arguments validated with Zod schemas before execution in tool executor (EF-004)
-- [ ] **SEC-05**: All search queries audited; raw SQL fragments replaced with parameterized queries (WA-005)
-- [ ] **SEC-06**: Admin prompt update endpoints reject content exceeding 50KB with 413 response (WA-006)
+- [x] **SEC-04**: Tool arguments validated with Zod schemas before execution in tool executor (EF-004)
+- [x] **SEC-05**: All search queries audited; raw SQL fragments replaced with parameterized queries (WA-005)
+- [x] **SEC-06**: Admin prompt update endpoints reject content exceeding 50KB with 413 response (WA-006)
 - [x] **SEC-07**: Registration returns identical response regardless of whether email exists (WA-008)
 
 ### Reliability Fixes
 
-- [ ] **REL-01**: Prompt cache uses loading promise pattern (single inflight request) to prevent concurrent DB calls (EF-005)
-- [ ] **REL-02**: File upload endpoints enforce per-user rate limiting (WA-007)
-- [ ] **REL-03**: Data export queries use JOINs or batch loading instead of N+1 pattern (WA-009)
+- [x] **REL-01**: Prompt cache uses loading promise pattern (single inflight request) to prevent concurrent DB calls (EF-005)
+- [x] **REL-02**: File upload endpoints enforce per-user rate limiting (WA-007)
+- [x] **REL-03**: Data export queries use JOINs or batch loading instead of N+1 pattern (WA-009)
 
 ## v1.4 Requirements (Deferred)
 
@@ -58,13 +58,13 @@ Medium-severity issues from the same audit. Tracked for next milestone.
 | SEC-01 | Phase 15 | Done |
 | SEC-02 | Phase 15 | Done |
 | SEC-03 | Phase 15 | Done |
-| SEC-04 | Phase 16 | Pending |
-| SEC-05 | Phase 16 | Pending |
-| SEC-06 | Phase 16 | Pending |
+| SEC-04 | Phase 16 | Done |
+| SEC-05 | Phase 16 | Done |
+| SEC-06 | Phase 16 | Done |
 | SEC-07 | Phase 15 | Done |
-| REL-01 | Phase 17 | Pending |
-| REL-02 | Phase 17 | Pending |
-| REL-03 | Phase 17 | Pending |
+| REL-01 | Phase 17 | Done |
+| REL-02 | Phase 17 | Done |
+| REL-03 | Phase 17 | Done |
 
 **Coverage:**
 - v1.3 requirements: 10 total
@@ -73,4 +73,5 @@ Medium-severity issues from the same audit. Tracked for next milestone.
 
 ---
 *Requirements defined: 2026-02-27*
+*Last updated: 2026-02-28 — all 10/10 requirements complete*
 *Last updated: 2026-02-27 after initial definition*
