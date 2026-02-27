@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 ## Current Position
 
 Milestone: v1.3 Production Audit Fixes
-Phase: Phase 17 (Reliability Improvements) — IN PROGRESS (1/3 complete)
-Status: Plan 17-03 complete (N+1 query fix), 2 plans remaining
-Last activity: 2026-02-28 — Completed 17-03-PLAN.md (data export optimization)
+Phase: Phase 17 (Reliability Improvements) — IN PROGRESS (2/3 complete)
+Status: Plans 17-02 and 17-03 complete (rate limiting + N+1 query fix), 1 plan remaining
+Last activity: 2026-02-28 — Completed 17-02-PLAN.md (file upload rate limiting)
 
-Progress: ████████████████░░░░░░░░░ 75% (v1.3 - Phase 15-16 complete, Phase 17: 1/3 done)
+Progress: ████████████████▓░░░░░░░░ 83% (v1.3 - Phase 15-16 complete, Phase 17: 2/3 done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 41
-- Average duration: 43s (v1.3 Plan 17-03), 2-3min (v1.2 plans)
-- Total execution time: ~4 hours (v1.0 + v1.1) + 20min (v1.2) + 5min (v1.3)
+- Total plans completed: 42
+- Average duration: 53s (v1.3 Plans 17-02, 17-03), 2-3min (v1.2 plans)
+- Total execution time: ~4 hours (v1.0 + v1.1) + 20min (v1.2) + 6min (v1.3)
 
 **By Milestone:**
 
@@ -68,6 +68,19 @@ Recent decisions from PROJECT.md and v1.2 execution:
 - Use TextEncoder for byte-accurate size measurement (not string length) to handle multi-byte UTF-8 characters
 - Different validation strategies: PUT validates content field, POST rollback validates entire request body
 - 413 Payload Too Large status follows RFC standard for size limit responses
+
+**Phase 17 Plan 01 (Prompt Cache Race Condition Fix):**
+- Single-inflight-request pattern prevents duplicate DB queries during concurrent cache loads
+- loadingPromise shared across all concurrent getPromptSections calls during cache miss
+- finally block clears loadingPromise on success or failure (prevents stuck state)
+- Concurrent requests wait for same promise instead of triggering N duplicate DB queries
+- Debug log added when concurrent request detected ("waiting for inflight load")
+
+**Phase 17 Plan 02 (File Upload Rate Limiting):**
+- Sliding window rate limiter with in-memory storage (10 req/60s per user)
+- Automatic cleanup every 5 minutes to prevent unbounded memory growth
+- RFC-compliant headers: Retry-After, X-RateLimit-Remaining, X-RateLimit-Reset
+- Rate limit check after auth, before file processing to fail fast
 
 **Phase 17 Plan 03 (Data Export N+1 Query Fix):**
 - Use PostgreSQL json_agg with FILTER instead of Drizzle relational queries (schema lacks relations definition)
