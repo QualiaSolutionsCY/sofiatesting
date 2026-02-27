@@ -84,6 +84,8 @@ export interface TaxonomyCache {
   indoorFeatures: TaxonomyItem[];
   outdoorFeatures: TaxonomyItem[];
   propertyViews: TaxonomyItem[];  // Sea View, Mountain View, etc.
+  landTypes: TaxonomyItem[];      // Plot, Field, Agricultural
+  infrastructure: TaxonomyItem[]; // Electricity, Water, Road Access, etc.
   users: UserItem[];
   lastUpdated: number;
 }
@@ -358,6 +360,8 @@ async function refreshTaxonomyInBackground(): Promise<void> {
       indoorFeatures,
       outdoorFeatures,
       propertyViews,
+      landTypes,
+      infrastructure,
       users,
     ] = await Promise.all([
       fetchLocations(token, config.apiUrl),
@@ -368,6 +372,8 @@ async function refreshTaxonomyInBackground(): Promise<void> {
       fetchTaxonomy("indoor_property_views", token, config.apiUrl),
       fetchTaxonomy("outdoor_property_features", token, config.apiUrl),
       fetchTaxonomy("property_views", token, config.apiUrl),
+      fetchTaxonomy("land_type", token, config.apiUrl),
+      fetchTaxonomy("infrastructure_", token, config.apiUrl),
       fetchUsers(token, config.apiUrl),
     ]);
 
@@ -381,6 +387,8 @@ async function refreshTaxonomyInBackground(): Promise<void> {
       indoorFeatures,
       outdoorFeatures,
       propertyViews,
+      landTypes,
+      infrastructure,
       users,
       lastUpdated: Date.now(),
     };
@@ -444,6 +452,8 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
         indoorFeatures,
         outdoorFeatures,
         propertyViews,
+        landTypes,
+        infrastructure,
         users,
       ] = await Promise.all([
         fetchLocations(token, config.apiUrl), // CRITICAL: locations are nodes, not taxonomy
@@ -454,6 +464,8 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
         fetchTaxonomy("indoor_property_views", token, config.apiUrl), // Note: uses "views" not "features"
         fetchTaxonomy("outdoor_property_features", token, config.apiUrl),
         fetchTaxonomy("property_views", token, config.apiUrl), // Sea View, Mountain View, etc.
+        fetchTaxonomy("land_type", token, config.apiUrl),
+        fetchTaxonomy("infrastructure_", token, config.apiUrl),
         fetchUsers(token, config.apiUrl),
       ]);
 
@@ -467,6 +479,8 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
         indoorFeatures,
         outdoorFeatures,
         propertyViews,
+        landTypes,
+        infrastructure,
         users,
         lastUpdated: Date.now(),
       };
@@ -596,9 +610,10 @@ export async function findLocationUuid(locationName: string): Promise<LocationRe
 
         // Check if this location is in the specified district
         // CRITICAL: Use EXACT word match, not substring, to avoid "neapoli" matching "neapolis"
+        // Also check multi-word entries (e.g., "mesa chorio", "kato paphos") against full name
         const locationIsInDistrict = locWords.some(locWord =>
           regionLocs.some(regLoc => locWord === regLoc)
-        );
+        ) || regionLocs.some(regLoc => regLoc.includes(" ") && locNameLower.includes(regLoc));
 
         if (locationIsInDistrict) {
           score += 30; // HUGE bonus for being in the specified district
@@ -608,7 +623,8 @@ export async function findLocationUuid(locationName: string): Promise<LocationRe
           let locationInOtherDistrict: string | null = null;
           for (const [otherRegion, otherLocs] of Object.entries(REGION_LOCATIONS)) {
             if (otherRegion === specifiedDistrict) continue;
-            if (locWords.some(locWord => otherLocs.some(otherLoc => locWord === otherLoc))) {
+            if (locWords.some(locWord => otherLocs.some(otherLoc => locWord === otherLoc)) ||
+                otherLocs.some(otherLoc => otherLoc.includes(" ") && locNameLower.includes(otherLoc))) {
               locationInOtherDistrict = otherRegion;
               break;
             }
@@ -652,10 +668,11 @@ export async function findLocationUuid(locationName: string): Promise<LocationRe
       if (specifiedDistrict) {
         const regionLocs = REGION_LOCATIONS[specifiedDistrict] || [];
         const bestLocWords = best.location.name.toLowerCase().split(/[\s,]+/).filter(w => w.length > 1);
-        // CRITICAL: Use EXACT word match for district detection
+        const bestLocNameLower = best.location.name.toLowerCase();
+        // CRITICAL: Use EXACT word match for district detection + multi-word entries
         const bestIsInDistrict = bestLocWords.some(locWord =>
           regionLocs.some(regLoc => locWord === regLoc)
-        );
+        ) || regionLocs.some(regLoc => regLoc.includes(" ") && bestLocNameLower.includes(regLoc));
 
         if (!bestIsInDistrict) {
           logger.warn(`[Taxonomy] Best match "${best.location.name}" is NOT in specified district "${specifiedDistrict}" - discarding and using fallback`, { category: LogCategory.ZYPRUS });
@@ -696,12 +713,13 @@ export async function findLocationUuid(locationName: string): Promise<LocationRe
       );
 
       // Second try: match ANY location name that appears in REGION_LOCATIONS for this district
-      // CRITICAL: Use EXACT word match to avoid "neapoli" matching "neapolis"
+      // CRITICAL: Use EXACT word match to avoid "neapoli" matching "neapolis" + multi-word entries
       if (!regionFallback && regionLocs.length > 0) {
         regionFallback = taxonomy.locations.find(loc => {
           const locNameLower = loc.name.toLowerCase();
           const locWords = locNameLower.split(/[\s,]+/).filter(w => w.length > 1);
-          return locWords.some(locWord => regionLocs.includes(locWord));
+          return locWords.some(locWord => regionLocs.includes(locWord)) ||
+                 regionLocs.some(regLoc => regLoc.includes(" ") && locNameLower.includes(regLoc));
         });
       }
 
@@ -1389,6 +1407,105 @@ export async function findPropertyViewUuids(featureNames: string[]): Promise<str
   }
 
   logger.debug(`[Taxonomy] Found ${uuids.length} property view UUIDs`);
+  return uuids;
+}
+
+/**
+ * Find land type UUID (plot, field, agricultural)
+ * Returns empty string as fallback if not found
+ */
+export async function findLandTypeUuid(landType: string): Promise<string> {
+  const normalized = landType.toLowerCase().trim();
+  logger.debug(`[Taxonomy] Finding land type UUID for: "${landType}" (normalized: "${normalized}")`);
+
+  try {
+    const taxonomy = await loadTaxonomy();
+    logger.debug(`[Taxonomy] Available land types: ${taxonomy.landTypes.map(lt => lt.name).join(", ")}`);
+
+    // Try exact match
+    const exact = taxonomy.landTypes.find(
+      (lt) => lt.name.toLowerCase() === normalized
+    );
+    if (exact) {
+      logger.debug(`[Taxonomy] Exact match for "${landType}": ${exact.name} (${exact.id})`);
+      return exact.id;
+    }
+
+    // Try partial match
+    const partial = taxonomy.landTypes.find(
+      (lt) => lt.name.toLowerCase().includes(normalized) || normalized.includes(lt.name.toLowerCase())
+    );
+    if (partial) {
+      logger.debug(`[Taxonomy] Partial match for "${landType}": ${partial.name} (${partial.id})`);
+      return partial.id;
+    }
+
+    // Return first land type if available
+    if (taxonomy.landTypes.length > 0) {
+      logger.debug(`[Taxonomy] Using first available land type: ${taxonomy.landTypes[0].name}`);
+      return taxonomy.landTypes[0].id;
+    }
+  } catch (error) {
+    logger.error("[Taxonomy] Error finding land type", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+  }
+
+  // Fallback: empty string (land type is optional in some cases)
+  logger.warn(`[Taxonomy] No land type found for: "${landType}", using empty fallback`);
+  return "";
+}
+
+/**
+ * Find infrastructure UUIDs (electricity, water, road_access, sewage, telephone)
+ * Returns array of matched UUIDs
+ */
+export async function findInfrastructureUuids(infrastructure: string[]): Promise<string[]> {
+  if (!infrastructure || infrastructure.length === 0) {
+    return [];
+  }
+
+  const uuids: string[] = [];
+
+  try {
+    const taxonomy = await loadTaxonomy();
+    logger.debug(`[Taxonomy] Finding infrastructure from: ${infrastructure.join(", ")}`);
+    logger.debug(`[Taxonomy] Available infrastructure (${taxonomy.infrastructure.length}): ${taxonomy.infrastructure.map(i => i.name).join(", ")}`);
+
+    for (const name of infrastructure) {
+      const normalized = name.toLowerCase().trim().replace(/_/g, " ");
+      if (!normalized) continue;
+
+      // Try exact match
+      let match = taxonomy.infrastructure.find(i => i.name.toLowerCase() === normalized);
+
+      if (!match) {
+        // Try normalized match (replace underscores, hyphens with spaces)
+        const normalizedClean = normalized.replace(/[-\/]/g, " ").replace(/\s+/g, " ");
+        match = taxonomy.infrastructure.find(i => {
+          const taxClean = i.name.toLowerCase().replace(/[-\/]/g, " ").replace(/\s+/g, " ");
+          return taxClean === normalizedClean;
+        });
+      }
+
+      if (!match) {
+        // Try partial match
+        match = taxonomy.infrastructure.find(i => {
+          const taxLower = i.name.toLowerCase();
+          return taxLower.includes(normalized) || normalized.includes(taxLower);
+        });
+      }
+
+      if (match && !uuids.includes(match.id)) {
+        logger.debug(`[Taxonomy] INFRASTRUCTURE MATCHED: "${name}" -> "${match.name}" (${match.id})`);
+        uuids.push(match.id);
+      } else if (!match) {
+        logger.debug(`[Taxonomy] INFRASTRUCTURE NO MATCH: "${name}"`);
+      }
+    }
+  } catch (error) {
+    logger.error("[Taxonomy] Error finding infrastructure", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+  }
+
+  logger.debug(`[Taxonomy] Found ${uuids.length} infrastructure UUIDs`);
   return uuids;
 }
 
