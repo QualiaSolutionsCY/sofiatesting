@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { auth } from "@/app/(auth)/auth";
 import { db } from "@/lib/db/client";
@@ -47,38 +47,40 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Get all chats with messages
-    const userChats = await db
+    // Get all chats with messages (single JOIN query to avoid N+1 pattern)
+    const chatsWithMessages = await db
       .select({
         id: chat.id,
         title: chat.title,
         createdAt: chat.createdAt,
         visibility: chat.visibility,
+        messages: sql<
+          Array<{
+            id: string;
+            role: string;
+            parts: unknown;
+            createdAt: Date;
+          }>
+        >`
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'id', ${message.id},
+                'role', ${message.role},
+                'parts', ${message.parts},
+                'createdAt', ${message.createdAt}
+              )
+              ORDER BY ${message.createdAt}
+            ) FILTER (WHERE ${message.id} IS NOT NULL),
+            '[]'::json
+          )
+        `,
       })
       .from(chat)
+      .leftJoin(message, eq(message.chatId, chat.id))
       .where(eq(chat.userId, userId))
+      .groupBy(chat.id, chat.title, chat.createdAt, chat.visibility)
       .orderBy(desc(chat.createdAt));
-
-    // Get messages for each chat
-    const chatsWithMessages = await Promise.all(
-      userChats.map(async (chatItem) => {
-        const messages = await db
-          .select({
-            id: message.id,
-            role: message.role,
-            parts: message.parts,
-            createdAt: message.createdAt,
-          })
-          .from(message)
-          .where(eq(message.chatId, chatItem.id))
-          .orderBy(message.createdAt);
-
-        return {
-          ...chatItem,
-          messages,
-        };
-      })
-    );
 
     // Get property listings
     const propertyListings = await db
