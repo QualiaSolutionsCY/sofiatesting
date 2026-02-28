@@ -86,7 +86,7 @@ const nextConfig: NextConfig = {
 // Wrap with Sentry for error monitoring
 // Trim env vars to handle trailing newlines from Vercel
 const sentryOrg = (process.env.SENTRY_ORG || "qualia-solutions").trim();
-const sentryProject = (process.env.SENTRY_PROJECT || "sofia-ai").trim();
+const sentryProject = (process.env.SENTRY_PROJECT || "sophia").trim();
 
 // Only enable source map uploads if auth token is configured
 const hasSentryAuth = Boolean(process.env.SENTRY_AUTH_TOKEN);

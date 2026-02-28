@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/nextjs";
 import { registerOTel } from "@vercel/otel";
 
 export async function register() {
-  registerOTel({ serviceName: "sofia-ai" });
+  registerOTel({ serviceName: "sophia" });
 
   // Initialize Sentry for server-side error tracking
   if (process.env.NEXT_RUNTIME === "nodejs") {
