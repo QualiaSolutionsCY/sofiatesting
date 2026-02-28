@@ -80,15 +80,45 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| RLS-01 through RLS-17 | TBD | Pending |
-| AUTH-01 through AUTH-05 | TBD | Pending |
-| CODE-01 through CODE-06 | TBD | Pending |
+| RLS-01 | Phase 18 | Pending |
+| RLS-02 | Phase 18 | Pending |
+| RLS-03 | Phase 18 | Pending |
+| RLS-04 | Phase 18 | Pending |
+| RLS-05 | Phase 18 | Pending |
+| RLS-06 | Phase 18 | Pending |
+| RLS-07 | Phase 18 | Pending |
+| RLS-08 | Phase 18 | Pending |
+| RLS-09 | Phase 18 | Pending |
+| RLS-10 | Phase 18 | Pending |
+| RLS-11 | Phase 18 | Pending |
+| RLS-12 | Phase 18 | Pending |
+| RLS-13 | Phase 18 | Pending |
+| RLS-14 | Phase 18 | Pending |
+| RLS-15 | Phase 18 | Pending |
+| RLS-16 | Phase 18 | Pending |
+| RLS-17 | Phase 18 | Pending |
+| AUTH-01 | Phase 19 | Pending |
+| AUTH-02 | Phase 19 | Pending |
+| AUTH-03 | Phase 19 | Pending |
+| AUTH-04 | Phase 19 | Pending |
+| AUTH-05 | Phase 19 | Pending |
+| CODE-01 | Phase 20 | Pending |
+| CODE-02 | Phase 20 | Pending |
+| CODE-03 | Phase 20 | Pending |
+| CODE-04 | Phase 20 | Pending |
+| CODE-05 | Phase 20 | Pending |
+| CODE-06 | Phase 20 | Pending |
 
 **Coverage:**
 - v1.4 requirements: 28 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 28 ⚠️
+- Mapped to phases: 28 (100% coverage ✓)
+- Unmapped: 0
+
+**Phase Distribution:**
+- Phase 18 (Database Security): 17 requirements
+- Phase 19 (Authentication Hardening): 5 requirements
+- Phase 20 (Code Quality): 6 requirements
 
 ---
 *Requirements defined: 2026-03-01*
-*Last updated: 2026-03-01 after initial definition*
+*Last updated: 2026-03-01 after v1.4 roadmap created — 100% coverage achieved*
