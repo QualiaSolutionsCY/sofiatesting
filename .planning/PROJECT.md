@@ -75,7 +75,16 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 
 ### Active
 
-(No active milestone — run `/gsd:new-milestone` to start v1.4)
+## Current Milestone: v1.4 Security & Performance Hardening
+
+**Goal:** Fix all critical audit findings from comprehensive security and performance audit — RLS policies, service role protection, auth hardening, loading states, and code splitting.
+
+**Target features:**
+- Row Level Security policies for 15+ core database tables
+- Server-only protection for service role key usage
+- Direct authentication checks in server actions
+- Loading states for all async pages
+- Code splitting for Monaco editor and large dependencies
 
 ### Out of Scope
 
@@ -139,4 +148,4 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 | Cowork audit → Claude Code pipeline | External review identifies issues, Claude Code fixes them | Good |
 
 ---
-*Last updated: 2026-02-28 after v1.3 milestone complete*
+*Last updated: 2026-02-28 after v1.4 milestone started*

@@ -5,16 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Agents can trust SOPHIA to do the right thing every time
-**Current focus:** Planning next milestone
+**Current focus:** v1.4 Security & Performance Hardening
 
 ## Current Position
 
-Milestone: v1.3 Production Audit Fixes — COMPLETE
-Phase: All 17 phases shipped
-Status: v1.3 shipped, ready for next milestone
-Last activity: 2026-02-28 — v1.3 milestone complete (3 phases, 8 plans, 10/10 requirements)
-
-Progress: ████████████████████████ 100% (v1.3 complete)
+Milestone: v1.4 Security & Performance Hardening — STARTED
+Phase: Not started (defining requirements)
+Status: Defining requirements
+Last activity: 2026-02-28 — Milestone v1.4 started
 
 ## Performance Metrics
 
@@ -30,6 +28,7 @@ Progress: ███████████████████████�
 | v1.1 Reliability | 6-9 | 16 plans | Shipped 2026-01-29 |
 | v1.2 Call Audit | 10-14 | 14 plans | Shipped 2026-02-26 |
 | v1.3 Audit Fixes | 15-17 | 8 plans | Shipped 2026-02-28 |
+| v1.4 Hardening | TBD | TBD | In Progress |
 
 ## Session Continuity
 
@@ -46,4 +45,4 @@ Stopped at: Milestone archived, ready for /gsd:new-milestone
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-02-28 after v1.3 milestone complete*
+*Last updated: 2026-02-28 after v1.4 milestone started*
