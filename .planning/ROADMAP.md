@@ -138,11 +138,14 @@ See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
   3. Agents can only access their own sessions and listings (ZyprusAgent, AgentChatSession, PropertyListing, LandListing, WhatsAppConversation, ListingUploadAttempt)
   4. Admin tables require admin role (AdminAuditLog, AdminUserRole, AgentExecutionLog)
   5. Orphaned tables (telegram_group_messages, audit_alerts) have appropriate policies created
-**Plans**: TBD
+**Plans**: 5 plans in 2 waves
 
 Plans:
-- [ ] 18-01: TBD during planning
-- [ ] 18-02: TBD during planning
+- [ ] 18-01-PLAN.md — RLS policies for web app user tables (Chat, User, Message, Vote, Suggestion, Document)
+- [ ] 18-02-PLAN.md — RLS policies for agent tables (ZyprusAgent, AgentChatSession, PropertyListing, LandListing, ListingUploadAttempt, WhatsAppConversation)
+- [ ] 18-03-PLAN.md — RLS policies for admin tables (AdminAuditLog, admin_users, AgentExecutionLog)
+- [ ] 18-04-PLAN.md — RLS policies for orphaned tables (telegram_group_messages, audit_alerts)
+- [ ] 18-05-PLAN.md — Apply migrations and verify RLS enforcement
 
 #### Phase 19: Authentication Hardening
 **Goal**: Service role key protected and all server actions have auth checks
