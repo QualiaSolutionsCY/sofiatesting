@@ -23,7 +23,7 @@ export default function PortalPage() {
             <div className="mb-4 rounded-full bg-primary/10 p-4 transition-colors group-hover:bg-primary/20">
               <MessageSquare className="h-8 w-8 text-primary" />
             </div>
-            <h2 className="mb-2 font-semibold text-xl">Chat with SOFIA</h2>
+            <h2 className="mb-2 font-semibold text-xl">Chat with SOPHIA</h2>
             <p className="text-center text-muted-foreground text-sm">
               AI Assistant for Real Estate Services
             </p>

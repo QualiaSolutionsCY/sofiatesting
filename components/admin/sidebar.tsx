@@ -106,7 +106,7 @@ export function AdminSidebar({ role, permissions }: AdminSidebarProps) {
       <div className="flex h-14 items-center border-b px-4">
         <Link className="flex items-center gap-2 font-semibold" href="/admin">
           <Bot className="h-6 w-6" />
-          <span>SOFIA Admin</span>
+          <span>SOPHIA Admin</span>
         </Link>
       </div>
       <nav className="space-y-1 p-4">

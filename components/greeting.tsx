@@ -20,7 +20,7 @@ export const Greeting = () => {
           <div className="-top-1 -right-1 absolute h-2 w-2 animate-pulse rounded-full bg-green-500" />
         </div>
         <h1 className="bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text font-bold text-2xl text-transparent md:text-3xl">
-          Welcome to SOFIA
+          Welcome to SOPHIA
         </h1>
       </motion.div>
 

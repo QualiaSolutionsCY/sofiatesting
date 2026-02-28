@@ -123,7 +123,7 @@ export async function handleSendEmail(
     text: string;
     attachments?: { filename: string; content: string }[];
   } = {
-    from: "SOPHIA <sofia@zyprus.com>",
+    from: "SOPHIA <sophia@zyprus.com>",
     to: [to],
     subject,
     html: body.replace(/\*([^*]+)\*/g, "<strong>$1</strong>").replace(/\n/g, "<br>"),

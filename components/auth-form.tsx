@@ -59,7 +59,7 @@ export function AuthForm({
     <Card className="mx-auto w-full max-w-md">
       <CardHeader className="space-y-1">
         <CardTitle className="text-center font-bold text-2xl">
-          Sign in to SOFIA
+          Sign in to SOPHIA
         </CardTitle>
         <p className="text-center text-muted-foreground text-sm">
           Enter your credentials to access the AI assistant

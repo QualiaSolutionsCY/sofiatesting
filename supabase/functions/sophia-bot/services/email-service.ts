@@ -77,11 +77,11 @@ export function formatEmailBodyAsHtml(body: string): string {
       <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0 20px 0;" />
       <p style="color: #666; font-size: 14px;">
         Best regards,<br/>
-        <strong>SOFIA</strong><br/>
+        <strong>SOPHIA</strong><br/>
         AI Assistant - Zyprus Property Group
       </p>
       <p style="color: #999; font-size: 11px; margin-top: 20px;">
-        This email was sent by SOFIA, the AI assistant for Zyprus Property Group.
+        This email was sent by SOPHIA, the AI assistant for Zyprus Property Group.
         For inquiries, contact us at info@zyprus.com
       </p>
     </div>
@@ -244,7 +244,7 @@ export async function sendEmail(
     const htmlBody = formatEmailBodyAsHtml(intent.body);
 
     const emailPayload: Record<string, unknown> = {
-      from: "SOPHIA <sofia@zyprus.com>",
+      from: "SOPHIA <sophia@zyprus.com>",
       to: intent.recipientEmail,
       subject: sanitizeEmailSubject(intent.subject),
       html: htmlBody,

@@ -153,7 +153,7 @@ export default async function AdminDashboardPage() {
             Admin Dashboard
           </h2>
           <p className="text-muted-foreground">
-            Overview of SOFIA AI Agents, System Health, and Activity.
+            Overview of SOPHIA AI Agents, System Health, and Activity.
           </p>
         </div>
         <div className="flex items-center space-x-2">

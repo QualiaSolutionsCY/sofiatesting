@@ -69,7 +69,7 @@ const PurePreviewMessage = ({
         {message.role === "assistant" && (
           <div className="-mt-1 flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 ring-border">
             <Image
-              alt="SOFIA"
+              alt="SOPHIA"
               className="h-full w-full object-cover"
               height={32}
               src="https://i.ibb.co/FLVW0txQ/Chat-GPT-Image-Oct-24-2025-05-39-15-AM.png"
@@ -319,7 +319,7 @@ export const ThinkingMessage = ({ hasReasoning = false }: { hasReasoning?: boole
       <div className="flex items-start justify-start gap-3">
         <div className="-mt-1 flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 ring-border">
           <Image
-            alt="SOFIA"
+            alt="SOPHIA"
             className="h-full w-full object-cover"
             height={32}
             src="https://i.ibb.co/FLVW0txQ/Chat-GPT-Image-Oct-24-2025-05-39-15-AM.png"
@@ -336,7 +336,7 @@ export const ThinkingMessage = ({ hasReasoning = false }: { hasReasoning?: boole
                 <div className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground" />
               </div>
               <span className="text-muted-foreground text-sm">
-                {hasReasoning ? "SOFIA is writing..." : "SOFIA is thinking..."}
+                {hasReasoning ? "SOPHIA is writing..." : "SOPHIA is thinking..."}
               </span>
             </div>
           </div>

@@ -11,9 +11,9 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL || "https://sofia.zyprus.com"
   ),
-  title: "Qualia AI Agents Suite™ - SOFIA Assistant",
+  title: "Qualia AI Agents Suite™ - SOPHIA Assistant",
   description:
-    "Qualia AI Agents Suite™ - SOFIA AI Assistant for Real Estate Services.",
+    "Qualia AI Agents Suite™ - SOPHIA AI Assistant for Real Estate Services.",
 };
 
 export const viewport = {

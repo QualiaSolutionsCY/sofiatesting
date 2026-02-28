@@ -207,7 +207,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
                 No conversations yet
               </h3>
               <p className="text-muted-foreground text-xs leading-relaxed">
-                Start your first conversation with SOFIA to generate
+                Start your first conversation with SOPHIA to generate
                 professional real estate documents instantly.
               </p>
             </div>

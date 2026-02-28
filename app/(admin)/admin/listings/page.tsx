@@ -342,7 +342,7 @@ export default function AdminListingsPage() {
                             onClick={() => {
                               toast.info(listing.propertyNotes || "No notes", {
                                 duration: 10_000,
-                                description: "SOFIA AI Notes",
+                                description: "SOPHIA AI Notes",
                               });
                             }}
                             title={listing.propertyNotes}

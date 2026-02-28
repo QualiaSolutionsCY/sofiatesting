@@ -51,7 +51,7 @@ export function EmptyChatState() {
             <div className="-top-1 -right-1 absolute h-3 w-3 animate-pulse rounded-full bg-green-500" />
           </div>
         }
-        title="Welcome to SOFIA"
+        title="Welcome to SOPHIA"
       />
     </motion.div>
   );

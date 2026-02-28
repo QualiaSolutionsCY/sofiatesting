@@ -189,7 +189,7 @@ async function sendViaEmail({
       : `${documentTitle}.docx`;
 
     const { error } = await resend.emails.send({
-      from: "SOFIA <sofia@zyprus.com>",
+      from: "SOPHIA <sophia@zyprus.com>",
       to: recipientEmail,
       subject: `Document: ${documentTitle}`,
       html: `
@@ -204,7 +204,7 @@ async function sendViaEmail({
           </p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
           <p style="color: #888; font-size: 12px;">
-            This email was sent by SOFIA, the AI assistant for Zyprus Property Group.
+            This email was sent by SOPHIA, the AI assistant for Zyprus Property Group.
           </p>
         </div>
       `,

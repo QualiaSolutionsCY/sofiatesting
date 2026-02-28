@@ -79,7 +79,7 @@ export function AIGatewayStatus() {
               CRITICAL: AI Gateway is not configured!
             </p>
             <p className="mt-1 text-destructive text-xs">
-              SOFIA requires AI_GATEWAY_API_KEY to function. The application
+              SOPHIA requires AI_GATEWAY_API_KEY to function. The application
               will not work without this configuration.
             </p>
           </div>

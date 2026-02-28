@@ -52,7 +52,7 @@ export function UniversalNavigation() {
           <DropdownMenuItem asChild>
             <Link className="flex cursor-pointer items-center" href="/chat">
               <MessageSquare className="mr-2 h-4 w-4" />
-              <span>Chat with SOFIA</span>
+              <span>Chat with SOPHIA</span>
             </Link>
           </DropdownMenuItem>
 

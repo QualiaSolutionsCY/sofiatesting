@@ -146,7 +146,7 @@ export function LinkTelegramModal({
               <Info className="h-4 w-4" />
               <AlertDescription>
                 To get the Telegram User ID, the agent should start a
-                conversation with the SOFIA bot (@SofiaZyprusBot). The user ID
+                conversation with the SOPHIA bot (@SophiaZyprusBot). The user ID
                 will appear in the bot logs.
               </AlertDescription>
             </Alert>
@@ -309,7 +309,7 @@ export function LinkWhatsAppModal({
               <Info className="h-4 w-4" />
               <AlertDescription>
                 The phone number should match the WhatsApp account the agent
-                will use with SOFIA. Include country code without '+' (e.g.,
+                will use with SOPHIA. Include country code without '+' (e.g.,
                 35799123456 for Cyprus).
               </AlertDescription>
             </Alert>

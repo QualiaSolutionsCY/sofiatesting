@@ -119,7 +119,7 @@ export function BulkDeactivateDialog({
           </AlertDialogTitle>
           <AlertDialogDescription>
             This action will deactivate the selected agents. They will no longer
-            be able to access SOFIA until they are reactivated by an
+            be able to access SOPHIA until they are reactivated by an
             administrator.
           </AlertDialogDescription>
         </AlertDialogHeader>
