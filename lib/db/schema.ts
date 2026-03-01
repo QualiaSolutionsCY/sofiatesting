@@ -470,6 +470,9 @@ export const supabaseAgent = pgTable("agents", {
   isActive: boolean("is_active").default(true),
   canReceiveLeads: boolean("can_receive_leads").default(true),
   zyprusUserId: uuid("zyprus_user_id"),
+  whatsappPhoneNumber: varchar("whatsapp_phone_number", { length: 20 }),
+  userId: uuid("user_id"),
+  lastActiveAt: timestamp("last_active_at", { withTimezone: true }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
