@@ -134,6 +134,7 @@
     "drizzle-kit": "^0.31.8",
     "eslint": "^9.39.3",
     "eslint-config-next": "^15.5.12",
+    "globals": "^17.4.0",
     "tailwindcss": "^4.1.17",
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.19.1",
