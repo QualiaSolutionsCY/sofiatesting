@@ -12,6 +12,14 @@ export const rateLimit = (
   userId: string
 ): { allowed: boolean; remaining: number; resetAt: number } => {
   const now = Date.now();
+
+  // On-demand cleanup of expired entries (replaces setInterval)
+  for (const [key, e] of rateLimitMap.entries()) {
+    if (now >= e.resetAt) {
+      rateLimitMap.delete(key);
+    }
+  }
+
   const entry = rateLimitMap.get(userId);
 
   if (!entry || now >= entry.resetAt) {
@@ -33,12 +41,3 @@ export const rateLimit = (
   };
 };
 
-// Periodic cleanup to prevent unbounded memory growth
-setInterval(() => {
-  const now = Date.now();
-  for (const [userId, entry] of rateLimitMap.entries()) {
-    if (now >= entry.resetAt) {
-      rateLimitMap.delete(userId);
-    }
-  }
-}, 5 * 60 * 1000);
