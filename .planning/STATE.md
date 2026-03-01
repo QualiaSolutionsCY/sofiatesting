@@ -13,7 +13,7 @@ Milestone: v1.4 Security & Performance Hardening — ARCHIVED
 Phase: 20 of 20 — all phases complete
 Plan: All plans complete
 Status: Milestone archived, ready for next milestone
-Last activity: 2026-03-01 — v1.4 milestone archived
+Last activity: 2026-03-01 — Quick task 9 complete (production readiness fixes)
 
 Progress: [████████████████████] 100% (20/20 phases, 58 plans completed)
 
@@ -44,6 +44,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 - Sync Drizzle schema with production DB (8 tables defined but not migrated)
 - Repair supabase migration history (local/remote mismatch)
+- Database maintenance: Investigate unused PKs, drop duplicate indexes, VACUUM high-bloat tables (see quick-9 SUMMARY)
+- Index optimization: Analyze high seq scan tables (upload_locks: 17k, sophia_user_profiles: 12k)
 
 ### Blockers/Concerns
 
@@ -53,10 +55,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: v1.4 milestone archived
-Resume file: .planning/ROADMAP.md
-Next step: `/gsd:new-milestone` to plan next milestone
+Stopped at: Quick task 9 complete
+Resume file: .planning/quick/9-fix-4-production-readiness-issues-from-a/9-SUMMARY.md
+Next step: `/gsd:new-milestone` to plan next milestone or continue with quick tasks
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-03-01 after v1.4 milestone archived*
+*Last updated: 2026-03-01 after quick task 9 complete*
