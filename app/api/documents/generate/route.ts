@@ -4,6 +4,7 @@ import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import { generateDocx } from "@/lib/documents/docx-generator";
 import { createLogger } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 
 const logger = createLogger("api:documents:generate");
 
@@ -19,6 +20,20 @@ export async function POST(request: Request) {
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { allowed, remaining, resetAt } = rateLimit(session.user.id);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Remaining": remaining.toString(),
+            "X-RateLimit-Reset": new Date(resetAt).toISOString(),
+          },
+        }
+      );
     }
 
     const body = await request.json();

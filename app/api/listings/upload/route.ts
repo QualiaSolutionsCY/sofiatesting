@@ -8,6 +8,7 @@ import {
   updateListingStatus,
 } from "@/lib/db/queries";
 import { createLogger } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 import {
   isPermanentError,
   uploadToZyprusAPI,
@@ -30,6 +31,20 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 }
+      );
+    }
+
+    const { allowed, remaining, resetAt } = rateLimit(session.user.id);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Remaining": remaining.toString(),
+            "X-RateLimit-Reset": new Date(resetAt).toISOString(),
+          },
+        }
       );
     }
 
