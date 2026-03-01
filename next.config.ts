@@ -54,6 +54,10 @@ if (process.env.NODE_ENV === "production") {
 }
 
 const nextConfig: NextConfig = {
+  eslint: {
+    // Lint separately via `npm run lint`, not during `next build`
+    ignoreDuringBuilds: true,
+  },
   images: {
     remotePatterns: [
       {
