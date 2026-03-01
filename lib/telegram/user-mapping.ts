@@ -59,6 +59,7 @@ export function getTelegramChatId(telegramUserId: number): string {
   // Generate a deterministic UUID based on Telegram user ID
   // This creates a single persistent conversation per Telegram user
   // Use namespace UUID v5 to create a valid UUID from the Telegram ID
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const crypto = require("node:crypto");
   const namespace = "6ba7b810-9dad-11d1-80b4-00c04fd430c8"; // DNS namespace UUID
   const name = `telegram_user_${telegramUserId}`;
