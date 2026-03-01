@@ -44,6 +44,7 @@ export async function handleSendEmail(
   let attachmentUrl = args.attachmentUrl as string | undefined;
   let attachmentName = args.attachmentName as string | undefined;
   let attachedFromLastDocument = false;
+  let documentExpiredWarning = "";
 
   // AUTO-ATTACH: If no explicit attachment provided, check for recently generated document
   if (!attachmentUrl && phoneNumber) {
@@ -73,11 +74,14 @@ export async function handleSendEmail(
           attachmentName = lastDoc.document_name;
           attachedFromLastDocument = true;
         } else {
+          const ageMinutes = Math.round(docAge / 60_000);
           logger.info("Last document too old, not auto-attaching", {
             category: LogCategory.TOOL,
             operation: "sendEmail",
-            ageMinutes: Math.round(docAge / 60_000),
+            ageMinutes,
           });
+          documentExpiredWarning =
+            `\n\n⚠️ Document "${lastDoc.document_name}" was generated ${ageMinutes} minutes ago and could not be auto-attached (max 30 min). Please regenerate the document and try again.`;
         }
       }
     } catch (err) {
@@ -239,7 +243,8 @@ export async function handleSendEmail(
       success: true,
       message:
         `✅ Sent to your email\n\nSubject: ${subject}` +
-        (attachmentName ? `\nAttachment: ${attachmentName}` : ""),
+        (attachmentName ? `\nAttachment: ${attachmentName}` : "") +
+        documentExpiredWarning,
       data: {
         emailId: result.id,
         subject,

@@ -22,10 +22,10 @@ For detailed reference (commands, schema, troubleshooting, etc.), see `docs/CLAU
 | **Telegram Bot** | Supabase Edge Function `sophia-bot` | **DISABLED** |
 | **Listing Notifier** | Supabase Edge Function `listing-notifier` | LIVE (pg_cron every 15 min) |
 | **Draft Cleanup** | Supabase Edge Function `draft-cleanup` | LIVE |
-| **Web App (Next.js)** | Vercel | LIVE |
+| **Web App (Next.js)** | Vercel | **DEPRECATED — IGNORE** |
 | **Database** | Supabase PostgreSQL | LIVE |
 
-### Vercel Project (LIVE)
+### Vercel Project (DEPRECATED — DO NOT MODIFY)
 | Key | Value |
 |-----|-------|
 | **Project Name** | `sofiatesting` |
@@ -53,17 +53,15 @@ supabase secrets set SOPHIA_TELEGRAM_ENABLED=false --project-ref vceeheaxcrhmpqu
 
 ---
 
-## AI Configuration (Dual Architecture)
-
-**Two separate AI implementations exist** - know which one you're modifying:
+## AI Configuration
 
 | Channel | AI Provider | Implementation |
 |---------|-------------|----------------|
 | **WhatsApp (sophia-bot)** | OpenRouter -> Gemini | `supabase/functions/sophia-bot/` calls OpenRouter directly |
-| **Web App (Next.js)** | Vercel AI SDK | `app/(chat)/api/chat/route.ts` uses AI SDK with OpenRouter |
 
-**Model** (via OpenRouter): `google/gemini-3-flash-preview` (both channels), fallback: `google/gemini-2.0-flash` (WhatsApp only)
-**No model selector** — single model across all channels.
+**Primary Model** (via OpenRouter): `google/gemini-3-flash-preview`, fallback: `google/gemini-2.0-flash`
+
+> **⚠️ IGNORE `app/(chat)/`, `app/(auth)/`, and `app/properties/` directories.** The chat frontend is deprecated and unused. The **admin panel** (`app/(admin)/`) is still LIVE. All active development is on the WhatsApp bot in `supabase/functions/sophia-bot/`. Do NOT read, modify, or reference chat-related files.
 
 ---
 

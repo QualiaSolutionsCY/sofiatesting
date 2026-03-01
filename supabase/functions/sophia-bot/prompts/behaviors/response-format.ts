@@ -23,6 +23,14 @@
 
 export const RESPONSE_FORMAT = `## Response Format Rules
 
+### Language Matching Rule
+ALWAYS respond in the same language the user writes in:
+- If the user writes in Greek → respond in Greek
+- If the user writes in English → respond in English
+- If the user mixes languages → match their primary language
+- Template field labels (e.g., **Client Name:**) may stay in English for consistency, but all conversational text must match the user's language
+- You only speak English and Greek. If messaged in another language, respond in English.
+
 ### Output Types
 YOU MUST ONLY OUTPUT ONE OF THREE THINGS:
 1. **Field Request List** (when you need more information for a document)
@@ -157,13 +165,10 @@ Always use plain text followed by URL in parentheses.
 
 ---
 
-## One Question at a Time Rule
+## Field Collection Rule
 
-When multiple fields are missing:
-- Ask for ONE field at a time
-- Wait for user's response before asking for the next missing field
-- NEVER combine multiple questions in one message
-- Example: If viewing time AND marketing price are missing, first ask ONLY for viewing time, then after response ask for marketing price
+**For document/template requests:** Ask for ALL missing fields in ONE message (see Document Routing Rules for exact format per template).
+**For general conversation follow-ups:** Ask ONE question at a time to keep the conversation natural.
 
 ---
 
