@@ -39,9 +39,9 @@ const DEFAULT_OPTIONS: Required<CircuitBreakerOptions> = {
  *   { name: 'ExternalAPI', timeout: 5000 }
  * );
  *
- * breaker.on('open', () => console.log('Circuit opened'));
- * breaker.on('halfOpen', () => console.log('Circuit half-open, testing'));
- * breaker.on('close', () => console.log('Circuit closed, service recovered'));
+ * breaker.on('open', () => logger.info('Circuit opened'));
+ * breaker.on('halfOpen', () => logger.info('Circuit half-open, testing'));
+ * breaker.on('close', () => logger.info('Circuit closed, service recovered'));
  *
  * const result = await breaker.fire();
  */
