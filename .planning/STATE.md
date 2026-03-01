@@ -2,20 +2,20 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-01)
+See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Agents can trust SOPHIA to do the right thing every time
-**Current focus:** Planning next milestone
+**Current focus:** v1.5 Audit Excellence
 
 ## Current Position
 
-Milestone: v1.4 Security & Performance Hardening — ARCHIVED
-Phase: 20 of 20 — all phases complete
-Plan: All plans complete
-Status: Milestone archived, ready for next milestone
-Last activity: 2026-03-01 — Completed quick task 19: Added 3 missing fields to agents table (whatsapp_phone_number, user_id, last_active_at) with partial indexes, dropped duplicate processed_webhooks constraint (264 kB reclaimed), updated query planner statistics. WhatsApp agent identification and web auth now unblocked.
+Milestone: v1.5 Audit Excellence — STARTED
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-02 — Milestone v1.5 Audit Excellence started
 
-Progress: [████████████████████] 100% (20/20 phases, 58 plans completed)
+Progress: [                    ] 0% (0 phases started)
 
 ## Performance Metrics
 

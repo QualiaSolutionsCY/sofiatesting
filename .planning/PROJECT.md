@@ -43,6 +43,15 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 - Deno runtime
 - Next.js web app with Vercel AI SDK
 
+## Current Milestone: v1.5 Audit Excellence
+
+**Goal:** Achieve production-grade A-level audit score through systematic implementation of all security, performance, and code quality improvements.
+
+**Target features:**
+- Tier 1: Critical security fixes (hardcoded keys, timeouts, circuit breakers)
+- Tier 2: Production observability (Sentry integration, identity protection, type safety)
+- Tier 3: Operational excellence (cost tracking, code refactoring, error recovery)
+
 ## Requirements
 
 ### Validated
@@ -85,7 +94,10 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 
 ### Active
 
-(None — next milestone not yet defined)
+**v1.5 (in progress):**
+- Audit Tier 1: Critical security and reliability fixes
+- Audit Tier 2: Production observability and type safety
+- Audit Tier 3: Operational excellence and code quality
 
 ### Out of Scope
 
@@ -150,4 +162,4 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 - **Backwards Compatible**: Changes must not break existing functionality
 
 ---
-*Last updated: 2026-03-01 after v1.4 milestone*
+*Last updated: 2026-03-02 after v1.5 milestone started*
