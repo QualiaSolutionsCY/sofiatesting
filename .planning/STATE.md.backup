@@ -1,0 +1,85 @@
+# Project State
+
+## Project Reference
+
+See: .planning/PROJECT.md (updated 2026-02-28)
+
+**Core value:** Agents can trust SOPHIA to do the right thing every time
+**Current focus:** v1.4 Security & Performance Hardening — Phase 18 complete
+
+## Current Position
+
+Milestone: v1.4 Security & Performance Hardening
+Phase: 20 of 20 (Code Quality & Validation) — IN PROGRESS
+Plan: 2 of 3 complete (20-01, 20-03)
+Status: Executing Phase 20 — Console.log cleanup and Zod validation complete
+Last activity: 2026-03-01 — Completed 20-01-PLAN.md (console.log cleanup)
+
+Progress: [█████████████████░░░] 97% (19/20 phases, 57 plans completed)
+
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 56
+- Total phases shipped: 19
+- Milestones completed: 4
+
+**By Milestone:**
+
+| Milestone | Phases | Total Plans | Status |
+|-----------|--------|-------------|--------|
+| v1.0 MVP | 1-5 | 10 plans | Shipped 2026-01-27 |
+| v1.1 Reliability | 6-9 | 16 plans | Shipped 2026-01-29 |
+| v1.2 Call Audit | 10-14 | 14 plans | Shipped 2026-02-26 |
+| v1.3 Audit Fixes | 15-17 | 8 plans | Shipped 2026-02-28 |
+| v1.4 Hardening | 18-20 | 7 (18-19 complete, 20 pending) | In Progress |
+
+## Accumulated Context
+
+### Decisions
+
+Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- v1.3: Cowork audit → Claude Code pipeline for external review + automated fixes
+- All milestones: Backwards compatible changes only (no breaking changes)
+- Supabase Edge Functions deployment only (no Vercel for backend)
+- Phase 18: 8 tables in Drizzle schema don't exist in production DB (schema/DB mismatch discovered)
+- Phase 19-01: Use Next.js 'server-only' package for build-time enforcement rather than runtime checks
+- Phase 19-01: Apply server-only guard to all modules accessing SUPABASE_SERVICE_ROLE_KEY
+- Phase 19-02: Use throw Error() for server actions (not NextResponse which is for API routes)
+- Phase 19-02: All server actions must check session before any operation
+- Phase 19-02: Verify chat ownership through RLS-compatible userId filtering pattern
+- Phase 20-01: CLI scripts use minimal console.log (task name + completion status only)
+- Phase 20-01: Production Next.js code (app/) must have ZERO console.log statements
+- Phase 20-01: JSDoc @example blocks may contain console.log in documentation
+- Phase 20-03: Use z.literal(true) for exact boolean confirmation (not truthy values)
+- Phase 20-03: Use parse() in server actions (throws ZodError), safeParse() in API routes (returns Result)
+- Phase 20-03: Use z.custom() for complex AI SDK types already typed by TypeScript
+
+### Pending Todos
+
+- Sync Drizzle schema with production DB (8 tables defined but not migrated)
+- Repair supabase migration history (local/remote mismatch)
+
+### Blockers/Concerns
+
+- Schema/DB mismatch: PropertyListing, LandListing, ZyprusAgent, AgentChatSession, ListingUploadAttempt, DocumentSend, AdminAuditLog, AgentExecutionLog exist in schema.ts but not in production
+- Migration history: `supabase db push` won't work until local/remote migration history is reconciled
+
+## Session Continuity
+
+Last session: 2026-03-01
+Stopped at: Completed 20-03-PLAN.md (Zod input validation)
+Resume file: .planning/phases/20-code-quality-validation/20-03-SUMMARY.md
+Next step: Execute remaining Phase 20 plans (20-01, 20-02)
+
+**v1.4 Roadmap Summary:**
+- Phase 18: Database Security (RLS) — COMPLETE (5 plans)
+- Phase 19: Authentication Hardening — COMPLETE (2 plans)
+- Phase 20: Code Quality & Validation — 1 of 3 plans complete (20-03)
+- Total: 28 requirements, 100% coverage
+
+---
+*STATE.md initialized: 2026-02-26*
+*Last updated: 2026-03-01 after completing Phase 19*

@@ -166,6 +166,5 @@ MICHELLE_UUID = "dc2688d2-0ea1-4c13-b03d-3309ee8de6a4"
 | Detailed reference (commands, schema, tools, troubleshooting) | `docs/CLAUDE-REFERENCE.md` |
 | Zyprus API reference | `docs/ZYPRUS_API_REFERENCE.md` |
 | PRD | `docs/PRD.md` |
-| Architecture | `docs/ARCHITECTURE.md` |
+| Architecture | `.planning/codebase/ARCHITECTURE.md` |
 | Upload test docs | `tests/manual/README-UPLOADS.md` |
-| Skills | `sofia-debugger`, `cyprus-calculator` |

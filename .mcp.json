@@ -1,5 +1,14 @@
 {
   "mcpServers": {
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "supabase-mcp-server@latest",
+        "--project-ref",
+        "vceeheaxcrhmpqueudqx"
+      ]
+    },
     "postman": {
       "command": "npx",
       "args": [
