@@ -234,7 +234,7 @@ async function sendViaEmail({
 async function sendViaWhatsApp({
   documentUrl,
   documentTitle,
-  recipientName,
+  recipientName: _recipientName,
   recipientPhone,
   message,
 }: {

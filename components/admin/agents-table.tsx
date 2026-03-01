@@ -83,7 +83,7 @@ export function AgentsTable({
   onRefresh,
 }: AgentsTableProps) {
   const router = useRouter();
-  const [selectedAgent, _setSelectedAgent] = useState<Agent | null>(null);
+  const [selectedAgent] = useState<Agent | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [agentToEdit, setAgentToEdit] = useState<Agent | null>(null);

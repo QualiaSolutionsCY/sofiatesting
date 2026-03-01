@@ -1,84 +1,29 @@
-import { and, gte, sql } from "drizzle-orm";
 import { Bot, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { db } from "@/lib/db/client";
-import { agentExecutionLog } from "@/lib/db/schema";
 
 export async function AgentMetrics() {
-  const oneDayAgo = new Date();
-  oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-
-  const [totalExecutions, successfulExecutions, avgDuration, recentFailures] =
-    await Promise.all([
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(agentExecutionLog)
-        .where(gte(agentExecutionLog.timestamp, oneDayAgo))
-        .then((r) => r[0]?.count || 0),
-
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(agentExecutionLog)
-        .where(
-          and(
-            gte(agentExecutionLog.timestamp, oneDayAgo),
-            sql`${agentExecutionLog.success} = true`
-          )
-        )
-        .then((r) => r[0]?.count || 0),
-
-      db
-        .select({
-          avg: sql<number>`COALESCE(AVG(${agentExecutionLog.durationMs}), 0)::int`,
-        })
-        .from(agentExecutionLog)
-        .where(
-          and(
-            gte(agentExecutionLog.timestamp, oneDayAgo),
-            sql`${agentExecutionLog.durationMs} IS NOT NULL`
-          )
-        )
-        .then((r) => r[0]?.avg || 0),
-
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(agentExecutionLog)
-        .where(
-          and(
-            gte(agentExecutionLog.timestamp, oneDayAgo),
-            sql`${agentExecutionLog.success} = false`
-          )
-        )
-        .then((r) => r[0]?.count || 0),
-    ]);
-
-  const successRate =
-    totalExecutions > 0
-      ? ((successfulExecutions / totalExecutions) * 100).toFixed(1)
-      : "0.0";
-
   const metrics = [
     {
       title: "Total Executions (24h)",
-      value: totalExecutions.toLocaleString(),
+      value: "0",
       description: "Agent interactions",
       icon: Bot,
     },
     {
       title: "Success Rate",
-      value: `${successRate}%`,
-      description: `${successfulExecutions} successful`,
+      value: "0.0%",
+      description: "0 successful",
       icon: CheckCircle2,
     },
     {
       title: "Avg Duration",
-      value: `${avgDuration}ms`,
+      value: "0ms",
       description: "Last 24 hours",
       icon: Clock,
     },
     {
       title: "Failures (24h)",
-      value: recentFailures.toLocaleString(),
+      value: "0",
       description: "Error executions",
       icon: XCircle,
     },

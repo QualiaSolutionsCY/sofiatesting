@@ -19,20 +19,6 @@ import {
 
 const log = logger.ai.child("create-listing");
 
-// Cyprus cities for validation
-const _CYPRUS_LOCATIONS = [
-  "limassol",
-  "nicosia",
-  "paphos",
-  "larnaca",
-  "famagusta",
-  "protaras",
-  "ayia napa",
-  "polis",
-  "troodos",
-  "kyrenia",
-];
-
 export const createListingTool = tool({
   description:
     "Create a property listing draft for zyprus.com with all required property details. Use getZyprusData tool first to get valid location UUIDs, property type UUIDs, and feature UUIDs from zyprus.com. Do not guess UUIDs - always fetch them from the API first.",

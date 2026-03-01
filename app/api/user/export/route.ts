@@ -3,14 +3,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/app/(auth)/auth";
 import { db } from "@/lib/db/client";
 import {
-  calculatorUsageLog,
   chat,
-  documentGenerationLog,
   landListing,
   message,
   propertyListing,
   user,
-  userActivitySummary,
 } from "@/lib/db/schema";
 import { createLogger } from "@/lib/logger";
 
@@ -120,39 +117,6 @@ export async function GET() {
       .where(eq(landListing.userId, userId))
       .orderBy(desc(landListing.createdAt));
 
-    // Get activity summaries
-    const activitySummaries = await db
-      .select()
-      .from(userActivitySummary)
-      .where(eq(userActivitySummary.userId, userId))
-      .orderBy(desc(userActivitySummary.date));
-
-    // Get calculator usage
-    const calculatorLogs = await db
-      .select({
-        id: calculatorUsageLog.id,
-        calculatorType: calculatorUsageLog.calculatorType,
-        inputs: calculatorUsageLog.inputs,
-        outputs: calculatorUsageLog.outputs,
-        timestamp: calculatorUsageLog.timestamp,
-      })
-      .from(calculatorUsageLog)
-      .where(eq(calculatorUsageLog.userId, userId))
-      .orderBy(desc(calculatorUsageLog.timestamp));
-
-    // Get document generation logs
-    const documentLogs = await db
-      .select({
-        id: documentGenerationLog.id,
-        templateType: documentGenerationLog.templateType,
-        templateName: documentGenerationLog.templateName,
-        success: documentGenerationLog.success,
-        timestamp: documentGenerationLog.timestamp,
-      })
-      .from(documentGenerationLog)
-      .where(eq(documentGenerationLog.userId, userId))
-      .orderBy(desc(documentGenerationLog.timestamp));
-
     // Compile export data
     const exportData = {
       exportedAt: new Date().toISOString(),
@@ -165,9 +129,6 @@ export async function GET() {
         chats: chatsWithMessages,
         propertyListings,
         landListings,
-        activitySummaries,
-        calculatorUsage: calculatorLogs,
-        documentGenerations: documentLogs,
       },
       summary: {
         totalChats: chatsWithMessages.length,
@@ -177,8 +138,6 @@ export async function GET() {
         ),
         totalPropertyListings: propertyListings.length,
         totalLandListings: landListings.length,
-        totalCalculatorUsages: calculatorLogs.length,
-        totalDocumentGenerations: documentLogs.length,
       },
     };
 

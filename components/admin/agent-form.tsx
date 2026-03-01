@@ -77,7 +77,7 @@ export function AgentForm({
     try {
       await onSubmit(data);
       form.reset();
-    } catch (_error) {
+    } catch {
       // Error handled by parent
     }
   };

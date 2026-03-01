@@ -13,9 +13,7 @@ import { myProvider } from "@/lib/ai/providers";
 import { getToolConfig } from "@/lib/ai/tools/registry";
 import { createCircuitBreaker } from "@/lib/circuit-breakers";
 import { isProductionEnvironment, isTestEnvironment } from "@/lib/constants";
-import { db } from "@/lib/db/client";
 import { getMessagesByChatIdWithHistory, saveMessages } from "@/lib/db/queries";
-import { agentExecutionLog } from "@/lib/db/schema";
 import { logger } from "@/lib/logger";
 import type { ChatMessage } from "@/lib/types";
 import { convertToUIMessages, generateUUID } from "@/lib/utils";
@@ -87,21 +85,6 @@ export async function handleWhatsAppMessage(
         if (dbUser.agentId) {
           await updateAgentLastActive(dbUser.agentId);
         }
-
-        await db.insert(agentExecutionLog).values({
-          agentType: "whatsapp",
-          action: "message_received",
-          modelUsed: "user",
-          success: true,
-          metadata: {
-            from: phoneNumber,
-            message: userMessage,
-            isGroup: messageData.isGroup,
-            userId: dbUser.id,
-            chatId: dbChat.id,
-            isAgent: dbUser.isAgent,
-          },
-        });
       } catch (dbError) {
         log.warn("DB operations failed, using fallback context", { error: String(dbError) });
       }

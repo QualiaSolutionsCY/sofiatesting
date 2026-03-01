@@ -62,7 +62,6 @@ type ColumnMapping = {
 };
 
 const REQUIRED_FIELDS = ["fullName", "email", "region", "role"];
-const _OPTIONAL_FIELDS = ["phoneNumber"];
 
 export function ImportAgentsModal({
   open,
@@ -299,7 +298,7 @@ export function ImportAgentsModal({
         throw new Error(data.message || "Import failed");
       }
 
-      const _result = await response.json();
+      await response.json();
 
       // Success
       onSuccess();

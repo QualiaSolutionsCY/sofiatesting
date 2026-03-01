@@ -78,7 +78,7 @@ export function AgentProfileSheet({
   onRefresh,
 }: AgentProfileSheetProps) {
   const [stats, setStats] = useState<AgentStats | null>(null);
-  const [_loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [telegramModalOpen, setTelegramModalOpen] = useState(false);
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);

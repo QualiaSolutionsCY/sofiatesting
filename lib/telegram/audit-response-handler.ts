@@ -36,7 +36,7 @@ const NOT_FOUND_PATTERNS =
 /**
  * Matches phone numbers: +357 99 123 456, 0035799123456, 99123456, etc.
  */
-const PHONE_PATTERN = /(?:\+|00)?[\d][\d\s\-]{5,17}[\d]/;
+const PHONE_PATTERN = /(?:\+|00)?[\d][\d\s-]{5,17}[\d]/;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,7 +64,7 @@ function parseResponse(text: string): ParsedResponse {
   // 1. Check for phone number first
   const phoneMatch = trimmed.match(PHONE_PATTERN);
   if (phoneMatch) {
-    const alternativeNumber = phoneMatch[0].replace(/[\s\-]/g, "");
+    const alternativeNumber = phoneMatch[0].replace(/[\s-]/g, "");
     const digitCount = alternativeNumber.replace(/\D/g, "").length;
     if (digitCount >= 7 && digitCount <= 15) {
       return { type: "alternative_number", alternativeNumber, rawText: trimmed };

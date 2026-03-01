@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- External Zyprus API returns untyped JSON */
 import { createCircuitBreaker } from "@/lib/circuit-breakers";
 import type { PropertyListing } from "@/lib/db/schema";
 import { logger } from "@/lib/logger";
@@ -5,7 +6,6 @@ import {
   DEFAULT_LISTING_INSTRUCTOR_UUID,
   DEFAULT_LISTING_REVIEWER_UUID,
 } from "./constants";
-import { getReviewers } from "./reviewer-assignment";
 
 const log = logger.zyprus;
 

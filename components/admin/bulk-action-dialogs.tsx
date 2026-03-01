@@ -22,7 +22,7 @@ type BulkActionDialogProps = {
   onSuccess: () => void;
 };
 
-interface BulkSendInvitesDialogProps extends BulkActionDialogProps {}
+type BulkSendInvitesDialogProps = BulkActionDialogProps;
 
 export function BulkSendInvitesDialog({
   open,
@@ -83,7 +83,7 @@ export function BulkSendInvitesDialog({
   );
 }
 
-interface BulkDeactivateDialogProps extends BulkActionDialogProps {}
+type BulkDeactivateDialogProps = BulkActionDialogProps;
 
 export function BulkDeactivateDialog({
   open,

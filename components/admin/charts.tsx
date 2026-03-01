@@ -57,7 +57,7 @@ export function OverviewChart({
   description,
   className,
 }: ChartProps) {
-  const { theme: _theme } = useTheme();
+  useTheme();
 
   return (
     <Card className={className}>

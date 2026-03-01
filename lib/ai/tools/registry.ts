@@ -1,4 +1,3 @@
-import { tool } from "ai";
 import type { Session } from "next-auth";
 import type { UIMessageStreamWriter } from "ai";
 import type { ChatMessage } from "@/lib/types";

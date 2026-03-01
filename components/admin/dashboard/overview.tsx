@@ -3,7 +3,6 @@ import { FileText, Home, MessageSquare, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/db/client";
 import {
-  documentGenerationLog,
   message,
   propertyListing,
   user,
@@ -22,20 +21,13 @@ export async function DashboardOverview({
   // Get metrics in parallel
   const [
     totalMessages,
-    totalDocuments,
     totalListings,
     totalUsers,
     messagesLast30Days,
-    documentsLast30Days,
   ] = await Promise.all([
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(message)
-      .then((r) => r[0]?.count || 0),
-
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(documentGenerationLog)
       .then((r) => r[0]?.count || 0),
 
     db
@@ -54,12 +46,6 @@ export async function DashboardOverview({
       .from(message)
       .where(gte(message.createdAt, thirtyDaysAgo))
       .then((r) => r[0]?.count || 0),
-
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(documentGenerationLog)
-      .where(gte(documentGenerationLog.timestamp, thirtyDaysAgo))
-      .then((r) => r[0]?.count || 0),
   ]);
 
   const metrics = [
@@ -71,8 +57,8 @@ export async function DashboardOverview({
     },
     {
       title: "Documents Generated",
-      value: totalDocuments.toLocaleString(),
-      description: `${documentsLast30Days.toLocaleString()} in last 30 days`,
+      value: "0",
+      description: "0 in last 30 days",
       icon: FileText,
     },
     {

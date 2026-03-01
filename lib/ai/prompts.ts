@@ -19,7 +19,7 @@ function loadCyprusKnowledgeUncached(): string {
       "lib/ai/knowledge/cyprus-real-estate.md"
     );
     return readFileSync(knowledgePath, "utf8");
-  } catch (error) {
+  } catch {
     // Failed to load Cyprus knowledge base - return empty
     return "";
   }

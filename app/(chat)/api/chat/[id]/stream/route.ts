@@ -14,8 +14,8 @@ export const GET = async (
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) => {
-  // Extract chatId for logging/debugging purposes
-  const { id: _chatId } = await params;
+  // Await params to extract chatId (not used currently, but available for future logging)
+  await params;
 
   // Return 204 No Content - no stream to resume
   // The AI SDK handles this gracefully and doesn't show an error

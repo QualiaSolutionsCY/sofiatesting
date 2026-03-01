@@ -7,7 +7,7 @@ const logger = createLogger("listing:rate-limit");
 const redisUrl = process.env.REDIS_URL;
 
 // In-memory fallback for when Redis is not configured
-let inMemoryCount = new Map<string, { count: number; resetTime: number }>();
+const inMemoryCount = new Map<string, { count: number; resetTime: number }>();
 const LIMIT = 10; // 10 uploads per hour per user
 const WINDOW_MS = 60 * 60 * 1000; // 1 hour
 

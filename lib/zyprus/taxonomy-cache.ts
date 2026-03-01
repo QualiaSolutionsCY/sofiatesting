@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Zyprus API taxonomy responses are untyped */
 import { logger } from "../logger";
 import { getZyprusLocations, getZyprusTaxonomyTerms } from "./client";
 

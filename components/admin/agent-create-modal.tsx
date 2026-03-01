@@ -23,7 +23,7 @@ export function AgentCreateModal({
   onOpenChange,
   onSuccess,
 }: AgentCreateModalProps) {
-  const [_submitting, setSubmitting] = useState(false);
+  const [, setSubmitting] = useState(false);
 
   const handleSubmit = async (data: AgentFormData) => {
     setSubmitting(true);

@@ -34,7 +34,7 @@ export function AgentEditModal({
   onOpenChange,
   onSuccess,
 }: AgentEditModalProps) {
-  const [_submitting, setSubmitting] = useState(false);
+  const [, setSubmitting] = useState(false);
 
   const handleSubmit = async (data: AgentFormData) => {
     setSubmitting(true);
