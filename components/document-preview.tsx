@@ -9,18 +9,26 @@ import {
   useMemo,
   useRef,
 } from "react";
+import dynamic from "next/dynamic";
 import useSWR from "swr";
 import { useArtifact } from "@/hooks/use-artifact";
 import type { Document } from "@/lib/db/schema";
 import { cn, fetcher } from "@/lib/utils";
 import type { ArtifactKind, UIArtifact } from "./artifact";
-import { CodeEditor } from "./code-editor";
 import { DocumentToolCall, DocumentToolResult } from "./document";
 import { InlineDocumentSkeleton } from "./document-skeleton";
 import { FileIcon, FullscreenIcon, ImageIcon, LoaderIcon } from "./icons";
 import { ImageEditor } from "./image-editor";
 import { SpreadsheetEditor } from "./sheet-editor";
-import { Editor } from "./text-editor";
+
+const CodeEditor = dynamic(
+  () => import("./code-editor").then((mod) => ({ default: mod.CodeEditor })),
+  { ssr: false }
+);
+const Editor = dynamic(
+  () => import("./text-editor").then((mod) => ({ default: mod.Editor })),
+  { ssr: false }
+);
 import { Badge } from "./ui/badge";
 
 type DocumentPreviewProps = {
