@@ -1,5 +1,6 @@
 import "server-only";
 import { createWasender, type WasenderAPIError } from "wasenderapi";
+import { isTestEnvironment } from "../constants";
 import { logger } from "../logger";
 
 const log = logger.whatsapp.child("client");
@@ -63,6 +64,11 @@ export class WhatsAppClient {
     mimeType: string;
     filename: string;
   }): Promise<{ success: boolean; url?: string; error?: string }> {
+    if (isTestEnvironment) {
+      log.debug("Test mode: skipping file upload", { filename, mimeType });
+      return { success: true, url: `https://test.example.com/${filename}` };
+    }
+
     if (!API_KEY) {
       return { success: false, error: "WhatsApp API key not configured" };
     }
@@ -150,6 +156,11 @@ export class WhatsAppClient {
     messageId?: string;
     error?: string;
   }> {
+    if (isTestEnvironment) {
+      log.debug("Test mode: skipping WhatsApp send", { to, textLength: text.length });
+      return { success: true, messageId: `test-${Date.now()}` };
+    }
+
     if (!wasenderClient) {
       log.warn("Client not configured");
       return { success: false, error: "WhatsApp API key not configured" };
@@ -206,6 +217,11 @@ export class WhatsAppClient {
     messageId?: string;
     error?: string;
   }> {
+    if (isTestEnvironment) {
+      log.debug("Test mode: skipping WhatsApp document send", { to, filename });
+      return { success: true, messageId: `test-doc-${Date.now()}` };
+    }
+
     if (!wasenderClient) {
       log.warn("Client not configured");
       return { success: false, error: "WhatsApp API key not configured" };
@@ -288,6 +304,11 @@ export class WhatsAppClient {
     messageId?: string;
     error?: string;
   }> {
+    if (isTestEnvironment) {
+      log.debug("Test mode: skipping WhatsApp image send", { to });
+      return { success: true, messageId: `test-img-${Date.now()}` };
+    }
+
     if (!wasenderClient) {
       return { success: false, error: "WhatsApp API key not configured" };
     }
