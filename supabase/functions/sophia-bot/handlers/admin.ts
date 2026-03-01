@@ -12,16 +12,19 @@
  * - POST /admin/generate-description - Generate AI property description (for Zyprus)
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { logger, LogCategory } from "../utils/logger.ts";
-import { constantTimeCompare } from "../utils/webhook-auth.ts";
+import type { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import {
-  invalidateCache,
+  generateDescription,
+  type PropertyDetails,
+} from "../services/description-generator.ts";
+import {
   getCacheStatus,
-  rollbackPrompt,
   getPromptVersionHistory,
+  invalidateCache,
+  rollbackPrompt,
 } from "../services/prompt-loader.ts";
-import { generateDescription, type PropertyDetails } from "../services/description-generator.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
+import { constantTimeCompare } from "../utils/webhook-auth.ts";
 
 const ADMIN_SECRET = Deno.env.get("SOPHIA_ADMIN_SECRET");
 
@@ -38,16 +41,22 @@ export async function handleAdminRequest(
   const providedSecret = req.headers.get("x-admin-secret");
 
   if (!ADMIN_SECRET) {
-    logger.warn("Admin endpoint accessed but SOPHIA_ADMIN_SECRET not configured", {
-      category: LogCategory.GENERAL,
-      endpoint: url.pathname,
-    });
-    return new Response(JSON.stringify({
-      error: "Admin endpoints not configured"
-    }), {
-      status: 503,
-      headers: { "Content-Type": "application/json" },
-    });
+    logger.warn(
+      "Admin endpoint accessed but SOPHIA_ADMIN_SECRET not configured",
+      {
+        category: LogCategory.GENERAL,
+        endpoint: url.pathname,
+      }
+    );
+    return new Response(
+      JSON.stringify({
+        error: "Admin endpoints not configured",
+      }),
+      {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 
   // Use constant-time comparison to prevent timing attacks
@@ -56,55 +65,79 @@ export async function handleAdminRequest(
       category: LogCategory.GENERAL,
       endpoint: url.pathname,
     });
-    return new Response(JSON.stringify({
-      error: "Unauthorized"
-    }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        error: "Unauthorized",
+      }),
+      {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 
   // Route to specific admin endpoint
-  if (url.pathname === "/sophia-bot/admin/prompts/invalidate" && req.method === "POST") {
+  if (
+    url.pathname === "/sophia-bot/admin/prompts/invalidate" &&
+    req.method === "POST"
+  ) {
     return handleCacheInvalidate();
   }
 
-  if (url.pathname === "/sophia-bot/admin/prompts/rollback" && req.method === "POST") {
+  if (
+    url.pathname === "/sophia-bot/admin/prompts/rollback" &&
+    req.method === "POST"
+  ) {
     return handlePromptRollback(req, supabase);
   }
 
-  if (url.pathname === "/sophia-bot/admin/prompts/history" && req.method === "GET") {
+  if (
+    url.pathname === "/sophia-bot/admin/prompts/history" &&
+    req.method === "GET"
+  ) {
     return handlePromptHistory(url, supabase);
   }
 
-  if (url.pathname === "/sophia-bot/admin/cache/status" && req.method === "GET") {
+  if (
+    url.pathname === "/sophia-bot/admin/cache/status" &&
+    req.method === "GET"
+  ) {
     return handleCacheStatus();
   }
 
-  if (url.pathname === "/sophia-bot/admin/migrate-templates" && req.method === "POST") {
+  if (
+    url.pathname === "/sophia-bot/admin/migrate-templates" &&
+    req.method === "POST"
+  ) {
     return handleTemplateMigration(supabase);
   }
 
   // Generate property description endpoint (for Zyprus CMS)
-  if (url.pathname === "/sophia-bot/admin/generate-description" && req.method === "POST") {
+  if (
+    url.pathname === "/sophia-bot/admin/generate-description" &&
+    req.method === "POST"
+  ) {
     return handleGenerateDescription(req);
   }
 
   // Unknown admin endpoint
-  return new Response(JSON.stringify({
-    error: "Not Found",
-    availableEndpoints: [
-      "POST /sophia-bot/admin/prompts/invalidate",
-      "POST /sophia-bot/admin/prompts/rollback",
-      "GET /sophia-bot/admin/prompts/history?key=X",
-      "GET /sophia-bot/admin/cache/status",
-      "POST /sophia-bot/admin/migrate-templates",
-      "POST /sophia-bot/admin/generate-description - Generate AI property description (for Zyprus)",
-    ]
-  }), {
-    status: 404,
-    headers: { "Content-Type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({
+      error: "Not Found",
+      availableEndpoints: [
+        "POST /sophia-bot/admin/prompts/invalidate",
+        "POST /sophia-bot/admin/prompts/rollback",
+        "GET /sophia-bot/admin/prompts/history?key=X",
+        "GET /sophia-bot/admin/cache/status",
+        "POST /sophia-bot/admin/migrate-templates",
+        "POST /sophia-bot/admin/generate-description - Generate AI property description (for Zyprus)",
+      ],
+    }),
+    {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
 }
 
 /**
@@ -118,14 +151,18 @@ function handleCacheInvalidate(): Response {
     category: LogCategory.GENERAL,
   });
 
-  return new Response(JSON.stringify({
-    success: true,
-    message: "Prompt cache invalidated. Next request will reload from database.",
-    timestamp: new Date().toISOString(),
-  }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({
+      success: true,
+      message:
+        "Prompt cache invalidated. Next request will reload from database.",
+      timestamp: new Date().toISOString(),
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
 }
 
 /**
@@ -140,22 +177,27 @@ function handleCacheStatus(): Response {
     ...status,
   });
 
-  return new Response(JSON.stringify({
-    cache: {
-      isCached: status.isCached,
-      ageMs: status.age,
-      ageFormatted: status.age > 0 ? `${Math.round(status.age / 1000)}s` : "N/A",
-      ttlMs: status.ttl,
-      ttlFormatted: status.ttl > 0 ? `${Math.round(status.ttl / 60000)}min` : "disabled",
-      sectionCount: status.sectionCount,
-      version: status.version,
-      isExpired: status.ttl > 0 ? status.age > status.ttl : false,
-    },
-    timestamp: new Date().toISOString(),
-  }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({
+      cache: {
+        isCached: status.isCached,
+        ageMs: status.age,
+        ageFormatted:
+          status.age > 0 ? `${Math.round(status.age / 1000)}s` : "N/A",
+        ttlMs: status.ttl,
+        ttlFormatted:
+          status.ttl > 0 ? `${Math.round(status.ttl / 60_000)}min` : "disabled",
+        sectionCount: status.sectionCount,
+        version: status.version,
+        isExpired: status.ttl > 0 ? status.age > status.ttl : false,
+      },
+      timestamp: new Date().toISOString(),
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
 }
 
 /**
@@ -179,14 +221,20 @@ async function handlePromptRollback(
 
     if (!version || typeof version !== "number" || version < 1) {
       return new Response(
-        JSON.stringify({ success: false, error: "Missing or invalid 'version' (must be positive integer)" }),
+        JSON.stringify({
+          success: false,
+          error: "Missing or invalid 'version' (must be positive integer)",
+        }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
     if (!reason || typeof reason !== "string") {
       return new Response(
-        JSON.stringify({ success: false, error: "Missing or invalid 'reason'" }),
+        JSON.stringify({
+          success: false,
+          error: "Missing or invalid 'reason'",
+        }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -227,7 +275,10 @@ async function handlePromptHistory(
 
   if (!key) {
     return new Response(
-      JSON.stringify({ success: false, error: "Missing 'key' query parameter" }),
+      JSON.stringify({
+        success: false,
+        error: "Missing 'key' query parameter",
+      }),
       { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -267,14 +318,17 @@ async function handleTemplateMigration(
         errorMessage: checkError.message,
       });
 
-      return new Response(JSON.stringify({
-        success: false,
-        error: "Database check failed",
-        details: checkError.message,
-      }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Database check failed",
+          details: checkError.message,
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     if (existing) {
@@ -283,19 +337,22 @@ async function handleTemplateMigration(
         existing,
       });
 
-      return new Response(JSON.stringify({
-        success: true,
-        alreadyExists: true,
-        message: "Templates key already exists in database",
-        existing: {
-          key: existing.key,
-          priority: existing.priority,
-          active: existing.is_active,
-        },
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          alreadyExists: true,
+          message: "Templates key already exists in database",
+          existing: {
+            key: existing.key,
+            priority: existing.priority,
+            active: existing.is_active,
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     // Import templates content from prompts/templates/content.ts
@@ -313,7 +370,8 @@ async function handleTemplateMigration(
         key: "templates",
         content: TEMPLATES,
         category: "templates",
-        description: "All 43 document templates for Cyprus real estate communications",
+        description:
+          "All 43 document templates for Cyprus real estate communications",
         priority: 80,
         is_active: true,
         updated_by: "migration-08-02",
@@ -329,14 +387,17 @@ async function handleTemplateMigration(
         errorMessage: insertError.message,
       });
 
-      return new Response(JSON.stringify({
-        success: false,
-        error: "Database insert failed",
-        details: insertError.message,
-      }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Database insert failed",
+          details: insertError.message,
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     logger.info("Admin: Templates migrated successfully", {
@@ -350,35 +411,45 @@ async function handleTemplateMigration(
     // Invalidate cache to pick up new templates
     invalidateCache();
 
-    return new Response(JSON.stringify({
-      success: true,
-      message: "Templates migrated successfully to database",
-      data: {
-        id: data.id,
-        key: data.key,
-        priority: data.priority,
-        active: data.is_active,
-        contentLength: TEMPLATES.length,
-      },
-      cacheInvalidated: true,
-    }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "Templates migrated successfully to database",
+        data: {
+          id: data.id,
+          key: data.key,
+          priority: data.priority,
+          active: data.is_active,
+          contentLength: TEMPLATES.length,
+        },
+        cacheInvalidated: true,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   } catch (err) {
-    logger.error("Admin: Template migration unexpected error", err instanceof Error ? err : undefined, {
-      category: LogCategory.GENERAL,
-      errorDetails: err instanceof Error ? err.message : String(err),
-    });
+    logger.error(
+      "Admin: Template migration unexpected error",
+      err instanceof Error ? err : undefined,
+      {
+        category: LogCategory.GENERAL,
+        errorDetails: err instanceof Error ? err.message : String(err),
+      }
+    );
 
-    return new Response(JSON.stringify({
-      success: false,
-      error: "Unexpected error during migration",
-      details: err instanceof Error ? err.message : String(err),
-    }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Unexpected error during migration",
+        details: err instanceof Error ? err.message : String(err),
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 }
 
@@ -429,8 +500,18 @@ async function handleGenerateDescription(req: Request): Promise<Response> {
     const body = await req.json();
 
     // Validate required fields
-    const requiredFields = ["type", "listingType", "bedrooms", "bathrooms", "location", "coveredArea", "price"];
-    const missingFields = requiredFields.filter((field) => body[field] === undefined);
+    const requiredFields = [
+      "type",
+      "listingType",
+      "bedrooms",
+      "bathrooms",
+      "location",
+      "coveredArea",
+      "price",
+    ];
+    const missingFields = requiredFields.filter(
+      (field) => body[field] === undefined
+    );
 
     if (missingFields.length > 0) {
       logger.warn("Admin: Generate description missing required fields", {
@@ -469,8 +550,12 @@ async function handleGenerateDescription(req: Request): Promise<Response> {
       coveredArea: Number(body.coveredArea),
       price: Number(body.price),
       plotSize: body.plotSize ? Number(body.plotSize) : undefined,
-      coveredVeranda: body.coveredVeranda ? Number(body.coveredVeranda) : undefined,
-      uncoveredVeranda: body.uncoveredVeranda ? Number(body.uncoveredVeranda) : undefined,
+      coveredVeranda: body.coveredVeranda
+        ? Number(body.coveredVeranda)
+        : undefined,
+      uncoveredVeranda: body.uncoveredVeranda
+        ? Number(body.uncoveredVeranda)
+        : undefined,
       features: Array.isArray(body.features) ? body.features : undefined,
       yearBuilt: body.yearBuilt ? Number(body.yearBuilt) : undefined,
       condition: body.condition,
@@ -511,10 +596,14 @@ async function handleGenerateDescription(req: Request): Promise<Response> {
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (err) {
-    logger.error("Admin: Generate description endpoint error", err instanceof Error ? err : undefined, {
-      category: LogCategory.GENERAL,
-      errorDetails: err instanceof Error ? err.message : String(err),
-    });
+    logger.error(
+      "Admin: Generate description endpoint error",
+      err instanceof Error ? err : undefined,
+      {
+        category: LogCategory.GENERAL,
+        errorDetails: err instanceof Error ? err.message : String(err),
+      }
+    );
 
     return new Response(
       JSON.stringify({

@@ -5,7 +5,7 @@
  * into a common format that the shared AI brain can process.
  */
 
-export type ChannelType = 'whatsapp' | 'telegram';
+export type ChannelType = "whatsapp" | "telegram";
 
 /**
  * Normalized incoming message from any channel
@@ -95,6 +95,6 @@ export interface ToolResult {
  * Chat history entry
  */
 export interface ChatMessage {
-  role: 'user' | 'model';
+  role: "user" | "model";
   parts: Array<{ text: string }>;
 }

@@ -9,7 +9,7 @@
  * - 3CX credentials validation
  */
 
-import { ThreeCXConfig } from "./3cx/types.ts";
+import type { ThreeCXConfig } from "./3cx/types.ts";
 
 /**
  * Main audit configuration
@@ -43,21 +43,21 @@ export function get3CXConfig(): ThreeCXConfig {
   if (!baseUrl) {
     throw new Error(
       "CX3_BASE_URL environment variable is required. " +
-      "Set it to your 3CX web client URL (e.g., https://yourcompany.3cx.com)"
+        "Set it to your 3CX web client URL (e.g., https://yourcompany.3cx.com)"
     );
   }
 
   if (!username) {
     throw new Error(
       "CX3_USERNAME environment variable is required. " +
-      "Set it to your 3CX login username"
+        "Set it to your 3CX login username"
     );
   }
 
   if (!password) {
     throw new Error(
       "CX3_PASSWORD environment variable is required. " +
-      "Set it to your 3CX login password"
+        "Set it to your 3CX login password"
     );
   }
 

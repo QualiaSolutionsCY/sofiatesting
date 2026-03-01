@@ -9,9 +9,12 @@
  * - Management role rentals - Rejected
  * - Assignment input requirements for management
  */
-import { describe, it, expect } from "vitest";
-import { assignReviewers, RejectionError } from "../../../supabase/functions/sophia-bot/rules/reviewer-assignment.ts";
-import { Agent } from "../../../supabase/functions/sophia-bot/agents/identifier.ts";
+import { describe, expect, it } from "vitest";
+import type { Agent } from "../../../supabase/functions/sophia-bot/agents/identifier.ts";
+import {
+  assignReviewers,
+  RejectionError,
+} from "../../../supabase/functions/sophia-bot/rules/reviewer-assignment.ts";
 
 /**
  * Create a mock agent for testing
@@ -113,7 +116,12 @@ describe("Reviewer Assignment", () => {
         listingOwnerEmail: "ASK",
       });
 
-      const result = assignReviewers(agent, "sale", "paphos", "specific-agent@zyprus.com");
+      const result = assignReviewers(
+        agent,
+        "sale",
+        "paphos",
+        "specific-agent@zyprus.com"
+      );
 
       expect(result.reviewer1).toBe("listings@zyprus.com");
       expect(result.reviewer2).toBe("requestpaphos@zyprus.com");
@@ -161,7 +169,12 @@ describe("Reviewer Assignment", () => {
         listingOwnerEmail: "ASK",
       });
 
-      const result = assignReviewers(agent, "sale", "famagusta", "famagusta-agent@zyprus.com");
+      const result = assignReviewers(
+        agent,
+        "sale",
+        "famagusta",
+        "famagusta-agent@zyprus.com"
+      );
 
       expect(result.reviewer1).toBe("requestfamagusta@zyprus.com");
       expect(result.reviewer2).toBe(null);
@@ -187,13 +200,9 @@ describe("Reviewer Assignment", () => {
     });
 
     it("should work for rentals in any region", () => {
-      const regions: Array<"paphos" | "limassol" | "larnaca" | "nicosia" | "famagusta"> = [
-        "paphos",
-        "limassol",
-        "larnaca",
-        "nicosia",
-        "famagusta",
-      ];
+      const regions: Array<
+        "paphos" | "limassol" | "larnaca" | "nicosia" | "famagusta"
+      > = ["paphos", "limassol", "larnaca", "nicosia", "famagusta"];
 
       regions.forEach((region) => {
         const agent = createMockAgent({
@@ -240,7 +249,9 @@ describe("Reviewer Assignment", () => {
         role: "management",
       });
 
-      expect(() => assignReviewers(management, "rent", "paphos")).toThrow(RejectionError);
+      expect(() => assignReviewers(management, "rent", "paphos")).toThrow(
+        RejectionError
+      );
       expect(() => assignReviewers(management, "rent", "paphos")).toThrow(
         /cannot use my services for adding rental properties/i
       );
@@ -255,7 +266,9 @@ describe("Reviewer Assignment", () => {
         role: "management",
       });
 
-      expect(() => assignReviewers(lauren, "rent", "limassol")).toThrow(RejectionError);
+      expect(() => assignReviewers(lauren, "rent", "limassol")).toThrow(
+        RejectionError
+      );
       expect(() => assignReviewers(lauren, "rent", "limassol")).toThrow(
         /cannot use my services for adding rental properties/i
       );
@@ -270,7 +283,12 @@ describe("Reviewer Assignment", () => {
       });
 
       // Should NOT throw
-      const result = assignReviewers(management, "sale", "paphos", "agent@zyprus.com");
+      const result = assignReviewers(
+        management,
+        "sale",
+        "paphos",
+        "agent@zyprus.com"
+      );
       expect(result).toBeDefined();
       expect(result.reviewer1).toBe("listings@zyprus.com");
     });
@@ -323,7 +341,12 @@ describe("Reviewer Assignment", () => {
         region: "all",
       });
 
-      const result = assignReviewers(agent, "sale", "paphos", "assigned-agent@zyprus.com");
+      const result = assignReviewers(
+        agent,
+        "sale",
+        "paphos",
+        "assigned-agent@zyprus.com"
+      );
 
       expect(result.listingOwner).toBe("assigned-agent@zyprus.com");
       expect(result.listingInstructor).toBe("assigned-agent@zyprus.com");

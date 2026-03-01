@@ -4,7 +4,7 @@
  */
 
 import { normalizePhone } from "../agents/identifier.ts";
-import { logger, LogCategory } from "../utils/logger.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
 
 export interface DuplicateMatch {
   id: string;
@@ -85,7 +85,11 @@ export async function checkForDuplicates(
       });
     }
   } catch (error) {
-    logger.error("[DuplicateChecker] Search error", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[DuplicateChecker] Search error",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
     // Don't fail the upload if duplicate check fails
     // Just log and continue
   }
@@ -120,7 +124,10 @@ async function searchByPhone(
     );
 
     if (!response.ok) {
-      logger.debug(`[DuplicateChecker] Phone search failed: ${response.status}`, { category: LogCategory.ZYPRUS });
+      logger.debug(
+        `[DuplicateChecker] Phone search failed: ${response.status}`,
+        { category: LogCategory.ZYPRUS }
+      );
       return [];
     }
 
@@ -128,11 +135,19 @@ async function searchByPhone(
     return (data.data || []).map((item: Record<string, unknown>) => ({
       id: item.id as string,
       url: `https://zyprus.com/property/${item.id}`,
-      propertyType: ((item.attributes as Record<string, unknown>)?.field_property_type as string) || undefined,
-      location: ((item.attributes as Record<string, unknown>)?.field_location as string) || undefined,
+      propertyType:
+        ((item.attributes as Record<string, unknown>)
+          ?.field_property_type as string) || undefined,
+      location:
+        ((item.attributes as Record<string, unknown>)
+          ?.field_location as string) || undefined,
     }));
   } catch (error) {
-    logger.error("[DuplicateChecker] Phone search error", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[DuplicateChecker] Phone search error",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
     return [];
   }
 }
@@ -169,7 +184,10 @@ async function searchByNameAndLocation(
     );
 
     if (!response.ok) {
-      logger.debug(`[DuplicateChecker] Name search failed: ${response.status}`, { category: LogCategory.ZYPRUS });
+      logger.debug(
+        `[DuplicateChecker] Name search failed: ${response.status}`,
+        { category: LogCategory.ZYPRUS }
+      );
       return [];
     }
 
@@ -180,18 +198,28 @@ async function searchByNameAndLocation(
     return (data.data || [])
       .filter((item: Record<string, unknown>) => {
         const attrs = item.attributes as Record<string, unknown>;
-        const itemLocation = ((attrs?.field_location as string) || "").toLowerCase().trim();
+        const itemLocation = ((attrs?.field_location as string) || "")
+          .toLowerCase()
+          .trim();
         // Require exact location match AND same owner name in notes
         return itemLocation === normalizedLocation;
       })
       .map((item: Record<string, unknown>) => ({
         id: item.id as string,
         url: `https://zyprus.com/property/${item.id}`,
-        propertyType: ((item.attributes as Record<string, unknown>)?.field_property_type as string) || undefined,
-        location: ((item.attributes as Record<string, unknown>)?.field_location as string) || undefined,
+        propertyType:
+          ((item.attributes as Record<string, unknown>)
+            ?.field_property_type as string) || undefined,
+        location:
+          ((item.attributes as Record<string, unknown>)
+            ?.field_location as string) || undefined,
       }));
   } catch (error) {
-    logger.error("[DuplicateChecker] Name search error", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[DuplicateChecker] Name search error",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
     return [];
   }
 }
@@ -199,9 +227,7 @@ async function searchByNameAndLocation(
 /**
  * Generate a warning message for potential duplicates
  */
-export function generateDuplicateWarning(
-  matches: DuplicateMatch[]
-): string {
+export function generateDuplicateWarning(matches: DuplicateMatch[]): string {
   if (matches.length === 0) {
     return "";
   }
@@ -249,4 +275,3 @@ export function createDuplicateNote(matches: DuplicateMatch[]): string {
   const ids = matches.map((m) => m.id).join(", ");
   return `POTENTIAL DUPLICATE: Check against property IDs: ${ids}`;
 }
-

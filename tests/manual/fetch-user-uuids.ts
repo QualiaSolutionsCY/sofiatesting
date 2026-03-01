@@ -1,4 +1,5 @@
 import { config } from "dotenv";
+
 config({ path: ".env.local" });
 
 const apiUrl = process.env.ZYPRUS_API_URL;
@@ -14,14 +15,22 @@ async function main() {
   // Get token
   const tokenRes = await fetch(`${apiUrl}/oauth/token`, {
     method: "POST",
-    headers: { "User-Agent": "SophiaAI", "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "client_credentials", client_id: clientId, client_secret: clientSecret }),
+    headers: {
+      "User-Agent": "SophiaAI",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      grant_type: "client_credentials",
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
   });
   const { access_token } = await tokenRes.json();
   console.log("Got token\n");
 
   // Fetch all users (paginate if needed)
-  let nextUrl: string | null = `${apiUrl}/jsonapi/user/user?filter[status]=1&page[limit]=100`;
+  let nextUrl: string | null =
+    `${apiUrl}/jsonapi/user/user?filter[status]=1&page[limit]=100`;
   const users: Array<{ email: string; uuid: string; name: string }> = [];
 
   while (nextUrl) {
@@ -63,8 +72,10 @@ async function main() {
 
   // Print users with zyprus.com emails
   console.log("=== ZYPRUS STAFF ===\n");
-  const zyprusUsers = users.filter(u => u.email.includes("zyprus"));
-  for (const user of zyprusUsers.sort((a, b) => a.email.localeCompare(b.email))) {
+  const zyprusUsers = users.filter((u) => u.email.includes("zyprus"));
+  for (const user of zyprusUsers.sort((a, b) =>
+    a.email.localeCompare(b.email)
+  )) {
     console.log(`"${user.email}": "${user.uuid}", // ${user.name}`);
   }
 
@@ -83,7 +94,7 @@ async function main() {
   ];
 
   for (const email of keyEmails) {
-    const user = users.find(u => u.email === email);
+    const user = users.find((u) => u.email === email);
     if (user) {
       console.log(`"${email}": "${user.uuid}", // ${user.name}`);
     } else {

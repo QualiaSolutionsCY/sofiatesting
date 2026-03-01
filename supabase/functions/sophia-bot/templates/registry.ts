@@ -13,7 +13,7 @@
  * TEXT Templates: All others (sent as WhatsApp messages)
  */
 
-import { logger, LogCategory } from "../utils/logger.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
 
 /**
  * Template output types
@@ -82,7 +82,11 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
     category: "REGISTRATIONS",
     requiredFields: ["buyerNames", "propertyInfo", "viewingDateTime"],
     optionalFields: ["propertyLink"],
-    aliases: ["seller registration", "standard seller", "registration for seller"],
+    aliases: [
+      "seller registration",
+      "standard seller",
+      "registration for seller",
+    ],
   },
   "02": {
     id: "02",
@@ -154,7 +158,14 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
     name: "Standard Viewing Form",
     outputType: "DOCX",
     category: "VIEWING_FORMS",
-    requiredFields: ["date", "fullName", "idNumber", "issuedBy", "propertyReg", "district"],
+    requiredFields: [
+      "date",
+      "fullName",
+      "idNumber",
+      "issuedBy",
+      "propertyReg",
+      "district",
+    ],
     optionalFields: ["municipality", "locality"],
     aliases: ["viewing form", "standard viewing", "viewing form standard"],
   },
@@ -163,7 +174,14 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
     name: "Advanced Viewing Form",
     outputType: "DOCX",
     category: "VIEWING_FORMS",
-    requiredFields: ["date", "fullName", "idNumber", "issuedBy", "propertyReg", "district"],
+    requiredFields: [
+      "date",
+      "fullName",
+      "idNumber",
+      "issuedBy",
+      "propertyReg",
+      "district",
+    ],
     optionalFields: ["municipality", "locality"],
     aliases: ["advanced viewing", "advanced viewing form", "introduction form"],
   },
@@ -175,10 +193,17 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
     outputType: "DOCX",
     category: "RESERVATIONS",
     requiredFields: [
-      "buyerName", "buyerIdType", "buyerIdNumber",
-      "vendorName", "vendorIdType", "vendorIdNumber",
-      "propertyDescription", "reservationFee", "purchasePrice",
-      "hasLoan", "hasVat"
+      "buyerName",
+      "buyerIdType",
+      "buyerIdNumber",
+      "vendorName",
+      "vendorIdType",
+      "vendorIdNumber",
+      "propertyDescription",
+      "reservationFee",
+      "purchasePrice",
+      "hasLoan",
+      "hasVat",
     ],
     optionalFields: [],
     aliases: ["reservation agreement", "property reservation", "reservation"],
@@ -192,16 +217,29 @@ export const TEMPLATE_REGISTRY: Record<string, TemplateDefinition> = {
     category: "MARKETING",
     requiredFields: ["propertyInfo", "marketingPrice"],
     optionalFields: [],
-    aliases: ["email marketing", "marketing email", "email marketing agreement"],
+    aliases: [
+      "email marketing",
+      "marketing email",
+      "email marketing agreement",
+    ],
   },
   "15": {
     id: "15",
     name: "Non-Exclusive Marketing Agreement",
     outputType: "DOCX",
     category: "MARKETING",
-    requiredFields: ["sellerFullName", "propertyRegistration", "marketingPrice"],
+    requiredFields: [
+      "sellerFullName",
+      "propertyRegistration",
+      "marketingPrice",
+    ],
     optionalFields: [],
-    aliases: ["non-exclusive", "non exclusive", "marketing agreement", "signature document"],
+    aliases: [
+      "non-exclusive",
+      "non exclusive",
+      "marketing agreement",
+      "signature document",
+    ],
   },
 
   // === CLIENT COMMUNICATION TEMPLATES (TEXT) ===
@@ -440,7 +478,8 @@ export const TEMPLATE_CATEGORIES = {
     name: "Registration Templates",
     templates: ["01", "02", "03", "04", "05", "06", "07", "08"],
     outputType: "TEXT" as const,
-    description: "Seller, Bank, Developer registrations - sent as WhatsApp messages",
+    description:
+      "Seller, Bank, Developer registrations - sent as WhatsApp messages",
   },
   VIEWING_FORMS: {
     name: "Viewing Forms",
@@ -462,8 +501,33 @@ export const TEMPLATE_CATEGORIES = {
   },
   CLIENT_COMMS: {
     name: "Client Communications",
-    templates: ["17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28",
-                "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43"],
+    templates: [
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+    ],
     outputType: "TEXT" as const,
     description: "Client communication templates - sent as WhatsApp messages",
   },
@@ -474,7 +538,9 @@ export const TEMPLATE_CATEGORIES = {
  */
 export function isDocxTemplateId(templateId: string): boolean {
   const normalized = templateId.padStart(2, "0");
-  return DOCX_TEMPLATE_IDS.includes(normalized as typeof DOCX_TEMPLATE_IDS[number]);
+  return DOCX_TEMPLATE_IDS.includes(
+    normalized as (typeof DOCX_TEMPLATE_IDS)[number]
+  );
 }
 
 /**
@@ -492,7 +558,7 @@ export function getTemplateOutputType(templateId: string): TemplateOutputType {
 export function isDocxTemplateTitle(title: string): boolean {
   const normalizedTitle = title.toLowerCase().trim();
 
-  return DOCX_TEMPLATE_TITLES.some(docxTitle =>
+  return DOCX_TEMPLATE_TITLES.some((docxTitle) =>
     normalizedTitle.includes(docxTitle.toLowerCase())
   );
 }
@@ -502,7 +568,7 @@ export function isDocxTemplateTitle(title: string): boolean {
  * Looks for bold headers like **Viewing Form** or titles at the start
  */
 export function extractTemplateTitle(response: string): string | null {
-  const lines = response.trim().split('\n');
+  const lines = response.trim().split("\n");
 
   // Check first few lines for a title
   for (let i = 0; i < Math.min(5, lines.length); i++) {
@@ -518,12 +584,12 @@ export function extractTemplateTitle(response: string): string | null {
     }
 
     // Check for underlined title (common in DOCX forms)
-    if (line.match(/^[A-Z][a-zA-Z\s\/\-]+$/) && line.length < 50) {
+    if (line.match(/^[A-Z][a-zA-Z\s/-]+$/) && line.length < 50) {
       return line;
     }
 
     // If first non-empty line doesn't look like a title, stop looking
-    if (i === 0 && !line.startsWith('**') && !line.match(/^[A-Z]/)) {
+    if (i === 0 && !line.startsWith("**") && !line.match(/^[A-Z]/)) {
       break;
     }
   }
@@ -534,11 +600,15 @@ export function extractTemplateTitle(response: string): string | null {
 /**
  * Find template by alias (trigger phrase)
  */
-export function findTemplateByAlias(searchTerm: string): TemplateDefinition | null {
+export function findTemplateByAlias(
+  searchTerm: string
+): TemplateDefinition | null {
   const normalized = searchTerm.toLowerCase().trim();
 
   for (const template of Object.values(TEMPLATE_REGISTRY)) {
-    if (template.aliases.some(alias => normalized.includes(alias.toLowerCase()))) {
+    if (
+      template.aliases.some((alias) => normalized.includes(alias.toLowerCase()))
+    ) {
       return template;
     }
   }
@@ -557,8 +627,10 @@ export function getTemplateById(id: string): TemplateDefinition | null {
 /**
  * Get all templates by output type
  */
-export function getTemplatesByOutputType(type: TemplateOutputType): TemplateDefinition[] {
-  return Object.values(TEMPLATE_REGISTRY).filter(t => t.outputType === type);
+export function getTemplatesByOutputType(
+  type: TemplateOutputType
+): TemplateDefinition[] {
+  return Object.values(TEMPLATE_REGISTRY).filter((t) => t.outputType === type);
 }
 
 /**
@@ -576,6 +648,9 @@ export function getTextTemplates(): TemplateDefinition[] {
 }
 
 // Log initialization
-logger.debug(`[Template Registry] Initialized with ${Object.keys(TEMPLATE_REGISTRY).length} templates`, {
-  category: LogCategory.GENERAL,
-});
+logger.debug(
+  `[Template Registry] Initialized with ${Object.keys(TEMPLATE_REGISTRY).length} templates`,
+  {
+    category: LogCategory.GENERAL,
+  }
+);

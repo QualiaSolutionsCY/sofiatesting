@@ -38,8 +38,8 @@ export const calculateVAT = (args: {
 
   // Reduced rate conditions for primary residence EU buyers
   if (isPrimaryResidence && buyerIsEU) {
-    const reducedPortion = Math.min(price, 350000);
-    const standardPortion = Math.max(0, price - 350000);
+    const reducedPortion = Math.min(price, 350_000);
+    const standardPortion = Math.max(0, price - 350_000);
 
     const reducedVat = reducedPortion * 0.05;
     const standardVat = standardPortion * 0.19;
@@ -48,7 +48,7 @@ export const calculateVAT = (args: {
     return {
       success: true,
       message:
-        `VAT calculation for primary residence (EU buyer):\n` +
+        "VAT calculation for primary residence (EU buyer):\n" +
         `• First €350,000 at 5%: €${reducedVat.toLocaleString()}\n` +
         `• Above €350,000 at 19%: €${standardVat.toLocaleString()}\n` +
         `• **Total VAT: €${totalVat.toLocaleString()}**`,
@@ -98,12 +98,12 @@ export const calculateTransferFees = (args: {
 
   // Cyprus transfer fee bands
   let fee = 0;
-  if (price <= 85000) {
+  if (price <= 85_000) {
     fee = price * 0.03;
-  } else if (price <= 170000) {
-    fee = 85000 * 0.03 + (price - 85000) * 0.05;
+  } else if (price <= 170_000) {
+    fee = 85_000 * 0.03 + (price - 85_000) * 0.05;
   } else {
-    fee = 85000 * 0.03 + 85000 * 0.05 + (price - 170000) * 0.08;
+    fee = 85_000 * 0.03 + 85_000 * 0.05 + (price - 170_000) * 0.08;
   }
 
   // 50% discount for first property
@@ -150,8 +150,7 @@ export const calculateCapitalGains = (args: {
   const currentYear = new Date().getFullYear();
   const yearsHeld = currentYear - purchaseYear;
   const inflationRate = 0.03; // Approximate
-  const adjustedPurchase =
-    purchasePrice * Math.pow(1 + inflationRate, yearsHeld);
+  const adjustedPurchase = purchasePrice * (1 + inflationRate) ** yearsHeld;
 
   // Calculate gain
   const totalCosts = adjustedPurchase + improvements;
@@ -168,7 +167,7 @@ export const calculateCapitalGains = (args: {
   // Exemptions
   let exemption = 0;
   if (isMainResidence) {
-    exemption = Math.min(gain, 85430); // Main residence exemption
+    exemption = Math.min(gain, 85_430); // Main residence exemption
   }
 
   const taxableGain = Math.max(0, gain - exemption);
@@ -177,7 +176,7 @@ export const calculateCapitalGains = (args: {
   return {
     success: true,
     message:
-      `Capital Gains Tax calculation:\n` +
+      "Capital Gains Tax calculation:\n" +
       `• Sale price: €${salePrice.toLocaleString()}\n` +
       `• Adjusted purchase: €${adjustedPurchase.toLocaleString()}\n` +
       `• Improvements: €${improvements.toLocaleString()}\n` +

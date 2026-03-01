@@ -130,7 +130,9 @@ export async function POST(request: Request) {
     }
   } else if (process.env.NODE_ENV === "production") {
     // Log warning if secret is not configured (should be set in production)
-    logger.warn("TELEGRAM_WEBHOOK_SECRET not configured - webhook is unprotected");
+    logger.warn(
+      "TELEGRAM_WEBHOOK_SECRET not configured - webhook is unprotected"
+    );
   }
 
   try {

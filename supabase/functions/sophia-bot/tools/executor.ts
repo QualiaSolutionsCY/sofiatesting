@@ -3,17 +3,33 @@
  * Routes tool calls from OpenRouter to handler modules and returns results
  */
 
-import { Agent } from "../agents/identifier.ts";
+import type { Agent } from "../agents/identifier.ts";
 import { RejectionError } from "../rules/reviewer-assignment.ts";
-import { logger, LogCategory } from "../utils/logger.ts";
-import { classifyError, getUserFriendlyMessage } from "../utils/error-mapper.ts";
-import { trackToolUsed, trackPropertyUploaded, trackDocumentGenerated, createTimer } from "../services/analytics.ts";
-import { validateToolArguments } from "./validation.ts";
-import { handleCreatePropertyListing } from "./handlers/property-listing.ts";
-import { handleCreateLandListing } from "./handlers/land-listing.ts";
-import { handleCalculateVAT, handleCalculateTransferFees, handleCalculateCapitalGains } from "./handlers/calculators.ts";
-import { handleGetZyprusData, handleGetRegionalAgents, handleExtractFromBazaraki } from "./handlers/data-retrieval.ts";
+import {
+  createTimer,
+  trackDocumentGenerated,
+  trackPropertyUploaded,
+  trackToolUsed,
+} from "../services/analytics.ts";
+import {
+  classifyError,
+  getUserFriendlyMessage,
+} from "../utils/error-mapper.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
+import {
+  handleCalculateCapitalGains,
+  handleCalculateTransferFees,
+  handleCalculateVAT,
+} from "./handlers/calculators.ts";
+import {
+  handleExtractFromBazaraki,
+  handleGetRegionalAgents,
+  handleGetZyprusData,
+} from "./handlers/data-retrieval.ts";
 import { handleSendEmail } from "./handlers/email.ts";
+import { handleCreateLandListing } from "./handlers/land-listing.ts";
+import { handleCreatePropertyListing } from "./handlers/property-listing.ts";
+import { validateToolArguments } from "./validation.ts";
 
 export interface ToolResult {
   success?: boolean;
@@ -71,7 +87,12 @@ export async function executeTool(
 
     switch (tool.name) {
       case "createPropertyListing":
-        result = await handleCreatePropertyListing(validArgs, agent, supabaseUrl, supabaseKey);
+        result = await handleCreatePropertyListing(
+          validArgs,
+          agent,
+          supabaseUrl,
+          supabaseKey
+        );
         // Track successful property upload
         if (result.success && phoneNumber) {
           trackPropertyUploaded(phoneNumber, agent?.id, {
@@ -82,7 +103,12 @@ export async function executeTool(
         break;
 
       case "createLandListing":
-        result = await handleCreateLandListing(validArgs, agent, supabaseUrl, supabaseKey);
+        result = await handleCreateLandListing(
+          validArgs,
+          agent,
+          supabaseUrl,
+          supabaseKey
+        );
         // Track successful land upload
         if (result.success && phoneNumber) {
           trackPropertyUploaded(phoneNumber, agent?.id, {
@@ -119,7 +145,12 @@ export async function executeTool(
       case "sendEmail":
         result = await handleSendEmail(validArgs, agent, phoneNumber);
         // Track document sent via email
-        if (result.success && phoneNumber && (validArgs.attachmentUrl || (result.data as Record<string, unknown>)?.attachedDocument)) {
+        if (
+          result.success &&
+          phoneNumber &&
+          (validArgs.attachmentUrl ||
+            (result.data as Record<string, unknown>)?.attachedDocument)
+        ) {
           trackDocumentGenerated(phoneNumber, "email_with_document", agent?.id);
         }
         break;

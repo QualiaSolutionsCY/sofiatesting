@@ -41,7 +41,12 @@ export const checkAdminAuth = async (): Promise<AdminCheckResult> => {
     const adminRoles = await db
       .select()
       .from(adminUserRole)
-      .where(and(eq(adminUserRole.email, session.user.email), eq(adminUserRole.isActive, true)))
+      .where(
+        and(
+          eq(adminUserRole.email, session.user.email),
+          eq(adminUserRole.isActive, true)
+        )
+      )
       .limit(1);
 
     if (adminRoles.length > 0) {

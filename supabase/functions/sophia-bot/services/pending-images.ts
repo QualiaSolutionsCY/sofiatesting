@@ -9,10 +9,10 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { logger, LogCategory } from "../utils/logger.ts";
 import { getContext } from "../utils/context.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -48,7 +48,7 @@ export async function addPendingImages(
   });
 
   // Build records with content_hash for content-based deduplication
-  const records = images.map(img => ({
+  const records = images.map((img) => ({
     phone_number: phoneNumber,
     image_url: img.url,
     content_hash: img.contentHash,
@@ -57,9 +57,10 @@ export async function addPendingImages(
   // Use upsert with ignoreDuplicates on content_hash
   // This prevents the SAME image content from being stored twice,
   // even when WhatsApp re-decrypts it into a different temporary URL
-  const { error } = await supabase
-    .from("pending_images")
-    .upsert(records, { onConflict: "phone_number,image_url", ignoreDuplicates: true });
+  const { error } = await supabase.from("pending_images").upsert(records, {
+    onConflict: "phone_number,image_url",
+    ignoreDuplicates: true,
+  });
 
   if (error) {
     // If the content_hash unique constraint fires, that's expected (dedup working!)
@@ -103,10 +104,7 @@ async function cleanupExpiredImages(): Promise<void> {
   lastCleanupTime = now;
 
   const expiryTime = new Date(now - EXPIRY_MS).toISOString();
-  await supabase
-    .from("pending_images")
-    .delete()
-    .lt("created_at", expiryTime);
+  await supabase.from("pending_images").delete().lt("created_at", expiryTime);
 }
 
 /**
@@ -137,7 +135,7 @@ export async function getPendingImages(phoneNumber: string): Promise<string[]> {
     return [];
   }
 
-  const urls = data?.map(row => row.image_url) || [];
+  const urls = data?.map((row) => row.image_url) || [];
   logger.info("Retrieved pending images", {
     category: LogCategory.IMAGE,
     operation: "getPendingImages",
@@ -151,7 +149,9 @@ export async function getPendingImages(phoneNumber: string): Promise<string[]> {
 /**
  * Get count of pending images for a user
  */
-export async function getPendingImageCount(phoneNumber: string): Promise<number> {
+export async function getPendingImageCount(
+  phoneNumber: string
+): Promise<number> {
   const { count, error } = await supabase
     .from("pending_images")
     .select("id", { count: "exact", head: true })

@@ -1,7 +1,7 @@
 import "server-only";
 
-import { createLogger } from "@/lib/logger";
 import { PromptList } from "@/components/admin/prompts/prompt-list";
+import { createLogger } from "@/lib/logger";
 import { getAdminSupabase } from "@/lib/supabase/admin";
 
 const logger = createLogger("admin:prompts");

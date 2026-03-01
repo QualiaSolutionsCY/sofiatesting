@@ -29,7 +29,10 @@ async function testAuth() {
     });
 
     console.log("Response status:", response.status);
-    console.log("Response headers:", Object.fromEntries(response.headers.entries()));
+    console.log(
+      "Response headers:",
+      Object.fromEntries(response.headers.entries())
+    );
 
     const text = await response.text();
     console.log("\nResponse body:");
@@ -40,17 +43,23 @@ async function testAuth() {
       console.log("\n✅ Authentication successful!");
       console.log("Token type:", data.token_type);
       console.log("Expires in:", data.expires_in, "seconds");
-      console.log("Access token (first 20 chars):", data.access_token?.substring(0, 20) + "...");
+      console.log(
+        "Access token (first 20 chars):",
+        data.access_token?.substring(0, 20) + "..."
+      );
 
       // Test API endpoint with token
       console.log("\n--- Testing API with token ---");
-      const apiTest = await fetch(`${ZYPRUS_API_URL}/jsonapi/taxonomy_term/property_type`, {
-        headers: {
-          "Authorization": `Bearer ${data.access_token}`,
-          "Accept": "application/vnd.api+json",
-          "User-Agent": "SophiaAI",
-        },
-      });
+      const apiTest = await fetch(
+        `${ZYPRUS_API_URL}/jsonapi/taxonomy_term/property_type`,
+        {
+          headers: {
+            Authorization: `Bearer ${data.access_token}`,
+            Accept: "application/vnd.api+json",
+            "User-Agent": "SophiaAI",
+          },
+        }
+      );
       console.log("API test status:", apiTest.status);
       if (apiTest.ok) {
         const apiData = await apiTest.json();

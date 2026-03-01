@@ -3,6 +3,7 @@ import "server-only";
 import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
+
 import {
   Activity,
   ArrowRight,
@@ -75,9 +76,7 @@ async function getDashboardStats() {
     ];
 
     // 3. Regional Distribution
-    const { data: agents } = await supabase
-      .from("agents")
-      .select("region");
+    const { data: agents } = await supabase.from("agents").select("region");
 
     const regionCounts: Record<string, number> = {};
     for (const agent of agents || []) {
@@ -89,16 +88,23 @@ async function getDashboardStats() {
       .sort((a, b) => b.value - a.value);
 
     // 4. System Health (empty for now - table may not exist)
-    const healthLogs: Array<{ id: string; service: string; status: string; timestamp: string }> = [];
+    const healthLogs: Array<{
+      id: string;
+      service: string;
+      status: string;
+      timestamp: string;
+    }> = [];
 
     // 5. Recent Agents
     const { data: recentAgentsData } = await supabase
       .from("agents")
-      .select("id, full_name, communication_email, region, is_active, created_at")
+      .select(
+        "id, full_name, communication_email, region, is_active, created_at"
+      )
       .order("created_at", { ascending: false })
       .limit(5);
 
-    const recentAgents = (recentAgentsData as AgentRow[] || []).map((a) => ({
+    const recentAgents = ((recentAgentsData as AgentRow[]) || []).map((a) => ({
       id: a.id,
       fullName: a.full_name,
       email: a.communication_email || "",

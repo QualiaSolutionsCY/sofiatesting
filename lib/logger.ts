@@ -36,7 +36,7 @@ export type LogEntry = {
 const formatError = (
   error: unknown
 ): { message: string; stack?: string; code?: string } | undefined => {
-  if (!error) return undefined;
+  if (!error) return;
 
   if (error instanceof Error) {
     return {
@@ -99,7 +99,11 @@ export type Logger = {
   debug: (message: string, context?: LogContext) => void;
   info: (message: string, context?: LogContext) => void;
   warn: (message: string, context?: LogContext) => void;
-  error: (message: string, errorOrContext?: unknown, context?: LogContext) => void;
+  error: (
+    message: string,
+    errorOrContext?: unknown,
+    context?: LogContext
+  ) => void;
   child: (subCategory: string) => Logger;
 };
 

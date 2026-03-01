@@ -13,21 +13,24 @@
  * NOTE: Requires WASEND_WEBHOOK_SECRET env var (not hardcoded for security)
  */
 
-const EDGE_FUNCTION_URL = "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot";
+const EDGE_FUNCTION_URL =
+  "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot";
 const HEALTH_URL = `${EDGE_FUNCTION_URL}/health`;
 
 // Webhook secret from Supabase Edge Function secrets
 const WEBHOOK_SECRET = process.env.WASEND_WEBHOOK_SECRET;
 if (!WEBHOOK_SECRET) {
-  throw new Error("WASEND_WEBHOOK_SECRET environment variable is required for webhook tests");
+  throw new Error(
+    "WASEND_WEBHOOK_SECRET environment variable is required for webhook tests"
+  );
 }
 
 // Configuration
-const HEALTH_CONCURRENT = 20;        // Parallel health checks
-const WEBHOOK_USERS = 20;            // 20 concurrent users
-const MESSAGES_PER_USER = 2;         // 2 messages each = 40 total AI calls
-const WEBHOOK_BATCH_SIZE = 5;        // Users per wave
-const WEBHOOK_BATCH_DELAY_MS = 300;  // Delay between waves
+const HEALTH_CONCURRENT = 20; // Parallel health checks
+const WEBHOOK_USERS = 20; // 20 concurrent users
+const MESSAGES_PER_USER = 2; // 2 messages each = 40 total AI calls
+const WEBHOOK_BATCH_SIZE = 5; // Users per wave
+const WEBHOOK_BATCH_DELAY_MS = 300; // Delay between waves
 
 const HEALTH_ONLY = process.argv.includes("--health-only");
 
@@ -47,7 +50,7 @@ async function healthCheck(): Promise<TestResult> {
   const start = Date.now();
   try {
     const res = await fetch(HEALTH_URL, {
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(15_000),
     });
     const body = await res.text();
     return {
@@ -67,9 +70,13 @@ async function healthCheck(): Promise<TestResult> {
 }
 
 async function runHealthConcurrency(): Promise<TestResult[]> {
-  console.log(`\n--- Health Endpoint: ${HEALTH_CONCURRENT} concurrent requests ---`);
+  console.log(
+    `\n--- Health Endpoint: ${HEALTH_CONCURRENT} concurrent requests ---`
+  );
 
-  const promises = Array.from({ length: HEALTH_CONCURRENT }, () => healthCheck());
+  const promises = Array.from({ length: HEALTH_CONCURRENT }, () =>
+    healthCheck()
+  );
   const results = await Promise.all(promises);
 
   return results;
@@ -79,8 +86,12 @@ async function runHealthConcurrency(): Promise<TestResult[]> {
 // Webhook Pipeline Tests
 // ========================================
 
-function buildWebhookPayload(userId: number, messageNum: number, messageId: string) {
-  const phoneNumber = `357${96000000 + userId}`;  // Cyprus test numbers (96xxxxxx range)
+function buildWebhookPayload(
+  userId: number,
+  messageNum: number,
+  messageId: string
+) {
+  const phoneNumber = `357${96_000_000 + userId}`; // Cyprus test numbers (96xxxxxx range)
 
   // Match EXACT WaSend production format: event + data.messages (single object)
   return {
@@ -105,7 +116,11 @@ function buildWebhookPayload(userId: number, messageNum: number, messageId: stri
   };
 }
 
-async function sendWebhookMessage(userId: number, messageNum: number, messageId?: string): Promise<TestResult> {
+async function sendWebhookMessage(
+  userId: number,
+  messageNum: number,
+  messageId?: string
+): Promise<TestResult> {
   const id = messageId || crypto.randomUUID();
   const start = Date.now();
   const payload = buildWebhookPayload(userId, messageNum, id);
@@ -118,7 +133,7 @@ async function sendWebhookMessage(userId: number, messageNum: number, messageId?
         "X-Webhook-Signature": WEBHOOK_SECRET,
       },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(60000),  // Edge Function has 120s limit, we wait 60s
+      signal: AbortSignal.timeout(60_000), // Edge Function has 120s limit, we wait 60s
     });
 
     const body = await res.text();
@@ -140,8 +155,10 @@ async function sendWebhookMessage(userId: number, messageNum: number, messageId?
 
 async function runWebhookBatched(): Promise<TestResult[]> {
   const total = WEBHOOK_USERS * MESSAGES_PER_USER;
-  console.log(`\n--- Webhook Pipeline: ${WEBHOOK_USERS} users x ${MESSAGES_PER_USER} msgs = ${total} requests ---`);
-  console.log(`  (Each request triggers real AI — ~$0.001/msg)`);
+  console.log(
+    `\n--- Webhook Pipeline: ${WEBHOOK_USERS} users x ${MESSAGES_PER_USER} msgs = ${total} requests ---`
+  );
+  console.log("  (Each request triggers real AI — ~$0.001/msg)");
 
   const results: TestResult[] = [];
   const userIds = Array.from({ length: WEBHOOK_USERS }, (_, i) => i + 1);
@@ -185,7 +202,7 @@ async function runWebhookBatched(): Promise<TestResult[]> {
 // ========================================
 
 async function runDedupTest(): Promise<{ passed: boolean; detail: string }> {
-  console.log(`\n--- Deduplication Test ---`);
+  console.log("\n--- Deduplication Test ---");
 
   const duplicateId = crypto.randomUUID();
 
@@ -208,7 +225,7 @@ async function runDedupTest(): Promise<{ passed: boolean; detail: string }> {
 // ========================================
 
 async function runAuthTest(): Promise<{ passed: boolean; detail: string }> {
-  console.log(`\n--- Auth Rejection Test ---`);
+  console.log("\n--- Auth Rejection Test ---");
   const start = Date.now();
 
   const payload = buildWebhookPayload(999, 1, crypto.randomUUID());
@@ -220,7 +237,7 @@ async function runAuthTest(): Promise<{ passed: boolean; detail: string }> {
       "X-Webhook-Signature": "wrong-secret-should-be-rejected",
     },
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(10_000),
   });
 
   const duration = Date.now() - start;
@@ -251,14 +268,20 @@ function analyzeResults(label: string, results: TestResult[]) {
   const successRate = (successful.length / results.length) * 100;
 
   console.log(`\n  ${label}:`);
-  console.log(`  Requests:  ${results.length} total, ${successful.length} ok, ${failed.length} failed`);
+  console.log(
+    `  Requests:  ${results.length} total, ${successful.length} ok, ${failed.length} failed`
+  );
   console.log(`  Success:   ${successRate.toFixed(1)}%`);
-  console.log(`  Response:  avg=${avg.toFixed(0)}ms  p95=${p95}ms  p99=${p99}ms  min=${durations[0]}ms  max=${durations[durations.length - 1]}ms`);
+  console.log(
+    `  Response:  avg=${avg.toFixed(0)}ms  p95=${p95}ms  p99=${p99}ms  min=${durations[0]}ms  max=${durations[durations.length - 1]}ms`
+  );
 
   if (failed.length > 0) {
-    console.log(`  Failures:`);
+    console.log("  Failures:");
     for (const r of failed.slice(0, 5)) {
-      console.log(`    ${r.name}: HTTP ${r.status} - ${r.error || r.body?.substring(0, 100) || "Unknown"}`);
+      console.log(
+        `    ${r.name}: HTTP ${r.status} - ${r.error || r.body?.substring(0, 100) || "Unknown"}`
+      );
     }
     if (failed.length > 5) {
       console.log(`    ... and ${failed.length - 5} more`);
@@ -273,9 +296,11 @@ function analyzeResults(label: string, results: TestResult[]) {
 // ========================================
 
 async function main() {
-  console.log(`\n=== SOPHIA EDGE FUNCTION LOAD TEST ===`);
+  console.log("\n=== SOPHIA EDGE FUNCTION LOAD TEST ===");
   console.log(`Target: ${EDGE_FUNCTION_URL}`);
-  console.log(`Mode: ${HEALTH_ONLY ? "Health only (no AI costs)" : "Full (health + webhook + AI)"}`);
+  console.log(
+    `Mode: ${HEALTH_ONLY ? "Health only (no AI costs)" : "Full (health + webhook + AI)"}`
+  );
   console.log(`Time: ${new Date().toISOString()}\n`);
 
   // 1. Health concurrency test
@@ -287,19 +312,23 @@ async function main() {
   if (firstHealthBody) {
     try {
       const health = JSON.parse(firstHealthBody);
-      console.log(`\n  Dependencies:`);
-      for (const [dep, info] of Object.entries(health.dependencies as Record<string, any>)) {
+      console.log("\n  Dependencies:");
+      for (const [dep, info] of Object.entries(
+        health.dependencies as Record<string, any>
+      )) {
         console.log(`    ${dep}: ${info.status} (${info.latencyMs || "?"}ms)`);
       }
-    } catch { /* ignore parse errors */ }
+    } catch {
+      /* ignore parse errors */
+    }
   }
 
   if (HEALTH_ONLY) {
-    console.log(`\n=== CHECKS (health-only mode) ===`);
+    console.log("\n=== CHECKS (health-only mode) ===");
     const checks = [
       { name: "Health success >= 95%", passed: healthStats.successRate >= 95 },
       { name: "Health avg < 5000ms", passed: healthStats.avg < 5000 },
-      { name: "Health p95 < 10000ms", passed: healthStats.p95 < 10000 },
+      { name: "Health p95 < 10000ms", passed: healthStats.p95 < 10_000 },
     ];
     let allPassed = true;
     for (const c of checks) {
@@ -320,17 +349,19 @@ async function main() {
 
   // 4. Deduplication test
   const dedupResult = await runDedupTest();
-  console.log(`  ${dedupResult.passed ? "PASS" : "FAIL"}: ${dedupResult.detail}`);
+  console.log(
+    `  ${dedupResult.passed ? "PASS" : "FAIL"}: ${dedupResult.detail}`
+  );
 
   // === Final checks ===
-  console.log(`\n=== CHECKS ===`);
+  console.log("\n=== CHECKS ===");
   const checks = [
     { name: "Health success >= 95%", passed: healthStats.successRate >= 95 },
     { name: "Health avg < 5000ms", passed: healthStats.avg < 5000 },
     { name: "Auth rejection (401)", passed: authResult.passed },
     { name: "Webhook success >= 90%", passed: webhookStats.successRate >= 90 },
-    { name: "Webhook avg < 30000ms", passed: webhookStats.avg < 30000 },
-    { name: "Webhook p95 < 45000ms", passed: webhookStats.p95 < 45000 },
+    { name: "Webhook avg < 30000ms", passed: webhookStats.avg < 30_000 },
+    { name: "Webhook p95 < 45000ms", passed: webhookStats.p95 < 45_000 },
     { name: "Deduplication", passed: dedupResult.passed },
   ];
 

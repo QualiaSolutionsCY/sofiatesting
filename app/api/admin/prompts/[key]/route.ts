@@ -49,10 +49,7 @@ export async function GET(
       .single();
 
     if (error || !prompt) {
-      return NextResponse.json(
-        { error: "Prompt not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Prompt not found" }, { status: 404 });
     }
 
     const p = prompt as PromptRow;
@@ -116,7 +113,7 @@ export async function PUT(
       return NextResponse.json(
         {
           error: "Validation failed",
-          details: parseResult.error.format()
+          details: parseResult.error.format(),
         },
         { status: 400 }
       );
@@ -142,10 +139,7 @@ export async function PUT(
       .single();
 
     if (fetchError || !currentPrompt) {
-      return NextResponse.json(
-        { error: "Prompt not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Prompt not found" }, { status: 404 });
     }
 
     const current = currentPrompt as PromptRow;

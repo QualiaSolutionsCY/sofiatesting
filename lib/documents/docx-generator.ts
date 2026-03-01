@@ -1,10 +1,4 @@
-import {
-  Document,
-  Packer,
-  Paragraph,
-  TextRun,
-  HeadingLevel,
-} from "docx";
+import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 
 /**
  * Generate a DOCX document from text content
@@ -112,4 +106,3 @@ export async function generateDocx(content: string): Promise<Buffer> {
   const buffer = await Packer.toBuffer(doc);
   return buffer;
 }
-

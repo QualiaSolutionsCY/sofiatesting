@@ -12,19 +12,22 @@
  * - Network resilience via withRetry utility
  */
 
-import { logger, LogCategory } from "../../sophia-bot/utils/logger.ts";
+import { LogCategory, logger } from "../../sophia-bot/utils/logger.ts";
 import { withRetry } from "../../sophia-bot/utils/retry.ts";
 import {
-  ThreeCXConfig,
-  ThreeCXLoginResponse,
   ThreeCXAPIError,
+  type ThreeCXConfig,
+  type ThreeCXLoginResponse,
 } from "./types.ts";
 
 /**
  * Custom error for 3CX authentication failures
  */
 export class ThreeCXAuthError extends Error {
-  constructor(message: string, public readonly statusCode?: number) {
+  constructor(
+    message: string,
+    public readonly statusCode?: number
+  ) {
     super(message);
     this.name = "ThreeCXAuthError";
   }
@@ -36,7 +39,7 @@ export class ThreeCXAuthError extends Error {
 export class ThreeCXClient {
   private _token: string | null = null;
   private _cookie: string | null = null;
-  private _authenticated: boolean = false;
+  private _authenticated = false;
 
   constructor(private config: ThreeCXConfig) {}
 
@@ -44,7 +47,9 @@ export class ThreeCXClient {
    * Check if client is authenticated
    */
   isAuthenticated(): boolean {
-    return this._authenticated && (this._token !== null || this._cookie !== null);
+    return (
+      this._authenticated && (this._token !== null || this._cookie !== null)
+    );
   }
 
   /**
@@ -53,7 +58,7 @@ export class ThreeCXClient {
   getAuthHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
       "User-Agent": "SophiaAI-CallAudit",
-      "Accept": "application/json",
+      Accept: "application/json",
     };
 
     if (this._token) {
@@ -118,7 +123,7 @@ export class ThreeCXClient {
       const response = await withRetry(
         () => {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 30000);
+          const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
           return fetch(`${this.config.baseUrl}/api/login`, {
             method: "POST",
@@ -169,7 +174,9 @@ export class ThreeCXClient {
         // HTML response often indicates auth redirect - session expired
         const responseText = await response.text();
         if (responseText.includes("<html") || responseText.includes("login")) {
-          throw new ThreeCXAuthError("3CX returned login page - session likely expired");
+          throw new ThreeCXAuthError(
+            "3CX returned login page - session likely expired"
+          );
         }
         throw new ThreeCXAPIError(
           `Unexpected content type: ${contentType}`,
@@ -198,9 +205,11 @@ export class ThreeCXClient {
         status: data.Status,
       });
       return false;
-
     } catch (error) {
-      if (error instanceof ThreeCXAPIError || error instanceof ThreeCXAuthError) {
+      if (
+        error instanceof ThreeCXAPIError ||
+        error instanceof ThreeCXAuthError
+      ) {
         throw error;
       }
 
@@ -209,7 +218,11 @@ export class ThreeCXClient {
         logger.warn("[3CX Client] REST API request timed out after 30s", {
           category: LogCategory.GENERAL,
         });
-        throw new ThreeCXAPIError("3CX API request timed out after 30s", undefined, "/api/login");
+        throw new ThreeCXAPIError(
+          "3CX API request timed out after 30s",
+          undefined,
+          "/api/login"
+        );
       }
 
       logger.debug("[3CX Client] REST API attempt failed", {
@@ -228,20 +241,23 @@ export class ThreeCXClient {
       const response = await withRetry(
         () => {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 30000);
+          const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
-          return fetch(`${this.config.baseUrl}/webclient/api/Login/GetAccessToken`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              "User-Agent": "SophiaAI-CallAudit",
-            },
-            body: new URLSearchParams({
-              Username: this.config.username,
-              Password: this.config.password,
-            }).toString(),
-            signal: controller.signal,
-          }).finally(() => clearTimeout(timeoutId));
+          return fetch(
+            `${this.config.baseUrl}/webclient/api/Login/GetAccessToken`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "User-Agent": "SophiaAI-CallAudit",
+              },
+              body: new URLSearchParams({
+                Username: this.config.username,
+                Password: this.config.password,
+              }).toString(),
+              signal: controller.signal,
+            }
+          ).finally(() => clearTimeout(timeoutId));
         },
         {
           maxRetries: 2,
@@ -300,11 +316,16 @@ export class ThreeCXClient {
         } else {
           // Check if response is HTML (login page redirect)
           const responseText = await response.text();
-          if (responseText.includes("<html") || responseText.includes("login")) {
+          if (
+            responseText.includes("<html") ||
+            responseText.includes("login")
+          ) {
             logger.warn("[3CX Client] Web Client API returned login page", {
               category: LogCategory.GENERAL,
             });
-            throw new ThreeCXAuthError("3CX returned login page - session likely expired");
+            throw new ThreeCXAuthError(
+              "3CX returned login page - session likely expired"
+            );
           }
         }
       } catch (parseError) {
@@ -314,7 +335,10 @@ export class ThreeCXClient {
         // Not JSON response - could still be valid if cookie was set
         logger.debug("[3CX Client] Non-JSON response from Web Client API", {
           category: LogCategory.GENERAL,
-          parseError: parseError instanceof Error ? parseError.message : String(parseError),
+          parseError:
+            parseError instanceof Error
+              ? parseError.message
+              : String(parseError),
         });
       }
 
@@ -322,9 +346,11 @@ export class ThreeCXClient {
         category: LogCategory.GENERAL,
       });
       return false;
-
     } catch (error) {
-      if (error instanceof ThreeCXAPIError || error instanceof ThreeCXAuthError) {
+      if (
+        error instanceof ThreeCXAPIError ||
+        error instanceof ThreeCXAuthError
+      ) {
         throw error;
       }
 
@@ -333,7 +359,11 @@ export class ThreeCXClient {
         logger.warn("[3CX Client] Web Client API request timed out after 30s", {
           category: LogCategory.GENERAL,
         });
-        throw new ThreeCXAPIError("3CX API request timed out after 30s", undefined, "/webclient/api/Login/GetAccessToken");
+        throw new ThreeCXAPIError(
+          "3CX API request timed out after 30s",
+          undefined,
+          "/webclient/api/Login/GetAccessToken"
+        );
       }
 
       logger.debug("[3CX Client] Web Client API attempt failed", {
@@ -350,11 +380,15 @@ export class ThreeCXClient {
    * @param params Call log query parameters
    * @returns Raw response from 3CX call log API
    */
-  async getCallLog(params: { dateFrom: string; dateTo: string; filter?: string }): Promise<any> {
+  async getCallLog(params: {
+    dateFrom: string;
+    dateTo: string;
+    filter?: string;
+  }): Promise<any> {
     const { dateFrom, dateTo, filter } = params;
 
     // Try the most common 3CX call log endpoint format first
-    const path = `/api/calllog?dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}${filter ? `&filter=${encodeURIComponent(filter)}` : ''}`;
+    const path = `/api/calllog?dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}${filter ? `&filter=${encodeURIComponent(filter)}` : ""}`;
 
     const response = await this.makeAuthenticatedRequest(path);
 
@@ -409,7 +443,7 @@ export class ThreeCXClient {
       response = await withRetry(
         () => {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 30000);
+          const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
           return fetch(url, {
             ...requestOptions,
@@ -420,7 +454,7 @@ export class ThreeCXClient {
           maxRetries: 3,
           baseDelayMs: 1000,
         },
-        `3cx-api-${path.replace(/[^a-zA-Z0-9]/g, '-')}`
+        `3cx-api-${path.replace(/[^a-zA-Z0-9]/g, "-")}`
       );
     } catch (error) {
       // Check for timeout specifically
@@ -444,15 +478,21 @@ export class ThreeCXClient {
       const reLoginCount = this._reLoginAttempts.get(requestId) || 0;
       if (reLoginCount >= 1) {
         this._reLoginAttempts.delete(requestId);
-        throw new ThreeCXAuthError("Session expired and re-authentication failed", response.status);
+        throw new ThreeCXAuthError(
+          "Session expired and re-authentication failed",
+          response.status
+        );
       }
 
-      logger.warn("[3CX Client] Session expired, attempting re-authentication", {
-        category: LogCategory.GENERAL,
-        path,
-        status: response.status,
-        attempt: reLoginCount + 1,
-      });
+      logger.warn(
+        "[3CX Client] Session expired, attempting re-authentication",
+        {
+          category: LogCategory.GENERAL,
+          path,
+          status: response.status,
+          attempt: reLoginCount + 1,
+        }
+      );
 
       // Track re-login attempt
       this._reLoginAttempts.set(requestId, reLoginCount + 1);
@@ -473,7 +513,7 @@ export class ThreeCXClient {
         };
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
         response = await fetch(url, {
           ...retryOptions,
@@ -483,9 +523,11 @@ export class ThreeCXClient {
         this._reLoginAttempts.delete(requestId);
 
         if (response.status === 401 || response.status === 403) {
-          throw new ThreeCXAuthError("Re-authentication failed - still getting auth errors", response.status);
+          throw new ThreeCXAuthError(
+            "Re-authentication failed - still getting auth errors",
+            response.status
+          );
         }
-
       } catch (error) {
         this._reLoginAttempts.delete(requestId);
 
@@ -495,7 +537,11 @@ export class ThreeCXClient {
 
         // Check for timeout
         if (error instanceof Error && error.name === "AbortError") {
-          throw new ThreeCXAPIError("3CX API retry request timed out after 30s", undefined, path);
+          throw new ThreeCXAPIError(
+            "3CX API retry request timed out after 30s",
+            undefined,
+            path
+          );
         }
 
         throw new ThreeCXAuthError(

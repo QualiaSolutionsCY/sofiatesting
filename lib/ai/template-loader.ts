@@ -117,7 +117,10 @@ export function detectRelevantTemplates(userMessage: string): string[] {
   }
 
   // Client communications
-  if (GOOD_CLIENT_PATTERN.test(msg) || /request.*callback|callback.*request/i.test(msg)) {
+  if (
+    GOOD_CLIENT_PATTERN.test(msg) ||
+    /request.*callback|callback.*request/i.test(msg)
+  ) {
     addToSet(templates, TEMPLATE_CATEGORIES.good_client);
   }
   if (VALUATION_PATTERN.test(msg)) {
@@ -147,7 +150,7 @@ export function detectRelevantTemplates(userMessage: string): string[] {
   if (AML_PATTERN.test(msg)) {
     addToSet(templates, TEMPLATE_CATEGORIES.aml_kyc);
   }
-  
+
   // Phone refusal or Email only request (including callback request via email)
   if (
     /refus.*phone|no.*phone.*number|doesn't.*want.*phone|email.*only|only.*email|communication.*via.*email|request.*callback.*email|callback.*via.*email/i.test(

@@ -5,8 +5,8 @@
  * Endpoint: GET /health
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { logger, LogCategory } from "../utils/logger.ts";
+import type { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { LogCategory, logger } from "../utils/logger.ts";
 
 interface HealthCheck {
   status: "healthy" | "unhealthy" | "degraded";
@@ -60,9 +60,14 @@ export async function handleHealthCheck(
       });
       // 401/403 means the server is responding but we need auth - that's healthy
       // Only mark degraded if 5xx or connection issues
-      const isHealthy = zResponse.ok || zResponse.status === 401 || zResponse.status === 403;
+      const isHealthy =
+        zResponse.ok || zResponse.status === 401 || zResponse.status === 403;
       checks.zyprus = {
-        status: isHealthy ? "healthy" : (zResponse.status >= 500 ? "unhealthy" : "degraded"),
+        status: isHealthy
+          ? "healthy"
+          : zResponse.status >= 500
+            ? "unhealthy"
+            : "degraded",
         latencyMs: Date.now() - zStart,
       };
     } catch (err) {
@@ -72,7 +77,10 @@ export async function handleHealthCheck(
       };
     }
   } else {
-    checks.zyprus = { status: "unhealthy", error: "ZYPRUS_API_URL not configured" };
+    checks.zyprus = {
+      status: "unhealthy",
+      error: "ZYPRUS_API_URL not configured",
+    };
   }
 
   // Check Supabase (database)
@@ -104,7 +112,11 @@ export async function handleHealthCheck(
       });
       // 200 means site is up, which is healthy enough for us
       checks.wasender = {
-        status: wResponse.ok ? "healthy" : (wResponse.status >= 500 ? "unhealthy" : "degraded"),
+        status: wResponse.ok
+          ? "healthy"
+          : wResponse.status >= 500
+            ? "unhealthy"
+            : "degraded",
         latencyMs: Date.now() - wStart,
       };
     } catch (err) {
@@ -114,14 +126,17 @@ export async function handleHealthCheck(
       };
     }
   } else {
-    checks.wasender = { status: "unhealthy", error: "WASEND_API_KEY not configured" };
+    checks.wasender = {
+      status: "unhealthy",
+      error: "WASEND_API_KEY not configured",
+    };
   }
 
   // Determine overall status
-  const statuses = Object.values(checks).map(c => c.status);
-  const overallStatus = statuses.every(s => s === "healthy")
+  const statuses = Object.values(checks).map((c) => c.status);
+  const overallStatus = statuses.every((s) => s === "healthy")
     ? "healthy"
-    : statuses.some(s => s === "unhealthy")
+    : statuses.some((s) => s === "unhealthy")
       ? "unhealthy"
       : "degraded";
 
@@ -162,7 +177,12 @@ export async function handleHealthCheck(
     },
   };
 
-  const httpStatus = overallStatus === "healthy" ? 200 : overallStatus === "degraded" ? 200 : 503;
+  const httpStatus =
+    overallStatus === "healthy"
+      ? 200
+      : overallStatus === "degraded"
+        ? 200
+        : 503;
 
   return new Response(JSON.stringify(response, null, 2), {
     status: httpStatus,

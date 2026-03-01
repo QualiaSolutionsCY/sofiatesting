@@ -3,8 +3,8 @@
  * Processes, validates, and orders property images for upload
  */
 
+import { LogCategory, logger } from "../utils/logger.ts";
 import { validateImageUrl } from "../utils/url-validator.ts";
-import { logger, LogCategory } from "../utils/logger.ts";
 
 export interface ProcessedImage {
   url: string;
@@ -79,7 +79,10 @@ function detectPrivacyIssues(url: string): string[] {
   }
 
   // Check for personal information in URL
-  if (url.toLowerCase().includes("personal") || url.toLowerCase().includes("private")) {
+  if (
+    url.toLowerCase().includes("personal") ||
+    url.toLowerCase().includes("private")
+  ) {
     issues.push("URL suggests private/personal content");
   }
 
@@ -165,7 +168,9 @@ const IMAGE_VALIDATION_TIMEOUT_MS = 5000; // 5 seconds per image
  * Checks both security (SSRF) and accessibility
  * Returns detailed error information for debugging
  */
-async function checkImageAccessibleWithError(url: string): Promise<{ valid: boolean; error: string }> {
+async function checkImageAccessibleWithError(
+  url: string
+): Promise<{ valid: boolean; error: string }> {
   try {
     // P0 SECURITY: Validate URL before making any request (SSRF prevention)
     const securityCheck = validateImageUrl(url);
@@ -179,11 +184,17 @@ async function checkImageAccessibleWithError(url: string): Promise<{ valid: bool
 
     // Create abort controller for timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), IMAGE_VALIDATION_TIMEOUT_MS);
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      IMAGE_VALIDATION_TIMEOUT_MS
+    );
 
     try {
       // Try HEAD first, fall back to GET if HEAD fails (some servers like picsum don't support HEAD)
-      let response = await fetch(url, { method: "HEAD", signal: controller.signal });
+      let response = await fetch(url, {
+        method: "HEAD",
+        signal: controller.signal,
+      });
       if (!response.ok && response.status === 405) {
         // HEAD not allowed, try GET with a range to minimize data transfer
         response = await fetch(url, {
@@ -196,19 +207,28 @@ async function checkImageAccessibleWithError(url: string): Promise<{ valid: bool
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        return { valid: false, error: `HTTP ${response.status}: ${response.statusText}` };
+        return {
+          valid: false,
+          error: `HTTP ${response.status}: ${response.statusText}`,
+        };
       }
 
       const contentType = response.headers.get("content-type");
       if (!contentType?.startsWith("image/")) {
-        return { valid: false, error: `Not an image (${contentType || "no content-type"})` };
+        return {
+          valid: false,
+          error: `Not an image (${contentType || "no content-type"})`,
+        };
       }
 
       return { valid: true, error: "" };
     } catch (fetchErr) {
       clearTimeout(timeoutId);
       if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
-        return { valid: false, error: `Timeout after ${IMAGE_VALIDATION_TIMEOUT_MS}ms` };
+        return {
+          valid: false,
+          error: `Timeout after ${IMAGE_VALIDATION_TIMEOUT_MS}ms`,
+        };
       }
       throw fetchErr;
     }
@@ -248,7 +268,7 @@ export async function processImages(
   // Only sort when images have meaningful filenames (e.g., URL images from ibb.co).
   // WhatsApp images from Supabase Storage all get "unknown" classification (generic UUIDs),
   // so sorting is meaningless and can shuffle the agent's intended order.
-  const allUnknown = processed.every(img => img.classification === "unknown");
+  const allUnknown = processed.every((img) => img.classification === "unknown");
   if (allUnknown) {
     return processed; // Preserve original order (created_at ASC from getPendingImages)
   }
@@ -344,4 +364,3 @@ export function hasEnoughImages(
     provided,
   };
 }
-

@@ -1,5 +1,5 @@
-import type { Session } from "next-auth";
 import type { UIMessageStreamWriter } from "ai";
+import type { Session } from "next-auth";
 import type { ChatMessage } from "@/lib/types";
 
 import { calculateCapitalGainsTool } from "./calculate-capital-gains";

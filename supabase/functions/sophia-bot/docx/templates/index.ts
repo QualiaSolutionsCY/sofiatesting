@@ -1,51 +1,46 @@
 /**
  * DOCX Templates Index
- * 
+ *
  * Exports all DOCX template creators and parsers.
  */
 
-// Viewing Forms
+// Marketing Agreement (Non-Exclusive)
 export {
-  createViewingFormSingle,
-  parseViewingFormSingleData,
-  createBlankViewingFormData,
-  type ViewingFormSingleData,
-} from "./viewing-form-single.ts";
-
-export {
-  createViewingFormMultiple,
-  parseViewingFormMultipleData,
-  createBlankViewingFormMultipleData,
-  type ViewingFormMultipleData,
-  type PersonData,
-} from "./viewing-form-multiple.ts";
-
-export {
-  createViewingFormAdvanced,
-  parseViewingFormAdvancedData,
-  createBlankViewingFormAdvancedData,
-  type ViewingFormAdvancedData,
-} from "./viewing-form-advanced.ts";
-
+  createBlankMarketingAgreementData,
+  createMarketingAgreement,
+  type MarketingAgreementData,
+  parseMarketingAgreementData,
+} from "./marketing-agreement.ts";
 // Reservation Agreement
 export {
-  createReservationAgreement,
-  parseReservationAgreementData,
-  createBlankReservationAgreementData,
-  type ReservationAgreementData,
   type BuyerInfo,
-  type VendorInfo,
-  type PropertyInfo,
+  createBlankReservationAgreementData,
+  createReservationAgreement,
   type FinancialTerms,
+  type PropertyInfo,
+  parseReservationAgreementData,
+  type ReservationAgreementData,
+  type VendorInfo,
   ZYPRUS_DEFAULTS,
 } from "./reservation-agreement.ts";
 
-// Marketing Agreement (Non-Exclusive)
 export {
-  createMarketingAgreement,
-  parseMarketingAgreementData,
-  createBlankMarketingAgreementData,
-  type MarketingAgreementData,
-} from "./marketing-agreement.ts";
-
-
+  createBlankViewingFormAdvancedData,
+  createViewingFormAdvanced,
+  parseViewingFormAdvancedData,
+  type ViewingFormAdvancedData,
+} from "./viewing-form-advanced.ts";
+export {
+  createBlankViewingFormMultipleData,
+  createViewingFormMultiple,
+  type PersonData,
+  parseViewingFormMultipleData,
+  type ViewingFormMultipleData,
+} from "./viewing-form-multiple.ts";
+// Viewing Forms
+export {
+  createBlankViewingFormData,
+  createViewingFormSingle,
+  parseViewingFormSingleData,
+  type ViewingFormSingleData,
+} from "./viewing-form-single.ts";

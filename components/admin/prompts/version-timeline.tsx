@@ -1,12 +1,9 @@
 "use client";
 
-import { Clock, RotateCcw, Check, Loader2 } from "lucide-react";
+import { Check, Clock, Loader2, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +14,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 type Version = {
@@ -81,7 +81,9 @@ export function VersionTimeline({ promptKey, versions }: VersionTimelineProps) {
       setRollbackTarget(null);
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to rollback");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to rollback"
+      );
     } finally {
       setIsRollingBack(false);
     }
@@ -94,7 +96,8 @@ export function VersionTimeline({ promptKey, versions }: VersionTimelineProps) {
           <div>
             <h2 className="font-semibold text-lg">Version History</h2>
             <p className="text-muted-foreground text-sm">
-              {versions.length} version{versions.length !== 1 ? "s" : ""} recorded
+              {versions.length} version{versions.length !== 1 ? "s" : ""}{" "}
+              recorded
             </p>
           </div>
           <Button
@@ -113,7 +116,7 @@ export function VersionTimeline({ promptKey, versions }: VersionTimelineProps) {
           {/* Version items */}
           <div className="space-y-4">
             {versions.map((version, index) => (
-              <div key={version.id} className="relative flex gap-4">
+              <div className="relative flex gap-4" key={version.id}>
                 {/* Timeline dot */}
                 <div
                   className={cn(
@@ -131,11 +134,18 @@ export function VersionTimeline({ promptKey, versions }: VersionTimelineProps) {
                 </div>
 
                 {/* Content card */}
-                <Card className={cn("flex-1 p-4", version.isCurrent && "ring-2 ring-green-500")}>
+                <Card
+                  className={cn(
+                    "flex-1 p-4",
+                    version.isCurrent && "ring-2 ring-green-500"
+                  )}
+                >
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">Version {version.version}</span>
+                        <span className="font-medium">
+                          Version {version.version}
+                        </span>
                         {version.isCurrent && (
                           <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                             Current
@@ -192,22 +202,32 @@ export function VersionTimeline({ promptKey, versions }: VersionTimelineProps) {
       </div>
 
       {/* Rollback confirmation dialog */}
-      <AlertDialog open={!!rollbackTarget} onOpenChange={() => setRollbackTarget(null)}>
+      <AlertDialog
+        onOpenChange={() => setRollbackTarget(null)}
+        open={!!rollbackTarget}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Rollback to Version {rollbackTarget?.version}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Rollback to Version {rollbackTarget?.version}?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will create a new version with the content from version {rollbackTarget?.version}.
-              The current version will be preserved in the history.
+              This will create a new version with the content from version{" "}
+              {rollbackTarget?.version}. The current version will be preserved
+              in the history.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isRollingBack}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isRollingBack}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               disabled={isRollingBack}
               onClick={handleRollback}
             >
-              {isRollingBack && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isRollingBack && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Confirm Rollback
             </AlertDialogAction>
           </AlertDialogFooter>

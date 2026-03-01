@@ -9,7 +9,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { logger, LogCategory } from "../utils/logger.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -29,7 +29,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 async function hashImageContent(buffer: ArrayBuffer): Promise<string> {
   const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 export interface PersistResult {
@@ -37,7 +37,10 @@ export interface PersistResult {
   contentHash: string;
 }
 
-export async function persistImage(url: string, index: number): Promise<PersistResult | null> {
+export async function persistImage(
+  url: string,
+  index: number
+): Promise<PersistResult | null> {
   try {
     // Fetch from temporary URL
     const response = await fetch(url);
@@ -53,7 +56,11 @@ export async function persistImage(url: string, index: number): Promise<PersistR
 
     // Determine extension from content-type
     const contentType = response.headers.get("content-type") || "image/jpeg";
-    const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
+    const ext = contentType.includes("png")
+      ? "png"
+      : contentType.includes("webp")
+        ? "webp"
+        : "jpg";
 
     // Get image data
     const imageBlob = await response.blob();
@@ -137,7 +144,10 @@ export async function persistDocument(
       return null;
     }
 
-    const contentType = mimetype || response.headers.get("content-type") || "application/octet-stream";
+    const contentType =
+      mimetype ||
+      response.headers.get("content-type") ||
+      "application/octet-stream";
     const blob = await response.blob();
     const buffer = await blob.arrayBuffer();
 

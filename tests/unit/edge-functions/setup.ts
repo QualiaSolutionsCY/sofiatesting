@@ -50,7 +50,11 @@ export const restoreConsole = (): void => {
 
 // Mock fetch for external API calls
 export const createMockFetch = (
-  responses: Array<{ status: number; body: unknown; headers?: Record<string, string> }>
+  responses: Array<{
+    status: number;
+    body: unknown;
+    headers?: Record<string, string>;
+  }>
 ): typeof fetch => {
   let callIndex = 0;
   return vi.fn(async () => {

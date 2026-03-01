@@ -90,57 +90,71 @@ CREATE POLICY "Service role full access" ON caller_alerts FOR ALL TO service_rol
   try {
     // Execute SQL via Supabase Management API query endpoint
     const response = await fetch(`${supabaseUrl}/rest/v1/rpc/exec_sql`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`
+        "Content-Type": "application/json",
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
       },
-      body: JSON.stringify({ query: migrationSQL })
+      body: JSON.stringify({ query: migrationSQL }),
     });
 
     if (!response.ok) {
       // Try alternative: direct PostgREST doesn't support raw SQL
       // So we execute statements manually via fetch to Management API
-      const mgmtResponse = await fetch(`https://api.supabase.com/v1/projects/vceeheaxcrhmpqueudqx/database/query`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Deno.env.get('SUPABASE_ACCESS_TOKEN') || supabaseKey}`
-        },
-        body: JSON.stringify({ query: migrationSQL })
-      });
+      const mgmtResponse = await fetch(
+        "https://api.supabase.com/v1/projects/vceeheaxcrhmpqueudqx/database/query",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_ACCESS_TOKEN") || supabaseKey}`,
+          },
+          body: JSON.stringify({ query: migrationSQL }),
+        }
+      );
 
       if (!mgmtResponse.ok) {
         const error = await mgmtResponse.text();
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Cannot execute SQL - requires manual migration via Supabase Dashboard',
-          details: error,
-          instructions: 'Run the SQL from supabase/migrations/20260226_call_tracking.sql in the SQL Editor at: https://supabase.com/dashboard/project/vceeheaxcrhmpqueudqx/sql/new'
-        }), {
-          headers: { "Content-Type": "application/json" },
-          status: 500
-        });
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error:
+              "Cannot execute SQL - requires manual migration via Supabase Dashboard",
+            details: error,
+            instructions:
+              "Run the SQL from supabase/migrations/20260226_call_tracking.sql in the SQL Editor at: https://supabase.com/dashboard/project/vceeheaxcrhmpqueudqx/sql/new",
+          }),
+          {
+            headers: { "Content-Type": "application/json" },
+            status: 500,
+          }
+        );
       }
     }
 
-    return new Response(JSON.stringify({
-      success: true,
-      message: 'Migration executed successfully',
-      tables: ['call_audit_runs', 'call_records', 'caller_alerts']
-    }), {
-      headers: { "Content-Type": "application/json" }
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "Migration executed successfully",
+        tables: ["call_audit_runs", "call_records", "caller_alerts"],
+      }),
+      {
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   } catch (error) {
-    return new Response(JSON.stringify({
-      success: false,
-      error: error.message,
-      instructions: 'Run the SQL from supabase/migrations/20260226_call_tracking.sql in the SQL Editor at: https://supabase.com/dashboard/project/vceeheaxcrhmpqueudqx/sql/new'
-    }), {
-      headers: { "Content-Type": "application/json" },
-      status: 500
-    });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message,
+        instructions:
+          "Run the SQL from supabase/migrations/20260226_call_tracking.sql in the SQL Editor at: https://supabase.com/dashboard/project/vceeheaxcrhmpqueudqx/sql/new",
+      }),
+      {
+        headers: { "Content-Type": "application/json" },
+        status: 500,
+      }
+    );
   }
 });

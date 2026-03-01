@@ -3,7 +3,8 @@
  * Simulates a property upload request with images
  */
 
-const WEBHOOK_URL = "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot";
+const WEBHOOK_URL =
+  "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot";
 
 // Test phone number (must be a registered agent)
 const TEST_PHONE = "+35799206651"; // Michelle Longridge - Limassol agent
@@ -58,11 +59,12 @@ Owner: Test Owner - 99123456`,
 
     // Wait a bit and check for errors in logs
     console.log("\n⏳ Waiting 15 seconds for processing...");
-    await new Promise(resolve => setTimeout(resolve, 15000));
+    await new Promise((resolve) => setTimeout(resolve, 15_000));
 
     console.log("\n📋 Check Supabase logs for full details:");
-    console.log("https://supabase.com/dashboard/project/vceeheaxcrhmpqueudqx/functions/sophia-bot/logs");
-
+    console.log(
+      "https://supabase.com/dashboard/project/vceeheaxcrhmpqueudqx/functions/sophia-bot/logs"
+    );
   } catch (error) {
     console.error("❌ Error:", error);
   }

@@ -3,12 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth, signOut } from "@/app/(auth)/auth";
 import { db } from "@/lib/db/client";
-import {
-  chat,
-  landListing,
-  propertyListing,
-  user,
-} from "@/lib/db/schema";
+import { chat, landListing, propertyListing, user } from "@/lib/db/schema";
 import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("api:user:delete");

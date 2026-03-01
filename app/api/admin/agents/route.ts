@@ -25,15 +25,9 @@ const transformAgent = (a: Record<string, unknown>) => ({
   canReceiveLeads: a.can_receive_leads ?? true,
   telegramUserId: a.telegram_user_id?.toString() || null,
   whatsappPhoneNumber: a.whatsapp_phone_number ?? null,
-  lastActiveAt: a.last_active_at
-    ? new Date(a.last_active_at as string)
-    : null,
-  registeredAt: a.telegram_user_id
-    ? new Date(a.created_at as string)
-    : null,
-  inviteSentAt: a.invite_sent_at
-    ? new Date(a.invite_sent_at as string)
-    : null,
+  lastActiveAt: a.last_active_at ? new Date(a.last_active_at as string) : null,
+  registeredAt: a.telegram_user_id ? new Date(a.created_at as string) : null,
+  inviteSentAt: a.invite_sent_at ? new Date(a.invite_sent_at as string) : null,
   inviteToken: a.invite_token ?? null,
   notes: a.notes ?? null,
   createdAt: new Date(a.created_at as string),
@@ -153,9 +147,12 @@ const createAgentSchema = z.object({
   fullName: z.string().min(1, "Full name is required").max(255),
   email: z.string().email("Invalid email format").toLowerCase(),
   phoneNumber: z.string().optional(),
-  region: z.enum(["paphos", "limassol", "larnaca", "nicosia", "famagusta", "all"], {
-    errorMap: () => ({ message: "Invalid region" })
-  }),
+  region: z.enum(
+    ["paphos", "limassol", "larnaca", "nicosia", "famagusta", "all"],
+    {
+      errorMap: () => ({ message: "Invalid region" }),
+    }
+  ),
   role: z.string().min(1, "Role is required"),
   isActive: z.boolean().optional().default(true),
   notes: z.string().optional(),
@@ -188,7 +185,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Validation failed",
-          details: parseResult.error.format()
+          details: parseResult.error.format(),
         },
         { status: 400 }
       );

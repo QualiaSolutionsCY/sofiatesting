@@ -1,6 +1,7 @@
 "use client";
 
 import equal from "fast-deep-equal";
+import dynamic from "next/dynamic";
 import {
   type MouseEvent,
   memo,
@@ -9,7 +10,6 @@ import {
   useMemo,
   useRef,
 } from "react";
-import dynamic from "next/dynamic";
 import useSWR from "swr";
 import { useArtifact } from "@/hooks/use-artifact";
 import type { Document } from "@/lib/db/schema";
@@ -29,6 +29,7 @@ const Editor = dynamic(
   () => import("./text-editor").then((mod) => ({ default: mod.Editor })),
   { ssr: false }
 );
+
 import { Badge } from "./ui/badge";
 
 type DocumentPreviewProps = {

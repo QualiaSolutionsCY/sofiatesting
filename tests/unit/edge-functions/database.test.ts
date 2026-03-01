@@ -7,7 +7,7 @@
  * - claimMessageForProcessing - atomic deduplication
  * - isMessageProcessed / markMessageProcessed - legacy deduplication
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockConsole, restoreConsole, setEnv } from "./setup";
 
 // Type definitions
@@ -57,21 +57,33 @@ class DatabaseService {
   /**
    * Fetch the last 10 messages for a user, ordered chronologically
    */
-  async getHistory(userId: string): Promise<Array<{ role: string; parts: Array<{ text: string }> }>> {
+  async getHistory(
+    userId: string
+  ): Promise<Array<{ role: string; parts: Array<{ text: string }> }>> {
     if (this.queryError) {
       throw this.queryError;
     }
 
     // Filter by user (in real implementation, this is done by Supabase)
     const userMessages = this.messages
-      .filter((m) => (m as unknown as { user_id: string }).user_id === userId || true)
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .filter(
+        (m) => (m as unknown as { user_id: string }).user_id === userId || true
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
       .slice(0, 10)
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      .sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
 
     return userMessages.map((msg) => ({
       role: msg.role,
-      parts: Array.isArray(msg.parts) ? msg.parts : [{ text: String(msg.parts) }],
+      parts: Array.isArray(msg.parts)
+        ? msg.parts
+        : [{ text: String(msg.parts) }],
     }));
   }
 
@@ -93,7 +105,10 @@ class DatabaseService {
   /**
    * Atomic claim for message processing (deduplication)
    */
-  async claimMessageForProcessing(messageKey: string, _phoneNumber: string): Promise<boolean> {
+  async claimMessageForProcessing(
+    messageKey: string,
+    _phoneNumber: string
+  ): Promise<boolean> {
     if (this.insertError?.code === "23505") {
       // Unique constraint violation - already claimed
       return false;
@@ -118,7 +133,10 @@ class DatabaseService {
    */
   async isMessageProcessed(messageKey: string): Promise<boolean> {
     if (this.queryError) {
-      console.error("Error checking processed webhooks:", this.queryError.message);
+      console.error(
+        "Error checking processed webhooks:",
+        this.queryError.message
+      );
       return false; // Fail open
     }
 
@@ -128,9 +146,15 @@ class DatabaseService {
   /**
    * Mark message as processed (legacy)
    */
-  async markMessageProcessed(messageKey: string, _phoneNumber: string): Promise<void> {
+  async markMessageProcessed(
+    messageKey: string,
+    _phoneNumber: string
+  ): Promise<void> {
     if (this.insertError && this.insertError.code !== "23505") {
-      console.error("Error marking message as processed:", this.insertError.message);
+      console.error(
+        "Error marking message as processed:",
+        this.insertError.message
+      );
     }
 
     this.processedWebhooks.add(messageKey);
@@ -216,7 +240,9 @@ describe("Database Service", () => {
     it("should throw error on query failure", async () => {
       db.setQueryError(new Error("Connection failed"));
 
-      await expect(db.getHistory("user-123")).rejects.toThrow("Connection failed");
+      await expect(db.getHistory("user-123")).rejects.toThrow(
+        "Connection failed"
+      );
     });
 
     it("should preserve role correctly", async () => {
@@ -258,7 +284,9 @@ describe("Database Service", () => {
     it("should throw error on insert failure", async () => {
       db.setInsertError({ message: "Insert failed" });
 
-      await expect(db.addMessage("user-123", "user", "Test")).rejects.toThrow("Insert failed");
+      await expect(db.addMessage("user-123", "user", "Test")).rejects.toThrow(
+        "Insert failed"
+      );
     });
 
     it("should handle empty text", async () => {
@@ -287,7 +315,10 @@ describe("Database Service", () => {
 
   describe("claimMessageForProcessing", () => {
     it("should return true for new message (first claim)", async () => {
-      const result = await db.claimMessageForProcessing("msg-123", "+35799123456");
+      const result = await db.claimMessageForProcessing(
+        "msg-123",
+        "+35799123456"
+      );
       expect(result).toBe(true);
     });
 
@@ -296,14 +327,20 @@ describe("Database Service", () => {
       await db.claimMessageForProcessing("msg-123", "+35799123456");
 
       // Second claim attempt
-      const result = await db.claimMessageForProcessing("msg-123", "+35799123456");
+      const result = await db.claimMessageForProcessing(
+        "msg-123",
+        "+35799123456"
+      );
       expect(result).toBe(false);
     });
 
     it("should return false on unique constraint violation (race condition)", async () => {
       db.setInsertError({ code: "23505", message: "duplicate key" });
 
-      const result = await db.claimMessageForProcessing("msg-123", "+35799123456");
+      const result = await db.claimMessageForProcessing(
+        "msg-123",
+        "+35799123456"
+      );
       expect(result).toBe(false);
     });
 
@@ -311,14 +348,26 @@ describe("Database Service", () => {
       db.setInsertError({ code: "42000", message: "other error" });
 
       // Should return true (fail open) to not block legitimate messages
-      const result = await db.claimMessageForProcessing("msg-123", "+35799123456");
+      const result = await db.claimMessageForProcessing(
+        "msg-123",
+        "+35799123456"
+      );
       expect(result).toBe(true);
     });
 
     it("should handle different message keys independently", async () => {
-      const result1 = await db.claimMessageForProcessing("msg-1", "+35799123456");
-      const result2 = await db.claimMessageForProcessing("msg-2", "+35799123456");
-      const result3 = await db.claimMessageForProcessing("msg-1", "+35799123456"); // duplicate
+      const result1 = await db.claimMessageForProcessing(
+        "msg-1",
+        "+35799123456"
+      );
+      const result2 = await db.claimMessageForProcessing(
+        "msg-2",
+        "+35799123456"
+      );
+      const result3 = await db.claimMessageForProcessing(
+        "msg-1",
+        "+35799123456"
+      ); // duplicate
 
       expect(result1).toBe(true);
       expect(result2).toBe(true);
@@ -360,14 +409,18 @@ describe("Database Service", () => {
       await db.markMessageProcessed("msg-123", "+35799123456");
 
       // Should not throw on duplicate
-      await expect(db.markMessageProcessed("msg-123", "+35799123456")).resolves.not.toThrow();
+      await expect(
+        db.markMessageProcessed("msg-123", "+35799123456")
+      ).resolves.not.toThrow();
     });
 
     it("should silently ignore non-duplicate errors", async () => {
       db.setInsertError({ code: "42000", message: "other error" });
 
       // Should not throw
-      await expect(db.markMessageProcessed("msg-123", "+35799123456")).resolves.not.toThrow();
+      await expect(
+        db.markMessageProcessed("msg-123", "+35799123456")
+      ).resolves.not.toThrow();
     });
   });
 
@@ -402,8 +455,14 @@ describe("Database Service", () => {
       // but the system handles them independently
       const messageKey = "shared-key";
 
-      const result1 = await db.claimMessageForProcessing(messageKey, "+35799111111");
-      const result2 = await db.claimMessageForProcessing(messageKey, "+35799222222");
+      const result1 = await db.claimMessageForProcessing(
+        messageKey,
+        "+35799111111"
+      );
+      const result2 = await db.claimMessageForProcessing(
+        messageKey,
+        "+35799222222"
+      );
 
       // First claim succeeds, second fails (message key is unique)
       expect(result1).toBe(true);
@@ -456,11 +515,11 @@ describe("Database Service", () => {
 
   describe("Edge Cases", () => {
     it("should handle very long messages", async () => {
-      const longText = "x".repeat(10000);
+      const longText = "x".repeat(10_000);
       await db.addMessage("user-123", "user", longText);
 
       const history = await db.getHistory("user-123");
-      expect(history[0].parts[0].text).toHaveLength(10000);
+      expect(history[0].parts[0].text).toHaveLength(10_000);
     });
 
     it("should handle empty user ID", async () => {

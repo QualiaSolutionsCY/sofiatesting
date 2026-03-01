@@ -71,7 +71,10 @@ async function testDecryptEndpoint(endpoint: string) {
 
     const responseText1 = await response1.text();
     console.log("\nResponse status:", response1.status);
-    console.log("Response headers:", Object.fromEntries(response1.headers.entries()));
+    console.log(
+      "Response headers:",
+      Object.fromEntries(response1.headers.entries())
+    );
     console.log("Response body:", responseText1.substring(0, 500));
 
     if (response1.status === 404) {
@@ -81,7 +84,9 @@ async function testDecryptEndpoint(endpoint: string) {
     } else if (response1.status === 401) {
       console.log("\n⚠️  Unauthorized - check API key");
     } else if (response1.status === 422) {
-      console.log("\n⚠️  Unprocessable - invalid data (expected with mock data)");
+      console.log(
+        "\n⚠️  Unprocessable - invalid data (expected with mock data)"
+      );
     }
 
     return { status: response1.status, body: responseText1 };
@@ -92,7 +97,7 @@ async function testDecryptEndpoint(endpoint: string) {
 }
 
 async function testAlternativeFormat(endpoint: string) {
-  console.log(`\n--- Testing alternative request format ---\n`);
+  console.log("\n--- Testing alternative request format ---\n");
 
   // Format 2: Simpler flat format (in case the API changed)
   const requestBody2 = {
@@ -185,7 +190,9 @@ async function main() {
   console.log(`www.wasenderapi.com: ${result1.status}`);
   console.log(`api.wasenderapi.com: ${result2.status}`);
   console.log("\nNote: With mock data, 422/400 errors are expected.");
-  console.log("The key is determining which endpoint returns a valid response structure.");
+  console.log(
+    "The key is determining which endpoint returns a valid response structure."
+  );
   console.log("\nTo test with REAL data, capture a webhook with imageMessage");
   console.log("from webhook_debug_logs and use those actual values.");
 }

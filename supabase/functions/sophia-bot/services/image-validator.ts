@@ -11,38 +11,40 @@
  * 4. Accessibility check
  */
 
-import { validateImageUrl } from "../utils/url-validator.ts";
-import { logger, LogCategory } from "../utils/logger.ts";
 import { getContext } from "../utils/context.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
+import { validateImageUrl } from "../utils/url-validator.ts";
 
 export interface ImageValidationResult {
   valid: boolean;
   url: string;
   error?: string;
-  userMessage?: string;  // User-friendly message
+  userMessage?: string; // User-friendly message
 }
 
 export interface BatchValidationResult {
   valid: ImageValidationResult[];
   invalid: ImageValidationResult[];
-  summary: string;  // User-friendly summary
+  summary: string; // User-friendly summary
 }
 
 // Common invalid URL patterns (AI hallucinations)
 const HALLUCINATED_PATTERNS = [
-  /images\.zyprus\.com/i,        // Fake domain
-  /^ibb\.co\//,                  // ibb.co sharing page (not i.ibb.co direct)
+  /images\.zyprus\.com/i, // Fake domain
+  /^ibb\.co\//, // ibb.co sharing page (not i.ibb.co direct)
   /placeholder/i,
   /example\.com/i,
   /sample-image/i,
-  /property-photo-\d+\.jpg$/i,   // Generic placeholder pattern
+  /property-photo-\d+\.jpg$/i, // Generic placeholder pattern
 ];
 
 /**
  * Validate a single image URL at ingress
  * Returns user-friendly message if invalid
  */
-export async function validateImageAtIngress(url: string): Promise<ImageValidationResult> {
+export async function validateImageAtIngress(
+  url: string
+): Promise<ImageValidationResult> {
   const ctx = getContext();
 
   // 1. Basic URL format
@@ -70,7 +72,8 @@ export async function validateImageAtIngress(url: string): Promise<ImageValidati
         valid: false,
         url: trimmedUrl,
         error: "Hallucinated URL pattern",
-        userMessage: "This image URL doesn't look valid. Please send a photo directly from your phone gallery.",
+        userMessage:
+          "This image URL doesn't look valid. Please send a photo directly from your phone gallery.",
       };
     }
   }
@@ -81,7 +84,8 @@ export async function validateImageAtIngress(url: string): Promise<ImageValidati
       valid: false,
       url: trimmedUrl,
       error: "ibb.co sharing link instead of direct image",
-      userMessage: "This is a sharing link, not a direct image URL. Please use the direct image link (starting with i.ibb.co) or send photos directly from your gallery.",
+      userMessage:
+        "This is a sharing link, not a direct image URL. Please use the direct image link (starting with i.ibb.co) or send photos directly from your gallery.",
     };
   }
 
@@ -98,7 +102,8 @@ export async function validateImageAtIngress(url: string): Promise<ImageValidati
       valid: false,
       url: trimmedUrl,
       error: securityCheck.error,
-      userMessage: "This image URL cannot be accessed for security reasons. Please send photos directly from your gallery.",
+      userMessage:
+        "This image URL cannot be accessed for security reasons. Please send photos directly from your gallery.",
     };
   }
 
@@ -129,11 +134,12 @@ export async function validateImageAtIngress(url: string): Promise<ImageValidati
         valid: false,
         url: trimmedUrl,
         error: `HTTP ${response.status}`,
-        userMessage: response.status === 404
-          ? "This image could not be found. It may have been deleted."
-          : response.status === 403
-            ? "Access to this image is forbidden."
-            : "This image could not be accessed. Please try a different image.",
+        userMessage:
+          response.status === 404
+            ? "This image could not be found. It may have been deleted."
+            : response.status === 403
+              ? "Access to this image is forbidden."
+              : "This image could not be accessed. Please try a different image.",
       };
     }
 
@@ -144,7 +150,8 @@ export async function validateImageAtIngress(url: string): Promise<ImageValidati
         valid: false,
         url: trimmedUrl,
         error: `Not an image: ${contentType}`,
-        userMessage: "This URL doesn't point to an image. Please send a photo directly from your gallery.",
+        userMessage:
+          "This URL doesn't point to an image. Please send a photo directly from your gallery.",
       };
     }
 
@@ -155,7 +162,6 @@ export async function validateImageAtIngress(url: string): Promise<ImageValidati
     });
 
     return { valid: true, url: trimmedUrl };
-
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
 
@@ -164,7 +170,8 @@ export async function validateImageAtIngress(url: string): Promise<ImageValidati
         valid: false,
         url: trimmedUrl,
         error: "Timeout",
-        userMessage: "This image took too long to load. Please try a different image or send directly from your gallery.",
+        userMessage:
+          "This image took too long to load. Please try a different image or send directly from your gallery.",
       };
     }
 
@@ -172,7 +179,8 @@ export async function validateImageAtIngress(url: string): Promise<ImageValidati
       valid: false,
       url: trimmedUrl,
       error: error.message,
-      userMessage: "This image could not be accessed. Please send photos directly from your gallery.",
+      userMessage:
+        "This image could not be accessed. Please send photos directly from your gallery.",
     };
   }
 }
@@ -181,11 +189,13 @@ export async function validateImageAtIngress(url: string): Promise<ImageValidati
  * Validate multiple images at ingress
  * Returns summary for user
  */
-export async function validateImagesAtIngress(urls: string[]): Promise<BatchValidationResult> {
+export async function validateImagesAtIngress(
+  urls: string[]
+): Promise<BatchValidationResult> {
   const results = await Promise.all(urls.map(validateImageAtIngress));
 
-  const valid = results.filter(r => r.valid);
-  const invalid = results.filter(r => !r.valid);
+  const valid = results.filter((r) => r.valid);
+  const invalid = results.filter((r) => !r.valid);
 
   let summary = "";
   if (invalid.length === 0) {

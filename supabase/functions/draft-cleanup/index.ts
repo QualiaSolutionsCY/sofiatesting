@@ -11,7 +11,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
+import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
 
 const responseHeaders = {
   "Content-Type": "application/json",
@@ -75,7 +75,9 @@ Deno.serve(async (req: Request) => {
 
     // Also clean up old processed_webhooks entries (> 7 days old)
     try {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const sevenDaysAgo = new Date(
+        Date.now() - 7 * 24 * 60 * 60 * 1000
+      ).toISOString();
       await supabase
         .from("processed_webhooks")
         .delete()
@@ -86,7 +88,10 @@ Deno.serve(async (req: Request) => {
     }
 
     // Log results
-    logger.info(`[Draft Cleanup] Completed: ${results.propertyListingsDeleted} properties, ${results.landListingsDeleted} land listings soft-deleted`, { category: LogCategory.DATABASE });
+    logger.info(
+      `[Draft Cleanup] Completed: ${results.propertyListingsDeleted} properties, ${results.landListingsDeleted} land listings soft-deleted`,
+      { category: LogCategory.DATABASE }
+    );
 
     return new Response(
       JSON.stringify({
@@ -100,7 +105,11 @@ Deno.serve(async (req: Request) => {
       }
     );
   } catch (error) {
-    logger.error("[Draft Cleanup] Fatal error", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
+    logger.error(
+      "[Draft Cleanup] Fatal error",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.DATABASE }
+    );
     return new Response(
       JSON.stringify({
         error: "Cleanup failed",

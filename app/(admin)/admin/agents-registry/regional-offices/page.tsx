@@ -1,8 +1,8 @@
 import "server-only";
 
-import { Building2, MapPin, Mail, User } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Building2, Mail, MapPin, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { createLogger } from "@/lib/logger";
 import { getAdminSupabase } from "@/lib/supabase/admin";
 
@@ -87,7 +87,9 @@ export default async function RegionalOfficesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-bold text-3xl tracking-tight">Regional Offices</h1>
+          <h1 className="font-bold text-3xl tracking-tight">
+            Regional Offices
+          </h1>
           <p className="text-muted-foreground">
             Manage regional office accounts used for Reviewer 2 assignments
           </p>
@@ -98,7 +100,8 @@ export default async function RegionalOfficesPage() {
         {EXPECTED_OFFICES.map((expected) => {
           const office = officeMap.get(expected.email);
           const hasZyprusId = !!office?.zyprus_user_id;
-          const isConfigured = hasZyprusId && office.zyprus_user_id === expected.expectedUuid;
+          const isConfigured =
+            hasZyprusId && office.zyprus_user_id === expected.expectedUuid;
 
           return (
             <Card className="p-6" key={expected.region}>
@@ -109,13 +112,25 @@ export default async function RegionalOfficesPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold">{expected.region}</h3>
-                    <p className="text-muted-foreground text-sm">{expected.note}</p>
+                    <p className="text-muted-foreground text-sm">
+                      {expected.note}
+                    </p>
                   </div>
                 </div>
                 <Badge
-                  variant={isConfigured ? "default" : hasZyprusId ? "secondary" : "destructive"}
+                  variant={
+                    isConfigured
+                      ? "default"
+                      : hasZyprusId
+                        ? "secondary"
+                        : "destructive"
+                  }
                 >
-                  {isConfigured ? "Configured" : hasZyprusId ? "Mismatch" : "Missing"}
+                  {isConfigured
+                    ? "Configured"
+                    : hasZyprusId
+                      ? "Mismatch"
+                      : "Missing"}
                 </Badge>
               </div>
 
@@ -135,19 +150,27 @@ export default async function RegionalOfficesPage() {
                 <div className="flex items-center gap-2 text-sm">
                   <MapPin className="h-4 w-4 text-muted-foreground" />
                   <span>
-                    Expected: <code className="font-mono text-xs">{expected.expectedUuid.slice(0, 8)}...</code>
+                    Expected:{" "}
+                    <code className="font-mono text-xs">
+                      {expected.expectedUuid.slice(0, 8)}...
+                    </code>
                   </span>
                 </div>
               </div>
 
               {!isConfigured && (
-                <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-yellow-800 text-sm dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200">
-                  {!office ? (
-                    <p>No agent record found. Create one with email: {expected.email}</p>
-                  ) : !hasZyprusId ? (
-                    <p>Set zyprus_user_id to: {expected.expectedUuid}</p>
+                <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200">
+                  {office ? (
+                    hasZyprusId ? (
+                      <p>UUID mismatch. Expected: {expected.expectedUuid}</p>
+                    ) : (
+                      <p>Set zyprus_user_id to: {expected.expectedUuid}</p>
+                    )
                   ) : (
-                    <p>UUID mismatch. Expected: {expected.expectedUuid}</p>
+                    <p>
+                      No agent record found. Create one with email:{" "}
+                      {expected.email}
+                    </p>
                   )}
                 </div>
               )}
@@ -160,17 +183,24 @@ export default async function RegionalOfficesPage() {
         <h3 className="font-semibold">How Regional Offices Work</h3>
         <div className="mt-4 space-y-2 text-muted-foreground text-sm">
           <p>
-            Regional offices are used as <strong>Reviewer 2</strong> for FOR SALE listings.
-            When an agent uploads a property:
+            Regional offices are used as <strong>Reviewer 2</strong> for FOR
+            SALE listings. When an agent uploads a property:
           </p>
           <ol className="ml-4 list-decimal space-y-1">
             <li>Reviewer 1 = Lauren (listings@zyprus.com) for most regions</li>
-            <li>Reviewer 2 = Regional office for the property&apos;s location</li>
-            <li>Exception: Famagusta - only requestfamagusta@zyprus.com (no Reviewer 2)</li>
+            <li>
+              Reviewer 2 = Regional office for the property&apos;s location
+            </li>
+            <li>
+              Exception: Famagusta - only requestfamagusta@zyprus.com (no
+              Reviewer 2)
+            </li>
           </ol>
           <p className="mt-3">
-            The <code className="bg-muted px-1 py-0.5 rounded">zyprus_user_id</code> field links
-            to the Zyprus platform user account for each regional office.
+            The{" "}
+            <code className="rounded bg-muted px-1 py-0.5">zyprus_user_id</code>{" "}
+            field links to the Zyprus platform user account for each regional
+            office.
           </p>
         </div>
       </Card>

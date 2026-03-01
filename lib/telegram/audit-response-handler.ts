@@ -67,7 +67,11 @@ function parseResponse(text: string): ParsedResponse {
     const alternativeNumber = phoneMatch[0].replace(/[\s-]/g, "");
     const digitCount = alternativeNumber.replace(/\D/g, "").length;
     if (digitCount >= 7 && digitCount <= 15) {
-      return { type: "alternative_number", alternativeNumber, rawText: trimmed };
+      return {
+        type: "alternative_number",
+        alternativeNumber,
+        rawText: trimmed,
+      };
     }
   }
 
@@ -96,7 +100,9 @@ function getSupabase() {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !key) {
-      throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+      throw new Error(
+        "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
+      );
     }
     _supabase = createClient(url, key);
   }
@@ -115,7 +121,7 @@ function getSupabase() {
  * Returns `false` if the message should continue to normal lead routing.
  */
 export async function handleAuditAlertResponse(
-  message: TelegramMessage,
+  message: TelegramMessage
 ): Promise<boolean> {
   // Gate: skip if Vasya's user ID is not configured
   if (VASYA_TELEGRAM_USER_ID === 0) {

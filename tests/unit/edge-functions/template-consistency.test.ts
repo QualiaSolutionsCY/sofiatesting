@@ -16,9 +16,9 @@
  * HISTORY: Created after discovering Standard Seller Registration bug
  * where document-routing.ts asked for different fields than the template.
  */
-import { describe, it, expect } from "vitest";
-import { TEMPLATE_REGISTRY } from "../../../supabase/functions/sophia-bot/templates/registry.ts";
+import { describe, expect, it } from "vitest";
 import { FIELD_DEFINITIONS } from "../../../supabase/functions/sophia-bot/templates/fields.ts";
+import { TEMPLATE_REGISTRY } from "../../../supabase/functions/sophia-bot/templates/registry.ts";
 
 /**
  * Test 1: All requiredFields in TEMPLATE_REGISTRY exist in FIELD_DEFINITIONS
@@ -28,7 +28,11 @@ import { FIELD_DEFINITIONS } from "../../../supabase/functions/sophia-bot/templa
  */
 describe("Template Registry Field Validation", () => {
   it("all required fields in TEMPLATE_REGISTRY exist in FIELD_DEFINITIONS", () => {
-    const missingFields: Array<{ templateId: string; templateName: string; field: string }> = [];
+    const missingFields: Array<{
+      templateId: string;
+      templateName: string;
+      field: string;
+    }> = [];
 
     for (const [templateId, template] of Object.entries(TEMPLATE_REGISTRY)) {
       for (const field of template.requiredFields) {
@@ -57,7 +61,10 @@ describe("Template Registry Field Validation", () => {
 
     if (missingFields.length > 0) {
       const details = missingFields
-        .map((m) => `  - Template ${m.templateId} (${m.templateName}): missing field "${m.field}"`)
+        .map(
+          (m) =>
+            `  - Template ${m.templateId} (${m.templateName}): missing field "${m.field}"`
+        )
         .join("\n");
       throw new Error(
         `Found ${missingFields.length} fields referenced in TEMPLATE_REGISTRY that don't exist in FIELD_DEFINITIONS:\n${details}`
@@ -73,7 +80,10 @@ describe("Template Registry Field Validation", () => {
     const fieldUsage: Record<string, Set<string>> = {};
 
     for (const [templateId, template] of Object.entries(TEMPLATE_REGISTRY)) {
-      const allFields = [...template.requiredFields, ...(template.optionalFields || [])];
+      const allFields = [
+        ...template.requiredFields,
+        ...(template.optionalFields || []),
+      ];
 
       for (const field of allFields) {
         if (!fieldUsage[field]) {
@@ -86,7 +96,10 @@ describe("Template Registry Field Validation", () => {
     // Log field usage for awareness (not a failure)
     const multiUseFields = Object.entries(fieldUsage)
       .filter(([, templates]) => templates.size > 1)
-      .map(([field, templates]) => `  ${field}: used in ${templates.size} templates`);
+      .map(
+        ([field, templates]) =>
+          `  ${field}: used in ${templates.size} templates`
+      );
 
     // This is informational - we expect some fields to be reused
     expect(multiUseFields.length).toBeGreaterThanOrEqual(0);
@@ -106,7 +119,9 @@ describe("DOCX Template Configuration", () => {
       if (!template) {
         mismatches.push(`Template ${id} not found in registry`);
       } else if (template.outputType !== "DOCX") {
-        mismatches.push(`Template ${id} (${template.name}) has outputType "${template.outputType}" but is in DOCX_TEMPLATE_IDS`);
+        mismatches.push(
+          `Template ${id} (${template.name}) has outputType "${template.outputType}" but is in DOCX_TEMPLATE_IDS`
+        );
       }
     }
 
@@ -119,7 +134,9 @@ describe("DOCX Template Configuration", () => {
 
     for (const [id, template] of Object.entries(TEMPLATE_REGISTRY)) {
       if (template.outputType === "DOCX" && !DOCX_TEMPLATE_IDS.has(id)) {
-        wronglyMarkedAsDocx.push(`Template ${id} (${template.name}) is marked as DOCX but not in DOCX_TEMPLATE_IDS`);
+        wronglyMarkedAsDocx.push(
+          `Template ${id} (${template.name}) is marked as DOCX but not in DOCX_TEMPLATE_IDS`
+        );
       }
     }
 
@@ -141,7 +158,14 @@ describe("Viewing Form Field Consistency", () => {
     expect(template.outputType).toBe("DOCX");
 
     // These are the fields that the DOCX generator actually needs
-    const expectedRequired = ["date", "fullName", "idNumber", "issuedBy", "propertyReg", "district"];
+    const expectedRequired = [
+      "date",
+      "fullName",
+      "idNumber",
+      "issuedBy",
+      "propertyReg",
+      "district",
+    ];
 
     expect(template.requiredFields.sort()).toEqual(expectedRequired.sort());
   });
@@ -259,7 +283,9 @@ describe("Field Definition Completeness", () => {
     }
 
     if (incompleteFields.length > 0) {
-      throw new Error(`Incomplete field definitions:\n${incompleteFields.join("\n")}`);
+      throw new Error(
+        `Incomplete field definitions:\n${incompleteFields.join("\n")}`
+      );
     }
 
     expect(incompleteFields).toHaveLength(0);
@@ -283,7 +309,13 @@ describe("Field Definition Completeness", () => {
  */
 describe("Template Category Consistency", () => {
   it("all templates have valid categories", () => {
-    const validCategories = ["REGISTRATIONS", "VIEWING_FORMS", "RESERVATIONS", "MARKETING", "CLIENT_COMMS"];
+    const validCategories = [
+      "REGISTRATIONS",
+      "VIEWING_FORMS",
+      "RESERVATIONS",
+      "MARKETING",
+      "CLIENT_COMMS",
+    ];
 
     for (const [id, template] of Object.entries(TEMPLATE_REGISTRY)) {
       expect(validCategories).toContain(template.category);

@@ -5,13 +5,16 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
+
 config({ path: ".env.local" });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local");
+  console.error(
+    "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local"
+  );
   process.exit(1);
 }
 
@@ -61,9 +64,15 @@ async function main() {
     console.log(`Phone: ${row.phone_number}`);
 
     // Check if message contains myNotes or SOPHIA AI
-    const msgStr = typeof row.message === "string" ? row.message : JSON.stringify(row.message);
+    const msgStr =
+      typeof row.message === "string"
+        ? row.message
+        : JSON.stringify(row.message);
 
-    if (msgStr.toLowerCase().includes("my notes") || msgStr.toLowerCase().includes("mynotes")) {
+    if (
+      msgStr.toLowerCase().includes("my notes") ||
+      msgStr.toLowerCase().includes("mynotes")
+    ) {
       console.log("\n⚠️  Contains 'My Notes' reference");
     }
 
@@ -79,7 +88,9 @@ async function main() {
   }
 
   console.log("\n" + "=".repeat(60));
-  console.log("📝 To see the actual My Notes field, check the draft on Zyprus:");
+  console.log(
+    "📝 To see the actual My Notes field, check the draft on Zyprus:"
+  );
   console.log("   https://dev9.zyprus.com/draft-dashboard?ai_state=draft");
 }
 

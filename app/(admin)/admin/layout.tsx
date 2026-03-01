@@ -14,7 +14,9 @@ async function getAdminRole(email: string) {
     const adminRole = await db
       .select()
       .from(adminUserRole)
-      .where(and(eq(adminUserRole.email, email), eq(adminUserRole.isActive, true)))
+      .where(
+        and(eq(adminUserRole.email, email), eq(adminUserRole.isActive, true))
+      )
       .limit(1);
 
     return adminRole;
@@ -42,7 +44,10 @@ export default async function AdminLayout({
     redirect("/");
   }
 
-  logger.info("Admin access attempt", { email: userEmail, userId: session.user.id });
+  logger.info("Admin access attempt", {
+    email: userEmail,
+    userId: session.user.id,
+  });
 
   const adminRole = await getAdminRole(userEmail);
 
@@ -50,13 +55,16 @@ export default async function AdminLayout({
     logger.warn("Unauthorized admin access attempt", {
       userId: session.user.id,
       email: userEmail,
-      adminRoleExists: adminRole.length
+      adminRoleExists: adminRole.length,
     });
     redirect("/");
   }
 
   const userRole = adminRole[0].role;
-  const permissions = adminRole[0].permissions as Record<string, boolean> | null;
+  const permissions = adminRole[0].permissions as Record<
+    string,
+    boolean
+  > | null;
 
   return (
     <div className="flex h-screen bg-background">

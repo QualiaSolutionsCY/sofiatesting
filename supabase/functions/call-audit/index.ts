@@ -13,10 +13,10 @@
  *   3. Set up pg_cron schedule for daily execution
  */
 
-import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
-import { AUDIT_CONFIG, get3CXConfig } from "./config.ts";
+import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
 import { ThreeCXClient } from "./3cx/client.ts";
 import { runDailyAudit } from "./audit-pipeline.ts";
+import { AUDIT_CONFIG, get3CXConfig } from "./config.ts";
 
 const responseHeaders = {
   "Content-Type": "application/json",
@@ -32,7 +32,7 @@ enum ErrorCategory {
   PARSE_ERROR = "PARSE_ERROR",
   NO_DATA = "NO_DATA",
   CONFIG_ERROR = "CONFIG_ERROR",
-  UNKNOWN = "UNKNOWN"
+  UNKNOWN = "UNKNOWN",
 }
 
 /**
@@ -142,7 +142,10 @@ async function getHealthStatus(includeConnectivityTest = false): Promise<any> {
     healthResult.configStatus = "valid";
   } catch (configError) {
     healthResult.configStatus = "invalid";
-    healthResult.configError = configError instanceof Error ? configError.message : "Configuration error";
+    healthResult.configError =
+      configError instanceof Error
+        ? configError.message
+        : "Configuration error";
     healthResult.status = "unhealthy";
     return healthResult;
   }
@@ -154,7 +157,7 @@ async function getHealthStatus(includeConnectivityTest = false): Promise<any> {
 
       // Simple connectivity test - HEAD request to base URL
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 10_000);
 
       const response = await fetch(config.baseUrl, {
         method: "HEAD",
@@ -172,7 +175,10 @@ async function getHealthStatus(includeConnectivityTest = false): Promise<any> {
     } catch (connectError) {
       healthResult.connectivity = {
         reachable: false,
-        error: connectError instanceof Error ? connectError.message : "Connection failed",
+        error:
+          connectError instanceof Error
+            ? connectError.message
+            : "Connection failed",
         responseTime: "timeout",
       };
 
@@ -182,8 +188,11 @@ async function getHealthStatus(includeConnectivityTest = false): Promise<any> {
     }
   }
 
-  healthResult.status = healthResult.configStatus === "valid" &&
-    (!includeConnectivityTest || healthResult.connectivity?.reachable) ? "healthy" : "unhealthy";
+  healthResult.status =
+    healthResult.configStatus === "valid" &&
+    (!includeConnectivityTest || healthResult.connectivity?.reachable)
+      ? "healthy"
+      : "unhealthy";
 
   return healthResult;
 }
@@ -198,10 +207,10 @@ Deno.serve(async (req: Request) => {
 
   try {
     const url = new URL(req.url);
-    const isHealthCheck = url.searchParams.get('health') !== null;
-    const isDryRun = url.searchParams.get('dry-run') === 'true';
-    const dateOverride = url.searchParams.get('date');
-    const isCronInvocation = req.headers.get('x-cron') === 'true';
+    const isHealthCheck = url.searchParams.get("health") !== null;
+    const isDryRun = url.searchParams.get("dry-run") === "true";
+    const dateOverride = url.searchParams.get("date");
+    const isCronInvocation = req.headers.get("x-cron") === "true";
 
     logger.info("[Call Audit] Function invoked", {
       category: LogCategory.GENERAL,
@@ -216,7 +225,8 @@ Deno.serve(async (req: Request) => {
 
     // Handle health check
     if (isHealthCheck) {
-      const includeConnectivity = url.searchParams.get('connectivity') === 'true';
+      const includeConnectivity =
+        url.searchParams.get("connectivity") === "true";
       const healthStatus = await getHealthStatus(includeConnectivity);
       const executionMs = Math.round(performance.now() - startTime);
 
@@ -227,13 +237,13 @@ Deno.serve(async (req: Request) => {
         }),
         {
           headers: responseHeaders,
-          status: healthStatus.status === "healthy" ? 200 : 503
+          status: healthStatus.status === "healthy" ? 200 : 503,
         }
       );
     }
 
     // Handle follow-up-only mode
-    const isFollowUpOnly = url.searchParams.get('follow-up-only') === 'true';
+    const isFollowUpOnly = url.searchParams.get("follow-up-only") === "true";
     if (isFollowUpOnly) {
       const { processFollowUpReminders } = await import("./follow-up.ts");
       const followUpResult = await processFollowUpReminders();
@@ -262,19 +272,32 @@ Deno.serve(async (req: Request) => {
     try {
       config = get3CXConfig();
     } catch (configError) {
-      const errorCategory = classifyError(configError instanceof Error ? configError : new Error(String(configError)));
+      const errorCategory = classifyError(
+        configError instanceof Error
+          ? configError
+          : new Error(String(configError))
+      );
       const executionMs = Math.round(performance.now() - startTime);
 
-      logger.error("[Call Audit] Configuration validation failed", configError instanceof Error ? configError : new Error(String(configError)), {
-        category: LogCategory.GENERAL,
-        auditErrorCategory: errorCategory,
-      });
+      logger.error(
+        "[Call Audit] Configuration validation failed",
+        configError instanceof Error
+          ? configError
+          : new Error(String(configError)),
+        {
+          category: LogCategory.GENERAL,
+          auditErrorCategory: errorCategory,
+        }
+      );
 
       return new Response(
         JSON.stringify({
           success: false,
           error: errorCategory,
-          message: configError instanceof Error ? configError.message : String(configError),
+          message:
+            configError instanceof Error
+              ? configError.message
+              : String(configError),
           timestamp: new Date().toISOString(),
           retryable: isRetryableError(errorCategory),
           executionMs,
@@ -290,19 +313,26 @@ Deno.serve(async (req: Request) => {
     try {
       await client.login();
     } catch (authError) {
-      const errorCategory = classifyError(authError instanceof Error ? authError : new Error(String(authError)));
+      const errorCategory = classifyError(
+        authError instanceof Error ? authError : new Error(String(authError))
+      );
       const executionMs = Math.round(performance.now() - startTime);
 
-      logger.error("[Call Audit] 3CX authentication failed", authError instanceof Error ? authError : new Error(String(authError)), {
-        category: LogCategory.GENERAL,
-        auditErrorCategory: errorCategory,
-      });
+      logger.error(
+        "[Call Audit] 3CX authentication failed",
+        authError instanceof Error ? authError : new Error(String(authError)),
+        {
+          category: LogCategory.GENERAL,
+          auditErrorCategory: errorCategory,
+        }
+      );
 
       return new Response(
         JSON.stringify({
           success: false,
           error: errorCategory,
-          message: authError instanceof Error ? authError.message : String(authError),
+          message:
+            authError instanceof Error ? authError.message : String(authError),
           timestamp: new Date().toISOString(),
           retryable: isRetryableError(errorCategory),
           executionMs,
@@ -315,11 +345,14 @@ Deno.serve(async (req: Request) => {
     if (isDryRun) {
       const executionMs = Math.round(performance.now() - startTime);
 
-      logger.info("[Call Audit] Dry run completed - authentication successful", {
-        category: LogCategory.GENERAL,
-        targetNumber: AUDIT_CONFIG.TARGET_NUMBER,
-        executionMs,
-      });
+      logger.info(
+        "[Call Audit] Dry run completed - authentication successful",
+        {
+          category: LogCategory.GENERAL,
+          targetNumber: AUDIT_CONFIG.TARGET_NUMBER,
+          executionMs,
+        }
+      );
 
       return new Response(
         JSON.stringify({
@@ -357,16 +390,21 @@ Deno.serve(async (req: Request) => {
         status: result.success ? 200 : 500,
       }
     );
-
   } catch (error) {
-    const errorCategory = classifyError(error instanceof Error ? error : new Error(String(error)));
+    const errorCategory = classifyError(
+      error instanceof Error ? error : new Error(String(error))
+    );
     const executionMs = Math.round(performance.now() - startTime);
 
-    logger.error("[Call Audit] Fatal error", error instanceof Error ? error : new Error(String(error)), {
-      category: LogCategory.GENERAL,
-      auditErrorCategory: errorCategory,
-      executionMs,
-    });
+    logger.error(
+      "[Call Audit] Fatal error",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        category: LogCategory.GENERAL,
+        auditErrorCategory: errorCategory,
+        executionMs,
+      }
+    );
 
     return new Response(
       JSON.stringify({

@@ -97,4 +97,3 @@ export function extractSignatureHeader(headers: Headers): string | null {
 
   return null;
 }
-

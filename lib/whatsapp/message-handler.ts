@@ -86,7 +86,9 @@ export async function handleWhatsAppMessage(
           await updateAgentLastActive(dbUser.agentId);
         }
       } catch (dbError) {
-        log.warn("DB operations failed, using fallback context", { error: String(dbError) });
+        log.warn("DB operations failed, using fallback context", {
+          error: String(dbError),
+        });
       }
     }
 
@@ -179,7 +181,7 @@ export async function handleWhatsAppMessage(
         name: userContext.name,
         type: userContext.type,
       },
-      expires: new Date(Date.now() + 86400000).toISOString(), // 24h from now
+      expires: new Date(Date.now() + 86_400_000).toISOString(), // 24h from now
     };
 
     const aiUserContext = { user: userContext };
@@ -230,7 +232,7 @@ export async function handleWhatsAppMessage(
               });
             });
           },
-          { name: "WhatsApp-AI", timeout: 30000 }
+          { name: "WhatsApp-AI", timeout: 30_000 }
         );
 
         result = await aiBreaker.fire();
@@ -284,10 +286,10 @@ export async function handleWhatsAppMessage(
     });
   } catch (error) {
     log.error("Error handling WhatsApp message", error);
-    
+
     // Determine error message based on error type
     let errorMessage = "I encountered an error. Please try again or rephrase.";
-    
+
     if (error instanceof Error) {
       // Check for quota exhaustion
       if (

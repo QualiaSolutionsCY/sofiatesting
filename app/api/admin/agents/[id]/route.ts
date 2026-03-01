@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { checkAdminAuth, hasMinimumRole } from "@/lib/auth/admin";
 import { createLogger } from "@/lib/logger";
 import { getAdminSupabase } from "@/lib/supabase/admin";
-import { checkAdminAuth, hasMinimumRole } from "@/lib/auth/admin";
 
 const logger = createLogger("api:admin:agents:id");
 
@@ -25,15 +25,9 @@ const transformAgent = (a: Record<string, unknown>) => ({
   zyprusUserId: a.zyprus_user_id ?? null,
   landline: a.landline ?? null,
   listingOwnerEmail: a.listing_owner_email ?? null,
-  lastActiveAt: a.last_active_at
-    ? new Date(a.last_active_at as string)
-    : null,
-  registeredAt: a.telegram_user_id
-    ? new Date(a.created_at as string)
-    : null,
-  inviteSentAt: a.invite_sent_at
-    ? new Date(a.invite_sent_at as string)
-    : null,
+  lastActiveAt: a.last_active_at ? new Date(a.last_active_at as string) : null,
+  registeredAt: a.telegram_user_id ? new Date(a.created_at as string) : null,
+  inviteSentAt: a.invite_sent_at ? new Date(a.invite_sent_at as string) : null,
   inviteToken: a.invite_token ?? null,
   notes: a.notes ?? null,
   createdAt: new Date(a.created_at as string),
@@ -102,18 +96,22 @@ export async function GET(
  * PUT /api/admin/agents/[id]
  * Update agent details
  */
-const updateAgentSchema = z.object({
-  fullName: z.string().min(1).max(255).optional(),
-  email: z.string().email("Invalid email format").toLowerCase().optional(),
-  phoneNumber: z.string().optional(),
-  region: z.enum(["paphos", "limassol", "larnaca", "nicosia", "famagusta", "all"]).optional(),
-  role: z.string().min(1).optional(),
-  isActive: z.boolean().optional(),
-  canReceiveLeads: z.boolean().optional(),
-  canUpload: z.boolean().optional(),
-  listingOwnerEmail: z.string().email().optional(),
-  landline: z.string().optional(),
-}).strict();
+const updateAgentSchema = z
+  .object({
+    fullName: z.string().min(1).max(255).optional(),
+    email: z.string().email("Invalid email format").toLowerCase().optional(),
+    phoneNumber: z.string().optional(),
+    region: z
+      .enum(["paphos", "limassol", "larnaca", "nicosia", "famagusta", "all"])
+      .optional(),
+    role: z.string().min(1).optional(),
+    isActive: z.boolean().optional(),
+    canReceiveLeads: z.boolean().optional(),
+    canUpload: z.boolean().optional(),
+    listingOwnerEmail: z.string().email().optional(),
+    landline: z.string().optional(),
+  })
+  .strict();
 
 export async function PUT(
   request: NextRequest,
@@ -146,7 +144,7 @@ export async function PUT(
       return NextResponse.json(
         {
           error: "Validation failed",
-          details: parseResult.error.format()
+          details: parseResult.error.format(),
         },
         { status: 400 }
       );
@@ -165,7 +163,10 @@ export async function PUT(
     }
 
     // If email is being changed, check for conflicts
-    if (validatedData.email && validatedData.email !== existing.communication_email) {
+    if (
+      validatedData.email &&
+      validatedData.email !== existing.communication_email
+    ) {
       const { data: conflict } = await getAdminSupabase()
         .from("agents")
         .select("id")
@@ -183,20 +184,25 @@ export async function PUT(
 
     // Map camelCase body fields to snake_case DB columns
     const updateData: Record<string, unknown> = {};
-    if (validatedData.fullName !== undefined) updateData.full_name = validatedData.fullName;
+    if (validatedData.fullName !== undefined)
+      updateData.full_name = validatedData.fullName;
     if (validatedData.email !== undefined)
       updateData.communication_email = validatedData.email;
-    if (validatedData.phoneNumber !== undefined) updateData.mobile = validatedData.phoneNumber;
+    if (validatedData.phoneNumber !== undefined)
+      updateData.mobile = validatedData.phoneNumber;
     if (validatedData.region !== undefined)
       updateData.region = validatedData.region.toLowerCase();
     if (validatedData.role !== undefined) updateData.role = validatedData.role;
-    if (validatedData.isActive !== undefined) updateData.is_active = validatedData.isActive;
+    if (validatedData.isActive !== undefined)
+      updateData.is_active = validatedData.isActive;
     if (validatedData.canReceiveLeads !== undefined)
       updateData.can_receive_leads = validatedData.canReceiveLeads;
-    if (validatedData.canUpload !== undefined) updateData.can_upload = validatedData.canUpload;
+    if (validatedData.canUpload !== undefined)
+      updateData.can_upload = validatedData.canUpload;
     if (validatedData.listingOwnerEmail !== undefined)
       updateData.listing_owner_email = validatedData.listingOwnerEmail;
-    if (validatedData.landline !== undefined) updateData.landline = validatedData.landline;
+    if (validatedData.landline !== undefined)
+      updateData.landline = validatedData.landline;
 
     const { data: updated, error } = await getAdminSupabase()
       .from("agents")

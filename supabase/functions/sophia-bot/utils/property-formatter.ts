@@ -206,14 +206,20 @@ export function formatPropertyDescription(rawInput: string): string {
   }
 
   // 3. Capitalize "Flat No.", "Plot No.", "Unit No.", "Block" etc. if lowercase
-  result = result.replace(/\b(flat|plot|unit|apt|apartment|block|sheet|plan)\b/gi, (match) => {
-    return match.charAt(0).toUpperCase() + match.slice(1).toLowerCase();
-  });
+  result = result.replace(
+    /\b(flat|plot|unit|apt|apartment|block|sheet|plan)\b/gi,
+    (match) => {
+      return match.charAt(0).toUpperCase() + match.slice(1).toLowerCase();
+    }
+  );
 
   // 4. Normalize "no" / "no." after Flat/Plot/Unit/Apt → "No."
-  result = result.replace(/\b(Flat|Plot|Unit|Apt|Apartment)\s+no\.?\b/gi, (_, type) => {
-    return `${type} No.`;
-  });
+  result = result.replace(
+    /\b(Flat|Plot|Unit|Apt|Apartment)\s+no\.?\b/gi,
+    (_, type) => {
+      return `${type} No.`;
+    }
+  );
 
   // 5. Universal "Dimos" (municipality prefix) — capitalize and keep as one unit with following word
   result = result.replace(/\bdimos\b/gi, "Dimos");
@@ -241,7 +247,7 @@ export function formatPropertyDescription(rawInput: string): string {
   result = result.replace(/\.{2,}/g, ".");
 
   // Clean up any extra whitespace (but preserve commas, parentheses, etc.)
-  result = result.replace(/  +/g, " ").trim();
+  result = result.replace(/ {2,}/g, " ").trim();
 
   return result;
 }

@@ -1,5 +1,5 @@
-import { defineConfig } from "vitest/config";
 import path from "path";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
@@ -14,7 +14,7 @@ export default defineConfig({
         "supabase/functions/sophia-bot/**/*.d.ts",
       ],
     },
-    testTimeout: 10000,
+    testTimeout: 10_000,
     // Mock Deno globals for tests
     setupFiles: ["./tests/unit/edge-functions/setup.ts"],
   },

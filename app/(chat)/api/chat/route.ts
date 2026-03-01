@@ -18,7 +18,6 @@ import { entitlementsByUserType } from "@/lib/ai/entitlements";
 import type { ChatModel } from "@/lib/ai/models";
 import { type RequestHints, systemPrompt } from "@/lib/ai/prompts";
 import { myProvider } from "@/lib/ai/providers";
-import { createLogger } from "@/lib/logger";
 import { calculateCapitalGainsTool } from "@/lib/ai/tools/calculate-capital-gains";
 import { calculateTransferFeesTool } from "@/lib/ai/tools/calculate-transfer-fees";
 import { calculateVATTool } from "@/lib/ai/tools/calculate-vat";
@@ -42,6 +41,7 @@ import {
   updateChatLastContextById,
 } from "@/lib/db/queries";
 import { ChatSDKError } from "@/lib/errors";
+import { createLogger } from "@/lib/logger";
 import type { ChatMessage } from "@/lib/types";
 import type { AppUsage } from "@/lib/usage";
 import { convertToUIMessages, generateUUID } from "@/lib/utils";

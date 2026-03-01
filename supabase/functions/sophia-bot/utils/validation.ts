@@ -118,12 +118,17 @@ export function sanitizeAiOutput(response: string): string {
     try {
       const hostname = new URL(url).hostname.toLowerCase();
       const trusted = [
-        "zyprus.com", "www.zyprus.com",
-        "google.com", "www.google.com", "maps.google.com", "goo.gl",
-        "whatsapp.com", "wa.me",
+        "zyprus.com",
+        "www.zyprus.com",
+        "google.com",
+        "www.google.com",
+        "maps.google.com",
+        "goo.gl",
+        "whatsapp.com",
+        "wa.me",
         "supabase.co",
       ];
-      if (trusted.some(d => hostname === d || hostname.endsWith("." + d))) {
+      if (trusted.some((d) => hostname === d || hostname.endsWith("." + d))) {
         return url; // Keep trusted URLs
       }
       return "[link removed]";
@@ -137,8 +142,14 @@ export function sanitizeAiOutput(response: string): string {
   sanitized = sanitized.replace(/\[SYSTEM\]/gi, "");
 
   // Strip instruction override language that shouldn't appear in output
-  sanitized = sanitized.replace(/ignore\s+(all\s+)?previous\s+instructions/gi, "");
-  sanitized = sanitized.replace(/disregard\s+(all\s+)?previous\s+instructions/gi, "");
+  sanitized = sanitized.replace(
+    /ignore\s+(all\s+)?previous\s+instructions/gi,
+    ""
+  );
+  sanitized = sanitized.replace(
+    /disregard\s+(all\s+)?previous\s+instructions/gi,
+    ""
+  );
 
   return sanitized.trim();
 }
@@ -162,4 +173,3 @@ export function validateWebhookPayload(payload: unknown): boolean {
     typeof p.message === "object"
   );
 }
-

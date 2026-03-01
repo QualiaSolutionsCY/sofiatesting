@@ -1,4 +1,5 @@
 import { config } from "dotenv";
+
 config({ path: ".env.local" });
 
 const apiUrl = process.env.ZYPRUS_API_URL;
@@ -16,8 +17,15 @@ async function main() {
   // Get token
   const tokenRes = await fetch(`${apiUrl}/oauth/token`, {
     method: "POST",
-    headers: { "User-Agent": "SophiaAI", "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "client_credentials", client_id: clientId, client_secret: clientSecret }),
+    headers: {
+      "User-Agent": "SophiaAI",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      grant_type: "client_credentials",
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
   });
   const { access_token } = await tokenRes.json();
   console.log("Got token\n");
@@ -26,7 +34,7 @@ async function main() {
   const endpoints = [
     "/jsonapi/user/user?fields[user--user]=display_name,mail,name&page[limit]=10",
     "/jsonapi/user/user?include=roles&page[limit]=10",
-    "/jsonapi/user/user?page[limit]=50",  // Just get more users and see all attributes
+    "/jsonapi/user/user?page[limit]=50", // Just get more users and see all attributes
   ];
 
   for (const endpoint of endpoints) {
@@ -44,9 +52,10 @@ async function main() {
     console.log("Data count:", data.data?.length || 0);
 
     // Look for a user that's not Anonymous
-    const nonAnon = data.data?.find((u: any) =>
-      u.attributes?.display_name !== "Anonymous" &&
-      u.attributes?.display_name !== ""
+    const nonAnon = data.data?.find(
+      (u: any) =>
+        u.attributes?.display_name !== "Anonymous" &&
+        u.attributes?.display_name !== ""
     );
 
     if (nonAnon) {
@@ -54,7 +63,10 @@ async function main() {
       console.log(JSON.stringify(nonAnon, null, 2));
     } else if (data.data?.[0]) {
       console.log("\nFirst user (all Anonymous?):");
-      console.log("Attributes keys:", Object.keys(data.data[0].attributes || {}));
+      console.log(
+        "Attributes keys:",
+        Object.keys(data.data[0].attributes || {})
+      );
     }
 
     if (data.errors) {
@@ -78,14 +90,16 @@ async function main() {
     const data = await res.json();
 
     for (const user of data.data || []) {
-      if (user.attributes?.display_name &&
-          user.attributes.display_name !== "Anonymous" &&
-          user.attributes.display_name !== "") {
+      if (
+        user.attributes?.display_name &&
+        user.attributes.display_name !== "Anonymous" &&
+        user.attributes.display_name !== ""
+      ) {
         allUsers.push({
           id: user.id,
           name: user.attributes.display_name,
           mail: user.attributes?.mail || "(not exposed)",
-          allAttrs: Object.keys(user.attributes || {})
+          allAttrs: Object.keys(user.attributes || {}),
         });
       }
     }

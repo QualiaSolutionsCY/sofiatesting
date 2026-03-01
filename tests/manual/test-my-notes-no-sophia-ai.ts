@@ -39,7 +39,13 @@ function formatPhone(phone: string): string {
     formatted = "+357" + formatted;
   }
   if (formatted.length >= 12) {
-    return formatted.slice(0, 4) + " " + formatted.slice(4, 6) + " " + formatted.slice(6);
+    return (
+      formatted.slice(0, 4) +
+      " " +
+      formatted.slice(4, 6) +
+      " " +
+      formatted.slice(6)
+    );
   }
   return formatted;
 }
@@ -151,7 +157,7 @@ function generateAIAssistantNotes(
 // ============= TESTS =============
 
 console.log("🧪 TESTING MY NOTES GENERATOR - NO 'SOPHIA AI' CHECK\n");
-console.log("=" .repeat(60));
+console.log("=".repeat(60));
 
 // Test 1: Generate My Notes with all reviewer info
 console.log("\n📝 TEST 1: My Notes with listing owner and reviewers");
@@ -177,7 +183,9 @@ console.log("");
 
 // Check for "SOPHIA AI" (case-insensitive)
 const hasSophiaAI1 = myNotes1.toLowerCase().includes("sophia ai");
-console.log(`Contains "SOPHIA AI": ${hasSophiaAI1 ? "❌ YES (BAD!)" : "✅ NO (GOOD!)"}`);
+console.log(
+  `Contains "SOPHIA AI": ${hasSophiaAI1 ? "❌ YES (BAD!)" : "✅ NO (GOOD!)"}`
+);
 
 // Test 2: Generate My Notes for rental (agent reviews own)
 console.log("\n📝 TEST 2: My Notes for rental property");
@@ -199,7 +207,9 @@ console.log(myNotes2);
 console.log("");
 
 const hasSophiaAI2 = myNotes2.toLowerCase().includes("sophia ai");
-console.log(`Contains "SOPHIA AI": ${hasSophiaAI2 ? "❌ YES (BAD!)" : "✅ NO (GOOD!)"}`);
+console.log(
+  `Contains "SOPHIA AI": ${hasSophiaAI2 ? "❌ YES (BAD!)" : "✅ NO (GOOD!)"}`
+);
 
 // Test 3: Generate AI Assistant Notes
 console.log("\n📝 TEST 3: AI Assistant Notes");
@@ -216,7 +226,9 @@ console.log(aiNotes);
 console.log("");
 
 const hasSophiaAI3 = aiNotes.toLowerCase().includes("sophia ai");
-console.log(`Contains "SOPHIA AI": ${hasSophiaAI3 ? "❌ YES (BAD!)" : "✅ NO (GOOD!)"}`);
+console.log(
+  `Contains "SOPHIA AI": ${hasSophiaAI3 ? "❌ YES (BAD!)" : "✅ NO (GOOD!)"}`
+);
 
 // Final summary
 console.log("\n" + "=".repeat(60));

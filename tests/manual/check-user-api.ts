@@ -1,4 +1,5 @@
 import { config } from "dotenv";
+
 config({ path: ".env.local" });
 
 const apiUrl = process.env.ZYPRUS_API_URL;
@@ -14,8 +15,15 @@ async function main() {
   // Get token
   const tokenRes = await fetch(`${apiUrl}/oauth/token`, {
     method: "POST",
-    headers: { "User-Agent": "SophiaAI", "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "client_credentials", client_id: clientId, client_secret: clientSecret }),
+    headers: {
+      "User-Agent": "SophiaAI",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      grant_type: "client_credentials",
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
   });
   const { access_token } = await tokenRes.json();
   console.log("Got token\n");
@@ -42,7 +50,7 @@ async function main() {
     if (res.ok) {
       const data = await res.json();
       console.log(`Data count: ${data.data?.length || 0}`);
-      console.log(`Meta:`, data.meta);
+      console.log("Meta:", data.meta);
       if (data.data?.[0]) {
         console.log("First user sample:", {
           id: data.data[0].id,
@@ -58,13 +66,16 @@ async function main() {
 
   // Try to find a specific user by email
   console.log("\n\n=== Trying email filter ===");
-  const emailRes = await fetch(`${apiUrl}/jsonapi/user/user?filter[mail]=listings@zyprus.com`, {
-    headers: {
-      Authorization: `Bearer ${access_token}`,
-      Accept: "application/vnd.api+json",
-      "User-Agent": "SophiaAI",
-    },
-  });
+  const emailRes = await fetch(
+    `${apiUrl}/jsonapi/user/user?filter[mail]=listings@zyprus.com`,
+    {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        Accept: "application/vnd.api+json",
+        "User-Agent": "SophiaAI",
+      },
+    }
+  );
   console.log(`Status: ${emailRes.status}`);
   const emailData = await emailRes.json();
   console.log(`Found: ${emailData.data?.length || 0}`);

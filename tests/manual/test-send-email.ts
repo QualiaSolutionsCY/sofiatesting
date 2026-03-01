@@ -24,10 +24,11 @@ async function testSendEmail() {
           remoteJid: `${TEST_PHONE}@s.whatsapp.net`,
           fromMe: false,
         },
-        messageBody: "Send an email to info@qualiasolutions.net with subject 'Test from SOPHIA' and body 'This is a test email sent by SOPHIA AI assistant to verify the email functionality is working correctly.'",
+        messageBody:
+          "Send an email to info@qualiasolutions.net with subject 'Test from SOPHIA' and body 'This is a test email sent by SOPHIA AI assistant to verify the email functionality is working correctly.'",
         pushName: "Test Agent",
-      }
-    }
+      },
+    },
   };
 
   console.log("📤 Sending webhook request to:", FUNCTION_ENDPOINT);
@@ -67,7 +68,9 @@ async function testDirectToolCall() {
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
   if (!RESEND_API_KEY) {
-    console.log("⚠️ RESEND_API_KEY not in local env - testing via Edge Function instead");
+    console.log(
+      "⚠️ RESEND_API_KEY not in local env - testing via Edge Function instead"
+    );
     return;
   }
 
@@ -75,15 +78,19 @@ async function testDirectToolCall() {
     from: "SOPHIA <sofia@zyprus.com>",
     to: ["fawzi@qualia.solutions"],
     subject: "Direct Test from SOPHIA",
-    html: "This is a direct test email to verify Resend API connectivity.<br><br>Sent: " + new Date().toISOString(),
-    text: "This is a direct test email to verify Resend API connectivity.\n\nSent: " + new Date().toISOString(),
+    html:
+      "This is a direct test email to verify Resend API connectivity.<br><br>Sent: " +
+      new Date().toISOString(),
+    text:
+      "This is a direct test email to verify Resend API connectivity.\n\nSent: " +
+      new Date().toISOString(),
   };
 
   try {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
+        Authorization: `Bearer ${RESEND_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(emailPayload),
@@ -105,7 +112,7 @@ async function testDirectToolCall() {
 }
 
 // Run tests
-console.log("=" .repeat(60));
+console.log("=".repeat(60));
 console.log("SOPHIA sendEmail Tool Test");
 console.log("=".repeat(60));
 console.log("");

@@ -4,7 +4,7 @@
  * property photos, title deeds, or floor plans.
  */
 
-import { logger, LogCategory } from "../utils/logger.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
 
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -16,20 +16,31 @@ function isUnsafeUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     // Must be https (or http for dev, but block internal)
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return true;
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:")
+      return true;
     const hostname = parsed.hostname.toLowerCase();
     // Block cloud metadata endpoints
-    if (hostname === "169.254.169.254" || hostname === "metadata.google.internal") return true;
+    if (
+      hostname === "169.254.169.254" ||
+      hostname === "metadata.google.internal"
+    )
+      return true;
     // Block loopback
-    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]") return true;
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1" ||
+      hostname === "[::1]"
+    )
+      return true;
     // Block private RFC 1918 ranges
     const ipMatch = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
     if (ipMatch) {
       const [, a, b] = ipMatch.map(Number);
-      if (a === 10) return true;                          // 10.0.0.0/8
-      if (a === 172 && b >= 16 && b <= 31) return true;  // 172.16.0.0/12
-      if (a === 192 && b === 168) return true;            // 192.168.0.0/16
-      if (a === 169 && b === 254) return true;            // 169.254.0.0/16 (link-local)
+      if (a === 10) return true; // 10.0.0.0/8
+      if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
+      if (a === 192 && b === 168) return true; // 192.168.0.0/16
+      if (a === 169 && b === 254) return true; // 169.254.0.0/16 (link-local)
     }
     return false;
   } catch {
@@ -42,7 +53,10 @@ interface ClassificationResult {
   floorPlanIndices: number[];
 }
 
-const EMPTY_RESULT: ClassificationResult = { titleDeedIndices: [], floorPlanIndices: [] };
+const EMPTY_RESULT: ClassificationResult = {
+  titleDeedIndices: [],
+  floorPlanIndices: [],
+};
 
 const CLASSIFICATION_PROMPT = `You are an image classifier for real estate listings. For each image, classify it as exactly one of:
 - "property_photo" — interior/exterior property photo, construction site, view from property, any photo taken with a camera
@@ -58,7 +72,9 @@ The array must have exactly the same number of entries as images provided, in th
  * Classify images using AI vision. Returns indices of title deeds and floor plans.
  * Graceful fallback: returns empty arrays on any failure (timeout, API error, parse error).
  */
-export async function classifyImagesWithVision(imageUrls: string[]): Promise<ClassificationResult> {
+export async function classifyImagesWithVision(
+  imageUrls: string[]
+): Promise<ClassificationResult> {
   if (!OPENROUTER_API_KEY) {
     logger.warn("Vision classification skipped — no OPENROUTER_API_KEY", {
       category: LogCategory.IMAGE,
@@ -73,12 +89,15 @@ export async function classifyImagesWithVision(imageUrls: string[]): Promise<Cla
   // SSRF protection: filter out unsafe URLs before sending to vision API
   const safeUrls = imageUrls.filter((url, idx) => {
     if (isUnsafeUrl(url)) {
-      logger.warn("Blocked unsafe URL from vision classification (SSRF protection)", {
-        category: LogCategory.IMAGE,
-        operation: "classifyImages",
-        index: idx,
-        urlPreview: url.substring(0, 80),
-      });
+      logger.warn(
+        "Blocked unsafe URL from vision classification (SSRF protection)",
+        {
+          category: LogCategory.IMAGE,
+          operation: "classifyImages",
+          index: idx,
+          urlPreview: url.substring(0, 80),
+        }
+      );
       return false;
     }
     return true;
@@ -95,9 +114,11 @@ export async function classifyImagesWithVision(imageUrls: string[]): Promise<Cla
     filteredCount: imageUrls.length - safeUrls.length,
   });
 
-  const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
-    { type: "text", text: CLASSIFICATION_PROMPT },
-  ];
+  const content: Array<{
+    type: string;
+    text?: string;
+    image_url?: { url: string };
+  }> = [{ type: "text", text: CLASSIFICATION_PROMPT }];
 
   for (const url of safeUrls) {
     content.push({ type: "image_url", image_url: { url } });
@@ -110,7 +131,7 @@ export async function classifyImagesWithVision(imageUrls: string[]): Promise<Cla
     const res = await fetch(OPENROUTER_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
         "HTTP-Referer": "https://sophia-ai.vercel.app",
         "X-Title": "SOPHIA Image Classifier",
@@ -148,16 +169,22 @@ export async function classifyImagesWithVision(imageUrls: string[]): Promise<Cla
 
     const parsed = JSON.parse(rawText);
     if (!parsed || !parsed.classifications) {
-      logger.warn("Vision API returned malformed JSON — no classifications field", {
-        category: LogCategory.IMAGE,
-        operation: "classifyImages",
-        rawPreview: rawText.substring(0, 200),
-      });
+      logger.warn(
+        "Vision API returned malformed JSON — no classifications field",
+        {
+          category: LogCategory.IMAGE,
+          operation: "classifyImages",
+          rawPreview: rawText.substring(0, 200),
+        }
+      );
       return EMPTY_RESULT;
     }
     const classifications: string[] = parsed.classifications;
 
-    if (!Array.isArray(classifications) || classifications.length !== safeUrls.length) {
+    if (
+      !Array.isArray(classifications) ||
+      classifications.length !== safeUrls.length
+    ) {
       logger.warn("Vision classification count mismatch", {
         category: LogCategory.IMAGE,
         operation: "classifyImages",
@@ -179,12 +206,15 @@ export async function classifyImagesWithVision(imageUrls: string[]): Promise<Cla
     // False-positive guard: if only 1 title deed out of 10+ images, likely a misclassification
     // Real title deed uploads are typically 1-3 docs out of a handful of images, not 1 out of 15+
     if (titleDeedIndices.length === 1 && safeUrls.length >= 10) {
-      logger.info("Dropping likely false-positive title deed classification (1 out of 10+ images)", {
-        category: LogCategory.IMAGE,
-        operation: "classifyImages",
-        droppedIndex: titleDeedIndices[0],
-        totalImages: imageUrls.length,
-      });
+      logger.info(
+        "Dropping likely false-positive title deed classification (1 out of 10+ images)",
+        {
+          category: LogCategory.IMAGE,
+          operation: "classifyImages",
+          droppedIndex: titleDeedIndices[0],
+          totalImages: imageUrls.length,
+        }
+      );
       titleDeedIndices.length = 0;
     }
 
@@ -200,11 +230,14 @@ export async function classifyImagesWithVision(imageUrls: string[]): Promise<Cla
   } catch (err) {
     clearTimeout(timeoutId);
     const isTimeout = err instanceof DOMException && err.name === "AbortError";
-    logger.warn(`Vision classification ${isTimeout ? "timed out" : "failed"} — falling back to manual`, {
-      category: LogCategory.IMAGE,
-      operation: "classifyImages",
-      error: err instanceof Error ? err.message : String(err),
-    });
+    logger.warn(
+      `Vision classification ${isTimeout ? "timed out" : "failed"} — falling back to manual`,
+      {
+        category: LogCategory.IMAGE,
+        operation: "classifyImages",
+        error: err instanceof Error ? err.message : String(err),
+      }
+    );
     return EMPTY_RESULT;
   }
 }

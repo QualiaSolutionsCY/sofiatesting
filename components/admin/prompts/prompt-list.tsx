@@ -1,10 +1,10 @@
 "use client";
 
-import { FileText, Clock, ArrowRight, RefreshCw } from "lucide-react";
+import { ArrowRight, Clock, FileText, RefreshCw } from "lucide-react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 type Prompt = {
@@ -27,9 +27,12 @@ type PromptListProps = {
 
 const categoryColors: Record<string, string> = {
   core: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  behaviors: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  knowledge: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  templates: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+  behaviors:
+    "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+  knowledge:
+    "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  templates:
+    "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
 };
 
 const formatBytes = (bytes: number): string => {
@@ -79,7 +82,9 @@ export function PromptList({ prompts, onRefresh, isLoading }: PromptListProps) {
             size="sm"
             variant="outline"
           >
-            <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} />
+            <RefreshCw
+              className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")}
+            />
             Refresh
           </Button>
         )}
@@ -97,7 +102,7 @@ export function PromptList({ prompts, onRefresh, isLoading }: PromptListProps) {
                   <div>
                     <h3 className="font-medium">{prompt.key}</h3>
                     {prompt.description && (
-                      <p className="mt-1 text-muted-foreground text-sm line-clamp-2">
+                      <p className="mt-1 line-clamp-2 text-muted-foreground text-sm">
                         {prompt.description}
                       </p>
                     )}

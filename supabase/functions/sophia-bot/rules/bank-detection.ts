@@ -53,7 +53,7 @@ export const VALID_BANK_NAMES = [
   "Hellenic Bank",
 ] as const;
 
-export type BankName = typeof VALID_BANK_NAMES[number];
+export type BankName = (typeof VALID_BANK_NAMES)[number];
 
 /**
  * Detect bank from a property URL

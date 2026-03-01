@@ -1,4 +1,5 @@
 import { config } from "dotenv";
+
 config({ path: ".env.local" });
 
 const apiUrl = process.env.ZYPRUS_API_URL;
@@ -16,8 +17,15 @@ async function main() {
   // Get token
   const tokenRes = await fetch(`${apiUrl}/oauth/token`, {
     method: "POST",
-    headers: { "User-Agent": "SophiaAI", "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "client_credentials", client_id: clientId!, client_secret: clientSecret! }),
+    headers: {
+      "User-Agent": "SophiaAI",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      grant_type: "client_credentials",
+      client_id: clientId!,
+      client_secret: clientSecret!,
+    }),
   });
   const { access_token } = await tokenRes.json();
   console.log("✅ Got token");
@@ -25,16 +33,19 @@ async function main() {
   // Upload image
   const imgRes = await fetch("https://picsum.photos/800/600.jpg");
   const imgBlob = await imgRes.blob();
-  const uploadRes = await fetch(`${apiUrl}/jsonapi/node/property/field_gallery_`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${access_token}`,
-      "User-Agent": "SophiaAI",
-      "Content-Type": "application/octet-stream",
-      "Content-Disposition": `file; filename="sophia-test-${Date.now()}.jpg"`,
-    },
-    body: imgBlob,
-  });
+  const uploadRes = await fetch(
+    `${apiUrl}/jsonapi/node/property/field_gallery_`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        "User-Agent": "SophiaAI",
+        "Content-Type": "application/octet-stream",
+        "Content-Disposition": `file; filename="sophia-test-${Date.now()}.jpg"`,
+      },
+      body: imgBlob,
+    }
+  );
   const imgData = await uploadRes.json();
   const imageId = imgData.data.id;
   console.log("✅ Image uploaded:", imageId);
@@ -46,7 +57,10 @@ async function main() {
       attributes: {
         status: false,
         title: "SOPHIA TEST - 3 Bed Villa Limassol",
-        body: { value: "Test listing uploaded via Sophia AI account", format: "plain_text" },
+        body: {
+          value: "Test listing uploaded via Sophia AI account",
+          format: "plain_text",
+        },
         field_ai_state: "draft",
         field_ai_generated: true,
         field_own_reference_id: `SOPHIA-${Date.now()}`,
@@ -56,14 +70,40 @@ async function main() {
         field_covered_area: 150,
       },
       relationships: {
-        field_location: { data: { type: "node--location", id: DEFAULT_LOCATION_ID } },
-        field_property_type: { data: { type: "taxonomy_term--property_type", id: DEFAULT_PROPERTY_TYPE_ID } },
-        field_listing_type: { data: { type: "taxonomy_term--listing_type", id: DEFAULT_LISTING_TYPE_ID } },
-        field_title_deed: { data: { type: "taxonomy_term--title_deed", id: DEFAULT_TITLE_DEED_ID } },
-        field_price_modifier: { data: { type: "taxonomy_term--price_modifier", id: DEFAULT_PRICE_MODIFIER_ID } },
+        field_location: {
+          data: { type: "node--location", id: DEFAULT_LOCATION_ID },
+        },
+        field_property_type: {
+          data: {
+            type: "taxonomy_term--property_type",
+            id: DEFAULT_PROPERTY_TYPE_ID,
+          },
+        },
+        field_listing_type: {
+          data: {
+            type: "taxonomy_term--listing_type",
+            id: DEFAULT_LISTING_TYPE_ID,
+          },
+        },
+        field_title_deed: {
+          data: {
+            type: "taxonomy_term--title_deed",
+            id: DEFAULT_TITLE_DEED_ID,
+          },
+        },
+        field_price_modifier: {
+          data: {
+            type: "taxonomy_term--price_modifier",
+            id: DEFAULT_PRICE_MODIFIER_ID,
+          },
+        },
         field_gallery_: { data: [{ type: "file--file", id: imageId }] },
-        field_ai_listing_reviewer: { data: [{ type: "user--user", id: SOPHIA_AI_UUID }] },
-        field_ai_listing_instructor: { data: { type: "user--user", id: SOPHIA_AI_UUID } },
+        field_ai_listing_reviewer: {
+          data: [{ type: "user--user", id: SOPHIA_AI_UUID }],
+        },
+        field_ai_listing_instructor: {
+          data: { type: "user--user", id: SOPHIA_AI_UUID },
+        },
       },
     },
   };
@@ -88,6 +128,8 @@ async function main() {
   console.log("Node ID:", result.data.id);
   console.log("Title:", result.data.attributes.title);
   console.log("AI State:", result.data.attributes.field_ai_state);
-  console.log("\n👉 Check: https://dev9.zyprus.com/draft-dashboard?ai_state=draft");
+  console.log(
+    "\n👉 Check: https://dev9.zyprus.com/draft-dashboard?ai_state=draft"
+  );
 }
 main();

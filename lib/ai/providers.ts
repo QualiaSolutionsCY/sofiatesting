@@ -22,7 +22,11 @@ const isOpenRouterConfigured = (() => {
 
   const hasKey = !!OPENROUTER_API_KEY;
 
-  if (!hasKey && typeof window === "undefined" && !process.env.NODE_ENV?.includes("test")) {
+  if (
+    !hasKey &&
+    typeof window === "undefined" &&
+    !process.env.NODE_ENV?.includes("test")
+  ) {
     log.warn("OPENROUTER_API_KEY missing - chat will not work");
   }
 

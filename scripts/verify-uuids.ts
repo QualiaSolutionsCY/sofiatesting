@@ -35,19 +35,23 @@ async function verifyUUIDs() {
     // Count missing UUIDs
     const missingUUIDs = agents.filter((a: any) => !a.zyprus_user_id);
 
-    console.log(`\n📊 Summary:`);
+    console.log("\n📊 Summary:");
     console.log(`   Total agents with can_upload=true: ${agents.length}`);
-    console.log(`   Agents with zyprus_user_id: ${agents.length - missingUUIDs.length}`);
+    console.log(
+      `   Agents with zyprus_user_id: ${agents.length - missingUUIDs.length}`
+    );
     console.log(`   Agents missing zyprus_user_id: ${missingUUIDs.length}`);
 
     if (missingUUIDs.length > 0) {
-      console.log(`\n⚠️  Agents missing UUIDs:`);
+      console.log("\n⚠️  Agents missing UUIDs:");
       for (const agent of missingUUIDs) {
         console.log(`   - ${agent.full_name} (${agent.communication_email})`);
       }
-      console.log(`\n💡 These agents will need fallback UUIDs in taxonomy-cache.ts USER_FALLBACKS map`);
+      console.log(
+        "\n💡 These agents will need fallback UUIDs in taxonomy-cache.ts USER_FALLBACKS map"
+      );
     } else {
-      console.log(`\n✅ All agents with can_upload=true have zyprus_user_id`);
+      console.log("\n✅ All agents with can_upload=true have zyprus_user_id");
     }
 
     await client.end();

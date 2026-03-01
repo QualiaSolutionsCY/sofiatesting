@@ -17,11 +17,13 @@ export async function acquireUploadLock(
 ): Promise<{ acquired: boolean; remainingSeconds?: number }> {
   const sb = createClient(
     Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
   // First clean up expired locks (older than UPLOAD_LOCK_DURATION_MS)
-  const expiryTime = new Date(Date.now() - UPLOAD_LOCK_DURATION_MS).toISOString();
+  const expiryTime = new Date(
+    Date.now() - UPLOAD_LOCK_DURATION_MS
+  ).toISOString();
   await sb.from("upload_locks").delete().lt("created_at", expiryTime);
 
   // Try to insert — if fingerprint already exists, the INSERT fails (PRIMARY KEY conflict)
@@ -52,7 +54,10 @@ export async function acquireUploadLock(
       });
       if (retryError) {
         // Another concurrent caller grabbed it — we lose
-        return { acquired: false, remainingSeconds: Math.ceil(UPLOAD_LOCK_DURATION_MS / 1000) };
+        return {
+          acquired: false,
+          remainingSeconds: Math.ceil(UPLOAD_LOCK_DURATION_MS / 1000),
+        };
       }
     }
   }

@@ -24,14 +24,14 @@
  */
 export function maskPhoneNumber(phone: string): string {
   // Remove all non-digit characters except +
-  const cleaned = phone.replace(/[^\d+]/g, '');
+  const cleaned = phone.replace(/[^\d+]/g, "");
 
   // Extract the 8-digit local number
   let localNumber: string;
 
-  if (cleaned.startsWith('+357')) {
+  if (cleaned.startsWith("+357")) {
     localNumber = cleaned.substring(4);
-  } else if (cleaned.startsWith('357')) {
+  } else if (cleaned.startsWith("357")) {
     localNumber = cleaned.substring(3);
   } else if (cleaned.length === 8) {
     localNumber = cleaned;
@@ -62,7 +62,7 @@ export function maskPhoneNumberWithPrefix(phone: string): string {
   const masked = maskPhoneNumber(phone);
 
   // If masking was applied (contains **), add prefix
-  if (masked.includes('**')) {
+  if (masked.includes("**")) {
     return `+357 ${masked}`;
   }
 
@@ -77,8 +77,8 @@ export function maskPhoneNumberWithPrefix(phone: string): string {
  * @param context - 'client' or 'agent'
  * @returns true if phone should be masked
  */
-export function shouldMaskPhone(context: 'client' | 'agent'): boolean {
-  return context === 'client';
+export function shouldMaskPhone(context: "client" | "agent"): boolean {
+  return context === "client";
 }
 
 /**
@@ -126,14 +126,14 @@ ONLY mask CLIENT phone, NEVER agent phone.`;
  * @returns Masked email address
  */
 export function maskEmailForLogging(email: string): string {
-  if (!email || typeof email !== 'string') {
-    return '[invalid-email]';
+  if (!email || typeof email !== "string") {
+    return "[invalid-email]";
   }
 
-  const atIndex = email.indexOf('@');
+  const atIndex = email.indexOf("@");
   if (atIndex < 1) {
     // No @ or @ is first character - return masked
-    return '[invalid-email]';
+    return "[invalid-email]";
   }
 
   const localPart = email.substring(0, atIndex);

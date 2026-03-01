@@ -5,7 +5,8 @@
  * as a DOCX file when user requests a "marketing agreement"
  */
 
-const SUPABASE_URL = "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot";
+const SUPABASE_URL =
+  "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot";
 const TEST_PHONE = "+35794042235"; // Diana Kultaseva - valid agent
 
 interface WebhookPayload {
@@ -28,7 +29,8 @@ async function testMarketingAgreement() {
   console.log("=== Testing Marketing Agreement DOCX Generation ===\n");
 
   // Test 1: Request "marketing agreement" - should trigger Template 15 (DOCX)
-  const testMessage = "I need a marketing agreement for John Smith, property Reg No. 0/12345 Tala, Paphos, marketing price 350000";
+  const testMessage =
+    "I need a marketing agreement for John Smith, property Reg No. 0/12345 Tala, Paphos, marketing price 350000";
 
   console.log(`Phone: ${TEST_PHONE}`);
   console.log(`Message: "${testMessage}"\n`);
@@ -76,10 +78,15 @@ async function testMarketingAgreement() {
 
         // Check if it contains DOCX markers
         const aiResp = responseJson.aiResponse.toLowerCase();
-        if (aiResp.includes("marketing agreement") && aiResp.includes("csc zyprus")) {
+        if (
+          aiResp.includes("marketing agreement") &&
+          aiResp.includes("csc zyprus")
+        ) {
           console.log("\n✅ Response contains DOCX template content!");
         } else if (aiResp.includes("subject:")) {
-          console.log("\n❌ Response appears to be Template 14 (email) - has Subject: line");
+          console.log(
+            "\n❌ Response appears to be Template 14 (email) - has Subject: line"
+          );
         } else {
           console.log("\n⚠️ Response unclear - checking content...");
         }

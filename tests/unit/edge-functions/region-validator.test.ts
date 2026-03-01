@@ -9,12 +9,12 @@
  * - Regional access validation (agent region vs property region)
  * - Management "all" region access
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { Agent } from "../../../supabase/functions/sophia-bot/agents/identifier.ts";
 import {
   determineRegion,
   validateRegionalAccess,
 } from "../../../supabase/functions/sophia-bot/rules/region-validator.ts";
-import { Agent } from "../../../supabase/functions/sophia-bot/agents/identifier.ts";
 
 /**
  * Create a mock agent for testing
@@ -112,9 +112,15 @@ describe("Region Validator", () => {
     });
 
     it("should detect region when embedded in larger string", () => {
-      expect(determineRegion("A beautiful villa in Paphos area")).toBe("paphos");
-      expect(determineRegion("Apartment near Limassol beachfront")).toBe("limassol");
-      expect(determineRegion("House for sale in Larnaca district")).toBe("larnaca");
+      expect(determineRegion("A beautiful villa in Paphos area")).toBe(
+        "paphos"
+      );
+      expect(determineRegion("Apartment near Limassol beachfront")).toBe(
+        "limassol"
+      );
+      expect(determineRegion("House for sale in Larnaca district")).toBe(
+        "larnaca"
+      );
     });
   });
 
@@ -146,17 +152,16 @@ describe("Region Validator", () => {
     });
 
     it("should allow access for all regions when agent region matches", () => {
-      const regions: Array<"paphos" | "limassol" | "larnaca" | "nicosia" | "famagusta"> = [
-        "paphos",
-        "limassol",
-        "larnaca",
-        "nicosia",
-        "famagusta",
-      ];
+      const regions: Array<
+        "paphos" | "limassol" | "larnaca" | "nicosia" | "famagusta"
+      > = ["paphos", "limassol", "larnaca", "nicosia", "famagusta"];
 
       regions.forEach((region) => {
         const agent = createMockAgent({ region });
-        const result = validateRegionalAccess(agent, region.charAt(0).toUpperCase() + region.slice(1));
+        const result = validateRegionalAccess(
+          agent,
+          region.charAt(0).toUpperCase() + region.slice(1)
+        );
 
         expect(result.allowed).toBe(true);
         expect(result.propertyRegion).toBe(region);
@@ -214,7 +219,9 @@ describe("Region Validator", () => {
 
       expect(result.allowed).toBe(false);
       expect(result.propertyRegion).toBe("limassol");
-      expect(result.message).toContain("not allowed to market a property outside your region");
+      expect(result.message).toContain(
+        "not allowed to market a property outside your region"
+      );
     });
 
     it("should provide helpful error message on region mismatch", () => {
@@ -227,20 +234,17 @@ describe("Region Validator", () => {
     });
 
     it("should deny cross-region access for all combinations", () => {
-      const regions: Array<"paphos" | "limassol" | "larnaca" | "nicosia" | "famagusta"> = [
-        "paphos",
-        "limassol",
-        "larnaca",
-        "nicosia",
-        "famagusta",
-      ];
+      const regions: Array<
+        "paphos" | "limassol" | "larnaca" | "nicosia" | "famagusta"
+      > = ["paphos", "limassol", "larnaca", "nicosia", "famagusta"];
 
       regions.forEach((agentRegion) => {
         const agent = createMockAgent({ region: agentRegion });
 
         regions.forEach((propertyRegion) => {
           if (agentRegion !== propertyRegion) {
-            const location = propertyRegion.charAt(0).toUpperCase() + propertyRegion.slice(1);
+            const location =
+              propertyRegion.charAt(0).toUpperCase() + propertyRegion.slice(1);
             const result = validateRegionalAccess(agent, location);
 
             expect(result.allowed).toBe(false);
@@ -263,13 +267,9 @@ describe("Region Validator", () => {
     });
 
     it("should use agent's region as propertyRegion for unknown locations", () => {
-      const regions: Array<"paphos" | "limassol" | "larnaca" | "nicosia" | "famagusta"> = [
-        "paphos",
-        "limassol",
-        "larnaca",
-        "nicosia",
-        "famagusta",
-      ];
+      const regions: Array<
+        "paphos" | "limassol" | "larnaca" | "nicosia" | "famagusta"
+      > = ["paphos", "limassol", "larnaca", "nicosia", "famagusta"];
 
       regions.forEach((region) => {
         const agent = createMockAgent({ region });

@@ -5,7 +5,7 @@
  * Used by all channels (WhatsApp, Telegram, Web).
  */
 
-import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
+import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
 
 // =============================================================================
 // URL VALIDATOR - SSRF Prevention
@@ -58,7 +58,9 @@ const isBlockedIp = (hostname: string): boolean =>
 
 const isBlockedHostname = (hostname: string): boolean => {
   const lowerHostname = hostname.toLowerCase();
-  return BLOCKED_HOSTNAMES.some((blocked) => lowerHostname === blocked.toLowerCase());
+  return BLOCKED_HOSTNAMES.some(
+    (blocked) => lowerHostname === blocked.toLowerCase()
+  );
 };
 
 const isAllowedDomain = (hostname: string): boolean => {
@@ -85,24 +87,44 @@ export const validateExternalUrl = (url: string): UrlValidationResult => {
     const parsed = new URL(url);
 
     if (parsed.protocol !== "https:") {
-      return { valid: false, error: "Only HTTPS URLs are allowed", protocol: parsed.protocol };
+      return {
+        valid: false,
+        error: "Only HTTPS URLs are allowed",
+        protocol: parsed.protocol,
+      };
     }
 
     const hostname = parsed.hostname;
 
     if (isBlockedHostname(hostname)) {
-      return { valid: false, error: "Access to this host is not allowed", hostname };
+      return {
+        valid: false,
+        error: "Access to this host is not allowed",
+        hostname,
+      };
     }
 
     if (isIpAddress(hostname)) {
       if (isBlockedIp(hostname)) {
-        return { valid: false, error: "Access to private networks is not allowed", hostname };
+        return {
+          valid: false,
+          error: "Access to private networks is not allowed",
+          hostname,
+        };
       }
-      return { valid: false, error: "IP addresses are not allowed - use a domain name", hostname };
+      return {
+        valid: false,
+        error: "IP addresses are not allowed - use a domain name",
+        hostname,
+      };
     }
 
     if (!isAllowedDomain(hostname)) {
-      return { valid: false, error: `Domain "${hostname}" is not in the allowed list`, hostname };
+      return {
+        valid: false,
+        error: `Domain "${hostname}" is not in the allowed list`,
+        hostname,
+      };
     }
 
     if (parsed.pathname.includes("..")) {
@@ -123,17 +145,29 @@ export const validateImageUrl = (url: string): UrlValidationResult => {
     const parsed = new URL(url);
 
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-      return { valid: false, error: "Only HTTP/HTTPS URLs are allowed for images", protocol: parsed.protocol };
+      return {
+        valid: false,
+        error: "Only HTTP/HTTPS URLs are allowed for images",
+        protocol: parsed.protocol,
+      };
     }
 
     const hostname = parsed.hostname;
 
     if (isBlockedHostname(hostname)) {
-      return { valid: false, error: "Access to this host is not allowed", hostname };
+      return {
+        valid: false,
+        error: "Access to this host is not allowed",
+        hostname,
+      };
     }
 
     if (isIpAddress(hostname) && isBlockedIp(hostname)) {
-      return { valid: false, error: "Access to private networks is not allowed", hostname };
+      return {
+        valid: false,
+        error: "Access to private networks is not allowed",
+        hostname,
+      };
     }
 
     if (parsed.pathname.includes("..")) {
@@ -226,7 +260,10 @@ const detectPrivacyIssues = (url: string): string[] => {
   if (url.toLowerCase().includes("streetview")) {
     issues.push("May contain Google Street View content");
   }
-  if (url.toLowerCase().includes("personal") || url.toLowerCase().includes("private")) {
+  if (
+    url.toLowerCase().includes("personal") ||
+    url.toLowerCase().includes("private")
+  ) {
     issues.push("URL suggests private/personal content");
   }
   return issues;
@@ -235,28 +272,54 @@ const detectPrivacyIssues = (url: string): string[] => {
 const classifyImage = (url: string): ImageClassification => {
   const filename = url.toLowerCase();
 
-  if (filename.includes("front") || filename.includes("facade") || filename.includes("entrance")) {
+  if (
+    filename.includes("front") ||
+    filename.includes("facade") ||
+    filename.includes("entrance")
+  ) {
     return "exterior_front";
   }
-  if (filename.includes("exterior") || filename.includes("outside") || filename.includes("building")) {
+  if (
+    filename.includes("exterior") ||
+    filename.includes("outside") ||
+    filename.includes("building")
+  ) {
     return "exterior_other";
   }
   if (filename.includes("pool") || filename.includes("swimming")) {
     return "pool";
   }
-  if (filename.includes("garden") || filename.includes("yard") || filename.includes("terrace") || filename.includes("patio")) {
+  if (
+    filename.includes("garden") ||
+    filename.includes("yard") ||
+    filename.includes("terrace") ||
+    filename.includes("patio")
+  ) {
     return "garden";
   }
-  if (filename.includes("living") || filename.includes("lounge") || filename.includes("salon")) {
+  if (
+    filename.includes("living") ||
+    filename.includes("lounge") ||
+    filename.includes("salon")
+  ) {
     return "living_room";
   }
   if (filename.includes("kitchen") || filename.includes("cooking")) {
     return "kitchen";
   }
-  if (filename.includes("bedroom") || filename.includes("master") || filename.includes("sleep")) {
+  if (
+    filename.includes("bedroom") ||
+    filename.includes("master") ||
+    filename.includes("sleep")
+  ) {
     return "bedroom";
   }
-  if (filename.includes("bathroom") || filename.includes("bath") || filename.includes("shower") || filename.includes("wc")) {
+  if (
+    filename.includes("bathroom") ||
+    filename.includes("bath") ||
+    filename.includes("shower") ||
+    filename.includes("wc")
+  ) {
     return "bathroom";
   }
   if (filename.includes("interior") || filename.includes("inside")) {
@@ -270,7 +333,9 @@ const checkImageAccessible = async (url: string): Promise<boolean> => {
   try {
     const securityCheck = validateImageUrl(url);
     if (!securityCheck.valid) {
-      logger.warn(`[Image Handler] SSRF blocked: ${securityCheck.error}`, { category: LogCategory.IMAGE });
+      logger.warn(`[Image Handler] SSRF blocked: ${securityCheck.error}`, {
+        category: LogCategory.IMAGE,
+      });
       return false;
     }
 
@@ -294,7 +359,9 @@ const checkImageAccessible = async (url: string): Promise<boolean> => {
 /**
  * Process a list of image URLs for upload
  */
-export const processImages = async (imageUrls: string[]): Promise<ProcessedImage[]> => {
+export const processImages = async (
+  imageUrls: string[]
+): Promise<ProcessedImage[]> => {
   const processed: ProcessedImage[] = [];
 
   for (const url of imageUrls) {
@@ -416,27 +483,51 @@ export interface PropertyDetails {
 
 const LOCATION_DESCRIPTIONS: Record<string, string> = {
   tala: "Tala is a picturesque hillside village offering stunning views and a peaceful lifestyle, just minutes from Paphos and the Mediterranean coast.",
-  peyia: "Peyia is a popular hillside town known for its pleasant climate, beautiful sunsets, and proximity to the famous Coral Bay beaches.",
-  "coral bay": "Coral Bay is one of Cyprus's most sought-after beach destinations, offering crystal-clear waters and a vibrant atmosphere.",
-  chloraka: "Chloraka is a charming coastal suburb of Paphos, offering easy access to beaches, amenities, and the historic harbor area.",
-  "kato paphos": "Kato Paphos is the cosmopolitan heart of the region, home to the famous archaeological park, harbor, and excellent restaurants.",
-  universal: "Universal is a prestigious area of Paphos known for its quality developments and convenient location near the town center.",
-  yeroskipou: "Yeroskipou is a family-friendly area known for its traditional character, excellent schools, and proximity to Paphos town.",
-  limassol: "Limassol is Cyprus's vibrant second city, combining business energy with beachfront living and a rich cultural scene.",
-  "potamos germasogeia": "Potamos Germasogeia is a prime tourist area known for its beautiful beach, hotels, and proximity to amenities.",
-  "agios tychonas": "Agios Tychonas is an upscale coastal area offering luxury properties with stunning sea views and exclusive amenities.",
-  "mesa geitonia": "Mesa Geitonia is a well-established residential area offering excellent schools, shops, and a strong community feel.",
-  larnaca: "Larnaca combines rich history with modern convenience, featuring a beautiful seafront promenade and excellent connectivity.",
-  oroklini: "Oroklini is a peaceful residential area known for its nature reserve, beach, and family-friendly environment.",
-  pervolia: "Pervolia is a charming coastal village offering a relaxed lifestyle near Larnaca airport and beautiful beaches.",
-  paralimni: "Paralimni is a thriving town in the Famagusta district, serving as a hub for the popular resort areas of Protaras and Ayia Napa.",
-  "ayia napa": "Ayia Napa is world-famous for its stunning beaches, vibrant nightlife, and excellent tourist facilities.",
-  protaras: "Protaras is a family-friendly resort area known for its golden beaches, clear waters, and peaceful atmosphere.",
+  peyia:
+    "Peyia is a popular hillside town known for its pleasant climate, beautiful sunsets, and proximity to the famous Coral Bay beaches.",
+  "coral bay":
+    "Coral Bay is one of Cyprus's most sought-after beach destinations, offering crystal-clear waters and a vibrant atmosphere.",
+  chloraka:
+    "Chloraka is a charming coastal suburb of Paphos, offering easy access to beaches, amenities, and the historic harbor area.",
+  "kato paphos":
+    "Kato Paphos is the cosmopolitan heart of the region, home to the famous archaeological park, harbor, and excellent restaurants.",
+  universal:
+    "Universal is a prestigious area of Paphos known for its quality developments and convenient location near the town center.",
+  yeroskipou:
+    "Yeroskipou is a family-friendly area known for its traditional character, excellent schools, and proximity to Paphos town.",
+  limassol:
+    "Limassol is Cyprus's vibrant second city, combining business energy with beachfront living and a rich cultural scene.",
+  "potamos germasogeia":
+    "Potamos Germasogeia is a prime tourist area known for its beautiful beach, hotels, and proximity to amenities.",
+  "agios tychonas":
+    "Agios Tychonas is an upscale coastal area offering luxury properties with stunning sea views and exclusive amenities.",
+  "mesa geitonia":
+    "Mesa Geitonia is a well-established residential area offering excellent schools, shops, and a strong community feel.",
+  larnaca:
+    "Larnaca combines rich history with modern convenience, featuring a beautiful seafront promenade and excellent connectivity.",
+  oroklini:
+    "Oroklini is a peaceful residential area known for its nature reserve, beach, and family-friendly environment.",
+  pervolia:
+    "Pervolia is a charming coastal village offering a relaxed lifestyle near Larnaca airport and beautiful beaches.",
+  paralimni:
+    "Paralimni is a thriving town in the Famagusta district, serving as a hub for the popular resort areas of Protaras and Ayia Napa.",
+  "ayia napa":
+    "Ayia Napa is world-famous for its stunning beaches, vibrant nightlife, and excellent tourist facilities.",
+  protaras:
+    "Protaras is a family-friendly resort area known for its golden beaches, clear waters, and peaceful atmosphere.",
 };
 
 const ADJECTIVES = [
-  "Stunning", "Beautiful", "Spacious", "Modern", "Elegant",
-  "Charming", "Impressive", "Exceptional", "Superb", "Attractive",
+  "Stunning",
+  "Beautiful",
+  "Spacious",
+  "Modern",
+  "Elegant",
+  "Charming",
+  "Impressive",
+  "Exceptional",
+  "Superb",
+  "Attractive",
 ];
 
 const getRandomAdjective = (): string =>
@@ -446,13 +537,23 @@ const capitalize = (str: string): string =>
   str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 
 const capitalizeLocation = (location: string): string =>
-  location.split(" ").map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(" ");
+  location
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 
 const formatFeature = (feature: string): string => {
   const abbreviations: Record<string, string> = {
-    "a/c": "A/C", "ac": "A/C", "bbq": "BBQ", "tv": "TV", "dvd": "DVD",
-    "wifi": "WiFi", "wi-fi": "WiFi", "jacuzzi": "Jacuzzi",
-    "en-suite": "En-Suite", "ensuite": "En-Suite",
+    "a/c": "A/C",
+    ac: "A/C",
+    bbq: "BBQ",
+    tv: "TV",
+    dvd: "DVD",
+    wifi: "WiFi",
+    "wi-fi": "WiFi",
+    jacuzzi: "Jacuzzi",
+    "en-suite": "En-Suite",
+    ensuite: "En-Suite",
   };
 
   const lower = feature.toLowerCase().trim();
@@ -492,7 +593,9 @@ const getLocationParagraph = (location: string): string => {
   return `${capitalize(location)} offers an excellent location combining convenience with quality of life, close to local amenities and transport links.`;
 };
 
-const categorizeFeatures = (details: PropertyDetails): {
+const categorizeFeatures = (
+  details: PropertyDetails
+): {
   indoor: string[];
   outdoor: string[];
   views: string[];
@@ -507,24 +610,70 @@ const categorizeFeatures = (details: PropertyDetails): {
 
   if (details.pool) outdoor.push("Private Swimming Pool");
   if (details.garden) outdoor.push("Landscaped Garden");
-  if (details.parking) outdoor.push(formatFeature(details.parking + " Parking"));
+  if (details.parking)
+    outdoor.push(formatFeature(details.parking + " Parking"));
 
   if (details.seaView) views.push("Sea View");
   if (details.mountainView) views.push("Mountain View");
 
   if (details.features && details.features.length > 0) {
     const outdoorKeywords = [
-      "pool", "swimming", "garden", "terrace", "balcony", "veranda",
-      "parking", "garage", "carport", "bbq", "patio", "deck", "pergola",
-      "outdoor", "solar", "panels", "roof"
+      "pool",
+      "swimming",
+      "garden",
+      "terrace",
+      "balcony",
+      "veranda",
+      "parking",
+      "garage",
+      "carport",
+      "bbq",
+      "patio",
+      "deck",
+      "pergola",
+      "outdoor",
+      "solar",
+      "panels",
+      "roof",
     ];
-    const viewKeywords = ["view", "sea", "mountain", "city", "panoramic", "unobstructed"];
+    const viewKeywords = [
+      "view",
+      "sea",
+      "mountain",
+      "city",
+      "panoramic",
+      "unobstructed",
+    ];
     const indoorKeywords = [
-      "heating", "cooling", "a/c", "ac", "air", "fireplace", "storage",
-      "basement", "attic", "laundry", "utility", "pantry", "wine",
-      "gym", "sauna", "jacuzzi", "ensuite", "en-suite", "fitted",
-      "marble", "parquet", "floor", "ceiling", "double glazing",
-      "security", "alarm", "intercom", "elevator", "lift"
+      "heating",
+      "cooling",
+      "a/c",
+      "ac",
+      "air",
+      "fireplace",
+      "storage",
+      "basement",
+      "attic",
+      "laundry",
+      "utility",
+      "pantry",
+      "wine",
+      "gym",
+      "sauna",
+      "jacuzzi",
+      "ensuite",
+      "en-suite",
+      "fitted",
+      "marble",
+      "parquet",
+      "floor",
+      "ceiling",
+      "double glazing",
+      "security",
+      "alarm",
+      "intercom",
+      "elevator",
+      "lift",
     ];
 
     for (const feature of details.features) {
@@ -532,7 +681,8 @@ const categorizeFeatures = (details: PropertyDetails): {
       const formatted = formatFeature(feature);
 
       const alreadyAdded = [...indoor, ...outdoor, ...views].some(
-        (f) => f.toLowerCase().includes(lower) || lower.includes(f.toLowerCase())
+        (f) =>
+          f.toLowerCase().includes(lower) || lower.includes(f.toLowerCase())
       );
       if (alreadyAdded) continue;
 
@@ -574,12 +724,14 @@ export const generateDescription = (details: PropertyDetails): string => {
   const adjective = getRandomAdjective();
   const propertyType = capitalize(details.type);
   const location = capitalizeLocation(details.location);
-  const listingTypeText = details.listingType === "rent" ? "For Rent" : "For Sale";
+  const listingTypeText =
+    details.listingType === "rent" ? "For Rent" : "For Sale";
 
   const sections: string[] = [];
 
   // 1. Opening headline
-  const bedroomText = details.bedrooms === 1 ? "1 Bedroom" : `${details.bedrooms} Bedroom`;
+  const bedroomText =
+    details.bedrooms === 1 ? "1 Bedroom" : `${details.bedrooms} Bedroom`;
   let headline = `${adjective} ${bedroomText} ${propertyType} ${listingTypeText} in ${location}`;
   if (details.titleDeedStatus && details.listingType === "sale") {
     const titleDeedFormatted = formatTitleDeedStatus(details.titleDeedStatus);
@@ -594,26 +746,37 @@ export const generateDescription = (details: PropertyDetails): string => {
 
   // 3. KEY FEATURES section
   const keyFeatures: string[] = [];
-  keyFeatures.push(`${details.bedrooms} ${details.bedrooms === 1 ? "Bedroom" : "Bedrooms"}`);
-  keyFeatures.push(`${details.bathrooms} ${details.bathrooms === 1 ? "Bathroom" : "Bathrooms"}`);
+  keyFeatures.push(
+    `${details.bedrooms} ${details.bedrooms === 1 ? "Bedroom" : "Bedrooms"}`
+  );
+  keyFeatures.push(
+    `${details.bathrooms} ${details.bathrooms === 1 ? "Bathroom" : "Bathrooms"}`
+  );
   keyFeatures.push(`${details.coveredArea}m² Covered Area`);
   if (details.plotSize) keyFeatures.push(`${details.plotSize}m² Plot Size`);
   if (details.yearBuilt) keyFeatures.push(`Built in ${details.yearBuilt}`);
   if (details.floor) keyFeatures.push(`${capitalize(details.floor)} Floor`);
-  if (details.condition) keyFeatures.push(`${capitalize(details.condition)} Condition`);
+  if (details.condition)
+    keyFeatures.push(`${capitalize(details.condition)} Condition`);
   if (details.titleDeedStatus && details.listingType === "sale") {
     const titleDeedFormatted = formatTitleDeedStatus(details.titleDeedStatus);
     if (titleDeedFormatted) keyFeatures.push(titleDeedFormatted);
   }
-  sections.push("KEY FEATURES:\n" + keyFeatures.map((f) => `• ${f}`).join("\n"));
+  sections.push(
+    "KEY FEATURES:\n" + keyFeatures.map((f) => `• ${f}`).join("\n")
+  );
 
   // 4. Categorized features
   const { indoor, outdoor, views } = categorizeFeatures(details);
   if (indoor.length > 0) {
-    sections.push("INDOOR FEATURES:\n" + indoor.map((f) => `• ${f}`).join("\n"));
+    sections.push(
+      "INDOOR FEATURES:\n" + indoor.map((f) => `• ${f}`).join("\n")
+    );
   }
   if (outdoor.length > 0) {
-    sections.push("OUTDOOR FEATURES:\n" + outdoor.map((f) => `• ${f}`).join("\n"));
+    sections.push(
+      "OUTDOOR FEATURES:\n" + outdoor.map((f) => `• ${f}`).join("\n")
+    );
   }
   if (views.length > 0) {
     sections.push("PROPERTY VIEWS:\n" + views.map((f) => `• ${f}`).join("\n"));

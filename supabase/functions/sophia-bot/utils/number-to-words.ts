@@ -6,28 +6,54 @@
  */
 
 const ONES = [
-  '', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
-  'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
-  'seventeen', 'eighteen', 'nineteen'
+  "",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten",
+  "eleven",
+  "twelve",
+  "thirteen",
+  "fourteen",
+  "fifteen",
+  "sixteen",
+  "seventeen",
+  "eighteen",
+  "nineteen",
 ];
 
 const TENS = [
-  '', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'
+  "",
+  "",
+  "twenty",
+  "thirty",
+  "forty",
+  "fifty",
+  "sixty",
+  "seventy",
+  "eighty",
+  "ninety",
 ];
 
-const SCALES = ['', 'thousand', 'million', 'billion'];
+const SCALES = ["", "thousand", "million", "billion"];
 
 /**
  * Convert a number less than 1000 to words
  */
 function convertHundreds(num: number): string {
-  let result = '';
+  let result = "";
 
   if (num >= 100) {
-    result += ONES[Math.floor(num / 100)] + ' hundred';
+    result += ONES[Math.floor(num / 100)] + " hundred";
     num %= 100;
     if (num > 0) {
-      result += ' and ';
+      result += " and ";
     }
   }
 
@@ -35,7 +61,7 @@ function convertHundreds(num: number): string {
     result += TENS[Math.floor(num / 10)];
     num %= 10;
     if (num > 0) {
-      result += ' ' + ONES[num];
+      result += " " + ONES[num];
     }
   } else if (num > 0) {
     result += ONES[num];
@@ -56,8 +82,8 @@ function convertHundreds(num: number): string {
  * numberToWords(350000) // "three hundred and fifty thousand"
  */
 export function numberToWords(num: number): string {
-  if (num === 0) return 'zero';
-  if (num < 0) return 'negative ' + numberToWords(Math.abs(num));
+  if (num === 0) return "zero";
+  if (num < 0) return "negative " + numberToWords(Math.abs(num));
 
   // Round to nearest integer
   num = Math.round(num);
@@ -71,7 +97,7 @@ export function numberToWords(num: number): string {
       const chunkWords = convertHundreds(chunk);
       const scale = SCALES[scaleIndex];
       if (scale) {
-        parts.unshift(chunkWords + ' ' + scale);
+        parts.unshift(chunkWords + " " + scale);
       } else {
         parts.unshift(chunkWords);
       }
@@ -83,10 +109,10 @@ export function numberToWords(num: number): string {
   // Join with "and" for better readability
   if (parts.length > 1) {
     const last = parts.pop();
-    return parts.join(' ') + ' and ' + last;
+    return parts.join(" ") + " and " + last;
   }
 
-  return parts.join(' ');
+  return parts.join(" ");
 }
 
 /**
@@ -99,8 +125,7 @@ export function numberToWords(num: number): string {
  * @example
  * formatCurrencyWords(160000, "euro") // "one hundred and sixty thousand euro"
  */
-export function formatCurrencyWords(amount: number, currency: string = "euro"): string {
+export function formatCurrencyWords(amount: number, currency = "euro"): string {
   const words = numberToWords(amount);
   return `${words} ${currency}`;
 }
-

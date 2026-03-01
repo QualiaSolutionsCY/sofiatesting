@@ -1,5 +1,4 @@
-
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 // Mock external URL imports using the exact string found in the source file
 vi.mock("https://esm.sh/docx@8.5.0", () => ({
@@ -26,7 +25,10 @@ vi.mock("../../../supabase/functions/sophia-bot/utils/logger.ts", () => ({
 }));
 
 // Import formatPropertyInfo as well
-import { parseMarketingAgreementData, formatPropertyInfo } from "../../../supabase/functions/sophia-bot/docx/templates/marketing-agreement.ts";
+import {
+  formatPropertyInfo,
+  parseMarketingAgreementData,
+} from "../../../supabase/functions/sophia-bot/docx/templates/marketing-agreement.ts";
 
 describe("Marketing Agreement Parsing", () => {
   const agentName = "Test Agent";
@@ -76,12 +78,12 @@ Property Reg: 0/12345 in Limassol
 Price: €100,000
     `;
     const result = parseMarketingAgreementData(aiResponse, agentName);
-    
+
     expect(result).not.toBeNull();
     expect(result?.propertyRegistration).toContain("0/12345");
   });
 
-   it("should parse 'Property: Reg No 0/12345'", () => {
+  it("should parse 'Property: Reg No 0/12345'", () => {
     const aiResponse = `
 **Marketing Agreement**
 ...
@@ -91,13 +93,13 @@ Property: Reg No 0/12345
 Price: €100,000
     `;
     const result = parseMarketingAgreementData(aiResponse, agentName);
-    
+
     expect(result).not.toBeNull();
     expect(result?.propertyRegistration).toContain("0/12345");
   });
 
   it("should parse when property info is formatted differently", () => {
-     const aiResponse = `
+    const aiResponse = `
 **Marketing Agreement**
 ...
 And
@@ -133,12 +135,12 @@ On behalf of The Agent: Charalambos Pitros
 The Seller:
 Name: Andreas Georgiou
     `;
-    
+
     // Add property to make it valid
     const fullResponse = aiResponse + "\nProperty with Reg No. 0/55555";
-    
+
     const result = parseMarketingAgreementData(fullResponse, agentName);
-    
+
     expect(result).not.toBeNull();
     expect(result?.sellerFullName).toBe("Andreas Georgiou");
     expect(result?.propertyRegistration).toContain("0/55555");
@@ -159,7 +161,7 @@ Property details not provided.
   });
 
   it("should parse when AI includes 'Property Details:' prefix", () => {
-      const aiResponse = `
+    const aiResponse = `
 Here is the document.
 
 **Marketing Agreement**
@@ -174,16 +176,16 @@ Elena Papageorgiou...
 Price: €1,200,000
       `;
 
-      const result = parseMarketingAgreementData(aiResponse, agentName);
+    const result = parseMarketingAgreementData(aiResponse, agentName);
 
-      expect(result).not.toBeNull();
-      expect(result?.sellerFullName).toBe("Elena Papageorgiou");
-      expect(result?.propertyRegistration).toContain("0/11223");
-      expect(result?.marketingPrice).toBe("1200000");
+    expect(result).not.toBeNull();
+    expect(result?.sellerFullName).toBe("Elena Papageorgiou");
+    expect(result?.propertyRegistration).toContain("0/11223");
+    expect(result?.marketingPrice).toBe("1200000");
   });
-  
+
   it("should handle 'Registration Number' instead of 'No.'", () => {
-      const aiResponse = `
+    const aiResponse = `
 ...
 And
 George Michael...
@@ -191,12 +193,12 @@ George Michael...
 owner of Property with Registration Number 0/77777 in Limassol
 ...
       `;
-      
-       const result = parseMarketingAgreementData(aiResponse, agentName);
 
-      expect(result).not.toBeNull();
-      expect(result?.sellerFullName).toBe("George Michael");
-      expect(result?.propertyRegistration).toContain("0/77777");
+    const result = parseMarketingAgreementData(aiResponse, agentName);
+
+    expect(result).not.toBeNull();
+    expect(result?.sellerFullName).toBe("George Michael");
+    expect(result?.propertyRegistration).toContain("0/77777");
   });
 
   // NEW FAILING TEST
@@ -210,7 +212,7 @@ Property: Beautiful villa in Paphos, near the sea
 Price: €500,000
     `;
     const result = parseMarketingAgreementData(aiResponse, agentName);
-    
+
     // This expects to with current logic because regex requires \d+/\d+
     expect(result).not.toBeNull();
     expect(result?.propertyRegistration).toContain("Beautiful villa");
@@ -219,11 +221,12 @@ Price: €500,000
 
 describe("Property Info Formatting", () => {
   it("should format standard registration string", () => {
-    const input = "Registration No. 0/12345 in Tala, Paphos (Cynthiana Complex, Flat 105)";
+    const input =
+      "Registration No. 0/12345 in Tala, Paphos (Cynthiana Complex, Flat 105)";
     const result = formatPropertyInfo(input);
     expect(result.description).toContain("0/12345");
   });
-  
+
   it("should handle messy input", () => {
     const input = "0/12345 Cynthiana Complex, Paphos";
     const result = formatPropertyInfo(input);

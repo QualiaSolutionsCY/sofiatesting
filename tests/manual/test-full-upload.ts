@@ -7,6 +7,7 @@
  * - Proper capitalization
  */
 import { config } from "dotenv";
+
 config({ path: ".env.local" });
 
 const apiUrl = process.env.ZYPRUS_API_URL;
@@ -24,8 +25,15 @@ async function main() {
   // Get token
   const tokenRes = await fetch(`${apiUrl}/oauth/token`, {
     method: "POST",
-    headers: { "User-Agent": "SophiaAI", "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "client_credentials", client_id: clientId, client_secret: clientSecret }),
+    headers: {
+      "User-Agent": "SophiaAI",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      grant_type: "client_credentials",
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
   });
   const { access_token } = await tokenRes.json();
   console.log("✅ Got token\n");
@@ -34,34 +42,37 @@ async function main() {
   console.log("📸 Uploading test image...");
   const imgRes = await fetch("https://picsum.photos/800/600.jpg");
   const imgBlob = await imgRes.blob();
-  const uploadRes = await fetch(`${apiUrl}/jsonapi/node/property/field_gallery_`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${access_token}`,
-      "User-Agent": "SophiaAI",
-      "Content-Type": "application/octet-stream",
-      "Content-Disposition": `file; filename="test-detached-house-${Date.now()}.jpg"`,
-    },
-    body: imgBlob,
-  });
+  const uploadRes = await fetch(
+    `${apiUrl}/jsonapi/node/property/field_gallery_`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        "User-Agent": "SophiaAI",
+        "Content-Type": "application/octet-stream",
+        "Content-Disposition": `file; filename="test-detached-house-${Date.now()}.jpg"`,
+      },
+      body: imgBlob,
+    }
+  );
   const imgData = await uploadRes.json();
   const imageId = imgData.data.id;
   console.log("✅ Image uploaded:", imageId);
 
   // Test data - Detached House with all features
   const testData = {
-    propertyType: "detached house",  // NEW: Testing detached house
+    propertyType: "detached house", // NEW: Testing detached house
     listingType: "sale",
     bedrooms: 4,
     bathrooms: 3,
     coveredArea: 220,
-    plotSize: 650,  // Testing plot size -> field_land_size
-    location: "tala, paphos",  // Testing capitalization
+    plotSize: 650, // Testing plot size -> field_land_size
+    location: "tala, paphos", // Testing capitalization
     titleDeedStatus: "separate",
     yearBuilt: 2018,
     floor: "Ground",
     features: [
-      "covered parking",  // Testing covered parking
+      "covered parking", // Testing covered parking
       "private pool",
       "a/c",
       "central heating",
@@ -70,9 +81,9 @@ async function main() {
       "garden",
       "sea view",
       "bbq area",
-      "storage room"
+      "storage room",
     ],
-    price: 485000,
+    price: 485_000,
   };
 
   // Generate description locally to preview
@@ -88,7 +99,7 @@ async function main() {
     `${testData.bathrooms} Bathrooms`,
     `${testData.coveredArea}m2 of Net Indoor Area`,
     `${testData.plotSize}m2 Plot Size`,
-    ...testData.features.map(f => capitalizeLocation(f)),
+    ...testData.features.map((f) => capitalizeLocation(f)),
     `Year of Build: ${testData.yearBuilt}`,
   ];
   console.log(descLines.join("\n"));
@@ -118,20 +129,38 @@ async function main() {
         field_no_bedrooms: testData.bedrooms,
         field_no_bathrooms: testData.bathrooms,
         field_covered_area: testData.coveredArea,
-        field_land_size: testData.plotSize,  // FIXED: Using field_land_size
+        field_land_size: testData.plotSize, // FIXED: Using field_land_size
         field_year_built: testData.yearBuilt,
         field_negotiable: true,
-        field_my_notes: "Owner: Test Owner\nTel: +357 99 123456\nAgent: Test Agent\nReg: Paphos",
+        field_my_notes:
+          "Owner: Test Owner\nTel: +357 99 123456\nAgent: Test Agent\nReg: Paphos",
       },
       relationships: {
-        field_location: { data: { type: "node--location", id: DEFAULT_LOCATION } },
-        field_property_type: { data: { type: "taxonomy_term--property_type", id: PROPERTY_TYPE_VILLA } },
-        field_listing_type: { data: { type: "taxonomy_term--listing_type", id: LISTING_TYPE_SALE } },
-        field_title_deed: { data: { type: "taxonomy_term--title_deed", id: TITLE_DEED } },
-        field_price_modifier: { data: { type: "taxonomy_term--price_modifier", id: PRICE_MODIFIER } },
+        field_location: {
+          data: { type: "node--location", id: DEFAULT_LOCATION },
+        },
+        field_property_type: {
+          data: {
+            type: "taxonomy_term--property_type",
+            id: PROPERTY_TYPE_VILLA,
+          },
+        },
+        field_listing_type: {
+          data: { type: "taxonomy_term--listing_type", id: LISTING_TYPE_SALE },
+        },
+        field_title_deed: {
+          data: { type: "taxonomy_term--title_deed", id: TITLE_DEED },
+        },
+        field_price_modifier: {
+          data: { type: "taxonomy_term--price_modifier", id: PRICE_MODIFIER },
+        },
         field_gallery_: { data: [{ type: "file--file", id: imageId }] },
-        field_ai_listing_reviewer: { data: [{ type: "user--user", id: SOPHIA_AI_UUID }] },
-        field_ai_listing_instructor: { data: { type: "user--user", id: SOPHIA_AI_UUID } },
+        field_ai_listing_reviewer: {
+          data: [{ type: "user--user", id: SOPHIA_AI_UUID }],
+        },
+        field_ai_listing_instructor: {
+          data: { type: "user--user", id: SOPHIA_AI_UUID },
+        },
       },
     },
   };
@@ -162,15 +191,23 @@ async function main() {
   console.log("Bedrooms:", result.data.attributes.field_no_bedrooms);
   console.log("Bathrooms:", result.data.attributes.field_no_bathrooms);
   console.log("Covered Area:", result.data.attributes.field_covered_area, "m2");
-  console.log("Plot Size (field_land_size):", result.data.attributes.field_land_size, "m2");
+  console.log(
+    "Plot Size (field_land_size):",
+    result.data.attributes.field_land_size,
+    "m2"
+  );
   console.log("Year Built:", result.data.attributes.field_year_built);
   console.log("AI State:", result.data.attributes.field_ai_state);
   console.log("─".repeat(50));
   console.log("\n📋 Description saved:");
   console.log(result.data.attributes.body?.value || "(no body)");
   console.log("─".repeat(50));
-  console.log("\n👉 Check: https://dev9.zyprus.com/draft-dashboard?ai_state=draft");
-  console.log(`👉 Direct link: https://dev9.zyprus.com/node/${result.data.attributes.drupal_internal__nid}/edit`);
+  console.log(
+    "\n👉 Check: https://dev9.zyprus.com/draft-dashboard?ai_state=draft"
+  );
+  console.log(
+    `👉 Direct link: https://dev9.zyprus.com/node/${result.data.attributes.drupal_internal__nid}/edit`
+  );
 }
 
 function capitalize(str: string): string {
@@ -180,7 +217,7 @@ function capitalize(str: string): string {
 function capitalizeLocation(location: string): string {
   return location
     .split(" ")
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
 }
 

@@ -16,7 +16,11 @@ export const LARNACA_AGENTS = ["Michelle Longridge", "Diana Kultaseva"];
 
 // "Zyprus Others" group (Nicosia, Larnaca, Famagusta): Lauren, Charalambos, and Lysandros
 // Per spec: "RULE: Forward to regional manager of that area"
-export const OTHERS_GROUP_AGENTS = ["Lauren Ellingham", "Charalambos Pitros", "Lysandros Ioanni"];
+export const OTHERS_GROUP_AGENTS = [
+  "Lauren Ellingham",
+  "Charalambos Pitros",
+  "Lysandros Ioanni",
+];
 
 // Priority agents for office listings
 export const PRIORITY_AGENTS = ["Marios Azinas", "Dimitris Panayiotou"];

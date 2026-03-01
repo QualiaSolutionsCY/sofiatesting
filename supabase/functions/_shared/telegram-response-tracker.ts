@@ -8,10 +8,10 @@
  * Phase 12, Plan 03
  */
 
+import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
+import type { CallerAlert } from "./call-tracking.ts";
 import { getSupabaseAdmin } from "./db.ts";
 import { VASYA_TELEGRAM_USER_ID } from "./telegram-search.ts";
-import type { CallerAlert } from "./call-tracking.ts";
-import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,8 +43,7 @@ const NOT_FOUND_PATTERNS =
  *   +357 99 123 456, 0035799123456, 99123456, +44 1234 567890
  * Captures 7-15 digits (ignoring spaces/dashes).
  */
-const PHONE_PATTERN =
-  /(?:\+|00)?[\d][\d\s\-]{5,17}[\d]/;
+const PHONE_PATTERN = /(?:\+|00)?[\d][\d\s-]{5,17}[\d]/;
 
 // ---------------------------------------------------------------------------
 // Response Parsing
@@ -66,7 +65,7 @@ export function parseVasyaResponse(messageText: string): ParsedResponse {
   const phoneMatch = trimmed.match(PHONE_PATTERN);
   if (phoneMatch) {
     // Extract the matched number and strip spaces/dashes
-    const alternativeNumber = phoneMatch[0].replace(/[\s\-]/g, "");
+    const alternativeNumber = phoneMatch[0].replace(/[\s-]/g, "");
     // Only treat as phone if it has enough digits
     const digitCount = alternativeNumber.replace(/\D/g, "").length;
     if (digitCount >= 7 && digitCount <= 15) {
@@ -102,7 +101,7 @@ export function parseVasyaResponse(messageText: string): ParsedResponse {
  */
 export async function findAlertByReplyMessageId(
   replyToMessageId: number,
-  chatId: number,
+  chatId: number
 ): Promise<CallerAlert | null> {
   try {
     const supabase = getSupabaseAdmin();
@@ -149,7 +148,7 @@ export async function findAlertByReplyMessageId(
  */
 export async function processAlertResponse(
   alertId: string,
-  response: ParsedResponse,
+  response: ParsedResponse
 ): Promise<void> {
   try {
     const supabase = getSupabaseAdmin();
@@ -230,14 +229,12 @@ export async function processAlertResponse(
  *
  * The message parameter matches the shape of a Telegram Update.message.
  */
-export async function handleAuditAlertResponse(
-  message: {
-    text?: string;
-    from?: { id: number };
-    reply_to_message?: { message_id: number };
-    chat: { id: number };
-  },
-): Promise<boolean> {
+export async function handleAuditAlertResponse(message: {
+  text?: string;
+  from?: { id: number };
+  reply_to_message?: { message_id: number };
+  chat: { id: number };
+}): Promise<boolean> {
   // 1. Must be a reply to another message
   if (!message.reply_to_message) {
     return false;
@@ -264,7 +261,7 @@ export async function handleAuditAlertResponse(
   // 5. Look up the alert that the reply is referencing
   const alert = await findAlertByReplyMessageId(
     message.reply_to_message.message_id,
-    message.chat.id,
+    message.chat.id
   );
 
   if (!alert) {

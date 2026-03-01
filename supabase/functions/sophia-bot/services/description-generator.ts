@@ -55,95 +55,170 @@ export interface PropertyDetails {
 const LOCATION_DESCRIPTIONS: Record<string, string> = {
   // Paphos - focused on access to Paphos center/amenities
   tala: "Tala offers a peaceful village lifestyle with stunning hillside views, just a 10-15 minute drive to Paphos town center and the coast.",
-  peyia: "Peyia provides a relaxed hillside setting with beautiful sunsets, just 5 minutes from the famous Coral Bay beaches and 15 minutes to Paphos.",
-  "coral bay": "Coral Bay offers direct beach access with crystal-clear waters, restaurants and amenities right by the sea, 20 minutes from Paphos center.",
-  chloraka: "Chloraka provides affordable coastal living with easy access to beaches, supermarkets, and just 10 minutes to Paphos harbor.",
-  "kato paphos": "Kato Paphos puts you in the heart of the action - walking distance to the harbor, archaeological park, restaurants, and the seafront promenade.",
-  universal: "Universal is a prestigious residential area just 5 minutes from Paphos town center, Kings Avenue Mall, and all major amenities.",
-  yeroskipou: "Yeroskipou offers traditional village living with excellent schools, just 10 minutes from Paphos center and 5 minutes to the airport.",
-  kissonerga: "Kissonerga provides sea views and village charm, just 10 minutes to Coral Bay beaches and 15 minutes to Paphos center.",
-  "mesa chorio": "Mesa Chorio is a peaceful hillside village overlooking Paphos, just 10 minutes to the town center and close to local amenities.",
-  tremithousa: "Tremithousa is a quiet hillside village with countryside views, just 10-15 minutes from Paphos town center and close to the highway.",
+  peyia:
+    "Peyia provides a relaxed hillside setting with beautiful sunsets, just 5 minutes from the famous Coral Bay beaches and 15 minutes to Paphos.",
+  "coral bay":
+    "Coral Bay offers direct beach access with crystal-clear waters, restaurants and amenities right by the sea, 20 minutes from Paphos center.",
+  chloraka:
+    "Chloraka provides affordable coastal living with easy access to beaches, supermarkets, and just 10 minutes to Paphos harbor.",
+  "kato paphos":
+    "Kato Paphos puts you in the heart of the action - walking distance to the harbor, archaeological park, restaurants, and the seafront promenade.",
+  universal:
+    "Universal is a prestigious residential area just 5 minutes from Paphos town center, Kings Avenue Mall, and all major amenities.",
+  yeroskipou:
+    "Yeroskipou offers traditional village living with excellent schools, just 10 minutes from Paphos center and 5 minutes to the airport.",
+  kissonerga:
+    "Kissonerga provides sea views and village charm, just 10 minutes to Coral Bay beaches and 15 minutes to Paphos center.",
+  "mesa chorio":
+    "Mesa Chorio is a peaceful hillside village overlooking Paphos, just 10 minutes to the town center and close to local amenities.",
+  tremithousa:
+    "Tremithousa is a quiet hillside village with countryside views, just 10-15 minutes from Paphos town center and close to the highway.",
   emba: "Emba is an affordable village just 10 minutes from Paphos town center and the beach, with local shops and traditional tavernas nearby.",
-  geroskipou: "Geroskipou is a traditional town between Paphos airport and the city center, offering easy highway access and local amenities.",
-  kouklia: "Kouklia offers rural village living near the Sanctuary of Aphrodite, 20 minutes from Paphos center and close to secret valley golf course.",
+  geroskipou:
+    "Geroskipou is a traditional town between Paphos airport and the city center, offering easy highway access and local amenities.",
+  kouklia:
+    "Kouklia offers rural village living near the Sanctuary of Aphrodite, 20 minutes from Paphos center and close to secret valley golf course.",
   timi: "Timi provides quiet village living near the beach, just 10 minutes from Paphos airport and 15 minutes to the town center.",
-  mandria: "Mandria offers peaceful village life with a nearby beach, just 10 minutes from the airport and 20 minutes to Paphos.",
+  mandria:
+    "Mandria offers peaceful village life with a nearby beach, just 10 minutes from the airport and 20 minutes to Paphos.",
 
   // Limassol - focused on access to Limassol center/amenities
-  limassol: "Limassol city center puts you in the heart of the action - walking distance to the marina, old town, restaurants, and the famous Molos promenade.",
-  "potamos germasogeia": "Potamos Germasogeia offers beachfront living with direct access to the promenade, just 10 minutes drive to Limassol marina and old town.",
-  "agios tychonas": "Agios Tychonas provides upscale coastal living with beach access, just 10 minutes to Limassol marina and the city center.",
-  "mesa geitonia": "Mesa Geitonia is a well-established residential area just 5 minutes from Limassol city center, with excellent schools and shops nearby.",
-  germasogeia: "Germasogeia offers beach access and a relaxed lifestyle, just 10-15 minutes to Limassol city center and the marina.",
-  moutagiaka: "Moutagiaka is an attractive coastal suburb just 10 minutes from Limassol center, with beaches, shops, and easy highway access.",
-  mouttagiaka: "Mouttagiaka is an attractive coastal suburb just 10 minutes from Limassol center, with beaches, shops, and easy highway access.",
-  "agios athanasios": "Agios Athanasios provides affordable family living with direct highway access, just 10-15 minutes to Limassol city center.",
-  zakaki: "Zakaki is a rapidly developing area close to the new casino and marina, just 10 minutes to Limassol city center.",
-  parekklisia: "Parekklisia offers village life with mountain views, just 15 minutes to the beach and 20 minutes to Limassol center.",
-  pareklisia: "Pareklisia offers village life with mountain views, just 15 minutes to the beach and 20 minutes to Limassol center.",
-  erimi: "Erimi is a convenient residential area halfway between Limassol and the airport, just 15 minutes to the city center.",
-  episkopi: "Episkopi offers traditional village living in the countryside, 20 minutes to Limassol center and close to Kolossi castle.",
-  pyrgos: "Pyrgos is a hillside village with stunning views, 15-20 minutes to Limassol center and 10 minutes to the beach.",
-  polemidia: "Polemidia offers affordable living with direct highway access, just 10 minutes to Limassol city center.",
-  ypsonas: "Ypsonas provides affordable village living with good amenities, just 15 minutes to Limassol center and easy highway access.",
-  "agia zoni": "Agia Zoni is a quiet residential neighborhood just 5 minutes from Limassol city center and close to all amenities.",
-  neapoli: "Located within walking distance of Makariou Avenue and many amenities including a leading supermarket. In addition, it is only minutes from the seafront and the city center.",
-  neapolis: "Located within walking distance of Makariou Avenue and many amenities including a leading supermarket. In addition, it is only minutes from the seafront and the city center.",
-  linopetra: "Linopetra is a peaceful residential area close to the sea, just 5-10 minutes to Limassol city center.",
-  "agios ioannis": "Agios Ioannis offers coastal living with sea views, just 10 minutes to Limassol marina and the old town.",
-  "agios nikolaos": "Agios Nikolaos is a well-established area just 5 minutes from Limassol center, with easy access to schools and shops.",
-  trachoni: "Trachoni offers affordable living with good road access, just 10-15 minutes to Limassol city center.",
-  panthea: "Panthea is an upscale hillside area with stunning views, just 5-10 minutes to Limassol city center.",
-  "agia fyla": "Agia Fyla provides peaceful residential living with mountain views, just 10-15 minutes to Limassol center.",
-  kapsalos: "Kapsalos is a quiet neighborhood just 5 minutes from Limassol city center, with easy access to shops and amenities.",
+  limassol:
+    "Limassol city center puts you in the heart of the action - walking distance to the marina, old town, restaurants, and the famous Molos promenade.",
+  "potamos germasogeia":
+    "Potamos Germasogeia offers beachfront living with direct access to the promenade, just 10 minutes drive to Limassol marina and old town.",
+  "agios tychonas":
+    "Agios Tychonas provides upscale coastal living with beach access, just 10 minutes to Limassol marina and the city center.",
+  "mesa geitonia":
+    "Mesa Geitonia is a well-established residential area just 5 minutes from Limassol city center, with excellent schools and shops nearby.",
+  germasogeia:
+    "Germasogeia offers beach access and a relaxed lifestyle, just 10-15 minutes to Limassol city center and the marina.",
+  moutagiaka:
+    "Moutagiaka is an attractive coastal suburb just 10 minutes from Limassol center, with beaches, shops, and easy highway access.",
+  mouttagiaka:
+    "Mouttagiaka is an attractive coastal suburb just 10 minutes from Limassol center, with beaches, shops, and easy highway access.",
+  "agios athanasios":
+    "Agios Athanasios provides affordable family living with direct highway access, just 10-15 minutes to Limassol city center.",
+  zakaki:
+    "Zakaki is a rapidly developing area close to the new casino and marina, just 10 minutes to Limassol city center.",
+  parekklisia:
+    "Parekklisia offers village life with mountain views, just 15 minutes to the beach and 20 minutes to Limassol center.",
+  pareklisia:
+    "Pareklisia offers village life with mountain views, just 15 minutes to the beach and 20 minutes to Limassol center.",
+  erimi:
+    "Erimi is a convenient residential area halfway between Limassol and the airport, just 15 minutes to the city center.",
+  episkopi:
+    "Episkopi offers traditional village living in the countryside, 20 minutes to Limassol center and close to Kolossi castle.",
+  pyrgos:
+    "Pyrgos is a hillside village with stunning views, 15-20 minutes to Limassol center and 10 minutes to the beach.",
+  polemidia:
+    "Polemidia offers affordable living with direct highway access, just 10 minutes to Limassol city center.",
+  ypsonas:
+    "Ypsonas provides affordable village living with good amenities, just 15 minutes to Limassol center and easy highway access.",
+  "agia zoni":
+    "Agia Zoni is a quiet residential neighborhood just 5 minutes from Limassol city center and close to all amenities.",
+  neapoli:
+    "Located within walking distance of Makariou Avenue and many amenities including a leading supermarket. In addition, it is only minutes from the seafront and the city center.",
+  neapolis:
+    "Located within walking distance of Makariou Avenue and many amenities including a leading supermarket. In addition, it is only minutes from the seafront and the city center.",
+  linopetra:
+    "Linopetra is a peaceful residential area close to the sea, just 5-10 minutes to Limassol city center.",
+  "agios ioannis":
+    "Agios Ioannis offers coastal living with sea views, just 10 minutes to Limassol marina and the old town.",
+  "agios nikolaos":
+    "Agios Nikolaos is a well-established area just 5 minutes from Limassol center, with easy access to schools and shops.",
+  trachoni:
+    "Trachoni offers affordable living with good road access, just 10-15 minutes to Limassol city center.",
+  panthea:
+    "Panthea is an upscale hillside area with stunning views, just 5-10 minutes to Limassol city center.",
+  "agia fyla":
+    "Agia Fyla provides peaceful residential living with mountain views, just 10-15 minutes to Limassol center.",
+  kapsalos:
+    "Kapsalos is a quiet neighborhood just 5 minutes from Limassol city center, with easy access to shops and amenities.",
 
   // Larnaca - focused on access to Larnaca center/amenities
-  larnaca: "Larnaca center puts you walking distance to the famous seafront promenade, Finikoudes beach, restaurants, and the old town.",
-  oroklini: "Oroklini is a peaceful village just 10 minutes from Larnaca center, with nearby beaches and easy highway access.",
-  voroklini: "Voroklini is a peaceful village just 10 minutes from Larnaca center, with nearby beaches and easy highway access.",
-  pervolia: "Pervolia is a coastal village offering relaxed living, 10 minutes to Larnaca airport and 15 minutes to the city center.",
-  dhekelia: "Dhekelia is a prime coastal area with direct beach access, just 10 minutes to Larnaca center and 5 minutes to the airport.",
-  dekelia: "Dhekelia is a prime coastal area with direct beach access, just 10 minutes to Larnaca center and 5 minutes to the airport.",
+  larnaca:
+    "Larnaca center puts you walking distance to the famous seafront promenade, Finikoudes beach, restaurants, and the old town.",
+  oroklini:
+    "Oroklini is a peaceful village just 10 minutes from Larnaca center, with nearby beaches and easy highway access.",
+  voroklini:
+    "Voroklini is a peaceful village just 10 minutes from Larnaca center, with nearby beaches and easy highway access.",
+  pervolia:
+    "Pervolia is a coastal village offering relaxed living, 10 minutes to Larnaca airport and 15 minutes to the city center.",
+  dhekelia:
+    "Dhekelia is a prime coastal area with direct beach access, just 10 minutes to Larnaca center and 5 minutes to the airport.",
+  dekelia:
+    "Dhekelia is a prime coastal area with direct beach access, just 10 minutes to Larnaca center and 5 minutes to the airport.",
   pyla: "Pyla offers village life with a nearby sandy beach, 15 minutes to Larnaca and easy access to the Ayia Napa area.",
   kiti: "Kiti is a coastal village just 10 minutes from Larnaca airport and 15 minutes to the city center, with nearby beaches.",
-  tersefanou: "Tersefanou offers peaceful village living with nice views, 15 minutes to Larnaca center and close to the airport.",
-  dromolaxia: "Dromolaxia is a developing village just 10 minutes from Larnaca center with easy highway access.",
-  meneou: "Meneou is a quiet village close to the coast, 15 minutes to Larnaca center and 10 minutes to the airport.",
-  livadia: "Livadia offers coastal living with beach access, just 10 minutes to Larnaca city center.",
-  aradippou: "Aradippou is an affordable residential area just 10 minutes to Larnaca center with good local amenities.",
-  kamares: "Kamares is an upscale area with sea views, just 5-10 minutes to Larnaca center and the beach.",
+  tersefanou:
+    "Tersefanou offers peaceful village living with nice views, 15 minutes to Larnaca center and close to the airport.",
+  dromolaxia:
+    "Dromolaxia is a developing village just 10 minutes from Larnaca center with easy highway access.",
+  meneou:
+    "Meneou is a quiet village close to the coast, 15 minutes to Larnaca center and 10 minutes to the airport.",
+  livadia:
+    "Livadia offers coastal living with beach access, just 10 minutes to Larnaca city center.",
+  aradippou:
+    "Aradippou is an affordable residential area just 10 minutes to Larnaca center with good local amenities.",
+  kamares:
+    "Kamares is an upscale area with sea views, just 5-10 minutes to Larnaca center and the beach.",
 
   // Nicosia - focused on access to Nicosia center/amenities
-  nicosia: "Nicosia city center puts you in the heart of the capital - walking distance to museums, shopping, restaurants, and business districts.",
-  lefkosia: "Nicosia city center puts you in the heart of the capital - walking distance to museums, shopping, restaurants, and business districts.",
-  strovolos: "Strovolos is a major suburb just 10 minutes from Nicosia center, with excellent schools, parks, malls, and local amenities.",
-  lakatamia: "Lakatamia is a family-friendly suburb just 15 minutes from Nicosia center, with good schools and local shopping.",
-  engomi: "Engomi is an upscale area just 5-10 minutes from Nicosia center, close to the university and embassies.",
-  aglandjia: "Aglandjia offers peaceful residential living with parks, just 10 minutes to Nicosia city center.",
-  latsia: "Latsia is an affordable developing suburb just 15 minutes from Nicosia center with good infrastructure.",
+  nicosia:
+    "Nicosia city center puts you in the heart of the capital - walking distance to museums, shopping, restaurants, and business districts.",
+  lefkosia:
+    "Nicosia city center puts you in the heart of the capital - walking distance to museums, shopping, restaurants, and business districts.",
+  strovolos:
+    "Strovolos is a major suburb just 10 minutes from Nicosia center, with excellent schools, parks, malls, and local amenities.",
+  lakatamia:
+    "Lakatamia is a family-friendly suburb just 15 minutes from Nicosia center, with good schools and local shopping.",
+  engomi:
+    "Engomi is an upscale area just 5-10 minutes from Nicosia center, close to the university and embassies.",
+  aglandjia:
+    "Aglandjia offers peaceful residential living with parks, just 10 minutes to Nicosia city center.",
+  latsia:
+    "Latsia is an affordable developing suburb just 15 minutes from Nicosia center with good infrastructure.",
   geri: "Geri is a growing suburb just 15-20 minutes from Nicosia center offering modern housing at reasonable prices.",
   dali: "Dali is a village just 15 minutes from Nicosia center offering traditional living with easy highway access.",
-  tseri: "Tseri is a residential area just 10-15 minutes from Nicosia center with good local amenities.",
-  kokkinotrimithia: "Kokkinotrimithia is a village just 20 minutes from Nicosia center offering rural charm.",
-  mammari: "Mammari is a quiet village just 15-20 minutes from Nicosia center with traditional Cypriot living.",
-  deftera: "Deftera offers semi-rural living with countryside views, just 20 minutes to Nicosia center.",
-  anthoupoli: "Anthoupoli is a developing area just 10-15 minutes from Nicosia center offering affordable housing.",
-  makedonitissa: "Makedonitissa is a convenient area just 5-10 minutes from Nicosia center, close to the university and hospitals.",
+  tseri:
+    "Tseri is a residential area just 10-15 minutes from Nicosia center with good local amenities.",
+  kokkinotrimithia:
+    "Kokkinotrimithia is a village just 20 minutes from Nicosia center offering rural charm.",
+  mammari:
+    "Mammari is a quiet village just 15-20 minutes from Nicosia center with traditional Cypriot living.",
+  deftera:
+    "Deftera offers semi-rural living with countryside views, just 20 minutes to Nicosia center.",
+  anthoupoli:
+    "Anthoupoli is a developing area just 10-15 minutes from Nicosia center offering affordable housing.",
+  makedonitissa:
+    "Makedonitissa is a convenient area just 5-10 minutes from Nicosia center, close to the university and hospitals.",
 
   // Famagusta - focused on access to local amenities
-  paralimni: "Paralimni is the main town in the area, offering all amenities, shops, and restaurants, with Protaras beaches just 10 minutes away.",
-  "ayia napa": "Ayia Napa puts you in the heart of the action - walking distance to famous beaches, nightlife, restaurants, and the harbor.",
-  protaras: "Protaras offers beautiful beaches and family-friendly living, with restaurants and amenities within walking distance.",
-  deryneia: "Deryneia is a traditional village just 10-15 minutes from the beaches of Protaras and Ayia Napa.",
-  sotira: "Sotira offers village living with traditional character, just 10 minutes to the coastal resorts.",
-  frenaros: "Frenaros is a traditional village just 15 minutes to Ayia Napa and Protaras beaches.",
-  vrysoulles: "Vrysoulles is a quiet village just 10 minutes from the famous beaches of Protaras.",
-  liopetri: "Liopetri is a traditional fishing village just 15 minutes from the main coastal resorts, with local tavernas by the harbor.",
-  "cape greco": "Cape Greco offers stunning coastal scenery and nature trails, just 5 minutes to Ayia Napa and Protaras.",
-  kapparis: "Kapparis is a coastal area with beautiful beaches, just 10 minutes to Protaras and 20 minutes to Ayia Napa.",
-  pernera: "Pernera offers family-friendly beach living with restaurants and amenities within walking distance.",
-  "fig tree bay": "Fig Tree Bay puts you right on one of Cyprus's most famous beaches, with restaurants and amenities steps away.",
+  paralimni:
+    "Paralimni is the main town in the area, offering all amenities, shops, and restaurants, with Protaras beaches just 10 minutes away.",
+  "ayia napa":
+    "Ayia Napa puts you in the heart of the action - walking distance to famous beaches, nightlife, restaurants, and the harbor.",
+  protaras:
+    "Protaras offers beautiful beaches and family-friendly living, with restaurants and amenities within walking distance.",
+  deryneia:
+    "Deryneia is a traditional village just 10-15 minutes from the beaches of Protaras and Ayia Napa.",
+  sotira:
+    "Sotira offers village living with traditional character, just 10 minutes to the coastal resorts.",
+  frenaros:
+    "Frenaros is a traditional village just 15 minutes to Ayia Napa and Protaras beaches.",
+  vrysoulles:
+    "Vrysoulles is a quiet village just 10 minutes from the famous beaches of Protaras.",
+  liopetri:
+    "Liopetri is a traditional fishing village just 15 minutes from the main coastal resorts, with local tavernas by the harbor.",
+  "cape greco":
+    "Cape Greco offers stunning coastal scenery and nature trails, just 5 minutes to Ayia Napa and Protaras.",
+  kapparis:
+    "Kapparis is a coastal area with beautiful beaches, just 10 minutes to Protaras and 20 minutes to Ayia Napa.",
+  pernera:
+    "Pernera offers family-friendly beach living with restaurants and amenities within walking distance.",
+  "fig tree bay":
+    "Fig Tree Bay puts you right on one of Cyprus's most famous beaches, with restaurants and amenities steps away.",
 };
 
 // Opening adjectives for variety
@@ -181,7 +256,7 @@ function capitalize(str: string): string {
 function toTitleCase(str: string): string {
   return str
     .split(" ")
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
 }
 
@@ -192,7 +267,7 @@ function toTitleCase(str: string): string {
 function capitalizeLocation(location: string): string {
   return location
     .split(" ")
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
 }
 
@@ -204,15 +279,15 @@ function formatFeature(feature: string): string {
   // Common abbreviations that should be uppercase
   const abbreviations: Record<string, string> = {
     "a/c": "A/C",
-    "ac": "A/C",
-    "bbq": "BBQ",
-    "tv": "TV",
-    "dvd": "DVD",
-    "wifi": "WiFi",
+    ac: "A/C",
+    bbq: "BBQ",
+    tv: "TV",
+    dvd: "DVD",
+    wifi: "WiFi",
     "wi-fi": "WiFi",
-    "jacuzzi": "Jacuzzi",
+    jacuzzi: "Jacuzzi",
     "en-suite": "En-Suite",
-    "ensuite": "En-Suite",
+    ensuite: "En-Suite",
   };
 
   const lower = feature.toLowerCase().trim();
@@ -225,7 +300,7 @@ function formatFeature(feature: string): string {
   // Otherwise capitalize each word, but check for abbreviations within
   return feature
     .split(" ")
-    .map(word => {
+    .map((word) => {
       const wordLower = word.toLowerCase();
       if (abbreviations[wordLower]) {
         return abbreviations[wordLower];
@@ -291,18 +366,27 @@ function categorizeFeatures(details: PropertyDetails): {
 
   // Check if underfloor heating is in features list
   const hasUnderfloorHeating = details.features?.some(
-    f => f.toLowerCase().includes("underfloor") || f.toLowerCase().includes("floor heating")
+    (f) =>
+      f.toLowerCase().includes("underfloor") ||
+      f.toLowerCase().includes("floor heating")
   );
 
   // Check if "provision for central heating" is in features (distinct from installed central heating)
   const hasProvisionForCentralHeating = details.features?.some(
-    f => f.toLowerCase().includes("provision") && f.toLowerCase().includes("heating")
+    (f) =>
+      f.toLowerCase().includes("provision") &&
+      f.toLowerCase().includes("heating")
   );
 
   // Boolean features - categorized
   if (details.airConditioning) indoor.push("Air Conditioning");
   // ONLY add central heating if underfloor heating is NOT present AND it's not just a provision
-  if (details.centralHeating && !hasUnderfloorHeating && !hasProvisionForCentralHeating) indoor.push("Central Heating");
+  if (
+    details.centralHeating &&
+    !hasUnderfloorHeating &&
+    !hasProvisionForCentralHeating
+  )
+    indoor.push("Central Heating");
   if (details.storage) indoor.push("Storage Room");
 
   // Pool handling: poolType takes precedence over boolean pool flag
@@ -325,9 +409,12 @@ function categorizeFeatures(details: PropertyDetails): {
   if (details.parking) {
     // Map parking types to proper Zyprus terminology
     const parkingType = details.parking.toLowerCase();
-    const parkingLabel = parkingType === "open" ? "Uncovered Parking"
-      : parkingType === "none" ? null
-      : formatFeature(details.parking + " Parking");
+    const parkingLabel =
+      parkingType === "open"
+        ? "Uncovered Parking"
+        : parkingType === "none"
+          ? null
+          : formatFeature(details.parking + " Parking");
     if (parkingLabel) outdoor.push(parkingLabel);
   }
 
@@ -337,51 +424,133 @@ function categorizeFeatures(details: PropertyDetails): {
   // Categorize custom features
   if (details.features && details.features.length > 0) {
     const outdoorKeywords = [
-      "pool", "swimming", "garden", "landscaped", "terrace", "balcony", "veranda",
-      "parking", "garage", "carport", "bbq", "patio", "deck", "pergola",
-      "outdoor", "solar", "panels", "roof"
+      "pool",
+      "swimming",
+      "garden",
+      "landscaped",
+      "terrace",
+      "balcony",
+      "veranda",
+      "parking",
+      "garage",
+      "carport",
+      "bbq",
+      "patio",
+      "deck",
+      "pergola",
+      "outdoor",
+      "solar",
+      "panels",
+      "roof",
     ];
-    const viewKeywords = ["view", "sea", "mountain", "city", "panoramic", "unobstructed"];
+    const viewKeywords = [
+      "view",
+      "sea",
+      "mountain",
+      "city",
+      "panoramic",
+      "unobstructed",
+    ];
     const indoorKeywords = [
-      "heating", "cooling", "a/c", "ac", "air", "fireplace", "storage", "storeroom",
-      "basement", "attic", "laundry", "utility", "pantry", "wine",
-      "gym", "sauna", "jacuzzi", "ensuite", "en-suite", "fitted",
-      "marble", "parquet", "floor", "ceiling", "double glazing",
-      "security", "alarm", "intercom", "elevator", "lift",
-      "furnished", "unfurnished", "appliances", "electrical", "white goods",
-      "guest toilet", "guest wc", "wc", "video", "entry system", "door entry", "entry phone",
-      "water heater", "boiler", "hot water", "pressurised", "pressurized",
-      "open plan", "open-plan", "master bed", "master bedroom",
-      "part furnished", "partially", "semi furnished",
-      "electric shutters", "shutters", "blinds"
+      "heating",
+      "cooling",
+      "a/c",
+      "ac",
+      "air",
+      "fireplace",
+      "storage",
+      "storeroom",
+      "basement",
+      "attic",
+      "laundry",
+      "utility",
+      "pantry",
+      "wine",
+      "gym",
+      "sauna",
+      "jacuzzi",
+      "ensuite",
+      "en-suite",
+      "fitted",
+      "marble",
+      "parquet",
+      "floor",
+      "ceiling",
+      "double glazing",
+      "security",
+      "alarm",
+      "intercom",
+      "elevator",
+      "lift",
+      "furnished",
+      "unfurnished",
+      "appliances",
+      "electrical",
+      "white goods",
+      "guest toilet",
+      "guest wc",
+      "wc",
+      "video",
+      "entry system",
+      "door entry",
+      "entry phone",
+      "water heater",
+      "boiler",
+      "hot water",
+      "pressurised",
+      "pressurized",
+      "open plan",
+      "open-plan",
+      "master bed",
+      "master bedroom",
+      "part furnished",
+      "partially",
+      "semi furnished",
+      "electric shutters",
+      "shutters",
+      "blinds",
     ];
 
     for (const feature of details.features) {
       const lower = feature.toLowerCase().trim();
 
       // NEVER include energy class in description — it goes to dedicated field_energy_class only
-      if (lower.startsWith("energy class") || lower.startsWith("energy rating") || /^energy\s+[a-d]$/i.test(lower)) {
+      if (
+        lower.startsWith("energy class") ||
+        lower.startsWith("energy rating") ||
+        /^energy\s+[a-d]$/i.test(lower)
+      ) {
         continue;
       }
 
       // Skip guest W/C features — already shown in the bathrooms line
-      if (lower.includes("guest w/c") || lower.includes("guest wc") ||
-          (lower.includes("guest toilet") && !lower.includes("master"))) {
+      if (
+        lower.includes("guest w/c") ||
+        lower.includes("guest wc") ||
+        (lower.includes("guest toilet") && !lower.includes("master"))
+      ) {
         continue;
       }
 
       // Skip pool features — already handled by poolType/pool boolean above (prevents duplication)
-      if (lower.includes("swimming pool") || lower.includes("private pool") ||
-          lower.includes("communal pool") || lower === "pool" ||
-          lower.includes("provisions for pool") || lower.includes("provisions for swimming")) {
+      if (
+        lower.includes("swimming pool") ||
+        lower.includes("private pool") ||
+        lower.includes("communal pool") ||
+        lower === "pool" ||
+        lower.includes("provisions for pool") ||
+        lower.includes("provisions for swimming")
+      ) {
         continue;
       }
 
       // Filter out generic/vague features that don't add value to the listing
       const isGenericFeature = [
-        "provisions for a/c", "provision for a/c", "provisions for ac",
-        "new condition",                  // Redundant with isNewBuild
-      ].some(gf => lower === gf || lower.includes(gf));
+        "provisions for a/c",
+        "provision for a/c",
+        "provisions for ac",
+        "new condition", // Redundant with isNewBuild
+      ].some((gf) => lower === gf || lower.includes(gf));
       if (isGenericFeature) continue;
 
       let formatted = formatFeature(feature);
@@ -398,7 +567,8 @@ function categorizeFeatures(details: PropertyDetails): {
 
       // Check if already added via boolean flags
       const alreadyAdded = [...indoor, ...outdoor, ...views].some(
-        (f) => f.toLowerCase().includes(lower) || lower.includes(f.toLowerCase())
+        (f) =>
+          f.toLowerCase().includes(lower) || lower.includes(f.toLowerCase())
       );
       if (alreadyAdded) continue;
 
@@ -422,11 +592,12 @@ function categorizeFeatures(details: PropertyDetails): {
   const combinedViews: string[] = [];
   if (views.length > 1) {
     // Extract view type names (strip " View" suffix for combining)
-    const viewNames = views.map(v => v.replace(/\s*view\s*$/i, "").trim());
+    const viewNames = views.map((v) => v.replace(/\s*view\s*$/i, "").trim());
     // Join with commas and "and" before the last one
-    const combined = viewNames.length === 2
-      ? `${viewNames[0]} and ${viewNames[1]} View`
-      : `${viewNames.slice(0, -1).join(", ")} and ${viewNames[viewNames.length - 1]} View`;
+    const combined =
+      viewNames.length === 2
+        ? `${viewNames[0]} and ${viewNames[1]} View`
+        : `${viewNames.slice(0, -1).join(", ")} and ${viewNames[viewNames.length - 1]} View`;
     combinedViews.push(combined);
   } else {
     combinedViews.push(...views);
@@ -475,7 +646,7 @@ const BOTTOM_FEATURES = [
   "gated property",
   "gated community",
   "landscaped garden",
-  "landscaped"
+  "landscaped",
 ];
 
 /**
@@ -483,7 +654,7 @@ const BOTTOM_FEATURES = [
  */
 function isBottomFeature(feature: string): boolean {
   const lower = feature.toLowerCase();
-  return BOTTOM_FEATURES.some(bf => lower.includes(bf));
+  return BOTTOM_FEATURES.some((bf) => lower.includes(bf));
 }
 
 /**
@@ -555,10 +726,16 @@ function sortFeaturesByImportance(features: string[]): string[] {
     let bPriority = priorityKeywords.length;
 
     for (let i = 0; i < priorityKeywords.length; i++) {
-      if (aLower.includes(priorityKeywords[i]) && aPriority === priorityKeywords.length) {
+      if (
+        aLower.includes(priorityKeywords[i]) &&
+        aPriority === priorityKeywords.length
+      ) {
         aPriority = i;
       }
-      if (bLower.includes(priorityKeywords[i]) && bPriority === priorityKeywords.length) {
+      if (
+        bLower.includes(priorityKeywords[i]) &&
+        bPriority === priorityKeywords.length
+      ) {
         bPriority = i;
       }
     }
@@ -581,9 +758,11 @@ export function generateDescription(details: PropertyDetails): string {
   if (extraRooms > 0) {
     bedroomText = `${details.bedrooms}+${extraRooms} Bedroom`;
   } else {
-    bedroomText = details.bedrooms === 1 ? "1 Bedroom" : `${details.bedrooms} Bedroom`;
+    bedroomText =
+      details.bedrooms === 1 ? "1 Bedroom" : `${details.bedrooms} Bedroom`;
   }
-  const listingTypeText = details.listingType === "rent" ? "For Rent" : "For Sale";
+  const listingTypeText =
+    details.listingType === "rent" ? "For Rent" : "For Sale";
 
   const lines: string[] = [];
   const isBuilding = details.type.toLowerCase().includes("building");
@@ -594,7 +773,8 @@ export function generateDescription(details: PropertyDetails): string {
 
   if (isBuilding) {
     // Building headline: [Key Ready] Residential Building For Sale in Location [with No VAT!/with Separate Title Deeds]
-    const isKeyReady = details.isNewBuild ||
+    const isKeyReady =
+      details.isNewBuild ||
       details.condition?.toLowerCase()?.includes("key ready") ||
       details.condition?.toLowerCase()?.includes("brand new");
 
@@ -604,13 +784,23 @@ export function generateDescription(details: PropertyDetails): string {
     // VAT suffix takes priority for new buildings
     if (details.priceModifier === "no_vat" && details.listingType === "sale") {
       headline += " with No VAT!";
-    } else if (!isKeyReady && details.titleDeedStatus && details.listingType === "sale"
-      && details.titleDeedStatus !== "do_not_display" && details.titleDeedStatus !== "unknown") {
+    } else if (
+      !isKeyReady &&
+      details.titleDeedStatus &&
+      details.listingType === "sale" &&
+      details.titleDeedStatus !== "do_not_display" &&
+      details.titleDeedStatus !== "unknown"
+    ) {
       // Older buildings: show title deed status (use "Separate Title Deeds" for buildings)
-      if (details.titleDeedStatus === "separate" || details.titleDeedStatus === "full") {
+      if (
+        details.titleDeedStatus === "separate" ||
+        details.titleDeedStatus === "full"
+      ) {
         headline += " with Separate Title Deeds";
       } else {
-        const titleDeedFormatted = formatTitleDeedStatus(details.titleDeedStatus);
+        const titleDeedFormatted = formatTitleDeedStatus(
+          details.titleDeedStatus
+        );
         if (titleDeedFormatted) {
           headline += ` with ${titleDeedFormatted}`;
         }
@@ -619,7 +809,11 @@ export function generateDescription(details: PropertyDetails): string {
   } else {
     // Standard headline: "Spacious 5+1 Bedroom Detached House For Sale In Moutagiaka, Limassol With Title Deeds"
     headline = `${adjective} ${bedroomText} ${propertyType} ${listingTypeText} In ${location}`;
-    if (details.titleDeedStatus && details.listingType === "sale" && details.titleDeedStatus !== "do_not_display") {
+    if (
+      details.titleDeedStatus &&
+      details.listingType === "sale" &&
+      details.titleDeedStatus !== "do_not_display"
+    ) {
       const titleDeedFormatted = formatTitleDeedStatus(details.titleDeedStatus);
       if (titleDeedFormatted) {
         // Long title deed text (e.g., "Title Deeds In the Process of Being Issued") goes on separate line
@@ -644,7 +838,10 @@ export function generateDescription(details: PropertyDetails): string {
 
   // 2. LOCATION SENTENCES (2-4 short sentences)
   // Use user-provided areaDescription if available, otherwise fall back to generic
-  const locationSentences = getLocationSentences(details.location, details.areaDescription);
+  const locationSentences = getLocationSentences(
+    details.location,
+    details.areaDescription
+  );
   for (const sentence of locationSentences) {
     lines.push(sentence);
   }
@@ -693,18 +890,23 @@ export function generateDescription(details: PropertyDetails): string {
 
   // 5. BASIC SPECS (bedrooms, bathrooms, areas)
   // If there's a veranda, rename "Covered Area" to "Net Indoor Area"
-  const hasVeranda = (details.coveredVeranda && details.coveredVeranda > 0) ||
-                      (details.uncoveredVeranda && details.uncoveredVeranda > 0);
+  const hasVeranda =
+    (details.coveredVeranda && details.coveredVeranda > 0) ||
+    (details.uncoveredVeranda && details.uncoveredVeranda > 0);
   const areaLabel = hasVeranda ? "Net Indoor Area" : "Covered Area";
 
   if (isBuilding) {
     // BUILDINGS: Show total areas then unit breakdown (skip bedroom/bathroom lines)
     lines.push(`${formatArea(details.coveredArea)}m² Total ${areaLabel}`);
     if (details.coveredVeranda) {
-      lines.push(`${formatArea(details.coveredVeranda!)}m² Total Covered Veranda`);
+      lines.push(
+        `${formatArea(details.coveredVeranda!)}m² Total Covered Veranda`
+      );
     }
     if (details.uncoveredVeranda) {
-      lines.push(`${formatArea(details.uncoveredVeranda!)}m² Total Uncovered Veranda`);
+      lines.push(
+        `${formatArea(details.uncoveredVeranda!)}m² Total Uncovered Veranda`
+      );
     }
     if (details.plotSize) {
       lines.push(`${formatArea(details.plotSize!)}m² Plot Size`);
@@ -727,10 +929,15 @@ export function generateDescription(details: PropertyDetails): string {
     if (details.floor) {
       const floorLower = details.floor.toLowerCase().trim();
       const typeLower = details.type.toLowerCase();
-      const isMultiStoryType = typeLower.includes("detached") || typeLower.includes("villa")
-        || typeLower.includes("house") || typeLower.includes("bungalow")
-        || typeLower.includes("townhouse") || typeLower.includes("maisonette");
-      const isGroundFloor = floorLower === "ground" || floorLower === "ground floor";
+      const isMultiStoryType =
+        typeLower.includes("detached") ||
+        typeLower.includes("villa") ||
+        typeLower.includes("house") ||
+        typeLower.includes("bungalow") ||
+        typeLower.includes("townhouse") ||
+        typeLower.includes("maisonette");
+      const isGroundFloor =
+        floorLower === "ground" || floorLower === "ground floor";
 
       // Only suppress ground floor for multi-story types; show specific floors like "1st" or "2nd" for apartments
       if (!(isMultiStoryType && isGroundFloor)) {
@@ -749,7 +956,10 @@ export function generateDescription(details: PropertyDetails): string {
           floorDisplay = toTitleCase(details.floor) + " Floor";
         } else {
           // "3rd" → "3rd Floor", "top" → "Top Floor"
-          floorDisplay = details.floor.charAt(0).toUpperCase() + details.floor.slice(1) + " Floor";
+          floorDisplay =
+            details.floor.charAt(0).toUpperCase() +
+            details.floor.slice(1) +
+            " Floor";
         }
 
         lines.push(floorDisplay);
@@ -759,30 +969,48 @@ export function generateDescription(details: PropertyDetails): string {
     // Bedrooms — show basement/roof rooms separately if provided
     // e.g., "5 Bedrooms + 1 Basement Bedroom" or "3 Bedrooms + 1 Roof Garden Room"
     const bedroomParts: string[] = [];
-    bedroomParts.push(`${details.bedrooms} ${details.bedrooms === 1 ? "Bedroom" : "Bedrooms"}`);
+    bedroomParts.push(
+      `${details.bedrooms} ${details.bedrooms === 1 ? "Bedroom" : "Bedrooms"}`
+    );
     if (details.basementRooms && details.basementRooms > 0) {
-      bedroomParts.push(details.basementRooms === 1 ? "1 Basement Bedroom" : `${details.basementRooms} Basement Bedrooms`);
+      bedroomParts.push(
+        details.basementRooms === 1
+          ? "1 Basement Bedroom"
+          : `${details.basementRooms} Basement Bedrooms`
+      );
     }
     if (details.roofRooms && details.roofRooms > 0) {
-      bedroomParts.push(details.roofRooms === 1 ? "1 Roof Garden Room" : `${details.roofRooms} Roof Garden Rooms`);
+      bedroomParts.push(
+        details.roofRooms === 1
+          ? "1 Roof Garden Room"
+          : `${details.roofRooms} Roof Garden Rooms`
+      );
     }
     lines.push(bedroomParts.join(" + "));
     // Bathrooms — detect guest W/C in features for precise display
     if (details.bathrooms && details.bathrooms > 0) {
       // Check if features mention guest W/C (agent distinguished ensuites from guest toilet)
-      const guestWcFeature = details.features?.find(f => {
+      const guestWcFeature = details.features?.find((f) => {
         const lower = f.toLowerCase();
-        return lower.includes("guest w/c") || lower.includes("guest wc") ||
-               (lower.includes("guest toilet") && !lower.includes("master"));
+        return (
+          lower.includes("guest w/c") ||
+          lower.includes("guest wc") ||
+          (lower.includes("guest toilet") && !lower.includes("master"))
+        );
       });
       if (guestWcFeature) {
         // Parse count from feature if present (e.g., "2 guest w/c"), default to 1
         const countMatch = guestWcFeature.match(/^(\d+)\s/);
-        const guestCount = countMatch ? parseInt(countMatch[1]) : 1;
-        const ensuiteLabel = details.bathrooms === 1 ? "En-Suite Bathroom" : "En-Suite Bathrooms";
-        lines.push(`${details.bathrooms} ${ensuiteLabel} + ${guestCount} Guest W/C`);
+        const guestCount = countMatch ? Number.parseInt(countMatch[1]) : 1;
+        const ensuiteLabel =
+          details.bathrooms === 1 ? "En-Suite Bathroom" : "En-Suite Bathrooms";
+        lines.push(
+          `${details.bathrooms} ${ensuiteLabel} + ${guestCount} Guest W/C`
+        );
       } else {
-        lines.push(`${details.bathrooms} ${details.bathrooms === 1 ? "Bathroom" : "Bathrooms"}`);
+        lines.push(
+          `${details.bathrooms} ${details.bathrooms === 1 ? "Bathroom" : "Bathrooms"}`
+        );
       }
     }
 
@@ -794,10 +1022,17 @@ export function generateDescription(details: PropertyDetails): string {
       // For penthouses or when features mention roof garden, display as "Roof Garden" instead of "Uncovered Veranda"
       const isPenthouse = details.type.toLowerCase().includes("penthouse");
       const hasRoofGardenFeature = details.features?.some(
-        f => f.toLowerCase().includes("roof garden") || f.toLowerCase().includes("roof terrace")
+        (f) =>
+          f.toLowerCase().includes("roof garden") ||
+          f.toLowerCase().includes("roof terrace")
       );
-      const uncoveredLabel = (isPenthouse || hasRoofGardenFeature) ? "Roof Garden" : "Uncovered Veranda";
-      lines.push(`${formatArea(details.uncoveredVeranda!)}m² ${uncoveredLabel}`);
+      const uncoveredLabel =
+        isPenthouse || hasRoofGardenFeature
+          ? "Roof Garden"
+          : "Uncovered Veranda";
+      lines.push(
+        `${formatArea(details.uncoveredVeranda!)}m² ${uncoveredLabel}`
+      );
     }
     if (details.plotSize) {
       lines.push(`${formatArea(details.plotSize!)}m² Plot Size`);
@@ -805,29 +1040,42 @@ export function generateDescription(details: PropertyDetails): string {
 
     // Orientation (compass facing direction)
     if (details.orientation) {
-      const orientationCapitalized = details.orientation.charAt(0).toUpperCase() + details.orientation.slice(1);
+      const orientationCapitalized =
+        details.orientation.charAt(0).toUpperCase() +
+        details.orientation.slice(1);
       lines.push(`${orientationCapitalized} Facing`);
     }
   }
 
   // 6. REMAINING FEATURES with room suggestions injected after parking
-  const regularFeatures = remainingFeatures.filter(f => !isBottomFeature(f));
-  const bottomFeatures = remainingFeatures.filter(f => isBottomFeature(f));
+  const regularFeatures = remainingFeatures.filter((f) => !isBottomFeature(f));
+  const bottomFeatures = remainingFeatures.filter((f) => isBottomFeature(f));
 
   // Build room suggestions for large properties (4+ total bedrooms)
-  const totalBeds = details.bedrooms + (details.basementRooms || 0) + (details.roofRooms || 0);
+  const totalBeds =
+    details.bedrooms + (details.basementRooms || 0) + (details.roofRooms || 0);
   const roomSuggestionItems: string[] = [];
   if (totalBeds >= 4) {
     const typeLower = details.type.toLowerCase();
-    const isHouseType = (typeLower.includes("house") || typeLower.includes("villa")
-      || typeLower.includes("bungalow") || typeLower.includes("detached")
-      || typeLower.includes("townhouse"))
-      && !typeLower.includes("building");
+    const isHouseType =
+      (typeLower.includes("house") ||
+        typeLower.includes("villa") ||
+        typeLower.includes("bungalow") ||
+        typeLower.includes("detached") ||
+        typeLower.includes("townhouse")) &&
+      !typeLower.includes("building");
 
     if (isHouseType) {
-      const allFeaturesLower = sortedFeatures.map(f => f.toLowerCase()).join(" ");
-      if (!allFeaturesLower.includes("office") && !allFeaturesLower.includes("playroom")) roomSuggestionItems.push("Office/Playroom");
-      if (!allFeaturesLower.includes("maid")) roomSuggestionItems.push("Maid's Room");
+      const allFeaturesLower = sortedFeatures
+        .map((f) => f.toLowerCase())
+        .join(" ");
+      if (
+        !allFeaturesLower.includes("office") &&
+        !allFeaturesLower.includes("playroom")
+      )
+        roomSuggestionItems.push("Office/Playroom");
+      if (!allFeaturesLower.includes("maid"))
+        roomSuggestionItems.push("Maid's Room");
     }
   }
 
@@ -839,11 +1087,17 @@ export function generateDescription(details: PropertyDetails): string {
     // Insert room suggestions immediately after the last parking feature
     if (!roomSuggestionsInserted && roomSuggestionItems.length > 0) {
       const featureLower = feature.toLowerCase();
-      const isParkingFeature = featureLower.includes("parking") || featureLower.includes("garage") || featureLower.includes("carport");
+      const isParkingFeature =
+        featureLower.includes("parking") ||
+        featureLower.includes("garage") ||
+        featureLower.includes("carport");
       // Check if next feature is NOT parking (i.e., we're past the parking block)
       const featureIdx = regularFeatures.indexOf(feature);
       const nextFeature = regularFeatures[featureIdx + 1];
-      const nextIsParkingToo = nextFeature && (nextFeature.toLowerCase().includes("parking") || nextFeature.toLowerCase().includes("garage"));
+      const nextIsParkingToo =
+        nextFeature &&
+        (nextFeature.toLowerCase().includes("parking") ||
+          nextFeature.toLowerCase().includes("garage"));
 
       if (isParkingFeature && !nextIsParkingToo) {
         for (const room of roomSuggestionItems) {
@@ -900,23 +1154,31 @@ export function generateDescription(details: PropertyDetails): string {
  * - Skip generic intro lines like "Located in the central area of X"
  * - Start with the useful content (proximity, amenities, access)
  */
-function parseUserAreaDescription(areaDescription: string, location?: string): string[] {
+function parseUserAreaDescription(
+  areaDescription: string,
+  location?: string
+): string[] {
   const sentences: string[] = [];
 
   // Extract location parts for deduplication (e.g., "Zakaki, Limassol" → ["zakaki", "limassol"])
   const locationParts = location
-    ? location.toLowerCase().split(/[,\s]+/).filter(p => p.length > 2)
+    ? location
+        .toLowerCase()
+        .split(/[,\s]+/)
+        .filter((p) => p.length > 2)
     : [];
 
   // Split by newlines, bullet points, or sentence-ending punctuation
   const parts = areaDescription
-    .split(/[\n\r]+|[•\-\*]\s*|(?<=[.!])\s+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 10); // Filter out very short fragments
+    .split(/[\n\r]+|[•\-*]\s*|(?<=[.!])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 10); // Filter out very short fragments
 
   for (const part of parts) {
     // Skip parts that are just feature lists (handled separately)
-    const isFeatureList = /^\d+\s*(bedroom|bathroom|m²|sqm|parking)/i.test(part);
+    const isFeatureList = /^\d+\s*(bedroom|bathroom|m²|sqm|parking)/i.test(
+      part
+    );
     if (isFeatureList) continue;
 
     // Skip price mentions
@@ -925,35 +1187,46 @@ function parseUserAreaDescription(areaDescription: string, location?: string): s
     // Skip generic intro lines that repeat the location name
     // Catches: "Located in the Zakaki area of Limassol, this property..."
     // Catches: "Situated in the central residential area of..."
-    const isGenericIntro = /^(located|situated)\s+(in|at|on)\s+(the|a)\s+/i.test(part);
+    const isGenericIntro =
+      /^(located|situated)\s+(in|at|on)\s+(the|a)\s+/i.test(part);
     if (isGenericIntro) continue;
 
     // Skip sentences that mention "this property is" or similar filler
-    const isPropertyFiller = /this\s+(property|building|apartment|villa|house)\s+(is|offers|provides|represents|features)/i.test(part);
+    const isPropertyFiller =
+      /this\s+(property|building|apartment|villa|house)\s+(is|offers|provides|represents|features)/i.test(
+        part
+      );
     if (isPropertyFiller) continue;
 
     // Skip sentences that just name the location area without adding useful info
     // e.g., "Zakaki is a developing area in Limassol" — this is already in the headline
     if (locationParts.length > 0) {
       const partLower = part.toLowerCase();
-      const startsWithLocation = locationParts.some(lp =>
-        partLower.startsWith(lp + " is") || partLower.startsWith(lp + ",")
+      const startsWithLocation = locationParts.some(
+        (lp) =>
+          partLower.startsWith(lp + " is") || partLower.startsWith(lp + ",")
       );
-      const isJustLocationDescription = startsWithLocation &&
-        /\b(is a|is an|is the|area|neighborhood|neighbourhood|district|suburb)\b/i.test(part);
+      const isJustLocationDescription =
+        startsWithLocation &&
+        /\b(is a|is an|is the|area|neighborhood|neighbourhood|district|suburb)\b/i.test(
+          part
+        );
       if (isJustLocationDescription) continue;
     }
 
     // Clean up and format as a proper sentence
     let sentence = part
-      .replace(/[.!]*$/, '') // Remove trailing punctuation
+      .replace(/[.!]*$/, "") // Remove trailing punctuation
       .trim();
 
     // Truncate long sentences to keep description mobile-friendly
     if (sentence.length > 120) {
       // Cut at last comma or space before 120 chars
-      const cutPoint = sentence.lastIndexOf(',', 120);
-      sentence = cutPoint > 60 ? sentence.substring(0, cutPoint) : sentence.substring(0, 120);
+      const cutPoint = sentence.lastIndexOf(",", 120);
+      sentence =
+        cutPoint > 60
+          ? sentence.substring(0, cutPoint)
+          : sentence.substring(0, 120);
       sentence = sentence.trim();
     }
 
@@ -965,8 +1238,8 @@ function parseUserAreaDescription(areaDescription: string, location?: string): s
       sentence = sentence.charAt(0).toUpperCase() + sentence.slice(1);
 
       // ALWAYS use exclamation mark — no periods (per Lauren feedback)
-      if (!sentence.endsWith('!')) {
-        sentence += '!';
+      if (!sentence.endsWith("!")) {
+        sentence += "!";
       }
 
       sentences.push(sentence);
@@ -982,7 +1255,10 @@ function parseUserAreaDescription(areaDescription: string, location?: string): s
  * fall back to static generic location sentences if none provided.
  * Descriptions should ALWAYS have at least one location line after the headline.
  */
-function getLocationSentences(location: string, areaDescription?: string): string[] {
+function getLocationSentences(
+  location: string,
+  areaDescription?: string
+): string[] {
   // Priority 1: User/AI-provided area description
   if (areaDescription && areaDescription.trim().length > 10) {
     const userSentences = parseUserAreaDescription(areaDescription, location);
@@ -1005,151 +1281,151 @@ function getGenericLocationSentences(location: string): string[] {
   const locationData: Record<string, string[]> = {
     tala: [
       "Located in a peaceful and picturesque hillside community with panoramic views",
-      "Many amenities are within a short drive, including local shops and charming village squares!"
+      "Many amenities are within a short drive, including local shops and charming village squares!",
     ],
     peyia: [
       "Located in a peaceful and attractive hillside community",
-      "Many amenities are within walking distance, and the famous sandy beaches are only minutes away!"
+      "Many amenities are within walking distance, and the famous sandy beaches are only minutes away!",
     ],
     "coral bay": [
       "Located in a sought-after coastal community with beautiful sandy beaches within walking distance",
-      "Many amenities are nearby, including restaurants, shops and leisure facilities!"
+      "Many amenities are nearby, including restaurants, shops and leisure facilities!",
     ],
     chloraka: [
       "Located in a peaceful coastal community with easy access to the seafront",
-      "Many amenities are within walking distance, including shops, schools and local services!"
+      "Many amenities are within walking distance, including shops, schools and local services!",
     ],
     "kato paphos": [
       "Located in the heart of Kato Paphos within walking distance of the harbor and the seafront",
-      "Many amenities are nearby, including restaurants, shops and historical landmarks!"
+      "Many amenities are nearby, including restaurants, shops and historical landmarks!",
     ],
     universal: [
       "Located in a prestigious and well-connected area with a leading shopping mall nearby",
-      "Many amenities are within walking distance, and the town center and beaches are only minutes away!"
+      "Many amenities are within walking distance, and the town center and beaches are only minutes away!",
     ],
     yeroskipou: [
       "Located in a peaceful and family-friendly community",
-      "Many amenities are within walking distance, including schools and local shops. The beaches are only a short drive away!"
+      "Many amenities are within walking distance, including schools and local shops. The beaches are only a short drive away!",
     ],
     geroskipou: [
       "Located in a peaceful and family-friendly community",
-      "Many amenities are within walking distance, including schools and local shops. The beaches are only a short drive away!"
+      "Many amenities are within walking distance, including schools and local shops. The beaches are only a short drive away!",
     ],
     neapoli: [
       "Located within walking distance of Makariou Avenue and many amenities including a leading supermarket",
-      "In addition, it is only minutes from the seafront and the city center!"
+      "In addition, it is only minutes from the seafront and the city center!",
     ],
     neapolis: [
       "Located within walking distance of Makariou Avenue and many amenities including a leading supermarket",
-      "In addition, it is only minutes from the seafront and the city center!"
+      "In addition, it is only minutes from the seafront and the city center!",
     ],
     limassol: [
       "Located in a vibrant and well-connected area of Limassol",
-      "Many amenities are within walking distance, including shops and restaurants. The seafront and city center are only minutes away!"
+      "Many amenities are within walking distance, including shops and restaurants. The seafront and city center are only minutes away!",
     ],
     moutagiaka: [
       "Located in a peaceful and attractive coastal neighborhood",
-      "The beach and many amenities are within walking distance, with easy access to the highway!"
+      "The beach and many amenities are within walking distance, with easy access to the highway!",
     ],
     mouttagiaka: [
       "Located in a peaceful and attractive coastal neighborhood",
-      "The beach and many amenities are within walking distance, with easy access to the highway!"
+      "The beach and many amenities are within walking distance, with easy access to the highway!",
     ],
     "potamos germasogeia": [
       "Located in a popular and vibrant area within walking distance of the beach and the promenade",
-      "Many amenities are nearby, including restaurants, shops and leisure facilities!"
+      "Many amenities are nearby, including restaurants, shops and leisure facilities!",
     ],
     germasogeia: [
       "Located in a sought-after residential area with the beach only minutes away",
-      "Many amenities are within walking distance, with easy access to the highway!"
+      "Many amenities are within walking distance, with easy access to the highway!",
     ],
     "agios tychonas": [
       "Located in a peaceful and prestigious coastal area with stunning sea views",
-      "The beach and many amenities are within a short drive, offering a tranquil lifestyle!"
+      "The beach and many amenities are within a short drive, offering a tranquil lifestyle!",
     ],
     "mesa geitonia": [
       "Located in a well-established residential area with excellent schools and parks nearby",
-      "Many amenities are within walking distance, with easy access to all main roads!"
+      "Many amenities are within walking distance, with easy access to all main roads!",
     ],
     larnaca: [
       "Located in a well-connected area of Larnaca with the beautiful seafront promenade nearby",
-      "Many amenities are within walking distance, and the airport is only minutes away!"
+      "Many amenities are within walking distance, and the airport is only minutes away!",
     ],
     oroklini: [
       "Located in a peaceful and attractive community near the beach",
-      "Many amenities are within walking distance, with easy access to the highway!"
+      "Many amenities are within walking distance, with easy access to the highway!",
     ],
     pervolia: [
       "Located in a charming coastal community with beautiful beaches nearby",
-      "A peaceful environment with easy access to the airport and all main roads!"
+      "A peaceful environment with easy access to the airport and all main roads!",
     ],
     paralimni: [
       "Located in a thriving and well-connected community with many amenities within walking distance",
-      "The stunning beaches of the region are only a short drive away!"
+      "The stunning beaches of the region are only a short drive away!",
     ],
     "ayia napa": [
       "Located in a vibrant coastal resort area with stunning beaches within walking distance",
-      "Many amenities are nearby, including restaurants, shops and entertainment!"
+      "Many amenities are nearby, including restaurants, shops and entertainment!",
     ],
     protaras: [
       "Located in a peaceful and family-friendly coastal area with golden sandy beaches nearby",
-      "Many amenities are within walking distance, including restaurants and shops!"
+      "Many amenities are within walking distance, including restaurants and shops!",
     ],
     nicosia: [
       "Located in a well-connected area of the capital with many amenities within walking distance",
-      "Close to business centers, shops and cultural attractions!"
+      "Close to business centers, shops and cultural attractions!",
     ],
     strovolos: [
       "Located in a popular and well-connected suburban area",
-      "Many amenities are within walking distance, including shopping centers, schools and parks!"
+      "Many amenities are within walking distance, including shopping centers, schools and parks!",
     ],
     pyla: [
       "Located in a peaceful and attractive community with a university campus nearby",
-      "Many amenities are within walking distance, and the beach is only a short drive away!"
+      "Many amenities are within walking distance, and the beach is only a short drive away!",
     ],
     dekelia: [
       "Located in a peaceful coastal area with easy access to the beach",
-      "Many amenities are nearby, with Larnaca city center only a short drive away!"
+      "Many amenities are nearby, with Larnaca city center only a short drive away!",
     ],
     livadia: [
       "Located in a rapidly growing residential area close to the city center",
-      "Many amenities are within walking distance, including schools, shops and parks!"
+      "Many amenities are within walking distance, including schools, shops and parks!",
     ],
     kiti: [
       "Located in a charming and peaceful community near the coast",
-      "Many amenities are nearby, with the airport and Larnaca city center only minutes away!"
+      "Many amenities are nearby, with the airport and Larnaca city center only minutes away!",
     ],
     kamares: [
       "Located in a sought-after hillside community with stunning panoramic views",
-      "Many amenities are within a short drive, including shops and the town center!"
+      "Many amenities are within a short drive, including shops and the town center!",
     ],
     "mesa chorio": [
       "Located in a peaceful hillside village with stunning views overlooking Paphos",
-      "Many amenities are within a short drive, and the town center is only 10 minutes away!"
+      "Many amenities are within a short drive, and the town center is only 10 minutes away!",
     ],
     tremithousa: [
       "Located in a quiet hillside village with beautiful countryside views",
-      "Just a short drive to Paphos town center, the highway and local amenities!"
+      "Just a short drive to Paphos town center, the highway and local amenities!",
     ],
     emba: [
       "Located in a peaceful and attractive residential area with mountain views",
-      "Many amenities are within walking distance, and the town center is only minutes away!"
+      "Many amenities are within walking distance, and the town center is only minutes away!",
     ],
     kissonerga: [
       "Located in a peaceful coastal community with a beautiful beach nearby",
-      "Many amenities are within a short drive, including shops and local services!"
+      "Many amenities are within a short drive, including shops and local services!",
     ],
     episkopi: [
       "Located in a charming hillside community with panoramic views",
-      "Many amenities are within walking distance, and Limassol is only a short drive away!"
+      "Many amenities are within walking distance, and Limassol is only a short drive away!",
     ],
     zakaki: [
       "Located in a well-connected area near the new marina and the seafront",
-      "Many amenities are within walking distance, with easy access to all main roads!"
+      "Many amenities are within walking distance, with easy access to all main roads!",
     ],
     "agios athanasios": [
       "Located in a prestigious residential area with beautiful sea views",
-      "Many amenities are within walking distance, and the highway and city center are only minutes away!"
+      "Many amenities are within walking distance, and the highway and city center are only minutes away!",
     ],
   };
 
@@ -1163,7 +1439,7 @@ function getGenericLocationSentences(location: string): string[] {
   // Default generic sentences — DO NOT claim "walking distance" for unknown areas
   return [
     "Located in a desirable residential area with a peaceful setting",
-    "A convenient location with easy access to local amenities and transport links!"
+    "A convenient location with easy access to local amenities and transport links!",
   ];
 }
 
@@ -1176,7 +1452,7 @@ function getClosingSentences(details: PropertyDetails): string[] {
   if (details.listingType === "rent") {
     return [
       `This ${propertyType} is an excellent rental opportunity!`,
-      "Ideal for families, couples or professionals"
+      "Ideal for families, couples or professionals",
     ];
   }
 
@@ -1184,31 +1460,56 @@ function getClosingSentences(details: PropertyDetails): string[] {
   const sentences: string[] = [];
 
   if (details.plotSize && details.plotSize >= 500) {
-    sentences.push(`This spacious ${propertyType} is a compelling investment opportunity!`);
+    sentences.push(
+      `This spacious ${propertyType} is a compelling investment opportunity!`
+    );
   } else {
-    sentences.push(`This ${propertyType} represents an excellent investment opportunity!`);
+    sentences.push(
+      `This ${propertyType} represents an excellent investment opportunity!`
+    );
   }
 
   // Location-aware closing — Nicosia/Famagusta are NOT holiday destinations
   const locationLower = details.location.toLowerCase();
-  const isInlandLocation = locationLower.includes("nicosia") || locationLower.includes("strovolos")
-    || locationLower.includes("lakatamia") || locationLower.includes("engomi")
-    || locationLower.includes("aglantzia") || locationLower.includes("latsia")
-    || locationLower.includes("famagusta") || locationLower.includes("paralimni");
+  const isInlandLocation =
+    locationLower.includes("nicosia") ||
+    locationLower.includes("strovolos") ||
+    locationLower.includes("lakatamia") ||
+    locationLower.includes("engomi") ||
+    locationLower.includes("aglantzia") ||
+    locationLower.includes("latsia") ||
+    locationLower.includes("famagusta") ||
+    locationLower.includes("paralimni");
 
   if (propertyType.includes("building")) {
     sentences.push("Ideal as an investment property or for rental income");
-  } else if (propertyType.includes("villa") || propertyType.includes("house") || propertyType.includes("bungalow")) {
+  } else if (
+    propertyType.includes("villa") ||
+    propertyType.includes("house") ||
+    propertyType.includes("bungalow")
+  ) {
     if (isInlandLocation) {
-      sentences.push("Suitable for a family for permanent living or as a rental property");
+      sentences.push(
+        "Suitable for a family for permanent living or as a rental property"
+      );
     } else {
-      sentences.push("Suitable for a family for permanent living or as a holiday home");
+      sentences.push(
+        "Suitable for a family for permanent living or as a holiday home"
+      );
     }
-  } else if (propertyType.includes("apartment") || propertyType.includes("flat") || propertyType.includes("penthouse")) {
+  } else if (
+    propertyType.includes("apartment") ||
+    propertyType.includes("flat") ||
+    propertyType.includes("penthouse")
+  ) {
     if (isInlandLocation) {
-      sentences.push("Ideal for permanent residence, student accommodation or as a rental property");
+      sentences.push(
+        "Ideal for permanent residence, student accommodation or as a rental property"
+      );
     } else {
-      sentences.push("Ideal for permanent residence, a holiday home or as a rental property");
+      sentences.push(
+        "Ideal for permanent residence, a holiday home or as a rental property"
+      );
     }
   } else {
     sentences.push("Ideal for permanent living or as an investment property");
@@ -1232,9 +1533,13 @@ export function generateTitle(details: PropertyDetails): string {
   const location = capitalizeLocation(details.location);
 
   // If there's a COVERED veranda, show both covered area and covered veranda separately
-  const hasCoveredVeranda = details.coveredVeranda && details.coveredVeranda > 0;
+  const hasCoveredVeranda =
+    details.coveredVeranda && details.coveredVeranda > 0;
 
-  const noVatSuffix = (details.priceModifier === "no_vat" && details.listingType === "sale") ? " - No VAT" : "";
+  const noVatSuffix =
+    details.priceModifier === "no_vat" && details.listingType === "sale"
+      ? " - No VAT"
+      : "";
 
   if (hasCoveredVeranda) {
     return `${bedroomText} ${propertyType} (${formatArea(details.coveredArea)}m² + ${formatArea(details.coveredVeranda!)}m² covered veranda) in ${location}${noVatSuffix}`;
@@ -1276,13 +1581,22 @@ export function generateLandDescription(details: LandDetails): string {
   const formattedSize = formatArea(details.landSize);
 
   if (details.listingType === "sale") {
-    lines.push(`${landTypeCapitalized} for sale in ${location}, offering ${formattedSize}m² of land.`);
+    lines.push(
+      `${landTypeCapitalized} for sale in ${location}, offering ${formattedSize}m² of land.`
+    );
   } else {
-    lines.push(`${landTypeCapitalized} for rent in ${location}, offering ${formattedSize}m² of land.`);
+    lines.push(
+      `${landTypeCapitalized} for rent in ${location}, offering ${formattedSize}m² of land.`
+    );
   }
 
   // Building regulations paragraph (if any provided)
-  if (details.buildingDensity || details.siteCoverage || details.maxFloors || details.maxHeight) {
+  if (
+    details.buildingDensity ||
+    details.siteCoverage ||
+    details.maxFloors ||
+    details.maxHeight
+  ) {
     const regs: string[] = [];
     if (details.buildingDensity !== undefined) {
       regs.push(`${details.buildingDensity}% building density`);
@@ -1305,7 +1619,7 @@ export function generateLandDescription(details: LandDetails): string {
 
   // Infrastructure paragraph (if provided)
   if (details.infrastructure && details.infrastructure.length > 0) {
-    const infraList = details.infrastructure.map(i => {
+    const infraList = details.infrastructure.map((i) => {
       // Convert "road_access" → "road access", "electricity" → "electricity"
       return i.replace(/_/g, " ");
     });
@@ -1317,14 +1631,17 @@ export function generateLandDescription(details: LandDetails): string {
       lines.push(`The plot has ${infraList[0]} and ${infraList[1]} available.`);
     } else {
       const lastInfra = infraList.pop();
-      lines.push(`The plot has ${infraList.join(", ")} and ${lastInfra} available.`);
+      lines.push(
+        `The plot has ${infraList.join(", ")} and ${lastInfra} available.`
+      );
     }
   }
 
   // Views/location paragraph (if views or area description provided)
   if (details.views && details.views.length > 0) {
-    const viewsList = details.views.filter(v => v.toLowerCase().includes("view"))
-      .map(v => v.toLowerCase());
+    const viewsList = details.views
+      .filter((v) => v.toLowerCase().includes("view"))
+      .map((v) => v.toLowerCase());
 
     if (viewsList.length > 0) {
       lines.push("");
@@ -1346,7 +1663,7 @@ export function generateLandDescription(details: LandDetails): string {
   } else {
     // Generic area info from LOCATION_DESCRIPTIONS if available
     const locationLower = details.location.toLowerCase();
-    const areaKey = Object.keys(LOCATION_DESCRIPTIONS).find(key =>
+    const areaKey = Object.keys(LOCATION_DESCRIPTIONS).find((key) =>
       locationLower.includes(key)
     );
     if (areaKey) {
@@ -1369,13 +1686,17 @@ export function generateLandDescription(details: LandDetails): string {
         lines.push("Title deeds are currently in the process of being issued.");
         break;
       case "pending":
-        lines.push("Title deeds have been applied for and are pending issuance.");
+        lines.push(
+          "Title deeds have been applied for and are pending issuance."
+        );
         break;
       case "share_of_land":
         lines.push("The land has shared ownership with title deeds.");
         break;
       case "permits_only":
-        lines.push("Planning and building permits are available (title deeds not yet issued).");
+        lines.push(
+          "Planning and building permits are available (title deeds not yet issued)."
+        );
         break;
     }
   }
@@ -1394,8 +1715,9 @@ export function generateLandDescription(details: LandDetails): string {
 
   // Closing call to action
   lines.push("");
-  lines.push("For more information or to arrange a viewing, please contact us today.");
+  lines.push(
+    "For more information or to arrange a viewing, please contact us today."
+  );
 
   return lines.join("\n");
 }
-

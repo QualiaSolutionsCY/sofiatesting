@@ -7,17 +7,17 @@
  * Phase 13, Plan 02
  */
 
-import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
 import {
   getPendingFollowUps,
   updateAlertStatus,
 } from "../_shared/call-tracking.ts";
+import { getTelegramBot } from "../_shared/telegram.ts";
 import {
   formatFollowUpReminder,
   type MissingCallerInfo,
 } from "../_shared/telegram-alerts.ts";
-import { getTelegramBot } from "../_shared/telegram.ts";
 import { ZYPRESS_OTHERS_CHAT_ID } from "../_shared/telegram-search.ts";
+import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -70,10 +70,13 @@ export async function processFollowUpReminders(): Promise<FollowUpResult> {
   try {
     // Guard: Check Telegram is configured
     if (ZYPRESS_OTHERS_CHAT_ID === 0) {
-      logger.warn("[Follow-Up] Telegram not configured - skipping follow-up reminders", {
-        category: LogCategory.GENERAL,
-        operation: "processFollowUpReminders",
-      });
+      logger.warn(
+        "[Follow-Up] Telegram not configured - skipping follow-up reminders",
+        {
+          category: LogCategory.GENERAL,
+          operation: "processFollowUpReminders",
+        }
+      );
 
       return {
         checked: 0,
@@ -138,10 +141,10 @@ export async function processFollowUpReminders(): Promise<FollowUpResult> {
         const reminderText = formatFollowUpReminder(callerInfo, daysSinceAlert);
 
         // Send via Telegram
-        const result = await bot.sendMessage({
+        const result = (await bot.sendMessage({
           chatId: ZYPRESS_OTHERS_CHAT_ID,
           text: reminderText,
-        }) as { message_id: number };
+        })) as { message_id: number };
 
         const messageId = result.message_id;
 
@@ -169,9 +172,10 @@ export async function processFollowUpReminders(): Promise<FollowUpResult> {
       } catch (alertError) {
         remindersFailed++;
 
-        const err = alertError instanceof Error
-          ? alertError
-          : new Error(String(alertError));
+        const err =
+          alertError instanceof Error
+            ? alertError
+            : new Error(String(alertError));
 
         logger.error("[Follow-Up] Failed to send reminder", err, {
           category: LogCategory.GENERAL,

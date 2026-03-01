@@ -3,7 +3,7 @@
  * Handles edge cases and exceptions in the business rules
  */
 
-import { Agent, getAgentByEmail } from "../agents/identifier.ts";
+import { type Agent, getAgentByEmail } from "../agents/identifier.ts";
 import { REGIONAL_EMAILS } from "../config/business-rules.ts";
 
 export interface UploadRequest {
@@ -43,7 +43,6 @@ export async function handleSpecialCases(
   supabaseUrl: string,
   supabaseKey: string
 ): Promise<SpecialCaseResult> {
-
   // 1. Check if agent can upload (canUpload flag from database)
   if (!agent.canUpload) {
     return {
@@ -100,9 +99,17 @@ export async function handleSpecialCases(
       }
     } else {
       // Regular agent — validate from database
-      const assigneeRegion = await getAgentRegion(request.assignTo, supabaseUrl, supabaseKey);
+      const assigneeRegion = await getAgentRegion(
+        request.assignTo,
+        supabaseUrl,
+        supabaseKey
+      );
 
-      if (assigneeRegion && assigneeRegion !== "all" && assigneeRegion !== propertyRegion) {
+      if (
+        assigneeRegion &&
+        assigneeRegion !== "all" &&
+        assigneeRegion !== propertyRegion
+      ) {
         return {
           rejected: true,
           message:
@@ -163,13 +170,14 @@ export function validateRequiredFields(data: Record<string, unknown>): {
   ];
 
   // Bathrooms are required for all types EXCEPT residential buildings
-  const propertyType = (data.propertyType as string || "").toLowerCase();
+  const propertyType = ((data.propertyType as string) || "").toLowerCase();
   if (!propertyType.includes("building")) {
     required.push("bathrooms");
   }
 
   const missing = required.filter(
-    (field) => data[field] === undefined || data[field] === null || data[field] === ""
+    (field) =>
+      data[field] === undefined || data[field] === null || data[field] === ""
   );
 
   return {
@@ -203,4 +211,3 @@ export function getMissingFieldsMessage(missing: string[]): string {
   const last = friendlyNames.pop();
   return `I still need ${friendlyNames.join(", ")} and ${last} to create the listing.`;
 }
-

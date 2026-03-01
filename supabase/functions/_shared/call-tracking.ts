@@ -9,17 +9,26 @@
  * Phase 10, Plan 01
  */
 
-import { getSupabaseAdmin } from "./db.ts";
+import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
 import { withRetry } from "../sophia-bot/utils/retry.ts";
-import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
+import { getSupabaseAdmin } from "./db.ts";
 
 // =============================================================================
 // Types
 // =============================================================================
 
 export type AuditRunStatus = "running" | "completed" | "failed";
-export type AlertStatus = "pending" | "alerted" | "follow_up_sent" | "resolved" | "ignored";
-export type ResolutionType = "found_in_telegram" | "alternative_phone" | "not_client" | "manual_ignore";
+export type AlertStatus =
+  | "pending"
+  | "alerted"
+  | "follow_up_sent"
+  | "resolved"
+  | "ignored";
+export type ResolutionType =
+  | "found_in_telegram"
+  | "alternative_phone"
+  | "not_client"
+  | "manual_ignore";
 
 export type AuditRun = {
   id: string;
@@ -95,7 +104,9 @@ export type UpdateAlertStatusParams = {
  * @param auditDate - Date string in YYYY-MM-DD format
  * @returns AuditRun if claimed successfully, null if already exists
  */
-export const claimAuditRun = async (auditDate: string): Promise<AuditRun | null> => {
+export const claimAuditRun = async (
+  auditDate: string
+): Promise<AuditRun | null> => {
   const supabase = getSupabaseAdmin();
 
   try {
@@ -153,7 +164,9 @@ export const claimAuditRun = async (auditDate: string): Promise<AuditRun | null>
 /**
  * Get an audit run by date
  */
-export const getAuditRunByDate = async (auditDate: string): Promise<AuditRun | null> => {
+export const getAuditRunByDate = async (
+  auditDate: string
+): Promise<AuditRun | null> => {
   const supabase = getSupabaseAdmin();
 
   const { data, error } = await supabase
@@ -227,7 +240,10 @@ export const completeAuditRun = async (
 /**
  * Mark an audit run as failed
  */
-export const failAuditRun = async (runId: string, errorMessage: string): Promise<void> => {
+export const failAuditRun = async (
+  runId: string,
+  errorMessage: string
+): Promise<void> => {
   const supabase = getSupabaseAdmin();
 
   const { error } = await supabase
@@ -284,7 +300,9 @@ export const saveCallRecords = async (
 
   const { error } = await withRetry(
     async () => {
-      const result = await supabase.from("call_records").insert(recordsToInsert);
+      const result = await supabase
+        .from("call_records")
+        .insert(recordsToInsert);
       if (result.error) throw result.error;
       return result;
     },
@@ -433,12 +451,15 @@ export const updateAlertStatus = async (
   }
 
   // Add optional fields
-  if (params.alert_message_id) updates.alert_message_id = params.alert_message_id;
-  if (params.follow_up_message_id) updates.follow_up_message_id = params.follow_up_message_id;
+  if (params.alert_message_id)
+    updates.alert_message_id = params.alert_message_id;
+  if (params.follow_up_message_id)
+    updates.follow_up_message_id = params.follow_up_message_id;
   if (params.chat_id) updates.chat_id = params.chat_id;
   if (params.resolution_type) updates.resolution_type = params.resolution_type;
   if (params.resolution_note) updates.resolution_note = params.resolution_note;
-  if (params.alternative_phone) updates.alternative_phone = params.alternative_phone;
+  if (params.alternative_phone)
+    updates.alternative_phone = params.alternative_phone;
 
   const { error } = await withRetry(
     async () => {
@@ -498,10 +519,14 @@ export const getUnresolvedAlerts = async (): Promise<CallerAlert[]> => {
 /**
  * Get alerts pending follow-up (alerted > N hours ago, no follow-up sent yet)
  */
-export const getPendingFollowUps = async (hoursThreshold: number = 24): Promise<CallerAlert[]> => {
+export const getPendingFollowUps = async (
+  hoursThreshold = 24
+): Promise<CallerAlert[]> => {
   const supabase = getSupabaseAdmin();
 
-  const thresholdTime = new Date(Date.now() - hoursThreshold * 60 * 60 * 1000).toISOString();
+  const thresholdTime = new Date(
+    Date.now() - hoursThreshold * 60 * 60 * 1000
+  ).toISOString();
 
   const { data, error } = await supabase
     .from("caller_alerts")

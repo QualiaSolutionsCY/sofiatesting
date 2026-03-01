@@ -8,9 +8,9 @@
  * Phase 12, Plan 02
  */
 
+import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
 import { getTelegramBot } from "./telegram.ts";
 import { ZYPRESS_OTHERS_CHAT_ID } from "./telegram-search.ts";
-import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -18,11 +18,10 @@ import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
 
 export interface MissingCallerInfo {
   phoneNumber: string;
-  callTime: string;      // HH:MM format
-  callDate: string;      // YYYY-MM-DD format
+  callTime: string; // HH:MM format
+  callDate: string; // YYYY-MM-DD format
   searchedGroups: string[]; // Names of groups searched
 }
-
 
 // ---------------------------------------------------------------------------
 // Phone Number Formatting
@@ -39,7 +38,7 @@ export interface MissingCallerInfo {
  */
 function formatPhoneDisplay(phone: string): string {
   // Strip all non-digit and non-plus characters
-  let cleaned = phone.replace(/[^\d+]/g, "");
+  const cleaned = phone.replace(/[^\d+]/g, "");
 
   // If it's a Cyprus number with +357 prefix
   if (cleaned.startsWith("+357") && cleaned.length === 12) {
@@ -75,9 +74,10 @@ function formatPhoneDisplay(phone: string): string {
  */
 export function formatMissingCallerAlert(call: MissingCallerInfo): string {
   const displayPhone = formatPhoneDisplay(call.phoneNumber);
-  const groupList = call.searchedGroups.length > 0
-    ? call.searchedGroups.join(", ")
-    : "all regional groups";
+  const groupList =
+    call.searchedGroups.length > 0
+      ? call.searchedGroups.join(", ")
+      : "all regional groups";
 
   return [
     "\u26a0\ufe0f MISSING CALLER ALERT",
@@ -98,7 +98,7 @@ export function formatMissingCallerAlert(call: MissingCallerInfo): string {
  */
 export function formatFollowUpReminder(
   call: MissingCallerInfo,
-  daysSinceAlert: number,
+  daysSinceAlert: number
 ): string {
   const displayPhone = formatPhoneDisplay(call.phoneNumber);
 
@@ -124,12 +124,12 @@ export function formatFollowUpReminder(
  * Returns the Telegram message ID on success (needed for response tracking).
  */
 export async function sendMissingCallerAlert(
-  call: MissingCallerInfo,
+  call: MissingCallerInfo
 ): Promise<{ success: boolean; messageId?: number; error?: string }> {
   // Guard: fail loudly if chat ID is unconfigured
   if (ZYPRESS_OTHERS_CHAT_ID === 0) {
     throw new Error(
-      "ZYPRESS_OTHERS_CHAT_ID is 0 (unconfigured) — configure before sending alerts",
+      "ZYPRESS_OTHERS_CHAT_ID is 0 (unconfigured) — configure before sending alerts"
     );
   }
 
@@ -137,10 +137,10 @@ export async function sendMissingCallerAlert(
     const message = formatMissingCallerAlert(call);
     const bot = getTelegramBot();
 
-    const result = await bot.sendMessage({
+    const result = (await bot.sendMessage({
       chatId: ZYPRESS_OTHERS_CHAT_ID,
       text: message,
-    }) as { message_id: number };
+    })) as { message_id: number };
 
     const messageId = result.message_id;
 
@@ -170,7 +170,7 @@ export async function sendMissingCallerAlert(
  * We add a 1-second delay between messages to stay well within limits.
  */
 export async function sendBatchMissingCallerAlerts(
-  calls: MissingCallerInfo[],
+  calls: MissingCallerInfo[]
 ): Promise<{ sent: number; failed: number; messageIds: number[] }> {
   let sent = 0;
   let failed = 0;

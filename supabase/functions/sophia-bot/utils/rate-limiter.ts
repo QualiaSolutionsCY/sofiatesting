@@ -5,8 +5,8 @@
  * Uses the chat_history table with in-memory fallback on DB errors.
  */
 
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { logger, LogCategory } from "./logger.ts";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { LogCategory, logger } from "./logger.ts";
 
 // Configuration - aligned with local lib/whatsapp rate limit
 const RATE_LIMIT = 30; // messages per minute per user (was 10)
@@ -44,7 +44,9 @@ function checkInMemoryRateLimit(userId: string): boolean {
   }
 
   if (entry.count >= RATE_LIMIT) {
-    logger.warn(`[Fallback Rate Limit] Limit exceeded for user`, { category: LogCategory.GENERAL });
+    logger.warn("[Fallback Rate Limit] Limit exceeded for user", {
+      category: LogCategory.GENERAL,
+    });
     return false;
   }
 
@@ -75,17 +77,23 @@ export async function checkRateLimit(
 
     if (error) {
       // P2 SECURITY: Use fallback rate limiter on DB error
-      logger.error("Rate limit check error", new Error(error.message), { category: LogCategory.DATABASE });
+      logger.error("Rate limit check error", new Error(error.message), {
+        category: LogCategory.DATABASE,
+      });
       consecutiveDbErrors++;
 
       if (consecutiveDbErrors >= FALLBACK_FAILURE_COUNT) {
         // Too many DB failures - fail closed for security
-        logger.warn("[Rate Limit] Too many DB errors, failing closed", { category: LogCategory.GENERAL });
+        logger.warn("[Rate Limit] Too many DB errors, failing closed", {
+          category: LogCategory.GENERAL,
+        });
         return false;
       }
 
       // Use in-memory fallback
-      logger.debug("[Rate Limit] Using in-memory fallback", { category: LogCategory.GENERAL });
+      logger.debug("[Rate Limit] Using in-memory fallback", {
+        category: LogCategory.GENERAL,
+      });
       return checkInMemoryRateLimit(userId);
     }
 
@@ -96,12 +104,19 @@ export async function checkRateLimit(
     const withinLimit = currentCount < RATE_LIMIT;
 
     if (!withinLimit) {
-      logger.warn(`Rate limit exceeded for user. Count: ${currentCount}/${RATE_LIMIT}`, { category: LogCategory.GENERAL });
+      logger.warn(
+        `Rate limit exceeded for user. Count: ${currentCount}/${RATE_LIMIT}`,
+        { category: LogCategory.GENERAL }
+      );
     }
 
     return withinLimit;
   } catch (error) {
-    logger.error("Rate limit check exception", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
+    logger.error(
+      "Rate limit check exception",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.DATABASE }
+    );
     consecutiveDbErrors++;
 
     if (consecutiveDbErrors >= FALLBACK_FAILURE_COUNT) {
@@ -150,4 +165,3 @@ export const RATE_LIMIT_CONFIG = {
   limit: RATE_LIMIT,
   windowMs: RATE_WINDOW_MS,
 } as const;
-

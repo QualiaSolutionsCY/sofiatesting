@@ -19,7 +19,7 @@
  * ```
  */
 
-import { logger, LogCategory, LogContext } from "./logger.ts";
+import { LogCategory, type LogContext, logger } from "./logger.ts";
 
 /**
  * Error type classification

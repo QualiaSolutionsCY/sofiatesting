@@ -7,7 +7,7 @@
  * - Timer utility
  * - Error handling (silent failures)
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockConsole, restoreConsole, setEnv } from "./setup";
 
 // Type definitions
@@ -81,7 +81,11 @@ class AnalyticsService {
   /**
    * Helper: Track message received
    */
-  trackMessageReceived(phoneNumber: string, agentId?: string, metadata?: Record<string, unknown>): void {
+  trackMessageReceived(
+    phoneNumber: string,
+    agentId?: string,
+    metadata?: Record<string, unknown>
+  ): void {
     this.trackEvent({
       phoneNumber,
       agentId,
@@ -269,7 +273,9 @@ describe("Analytics Service", () => {
 
   describe("trackMessageReceived", () => {
     it("should create message_received event", async () => {
-      analytics.trackMessageReceived("+35799123456", "agent-123", { source: "whatsapp" });
+      analytics.trackMessageReceived("+35799123456", "agent-123", {
+        source: "whatsapp",
+      });
 
       // Wait for async operation
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -318,13 +324,10 @@ describe("Analytics Service", () => {
 
   describe("trackToolUsed", () => {
     it("should create tool_used event", async () => {
-      analytics.trackToolUsed(
-        "+35799123456",
-        "calculateVAT",
-        50,
-        "agent-123",
-        { price: 300000, area: 120 }
-      );
+      analytics.trackToolUsed("+35799123456", "calculateVAT", 50, "agent-123", {
+        price: 300_000,
+        area: 120,
+      });
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -333,7 +336,7 @@ describe("Analytics Service", () => {
       expect(events[0].eventType).toBe("tool_used");
       expect(events[0].toolName).toBe("calculateVAT");
       expect(events[0].responseTimeMs).toBe(50);
-      expect(events[0].metadata).toEqual({ price: 300000, area: 120 });
+      expect(events[0].metadata).toEqual({ price: 300_000, area: 120 });
     });
 
     it("should track different tool names", async () => {
@@ -371,18 +374,20 @@ describe("Analytics Service", () => {
 
   describe("trackPropertyUploaded", () => {
     it("should create property_uploaded event", async () => {
-      analytics.trackPropertyUploaded(
-        "+35799123456",
-        "agent-123",
-        { propertyType: "villa", location: "paphos" }
-      );
+      analytics.trackPropertyUploaded("+35799123456", "agent-123", {
+        propertyType: "villa",
+        location: "paphos",
+      });
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       const events = analytics.getRecordedEvents();
       expect(events).toHaveLength(1);
       expect(events[0].eventType).toBe("property_uploaded");
-      expect(events[0].metadata).toEqual({ propertyType: "villa", location: "paphos" });
+      expect(events[0].metadata).toEqual({
+        propertyType: "villa",
+        location: "paphos",
+      });
     });
   });
 

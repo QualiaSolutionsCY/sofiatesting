@@ -4,9 +4,11 @@
  */
 
 import { config } from "dotenv";
+
 config({ path: ".env.local" });
 
-const EDGE_FUNCTION_URL = "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot";
+const EDGE_FUNCTION_URL =
+  "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot";
 
 // Use Maria Georgiou's phone (Limassol agent)
 const AGENT_PHONE = "35799581359";
@@ -26,11 +28,11 @@ const uploadMessage = `Upload property for sale:
 
 async function testDirectUpload() {
   console.log("🧪 DIRECT EDGE FUNCTION TEST\n");
-  console.log("=" .repeat(60));
+  console.log("=".repeat(60));
   console.log("This test sends a property upload request to verify:");
   console.log("1. Edge function processes the request");
   console.log("2. My Notes contains actual reviewer emails (not 'SOPHIA AI')");
-  console.log("=" .repeat(60));
+  console.log("=".repeat(60));
 
   const payload = {
     event: "messages.received",
@@ -54,7 +56,7 @@ async function testDirectUpload() {
 
   console.log("\n📤 Sending request...");
   console.log(`   Agent: ${AGENT_PHONE} (Limassol)`);
-  console.log(`   Property: 2-bed apartment, €195,000`);
+  console.log("   Property: 2-bed apartment, €195,000");
 
   try {
     const startTime = Date.now();
@@ -84,7 +86,9 @@ async function testDirectUpload() {
       console.log("   [ToolExecutor] My Notes contains 'SOPHIA AI': false");
 
       console.log("\n📊 Check Supabase Dashboard for logs:");
-      console.log("   https://supabase.com/dashboard/project/vceeheaxcrhmpqueudqx/logs/edge-logs");
+      console.log(
+        "   https://supabase.com/dashboard/project/vceeheaxcrhmpqueudqx/logs/edge-logs"
+      );
 
       console.log("\n📝 Check draft on Zyprus:");
       console.log("   https://dev9.zyprus.com/draft-dashboard?ai_state=draft");
@@ -95,7 +99,9 @@ async function testDirectUpload() {
       console.log("      Listing Owner: <email>@zyprus.com");
       console.log("      Reviewer: <email>@zyprus.com");
       console.log("   3. Should NOT show 'SOPHIA AI' anywhere");
-      console.log("   4. Line 'My Notes contains SOPHIA AI: false' confirms fix");
+      console.log(
+        "   4. Line 'My Notes contains SOPHIA AI: false' confirms fix"
+      );
     }
   } catch (error) {
     console.error("❌ Error:", error);

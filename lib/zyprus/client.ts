@@ -104,7 +104,9 @@ const convertToDirectImageUrl = (url: string): string => {
     // Convert to direct image URL format
     // Note: ibb.co doesn't have a simple conversion, we need to fetch the page and extract the image
     // For now, log a warning and try the i.ibb.co format
-    log.warn("ibb.co page URL detected, use direct image URLs instead", { url });
+    log.warn("ibb.co page URL detected, use direct image URLs instead", {
+      url,
+    });
     // Try common i.ibb.co format - this may not always work
     return `https://i.ibb.co/${imageId}/image.jpg`;
   }
@@ -391,7 +393,7 @@ async function uploadToZyprusAPIInternal(listing: ZyprusListingInput): Promise<{
       try {
         // Fetch image from URL (supports both external URLs and Vercel Blob URLs)
         const imageResponse = await fetch(directUrl, {
-          signal: AbortSignal.timeout(30000) // 30 second timeout
+          signal: AbortSignal.timeout(30_000), // 30 second timeout
         });
         if (!imageResponse.ok) {
           throw new Error(
@@ -438,10 +440,16 @@ async function uploadToZyprusAPIInternal(listing: ZyprusListingInput): Promise<{
         }
 
         const data = await uploadResponse.json();
-        log.debug("Successfully uploaded image", { index: i + 1, id: data.data.id });
+        log.debug("Successfully uploaded image", {
+          index: i + 1,
+          id: data.data.id,
+        });
         return { index: i, id: data.data.id, url: imageUrl };
       } catch (imgError) {
-        log.error("Error processing image", imgError, { index: i + 1, url: imageUrl });
+        log.error("Error processing image", imgError, {
+          index: i + 1,
+          url: imageUrl,
+        });
         throw imgError; // Re-throw to mark as rejected in Promise.allSettled
       }
     });
@@ -922,7 +930,7 @@ async function uploadLandToZyprusAPIInternal(
 
       try {
         const imageResponse = await fetch(directUrl, {
-          signal: AbortSignal.timeout(30000) // 30 second timeout
+          signal: AbortSignal.timeout(30_000), // 30 second timeout
         });
         if (!imageResponse.ok) {
           throw new Error(
@@ -966,10 +974,16 @@ async function uploadLandToZyprusAPIInternal(
         }
 
         const data = await uploadResponse.json();
-        log.debug("Successfully uploaded land image", { index: i + 1, id: data.data.id });
+        log.debug("Successfully uploaded land image", {
+          index: i + 1,
+          id: data.data.id,
+        });
         return { index: i, id: data.data.id, url: imageUrl };
       } catch (imgError) {
-        log.error("Error processing land image", imgError, { index: i + 1, url: imageUrl });
+        log.error("Error processing land image", imgError, {
+          index: i + 1,
+          url: imageUrl,
+        });
         throw imgError;
       }
     });
@@ -1302,7 +1316,10 @@ export async function uploadFilesToZyprus(
   const token = await getAccessToken();
   const endpoint = `${apiUrl}/jsonapi/node/${nodeBundle}/${fieldName}`;
 
-  log.info("Starting file upload to Zyprus", { count: fileUrls.length, fieldName });
+  log.info("Starting file upload to Zyprus", {
+    count: fileUrls.length,
+    fieldName,
+  });
 
   const uploadPromises = fileUrls.map(async (url, i) => {
     try {
@@ -1341,7 +1358,10 @@ export async function uploadFilesToZyprus(
       }
 
       const data = await uploadResponse.json();
-      log.debug("Successfully uploaded file", { index: i + 1, id: data.data.id });
+      log.debug("Successfully uploaded file", {
+        index: i + 1,
+        id: data.data.id,
+      });
       return data.data.id as string;
     } catch (error) {
       log.error("Error uploading file", error, { index: i + 1, url });
@@ -1498,7 +1518,9 @@ export async function checkForDuplicates(
     });
 
     if (!response.ok) {
-      log.error("Duplicate check failed", undefined, { status: response.status });
+      log.error("Duplicate check failed", undefined, {
+        status: response.status,
+      });
       return { exists: false, matches: [] };
     }
 

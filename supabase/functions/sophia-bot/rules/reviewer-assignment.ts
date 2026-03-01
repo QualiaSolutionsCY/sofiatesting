@@ -3,7 +3,7 @@
  * Determines who reviews and owns listings based on business rules
  */
 
-import { Agent } from "../agents/identifier.ts";
+import type { Agent } from "../agents/identifier.ts";
 import { REGIONAL_EMAILS } from "../config/business-rules.ts";
 
 export interface ReviewerAssignment {
@@ -77,8 +77,11 @@ export function assignReviewers(
 
   // FOR SALE: Famagusta has special rules (only one reviewer)
   if (propertyRegion === "famagusta") {
-    const listingOwner = assignTo ||
-      (agent.listingOwnerEmail === "ASK" ? agent.communicationEmail : agent.listingOwnerEmail);
+    const listingOwner =
+      assignTo ||
+      (agent.listingOwnerEmail === "ASK"
+        ? agent.communicationEmail
+        : agent.listingOwnerEmail);
 
     return {
       reviewer1: "requestfamagusta@zyprus.com",
@@ -90,8 +93,11 @@ export function assignReviewers(
 
   // FOR SALE: Standard regions (Paphos, Limassol, Larnaca, Nicosia)
   // When assignTo is provided, it always takes precedence (management assigns to specific agent)
-  const listingOwner = assignTo ||
-    (agent.listingOwnerEmail === "ASK" ? agent.communicationEmail : agent.listingOwnerEmail);
+  const listingOwner =
+    assignTo ||
+    (agent.listingOwnerEmail === "ASK"
+      ? agent.communicationEmail
+      : agent.listingOwnerEmail);
 
   return {
     reviewer1: "listings@zyprus.com",
@@ -123,4 +129,3 @@ export function needsAssignmentInput(
 export function getListingOwnerEmail(agent: Agent): string {
   return agent.listingOwnerEmail;
 }
-

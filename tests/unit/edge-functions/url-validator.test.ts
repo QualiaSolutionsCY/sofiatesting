@@ -8,7 +8,7 @@
  * - Path traversal detection
  * - Cloud metadata endpoint blocking
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockConsole, restoreConsole } from "./setup";
 
 // Reimplementation of URL validator functions for testing
@@ -334,13 +334,17 @@ describe("URL Validator (SSRF Prevention)", () => {
   describe("validateExternalUrl", () => {
     describe("Protocol validation", () => {
       it("should accept HTTPS URLs", () => {
-        const result = validateExternalUrl("https://vceeheaxcrhmpqueudqx.supabase.co/storage/v1/object/test.jpg");
+        const result = validateExternalUrl(
+          "https://vceeheaxcrhmpqueudqx.supabase.co/storage/v1/object/test.jpg"
+        );
         expect(result.valid).toBe(true);
         expect(result.protocol).toBe("https:");
       });
 
       it("should reject HTTP URLs", () => {
-        const result = validateExternalUrl("http://vceeheaxcrhmpqueudqx.supabase.co/test.jpg");
+        const result = validateExternalUrl(
+          "http://vceeheaxcrhmpqueudqx.supabase.co/test.jpg"
+        );
         expect(result.valid).toBe(false);
         expect(result.error).toBe("Only HTTPS URLs are allowed");
       });
@@ -358,7 +362,9 @@ describe("URL Validator (SSRF Prevention)", () => {
       });
 
       it("should reject data: URLs", () => {
-        const result = validateExternalUrl("data:text/html,<script>alert(1)</script>");
+        const result = validateExternalUrl(
+          "data:text/html,<script>alert(1)</script>"
+        );
         expect(result.valid).toBe(false);
         expect(result.error).toBe("Only HTTPS URLs are allowed");
       });
@@ -382,35 +388,58 @@ describe("URL Validator (SSRF Prevention)", () => {
       });
 
       it("should block cloud metadata endpoints", () => {
-        expect(validateExternalUrl("https://169.254.169.254/latest/meta-data/").valid).toBe(false);
-        expect(validateExternalUrl("https://metadata.google.internal/computeMetadata/v1/").valid).toBe(false);
-        expect(validateExternalUrl("https://metadata.azure.com/metadata/instance").valid).toBe(false);
+        expect(
+          validateExternalUrl("https://169.254.169.254/latest/meta-data/").valid
+        ).toBe(false);
+        expect(
+          validateExternalUrl(
+            "https://metadata.google.internal/computeMetadata/v1/"
+          ).valid
+        ).toBe(false);
+        expect(
+          validateExternalUrl("https://metadata.azure.com/metadata/instance")
+            .valid
+        ).toBe(false);
       });
     });
 
     describe("IP address blocking", () => {
       it("should block private IP ranges", () => {
-        expect(validateExternalUrl("https://10.0.0.1/internal").valid).toBe(false);
-        expect(validateExternalUrl("https://172.16.0.1/internal").valid).toBe(false);
-        expect(validateExternalUrl("https://192.168.1.1/internal").valid).toBe(false);
+        expect(validateExternalUrl("https://10.0.0.1/internal").valid).toBe(
+          false
+        );
+        expect(validateExternalUrl("https://172.16.0.1/internal").valid).toBe(
+          false
+        );
+        expect(validateExternalUrl("https://192.168.1.1/internal").valid).toBe(
+          false
+        );
       });
 
       it("should block public IPs (require domain names)", () => {
         const result = validateExternalUrl("https://8.8.8.8/dns");
         expect(result.valid).toBe(false);
-        expect(result.error).toBe("IP addresses are not allowed - use a domain name");
+        expect(result.error).toBe(
+          "IP addresses are not allowed - use a domain name"
+        );
       });
     });
 
     describe("Domain allowlist", () => {
       it("should allow Supabase storage URLs", () => {
-        const result = validateExternalUrl("https://vceeheaxcrhmpqueudqx.supabase.co/storage/v1/object/images/test.jpg");
+        const result = validateExternalUrl(
+          "https://vceeheaxcrhmpqueudqx.supabase.co/storage/v1/object/images/test.jpg"
+        );
         expect(result.valid).toBe(true);
       });
 
       it("should allow Supabase subdomains", () => {
-        expect(validateExternalUrl("https://storage.supabase.co/test").valid).toBe(true);
-        expect(validateExternalUrl("https://api.supabase.in/test").valid).toBe(true);
+        expect(
+          validateExternalUrl("https://storage.supabase.co/test").valid
+        ).toBe(true);
+        expect(validateExternalUrl("https://api.supabase.in/test").valid).toBe(
+          true
+        );
       });
 
       it("should reject non-allowlisted domains", () => {
@@ -425,16 +454,22 @@ describe("URL Validator (SSRF Prevention)", () => {
         // Note: URL class normalizes "../" sequences, so we test with encoded dots
         // The real source code checks for ".." in pathname which catches encoded versions
         // This test documents that URL normalization happens at parse time
-        const normalUrl = new URL("https://vceeheaxcrhmpqueudqx.supabase.co/storage/../../../etc/passwd");
+        const normalUrl = new URL(
+          "https://vceeheaxcrhmpqueudqx.supabase.co/storage/../../../etc/passwd"
+        );
         // URL class normalizes this to /etc/passwd (no literal ..)
         expect(normalUrl.pathname).toBe("/etc/passwd");
         // So the validation passes (normalized path doesn't contain ..)
-        const result = validateExternalUrl("https://vceeheaxcrhmpqueudqx.supabase.co/storage/../../../etc/passwd");
+        const result = validateExternalUrl(
+          "https://vceeheaxcrhmpqueudqx.supabase.co/storage/../../../etc/passwd"
+        );
         expect(result.valid).toBe(true); // Passes because URL normalizes the path
       });
 
       it("should allow normal paths", () => {
-        const result = validateExternalUrl("https://vceeheaxcrhmpqueudqx.supabase.co/storage/v1/images/photo.jpg");
+        const result = validateExternalUrl(
+          "https://vceeheaxcrhmpqueudqx.supabase.co/storage/v1/images/photo.jpg"
+        );
         expect(result.valid).toBe(true);
       });
 
@@ -442,7 +477,8 @@ describe("URL Validator (SSRF Prevention)", () => {
         // This tests the check logic - if somehow .. was in pathname
         // We can't easily construct this with standard URL, but the check exists
         // for defense in depth
-        const urlWithDots = "https://vceeheaxcrhmpqueudqx.supabase.co/path/..hidden/file";
+        const urlWithDots =
+          "https://vceeheaxcrhmpqueudqx.supabase.co/path/..hidden/file";
         const result = validateExternalUrl(urlWithDots);
         // This has ".." as literal string in pathname (not a traversal sequence)
         expect(result.valid).toBe(false);
@@ -477,29 +513,39 @@ describe("URL Validator (SSRF Prevention)", () => {
       });
 
       it("should reject other protocols", () => {
-        expect(validateImageUrl("ftp://images.example.com/photo.jpg").valid).toBe(false);
+        expect(
+          validateImageUrl("ftp://images.example.com/photo.jpg").valid
+        ).toBe(false);
         expect(validateImageUrl("file:///etc/passwd").valid).toBe(false);
       });
     });
 
     describe("Security checks still apply", () => {
       it("should block localhost", () => {
-        expect(validateImageUrl("http://localhost/image.jpg").valid).toBe(false);
+        expect(validateImageUrl("http://localhost/image.jpg").valid).toBe(
+          false
+        );
       });
 
       it("should block private IPs", () => {
-        expect(validateImageUrl("http://192.168.1.1/image.jpg").valid).toBe(false);
+        expect(validateImageUrl("http://192.168.1.1/image.jpg").valid).toBe(
+          false
+        );
         expect(validateImageUrl("http://10.0.0.1/image.jpg").valid).toBe(false);
       });
 
       it("should block cloud metadata endpoints", () => {
-        expect(validateImageUrl("http://169.254.169.254/image.jpg").valid).toBe(false);
+        expect(validateImageUrl("http://169.254.169.254/image.jpg").valid).toBe(
+          false
+        );
       });
 
       it("should block path traversal when literal .. remains", () => {
         // URL class normalizes "../" traversal sequences
         // But we can test with literal ".." in a filename pattern
-        const result = validateImageUrl("http://images.example.com/path/..hidden/file");
+        const result = validateImageUrl(
+          "http://images.example.com/path/..hidden/file"
+        );
         expect(result.valid).toBe(false);
         expect(result.error).toBe("Path traversal detected");
       });
@@ -547,12 +593,16 @@ describe("URL Validator (SSRF Prevention)", () => {
   describe("SSRF Attack Vectors", () => {
     it("should block DNS rebinding style attacks", () => {
       // While we can't fully prevent DNS rebinding, we block IPs
-      expect(validateExternalUrl("https://192.168.1.1.nip.io/internal").valid).toBe(false);
+      expect(
+        validateExternalUrl("https://192.168.1.1.nip.io/internal").valid
+      ).toBe(false);
     });
 
     it("should block URL encoding bypass attempts", () => {
       // URL parsing should handle encoding
-      const result = validateExternalUrl("https://vceeheaxcrhmpqueudqx.supabase.co/%2e%2e/etc/passwd");
+      const result = validateExternalUrl(
+        "https://vceeheaxcrhmpqueudqx.supabase.co/%2e%2e/etc/passwd"
+      );
       // The URL class normalizes this
       expect(result.valid).toBe(true); // The path won't contain literal ".."
     });

@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { read, utils } from "xlsx-js-style";
+import { checkAdminAuth, hasMinimumRole } from "@/lib/auth/admin";
 import { createLogger } from "@/lib/logger";
 import { getAdminSupabase } from "@/lib/supabase/admin";
-import { checkAdminAuth, hasMinimumRole } from "@/lib/auth/admin";
 
 const logger = createLogger("api:admin:agents:import");
 
@@ -153,11 +153,13 @@ export async function POST(request: NextRequest) {
       .select("id, communication_email");
 
     if (error) {
-      if (error.message?.includes("unique") || error.message?.includes("duplicate")) {
+      if (
+        error.message?.includes("unique") ||
+        error.message?.includes("duplicate")
+      ) {
         return NextResponse.json(
           {
-            error:
-              "One or more agents already exist with the provided emails",
+            error: "One or more agents already exist with the provided emails",
           },
           { status: 409 }
         );

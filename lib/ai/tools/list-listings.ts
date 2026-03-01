@@ -5,6 +5,7 @@ import { getUserContext } from "@/lib/ai/context";
 import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("ai:list-listings");
+
 import { getListingsByUserId } from "@/lib/db/queries";
 
 const STATUS_EMOJIS: Record<string, string> = {

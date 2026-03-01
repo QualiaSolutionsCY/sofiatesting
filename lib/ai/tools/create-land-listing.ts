@@ -5,6 +5,7 @@ import { getUserContext } from "@/lib/ai/context";
 import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("ai:create-land-listing");
+
 import {
   createLandListing,
   updateListingDuplicateStatus,
@@ -281,7 +282,9 @@ export const createLandListingTool = tool({
         }
       } catch (err) {
         // Don't fail if duplicate check errors - just log and continue
-        logger.warn("Duplicate check failed", { error: err instanceof Error ? err.message : String(err) });
+        logger.warn("Duplicate check failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
 
       return {

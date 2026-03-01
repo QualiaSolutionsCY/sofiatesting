@@ -22,6 +22,7 @@ import { generateUUID } from "../utils";
 import { db } from "./client";
 
 const log = logger.db;
+
 import {
   chat,
   type DBMessage,
@@ -97,13 +98,16 @@ export async function saveChat({
   visibility: VisibilityType;
 }) {
   try {
-    return await db.insert(chat).values({
-      id,
-      createdAt: new Date(),
-      userId,
-      title,
-      visibility,
-    }).onConflictDoNothing();
+    return await db
+      .insert(chat)
+      .values({
+        id,
+        createdAt: new Date(),
+        userId,
+        title,
+        visibility,
+      })
+      .onConflictDoNothing();
   } catch (error) {
     log.error("Failed to save chat", error, { chatId: id, userId });
     throw new ChatSDKError("bad_request:database", "Failed to save chat");
@@ -304,7 +308,10 @@ export async function getMessagesByChatIdWithHistory({
       .orderBy(asc(message.createdAt))
       .limit(200);
   } catch (error) {
-    log.error("Failed to get messages with history", error, { chatId: id, days });
+    log.error("Failed to get messages with history", error, {
+      chatId: id,
+      days,
+    });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get messages with history"
@@ -382,7 +389,11 @@ export async function saveDocument({
       })
       .returning();
   } catch (error) {
-    log.error("Failed to save document", error, { documentId: id, userId, kind });
+    log.error("Failed to save document", error, {
+      documentId: id,
+      userId,
+      kind,
+    });
     throw new ChatSDKError("bad_request:database", "Failed to save document");
   }
 }
@@ -464,7 +475,9 @@ export async function saveSuggestions({
   try {
     return await db.insert(suggestion).values(suggestions);
   } catch (error) {
-    log.error("Failed to save suggestions", error, { count: suggestions.length });
+    log.error("Failed to save suggestions", error, {
+      count: suggestions.length,
+    });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to save suggestions"
@@ -483,7 +496,9 @@ export async function getSuggestionsByDocumentId({
       .from(suggestion)
       .where(and(eq(suggestion.documentId, documentId)));
   } catch (error) {
-    log.error("Failed to get suggestions by document id", error, { documentId });
+    log.error("Failed to get suggestions by document id", error, {
+      documentId,
+    });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get suggestions by document id"
@@ -557,7 +572,10 @@ export async function updateChatVisiblityById({
   try {
     return await db.update(chat).set({ visibility }).where(eq(chat.id, chatId));
   } catch (error) {
-    log.error("Failed to update chat visibility by id", error, { chatId, visibility });
+    log.error("Failed to update chat visibility by id", error, {
+      chatId,
+      visibility,
+    });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to update chat visibility by id"
@@ -579,7 +597,10 @@ export async function updateChatLastContextById({
       .set({ lastContext: context })
       .where(eq(chat.id, chatId));
   } catch (error) {
-    log.warn("Failed to update lastContext for chat", { chatId, error: String(error) });
+    log.warn("Failed to update lastContext for chat", {
+      chatId,
+      error: String(error),
+    });
     return;
   }
 }
@@ -855,7 +876,10 @@ export async function getLandListingsByUserId({
       .orderBy(desc(landListing.createdAt))
       .limit(limit);
   } catch (error) {
-    log.error("Failed to get land listings by user id", error, { userId, limit });
+    log.error("Failed to get land listings by user id", error, {
+      userId,
+      limit,
+    });
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get land listings by user id"

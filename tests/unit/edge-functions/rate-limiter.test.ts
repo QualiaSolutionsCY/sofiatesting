@@ -7,8 +7,8 @@
  * - Fail-closed behavior after repeated errors
  * - Window expiration
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { mockConsole, restoreConsole, createMockSupabaseClient } from "./setup";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockSupabaseClient, mockConsole, restoreConsole } from "./setup";
 
 // Configuration constants (matching rate-limiter.ts)
 const RATE_LIMIT = 30;
@@ -299,7 +299,12 @@ describe("Rate Limiter", () => {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
               eq: vi.fn(() => ({
-                gte: vi.fn(() => Promise.resolve({ count: null, error: { message: "DB error" } })),
+                gte: vi.fn(() =>
+                  Promise.resolve({
+                    count: null,
+                    error: { message: "DB error" },
+                  })
+                ),
               })),
             })),
           })),
@@ -318,7 +323,12 @@ describe("Rate Limiter", () => {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
               eq: vi.fn(() => ({
-                gte: vi.fn(() => Promise.resolve({ count: null, error: { message: "DB error" } })),
+                gte: vi.fn(() =>
+                  Promise.resolve({
+                    count: null,
+                    error: { message: "DB error" },
+                  })
+                ),
               })),
             })),
           })),
@@ -340,7 +350,12 @@ describe("Rate Limiter", () => {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
               eq: vi.fn(() => ({
-                gte: vi.fn(() => Promise.resolve({ count: null, error: { message: "DB error" } })),
+                gte: vi.fn(() =>
+                  Promise.resolve({
+                    count: null,
+                    error: { message: "DB error" },
+                  })
+                ),
               })),
             })),
           })),
@@ -376,7 +391,10 @@ describe("Rate Limiter", () => {
         }),
       };
 
-      const result = await rateLimiter.checkRateLimit(throwingSupabase, "user-123");
+      const result = await rateLimiter.checkRateLimit(
+        throwingSupabase,
+        "user-123"
+      );
       // First exception uses fallback
       expect(result).toBe(true);
     });
@@ -396,7 +414,10 @@ describe("Rate Limiter", () => {
         })),
       };
 
-      const remaining = await rateLimiter.getRemainingMessages(mockSupabase, "user-123");
+      const remaining = await rateLimiter.getRemainingMessages(
+        mockSupabase,
+        "user-123"
+      );
       expect(remaining).toBe(10); // 30 - 20
     });
 
@@ -413,7 +434,10 @@ describe("Rate Limiter", () => {
         })),
       };
 
-      const remaining = await rateLimiter.getRemainingMessages(mockSupabase, "user-123");
+      const remaining = await rateLimiter.getRemainingMessages(
+        mockSupabase,
+        "user-123"
+      );
       expect(remaining).toBe(0);
     });
 
@@ -423,14 +447,22 @@ describe("Rate Limiter", () => {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
               eq: vi.fn(() => ({
-                gte: vi.fn(() => Promise.resolve({ count: null, error: { message: "DB error" } })),
+                gte: vi.fn(() =>
+                  Promise.resolve({
+                    count: null,
+                    error: { message: "DB error" },
+                  })
+                ),
               })),
             })),
           })),
         })),
       };
 
-      const remaining = await rateLimiter.getRemainingMessages(mockSupabase, "user-123");
+      const remaining = await rateLimiter.getRemainingMessages(
+        mockSupabase,
+        "user-123"
+      );
       expect(remaining).toBe(RATE_LIMIT);
     });
 
@@ -447,7 +479,10 @@ describe("Rate Limiter", () => {
         })),
       };
 
-      const remaining = await rateLimiter.getRemainingMessages(mockSupabase, "user-123");
+      const remaining = await rateLimiter.getRemainingMessages(
+        mockSupabase,
+        "user-123"
+      );
       expect(remaining).toBe(RATE_LIMIT); // Treats null as 0 count
     });
   });

@@ -3,8 +3,8 @@
 import { generateText, type UIMessage } from "ai";
 import { cookies } from "next/headers";
 import { z } from "zod";
-import type { VisibilityType } from "@/components/visibility-selector";
 import { auth } from "@/app/(auth)/auth";
+import type { VisibilityType } from "@/components/visibility-selector";
 import { myProvider } from "@/lib/ai/providers";
 import {
   deleteMessagesByChatIdAfterTimestamp,

@@ -12,7 +12,7 @@ import type { TelegramMessage } from "./types";
  * Phase 12, Plan 01
  */
 export async function indexGroupMessage(
-  message: TelegramMessage,
+  message: TelegramMessage
 ): Promise<void> {
   const text = message.text || message.caption;
   if (!text) return;

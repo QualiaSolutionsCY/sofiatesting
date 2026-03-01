@@ -220,7 +220,7 @@ export function AgentForm({
 
         {/* Permissions Section */}
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-muted-foreground">
+          <h3 className="font-medium text-muted-foreground text-sm">
             Permissions
           </h3>
 
@@ -231,7 +231,9 @@ export function AgentForm({
             render={({ field }) => (
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
-                  <FormLabel className="text-base">Can Upload Listings</FormLabel>
+                  <FormLabel className="text-base">
+                    Can Upload Listings
+                  </FormLabel>
                   <FormDescription>
                     Allow agent to upload property listings via SOPHIA
                   </FormDescription>

@@ -53,7 +53,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Cache invalidation triggered. Changes will take effect within 5 minutes (or immediately if CACHE_TTL_MS=0).",
+      message:
+        "Cache invalidation triggered. Changes will take effect within 5 minutes (or immediately if CACHE_TTL_MS=0).",
       invalidatedAt: new Date().toISOString(),
       invalidatedBy: invalidatedBy || "admin",
       note: "To see changes immediately, ensure CACHE_TTL_MS is set to 0 in the Edge Function and redeploy.",

@@ -3,29 +3,29 @@
  * Caches location, property type, and feature UUIDs
  */
 
-import { getAccessToken, getZyprusConfig } from "./client.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { logger, LogCategory } from "../utils/logger.ts";
 import {
-  SOPHIA_AI_UUID,
-  USER_FALLBACKS,
   AGENT_NAME_MAP,
-  REGION_LOCATIONS,
-  DEFAULT_LOCATION_UUID,
-  DEFAULT_PROPERTY_TYPE_UUID,
   DEFAULT_LISTING_TYPE_UUID,
+  DEFAULT_LOCATION_UUID,
   DEFAULT_PRICE_MODIFIER_UUID,
+  DEFAULT_PROPERTY_TYPE_UUID,
   DEFAULT_TITLE_DEED_UUID,
-  PROPERTY_TYPE_FALLBACKS,
-  INDOOR_FEATURE_FALLBACKS,
-  OUTDOOR_FEATURE_FALLBACKS,
-  VIEW_FALLBACKS,
   INDOOR_FEATURE_ALIASES,
-  OUTDOOR_FEATURE_ALIASES,
+  INDOOR_FEATURE_FALLBACKS,
   OPPOSITE_MODIFIERS,
+  OUTDOOR_FEATURE_ALIASES,
+  OUTDOOR_FEATURE_FALLBACKS,
+  PROPERTY_TYPE_FALLBACKS,
+  REGION_LOCATIONS,
+  SOPHIA_AI_UUID,
   TAXONOMY_CACHE_TTL_MS,
   TAXONOMY_STALE_TTL_MS,
+  USER_FALLBACKS,
+  VIEW_FALLBACKS,
 } from "../config/business-rules.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
+import { getAccessToken, getZyprusConfig } from "./client.ts";
 
 // Supabase client for agent lookups
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -38,7 +38,10 @@ const supabase = createClient(supabaseUrl, supabaseKey);
  */
 function sanitizeEmailForFilter(email: string): string {
   // Only allow alphanumeric, @, ., _, -, and +
-  return email.replace(/[^a-zA-Z0-9@._+-]/g, '').toLowerCase().trim();
+  return email
+    .replace(/[^a-zA-Z0-9@._+-]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 /**
@@ -48,8 +51,10 @@ function sanitizeEmailForFilter(email: string): string {
 async function lookupAgentFromSupabase(email: string): Promise<string | null> {
   // Sanitize email to prevent filter injection
   const sanitizedEmail = sanitizeEmailForFilter(email);
-  if (!sanitizedEmail || !sanitizedEmail.includes('@')) {
-    logger.debug(`[Taxonomy] Invalid email format`, { category: LogCategory.ZYPRUS });
+  if (!sanitizedEmail || !sanitizedEmail.includes("@")) {
+    logger.debug("[Taxonomy] Invalid email format", {
+      category: LogCategory.ZYPRUS,
+    });
     return null;
   }
 
@@ -65,7 +70,9 @@ async function lookupAgentFromSupabase(email: string): Promise<string | null> {
       .maybeSingle();
 
     if (!ownerError && ownerData && ownerData.zyprus_user_id) {
-      logger.debug(`[Taxonomy] Found agent "${ownerData.full_name}" in Supabase with Zyprus UUID: ${ownerData.zyprus_user_id}`);
+      logger.debug(
+        `[Taxonomy] Found agent "${ownerData.full_name}" in Supabase with Zyprus UUID: ${ownerData.zyprus_user_id}`
+      );
       return ownerData.zyprus_user_id;
     }
 
@@ -79,19 +86,30 @@ async function lookupAgentFromSupabase(email: string): Promise<string | null> {
       .maybeSingle();
 
     if (!commError && commData && commData.zyprus_user_id) {
-      logger.debug(`[Taxonomy] Found agent "${commData.full_name}" in Supabase with Zyprus UUID: ${commData.zyprus_user_id}`);
+      logger.debug(
+        `[Taxonomy] Found agent "${commData.full_name}" in Supabase with Zyprus UUID: ${commData.zyprus_user_id}`
+      );
       return commData.zyprus_user_id;
     }
 
     // Check if we found an agent without zyprus_user_id
-    if ((ownerData && !ownerData.zyprus_user_id) || (commData && !commData.zyprus_user_id)) {
+    if (
+      (ownerData && !ownerData.zyprus_user_id) ||
+      (commData && !commData.zyprus_user_id)
+    ) {
       const agentData = ownerData || commData;
-      logger.debug(`[Taxonomy] Agent "${agentData!.full_name}" found but no zyprus_user_id set`);
+      logger.debug(
+        `[Taxonomy] Agent "${agentData!.full_name}" found but no zyprus_user_id set`
+      );
     }
 
     return null;
   } catch (err) {
-    logger.error("[Taxonomy] Error looking up agent from Supabase", err instanceof Error ? err : new Error(String(err)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[Taxonomy] Error looking up agent from Supabase",
+      err instanceof Error ? err : new Error(String(err)),
+      { category: LogCategory.ZYPRUS }
+    );
     return null;
   }
 }
@@ -117,8 +135,8 @@ export interface TaxonomyCache {
   features: TaxonomyItem[];
   indoorFeatures: TaxonomyItem[];
   outdoorFeatures: TaxonomyItem[];
-  propertyViews: TaxonomyItem[];  // Sea View, Mountain View, etc.
-  landTypes: TaxonomyItem[];      // Plot, Field, Agricultural
+  propertyViews: TaxonomyItem[]; // Sea View, Mountain View, etc.
+  landTypes: TaxonomyItem[]; // Plot, Field, Agricultural
   infrastructure: TaxonomyItem[]; // Electricity, Water, Road Access, etc.
   users: UserItem[];
   lastUpdated: number;
@@ -126,8 +144,8 @@ export interface TaxonomyCache {
 
 // In-memory cache
 let cache: TaxonomyCache | null = null;
-const CACHE_TTL = TAXONOMY_CACHE_TTL_MS;      // 1 hour - fresh
-const STALE_TTL = TAXONOMY_STALE_TTL_MS;      // 2 hours - serve stale while refreshing
+const CACHE_TTL = TAXONOMY_CACHE_TTL_MS; // 1 hour - fresh
+const STALE_TTL = TAXONOMY_STALE_TTL_MS; // 2 hours - serve stale while refreshing
 
 // P2 PERFORMANCE: Singleton promise to prevent cache stampede
 let taxonomyLoadPromise: Promise<TaxonomyCache> | null = null;
@@ -138,15 +156,21 @@ let isBackgroundRefreshing = false;
 /**
  * Parse taxonomy items from API response
  */
-function parseTaxonomyItems(data: { data?: Array<Record<string, unknown>> }): TaxonomyItem[] {
+function parseTaxonomyItems(data: {
+  data?: Array<Record<string, unknown>>;
+}): TaxonomyItem[] {
   const items: TaxonomyItem[] = [];
   for (const item of data.data || []) {
     const attrs = item.attributes as Record<string, unknown> | undefined;
-    const rels = item.relationships as Record<string, { data?: Array<{ id: string }> | { id: string } }> | undefined;
+    const rels = item.relationships as
+      | Record<string, { data?: Array<{ id: string }> | { id: string } }>
+      | undefined;
     items.push({
       id: item.id as string,
       name: (attrs?.name as string) || (attrs?.title as string) || "",
-      parentId: Array.isArray(rels?.parent?.data) ? rels.parent.data[0]?.id : undefined,
+      parentId: Array.isArray(rels?.parent?.data)
+        ? rels.parent.data[0]?.id
+        : undefined,
     });
   }
   return items;
@@ -170,10 +194,16 @@ async function fetchTaxonomy(
   const PAGE_SIZE = 50;
 
   // Fetch first page to get total count
-  const firstResponse = await fetch(`${baseUrl}?page[limit]=${PAGE_SIZE}`, { headers });
+  const firstResponse = await fetch(`${baseUrl}?page[limit]=${PAGE_SIZE}`, {
+    headers,
+  });
 
   if (!firstResponse.ok) {
-    logger.error(`[Taxonomy] Failed to fetch ${vocabularyName}: ${firstResponse.status}`, undefined, { category: LogCategory.ZYPRUS });
+    logger.error(
+      `[Taxonomy] Failed to fetch ${vocabularyName}: ${firstResponse.status}`,
+      undefined,
+      { category: LogCategory.ZYPRUS }
+    );
     return [];
   }
 
@@ -183,7 +213,9 @@ async function fetchTaxonomy(
   // Check if there are more pages
   const totalCount = firstData.meta?.count;
   if (!totalCount || totalCount <= PAGE_SIZE) {
-    logger.debug(`[Taxonomy] Loaded ${items.length} ${vocabularyName} terms (single page)`);
+    logger.debug(
+      `[Taxonomy] Loaded ${items.length} ${vocabularyName} terms (single page)`
+    );
     return items;
   }
 
@@ -193,8 +225,11 @@ async function fetchTaxonomy(
 
   if (remainingPages > 0) {
     const pagePromises = Array.from({ length: remainingPages }, (_, i) =>
-      fetch(`${baseUrl}?page[limit]=${PAGE_SIZE}&page[offset]=${(i + 1) * PAGE_SIZE}`, { headers })
-        .then(res => res.ok ? res.json() : null)
+      fetch(
+        `${baseUrl}?page[limit]=${PAGE_SIZE}&page[offset]=${(i + 1) * PAGE_SIZE}`,
+        { headers }
+      )
+        .then((res) => (res.ok ? res.json() : null))
         .catch(() => null)
     );
 
@@ -206,18 +241,24 @@ async function fetchTaxonomy(
     }
   }
 
-  logger.debug(`[Taxonomy] Loaded ${items.length} ${vocabularyName} terms (${totalPages} pages parallel)`);
+  logger.debug(
+    `[Taxonomy] Loaded ${items.length} ${vocabularyName} terms (${totalPages} pages parallel)`
+  );
   return items;
 }
 
 /**
  * Parse location items from API response (different structure than taxonomy)
  */
-function parseLocationItems(data: { data?: Array<Record<string, unknown>> }): TaxonomyItem[] {
+function parseLocationItems(data: {
+  data?: Array<Record<string, unknown>>;
+}): TaxonomyItem[] {
   const items: TaxonomyItem[] = [];
   for (const item of data.data || []) {
     const attrs = item.attributes as Record<string, unknown> | undefined;
-    const rels = item.relationships as Record<string, { data?: { id: string } }> | undefined;
+    const rels = item.relationships as
+      | Record<string, { data?: { id: string } }>
+      | undefined;
     items.push({
       id: item.id as string,
       name: (attrs?.title as string) || (attrs?.name as string) || "",
@@ -245,10 +286,16 @@ async function fetchLocations(
   const PAGE_SIZE = 50;
 
   // Fetch first page to get total count
-  const firstResponse = await fetch(`${baseUrl}?page[limit]=${PAGE_SIZE}`, { headers });
+  const firstResponse = await fetch(`${baseUrl}?page[limit]=${PAGE_SIZE}`, {
+    headers,
+  });
 
   if (!firstResponse.ok) {
-    logger.error(`[Taxonomy] Failed to fetch locations: ${firstResponse.status}`, undefined, { category: LogCategory.ZYPRUS });
+    logger.error(
+      `[Taxonomy] Failed to fetch locations: ${firstResponse.status}`,
+      undefined,
+      { category: LogCategory.ZYPRUS }
+    );
     return [];
   }
 
@@ -258,13 +305,17 @@ async function fetchLocations(
   // Check if there are more pages using links.next (meta.count is undefined in Zyprus API)
   const nextLink = firstData.links?.next;
   if (!nextLink) {
-    logger.debug(`[Taxonomy] Loaded ${items.length} location nodes (single page)`);
+    logger.debug(
+      `[Taxonomy] Loaded ${items.length} location nodes (single page)`
+    );
     return items;
   }
 
   // Fetch remaining pages by following links sequentially
   const allItems = [...items];
-  let nextUrl = (typeof nextLink === 'string' ? nextLink : nextLink?.href) as string | null;
+  let nextUrl = (typeof nextLink === "string" ? nextLink : nextLink?.href) as
+    | string
+    | null;
   let pageCount = 1;
 
   while (nextUrl) {
@@ -276,26 +327,36 @@ async function fetchLocations(
     pageCount++;
 
     const next = data.links?.next;
-    nextUrl = (typeof next === 'string' ? next : next?.href) as string | null;
+    nextUrl = (typeof next === "string" ? next : next?.href) as string | null;
 
     // Safety limit to prevent infinite loops
     if (pageCount > 100) {
-      logger.warn(`[Taxonomy] Location pagination exceeded 100 pages, stopping`, undefined, { category: LogCategory.ZYPRUS });
+      logger.warn(
+        "[Taxonomy] Location pagination exceeded 100 pages, stopping",
+        undefined,
+        { category: LogCategory.ZYPRUS }
+      );
       break;
     }
   }
 
-  logger.debug(`[Taxonomy] Loaded ${allItems.length} location nodes (${pageCount} pages)`);
+  logger.debug(
+    `[Taxonomy] Loaded ${allItems.length} location nodes (${pageCount} pages)`
+  );
   return allItems;
 }
 
 /**
  * Parse user items from API response
  */
-function parseUserItems(data: { data?: Array<Record<string, unknown>> }): UserItem[] {
+function parseUserItems(data: {
+  data?: Array<Record<string, unknown>>;
+}): UserItem[] {
   const items: UserItem[] = [];
   for (const item of data.data || []) {
-    const attrs = item.attributes as Record<string, string | undefined> | undefined;
+    const attrs = item.attributes as
+      | Record<string, string | undefined>
+      | undefined;
     if (attrs?.mail) {
       items.push({
         id: item.id as string,
@@ -311,10 +372,7 @@ function parseUserItems(data: { data?: Array<Record<string, unknown>> }): UserIt
  * Fetch users from Zyprus API for reviewer/owner assignment
  * P1 PERFORMANCE: Uses parallel pagination
  */
-async function fetchUsers(
-  token: string,
-  apiUrl: string
-): Promise<UserItem[]> {
+async function fetchUsers(token: string, apiUrl: string): Promise<UserItem[]> {
   const baseUrl = `${apiUrl}/jsonapi/user/user`;
   const headers = {
     Authorization: `Bearer ${token}`,
@@ -324,10 +382,17 @@ async function fetchUsers(
   const PAGE_SIZE = 50;
 
   // Fetch first page to get total count
-  const firstResponse = await fetch(`${baseUrl}?filter[status]=1&page[limit]=${PAGE_SIZE}`, { headers });
+  const firstResponse = await fetch(
+    `${baseUrl}?filter[status]=1&page[limit]=${PAGE_SIZE}`,
+    { headers }
+  );
 
   if (!firstResponse.ok) {
-    logger.error(`[Taxonomy] Failed to fetch users: ${firstResponse.status}`, undefined, { category: LogCategory.ZYPRUS });
+    logger.error(
+      `[Taxonomy] Failed to fetch users: ${firstResponse.status}`,
+      undefined,
+      { category: LogCategory.ZYPRUS }
+    );
     return [];
   }
 
@@ -343,7 +408,9 @@ async function fetchUsers(
 
   // Fetch remaining pages by following links sequentially
   const allItems = [...items];
-  let nextUrl = (typeof nextLink === 'string' ? nextLink : nextLink?.href) as string | null;
+  let nextUrl = (typeof nextLink === "string" ? nextLink : nextLink?.href) as
+    | string
+    | null;
   let pageCount = 1;
 
   while (nextUrl) {
@@ -355,16 +422,22 @@ async function fetchUsers(
     pageCount++;
 
     const next = data.links?.next;
-    nextUrl = (typeof next === 'string' ? next : next?.href) as string | null;
+    nextUrl = (typeof next === "string" ? next : next?.href) as string | null;
 
     // Safety limit to prevent infinite loops
     if (pageCount > 100) {
-      logger.warn(`[Taxonomy] User pagination exceeded 100 pages, stopping`, undefined, { category: LogCategory.ZYPRUS });
+      logger.warn(
+        "[Taxonomy] User pagination exceeded 100 pages, stopping",
+        undefined,
+        { category: LogCategory.ZYPRUS }
+      );
       break;
     }
   }
 
-  logger.debug(`[Taxonomy] Loaded ${allItems.length} users (${pageCount} pages)`);
+  logger.debug(
+    `[Taxonomy] Loaded ${allItems.length} users (${pageCount} pages)`
+  );
   return allItems;
 }
 
@@ -374,12 +447,17 @@ async function fetchUsers(
  */
 async function refreshTaxonomyInBackground(): Promise<void> {
   if (isBackgroundRefreshing) {
-    logger.debug("[Taxonomy] Background refresh already in progress, skipping", { category: LogCategory.CACHE });
+    logger.debug(
+      "[Taxonomy] Background refresh already in progress, skipping",
+      { category: LogCategory.CACHE }
+    );
     return;
   }
 
   isBackgroundRefreshing = true;
-  logger.info("[Taxonomy] Starting background refresh...", { category: LogCategory.CACHE });
+  logger.info("[Taxonomy] Starting background refresh...", {
+    category: LogCategory.CACHE,
+  });
 
   try {
     const config = getZyprusConfig();
@@ -427,9 +505,15 @@ async function refreshTaxonomyInBackground(): Promise<void> {
       lastUpdated: Date.now(),
     };
 
-    logger.info("[Taxonomy] Background refresh completed", { category: LogCategory.CACHE });
+    logger.info("[Taxonomy] Background refresh completed", {
+      category: LogCategory.CACHE,
+    });
   } catch (err) {
-    logger.error("[Taxonomy] Background refresh failed", err instanceof Error ? err : new Error(String(err)), { category: LogCategory.CACHE });
+    logger.error(
+      "[Taxonomy] Background refresh failed",
+      err instanceof Error ? err : new Error(String(err)),
+      { category: LogCategory.CACHE }
+    );
   } finally {
     isBackgroundRefreshing = false;
   }
@@ -455,7 +539,9 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
 
     // Stale but usable - return immediately and refresh in background
     if (cacheAge < STALE_TTL) {
-      logger.debug("[Taxonomy] Serving stale cache, refreshing in background", { category: LogCategory.CACHE });
+      logger.debug("[Taxonomy] Serving stale cache, refreshing in background", {
+        category: LogCategory.CACHE,
+      });
       // Fire-and-forget background refresh
       refreshTaxonomyInBackground().catch(() => {});
       return cache;
@@ -465,11 +551,15 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
   // No cache or expired - need to do blocking refresh
   // P2 PERFORMANCE: Prevent cache stampede - only one concurrent fetch
   if (taxonomyLoadPromise) {
-    logger.debug("[Taxonomy] Waiting for existing load operation...", { category: LogCategory.CACHE });
+    logger.debug("[Taxonomy] Waiting for existing load operation...", {
+      category: LogCategory.CACHE,
+    });
     return taxonomyLoadPromise;
   }
 
-  logger.info("[Taxonomy] Loading taxonomy data (blocking)...", { category: LogCategory.CACHE });
+  logger.info("[Taxonomy] Loading taxonomy data (blocking)...", {
+    category: LogCategory.CACHE,
+  });
 
   // Create singleton promise for this load operation
   taxonomyLoadPromise = (async () => {
@@ -519,7 +609,9 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
         lastUpdated: Date.now(),
       };
 
-      logger.info("[Taxonomy] Taxonomy loaded successfully", { category: LogCategory.CACHE });
+      logger.info("[Taxonomy] Taxonomy loaded successfully", {
+        category: LogCategory.CACHE,
+      });
       return cache;
     } finally {
       // Clear the singleton promise after load completes (success or failure)
@@ -553,7 +645,9 @@ export interface LocationResult {
  *
  * Returns LocationResult with uuid, matchedName (taxonomy name), and district.
  */
-export async function findLocationUuid(locationName: string): Promise<LocationResult> {
+export async function findLocationUuid(
+  locationName: string
+): Promise<LocationResult> {
   const normalized = locationName.toLowerCase().trim();
   let specifiedDistrict: string | null = null; // Declare outside try for error logging
 
@@ -561,7 +655,10 @@ export async function findLocationUuid(locationName: string): Promise<LocationRe
     const taxonomy = await loadTaxonomy();
 
     // Helper to build LocationResult from a matched location
-    const buildResult = (loc: TaxonomyItem, district: string | null): LocationResult => ({
+    const buildResult = (
+      loc: TaxonomyItem,
+      district: string | null
+    ): LocationResult => ({
       uuid: loc.id,
       matchedName: loc.name,
       district,
@@ -572,17 +669,25 @@ export async function findLocationUuid(locationName: string): Promise<LocationRe
       (loc) => loc.name.toLowerCase() === normalized
     );
     if (exact) {
-      logger.debug(`[Taxonomy] Exact match for "${locationName}": ${exact.name}`);
+      logger.debug(
+        `[Taxonomy] Exact match for "${locationName}": ${exact.name}`
+      );
       return buildResult(exact, null);
     }
 
     // Extract words from input (filter short words)
-    const words = normalized.split(/[\s,]+/).filter(w => w.length > 2);
+    const words = normalized.split(/[\s,]+/).filter((w) => w.length > 2);
 
     if (words.length === 0) {
       // No meaningful words, use default
-      logger.debug(`[Taxonomy] No meaningful words in "${locationName}", using default`);
-      return { uuid: DEFAULT_LOCATION_UUID, matchedName: locationName, district: null };
+      logger.debug(
+        `[Taxonomy] No meaningful words in "${locationName}", using default`
+      );
+      return {
+        uuid: DEFAULT_LOCATION_UUID,
+        matchedName: locationName,
+        district: null,
+      };
     }
 
     // CRITICAL: Detect the EXPLICITLY SPECIFIED district from input
@@ -590,11 +695,17 @@ export async function findLocationUuid(locationName: string): Promise<LocationRe
     for (const [region, locationsList] of Object.entries(REGION_LOCATIONS)) {
       // Check if any region name or aliases appear in the input
       const regionAliases = [region, ...locationsList];
-      if (words.some(w => regionAliases.some(alias =>
-        w === alias || w.includes(alias) || alias.includes(w)
-      ))) {
+      if (
+        words.some((w) =>
+          regionAliases.some(
+            (alias) => w === alias || w.includes(alias) || alias.includes(w)
+          )
+        )
+      ) {
         specifiedDistrict = region;
-        logger.debug(`[Taxonomy] Explicitly specified district "${region}" in input: ${locationName}`);
+        logger.debug(
+          `[Taxonomy] Explicitly specified district "${region}" in input: ${locationName}`
+        );
         break;
       }
     }
@@ -603,11 +714,16 @@ export async function findLocationUuid(locationName: string): Promise<LocationRe
     const firstWord = words[0];
 
     // Score all locations by multiple factors
-    const scoredMatches: Array<{ location: TaxonomyItem; score: number; matchedWords: string[]; bonusReason: string }> = [];
+    const scoredMatches: Array<{
+      location: TaxonomyItem;
+      score: number;
+      matchedWords: string[];
+      bonusReason: string;
+    }> = [];
 
     for (const loc of taxonomy.locations) {
       const locNameLower = loc.name.toLowerCase();
-      const locWords = locNameLower.split(/[\s,]+/).filter(w => w.length > 1);
+      const locWords = locNameLower.split(/[\s,]+/).filter((w) => w.length > 1);
       const matchedWords: string[] = [];
       let score = 0;
       let bonusReason = "";
@@ -645,9 +761,13 @@ export async function findLocationUuid(locationName: string): Promise<LocationRe
         // Check if this location is in the specified district
         // CRITICAL: Use EXACT word match, not substring, to avoid "neapoli" matching "neapolis"
         // Also check multi-word entries (e.g., "mesa chorio", "kato paphos") against full name
-        const locationIsInDistrict = locWords.some(locWord =>
-          regionLocs.some(regLoc => locWord === regLoc)
-        ) || regionLocs.some(regLoc => regLoc.includes(" ") && locNameLower.includes(regLoc));
+        const locationIsInDistrict =
+          locWords.some((locWord) =>
+            regionLocs.some((regLoc) => locWord === regLoc)
+          ) ||
+          regionLocs.some(
+            (regLoc) => regLoc.includes(" ") && locNameLower.includes(regLoc)
+          );
 
         if (locationIsInDistrict) {
           score += 30; // HUGE bonus for being in the specified district
@@ -655,10 +775,19 @@ export async function findLocationUuid(locationName: string): Promise<LocationRe
         } else {
           // Check if location is in a DIFFERENT district
           let locationInOtherDistrict: string | null = null;
-          for (const [otherRegion, otherLocs] of Object.entries(REGION_LOCATIONS)) {
+          for (const [otherRegion, otherLocs] of Object.entries(
+            REGION_LOCATIONS
+          )) {
             if (otherRegion === specifiedDistrict) continue;
-            if (locWords.some(locWord => otherLocs.some(otherLoc => locWord === otherLoc)) ||
-                otherLocs.some(otherLoc => otherLoc.includes(" ") && locNameLower.includes(otherLoc))) {
+            if (
+              locWords.some((locWord) =>
+                otherLocs.some((otherLoc) => locWord === otherLoc)
+              ) ||
+              otherLocs.some(
+                (otherLoc) =>
+                  otherLoc.includes(" ") && locNameLower.includes(otherLoc)
+              )
+            ) {
               locationInOtherDistrict = otherRegion;
               break;
             }
@@ -668,17 +797,23 @@ export async function findLocationUuid(locationName: string): Promise<LocationRe
           if (locationInOtherDistrict) {
             score -= 50; // Massive penalty for wrong district
             bonusReason += `WRONG-DISTRICT:${locationInOtherDistrict} `;
-            logger.debug(`[Taxonomy] Penalizing "${loc.name}" - in ${locationInOtherDistrict}, user wants ${specifiedDistrict}`);
+            logger.debug(
+              `[Taxonomy] Penalizing "${loc.name}" - in ${locationInOtherDistrict}, user wants ${specifiedDistrict}`
+            );
           }
         }
       }
 
       // Region bonus: Give moderate bonus if this location is in a detected region (when no explicit district)
       if (!specifiedDistrict) {
-        for (const [region, locationsList] of Object.entries(REGION_LOCATIONS)) {
+        for (const [region, locationsList] of Object.entries(
+          REGION_LOCATIONS
+        )) {
           const regionLocs = locationsList;
-          const locationIsInRegion = locWords.some(locWord =>
-            regionLocs.some(regLoc => locWord.includes(regLoc) || regLoc.includes(locWord))
+          const locationIsInRegion = locWords.some((locWord) =>
+            regionLocs.some(
+              (regLoc) => locWord.includes(regLoc) || regLoc.includes(locWord)
+            )
           );
 
           if (locationIsInRegion) {
@@ -701,35 +836,51 @@ export async function findLocationUuid(locationName: string): Promise<LocationRe
       // If the best match is in the wrong district, discard all matches and use fallback
       if (specifiedDistrict) {
         const regionLocs = REGION_LOCATIONS[specifiedDistrict] || [];
-        const bestLocWords = best.location.name.toLowerCase().split(/[\s,]+/).filter(w => w.length > 1);
+        const bestLocWords = best.location.name
+          .toLowerCase()
+          .split(/[\s,]+/)
+          .filter((w) => w.length > 1);
         const bestLocNameLower = best.location.name.toLowerCase();
         // CRITICAL: Use EXACT word match for district detection + multi-word entries
-        const bestIsInDistrict = bestLocWords.some(locWord =>
-          regionLocs.some(regLoc => locWord === regLoc)
-        ) || regionLocs.some(regLoc => regLoc.includes(" ") && bestLocNameLower.includes(regLoc));
+        const bestIsInDistrict =
+          bestLocWords.some((locWord) =>
+            regionLocs.some((regLoc) => locWord === regLoc)
+          ) ||
+          regionLocs.some(
+            (regLoc) =>
+              regLoc.includes(" ") && bestLocNameLower.includes(regLoc)
+          );
 
-        if (!bestIsInDistrict) {
-          logger.warn(`[Taxonomy] Best match "${best.location.name}" is NOT in specified district "${specifiedDistrict}" - discarding and using fallback`, { category: LogCategory.ZYPRUS });
-
-          // Don't return - fall through to fallback logic below
-        } else {
-          logger.debug(`[Taxonomy] Best match for "${locationName}": ${best.location.name} (score: ${best.score}, matched: ${best.matchedWords.join(", ")}, bonus: ${best.bonusReason})`);
+        if (bestIsInDistrict) {
+          logger.debug(
+            `[Taxonomy] Best match for "${locationName}": ${best.location.name} (score: ${best.score}, matched: ${best.matchedWords.join(", ")}, bonus: ${best.bonusReason})`
+          );
 
           // Log top 3 alternatives for debugging
           for (let i = 1; i < Math.min(4, scoredMatches.length); i++) {
             const alt = scoredMatches[i];
-            logger.debug(`[Taxonomy] Alternative ${i}: ${alt.location.name} (score: ${alt.score}, ${alt.bonusReason})`);
+            logger.debug(
+              `[Taxonomy] Alternative ${i}: ${alt.location.name} (score: ${alt.score}, ${alt.bonusReason})`
+            );
           }
 
           return buildResult(best.location, specifiedDistrict);
         }
+        logger.warn(
+          `[Taxonomy] Best match "${best.location.name}" is NOT in specified district "${specifiedDistrict}" - discarding and using fallback`,
+          { category: LogCategory.ZYPRUS }
+        );
       } else {
-        logger.debug(`[Taxonomy] Best match for "${locationName}": ${best.location.name} (score: ${best.score}, matched: ${best.matchedWords.join(", ")}, bonus: ${best.bonusReason})`);
+        logger.debug(
+          `[Taxonomy] Best match for "${locationName}": ${best.location.name} (score: ${best.score}, matched: ${best.matchedWords.join(", ")}, bonus: ${best.bonusReason})`
+        );
 
         // Log top 3 alternatives for debugging
         for (let i = 1; i < Math.min(4, scoredMatches.length); i++) {
           const alt = scoredMatches[i];
-          logger.debug(`[Taxonomy] Alternative ${i}: ${alt.location.name} (score: ${alt.score}, ${alt.bonusReason})`);
+          logger.debug(
+            `[Taxonomy] Alternative ${i}: ${alt.location.name} (score: ${alt.score}, ${alt.bonusReason})`
+          );
         }
 
         return buildResult(best.location, specifiedDistrict);
@@ -742,43 +893,60 @@ export async function findLocationUuid(locationName: string): Promise<LocationRe
       const regionLocs = REGION_LOCATIONS[specifiedDistrict] || [];
 
       // First try: direct name match with district name (e.g., "Limassol")
-      let regionFallback = taxonomy.locations.find(loc =>
+      let regionFallback = taxonomy.locations.find((loc) =>
         loc.name.toLowerCase().includes(specifiedDistrict!)
       );
 
       // Second try: match ANY location name that appears in REGION_LOCATIONS for this district
       // CRITICAL: Use EXACT word match to avoid "neapoli" matching "neapolis" + multi-word entries
       if (!regionFallback && regionLocs.length > 0) {
-        regionFallback = taxonomy.locations.find(loc => {
+        regionFallback = taxonomy.locations.find((loc) => {
           const locNameLower = loc.name.toLowerCase();
-          const locWords = locNameLower.split(/[\s,]+/).filter(w => w.length > 1);
-          return locWords.some(locWord => regionLocs.includes(locWord)) ||
-                 regionLocs.some(regLoc => regLoc.includes(" ") && locNameLower.includes(regLoc));
+          const locWords = locNameLower
+            .split(/[\s,]+/)
+            .filter((w) => w.length > 1);
+          return (
+            locWords.some((locWord) => regionLocs.includes(locWord)) ||
+            regionLocs.some(
+              (regLoc) => regLoc.includes(" ") && locNameLower.includes(regLoc)
+            )
+          );
         });
       }
 
       // Third try: just find the first location that STARTS with the district name
       if (!regionFallback) {
-        regionFallback = taxonomy.locations.find(loc =>
+        regionFallback = taxonomy.locations.find((loc) =>
           loc.name.toLowerCase().startsWith(specifiedDistrict!)
         );
       }
 
       if (regionFallback) {
-        logger.debug(`[Taxonomy] Using region fallback for "${locationName}" (district: ${specifiedDistrict}): ${regionFallback.name}`);
+        logger.debug(
+          `[Taxonomy] Using region fallback for "${locationName}" (district: ${specifiedDistrict}): ${regionFallback.name}`
+        );
         return buildResult(regionFallback, specifiedDistrict);
       }
 
-      logger.warn(`[Taxonomy] No location found for district "${specifiedDistrict}" in "${locationName}", will use default`, { category: LogCategory.ZYPRUS });
+      logger.warn(
+        `[Taxonomy] No location found for district "${specifiedDistrict}" in "${locationName}", will use default`,
+        { category: LogCategory.ZYPRUS }
+      );
     }
 
     // Ultimate fallback: return first location if available (ONLY when no district specified)
     if (!specifiedDistrict && taxonomy.locations.length > 0) {
-      logger.debug(`[Taxonomy] WARNING: Using first available location for "${locationName}": ${taxonomy.locations[0].name}`);
+      logger.debug(
+        `[Taxonomy] WARNING: Using first available location for "${locationName}": ${taxonomy.locations[0].name}`
+      );
       return buildResult(taxonomy.locations[0], null);
     }
   } catch (error) {
-    logger.error("[Taxonomy] Error finding location", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[Taxonomy] Error finding location",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
   }
 
   // Ultimate fallback: use default location UUID
@@ -786,11 +954,20 @@ export async function findLocationUuid(locationName: string): Promise<LocationRe
   // Since Zyprus only has Nicosia locations in the database, we must use Nicosia as fallback
   // even for other districts. The location mismatch will be noted in AI message for manual correction.
   if (specifiedDistrict) {
-    logger.warn(`[Taxonomy] No location found for district "${specifiedDistrict}" in "${locationName}" - using Nicosia default as API requires non-null location`, { category: LogCategory.ZYPRUS });
+    logger.warn(
+      `[Taxonomy] No location found for district "${specifiedDistrict}" in "${locationName}" - using Nicosia default as API requires non-null location`,
+      { category: LogCategory.ZYPRUS }
+    );
   } else {
-    logger.debug(`[Taxonomy] Using hardcoded default location UUID for: ${locationName}`);
+    logger.debug(
+      `[Taxonomy] Using hardcoded default location UUID for: ${locationName}`
+    );
   }
-  return { uuid: DEFAULT_LOCATION_UUID, matchedName: locationName, district: specifiedDistrict };
+  return {
+    uuid: DEFAULT_LOCATION_UUID,
+    matchedName: locationName,
+    district: specifiedDistrict,
+  };
 }
 
 /**
@@ -799,23 +976,34 @@ export async function findLocationUuid(locationName: string): Promise<LocationRe
  */
 export async function findPropertyTypeUuid(typeName: string): Promise<string> {
   const normalized = typeName.toLowerCase().trim();
-  logger.debug(`[Taxonomy] Finding property type UUID for: "${typeName}" (normalized: "${normalized}")`);
+  logger.debug(
+    `[Taxonomy] Finding property type UUID for: "${typeName}" (normalized: "${normalized}")`
+  );
 
   // FIRST: Check if we have a hardcoded fallback for this type
   // This ensures common types like "villa" always get the correct UUID
   if (PROPERTY_TYPE_FALLBACKS[normalized]) {
-    logger.debug(`[Taxonomy] Using hardcoded fallback for "${typeName}": ${PROPERTY_TYPE_FALLBACKS[normalized]}`);
+    logger.debug(
+      `[Taxonomy] Using hardcoded fallback for "${typeName}": ${PROPERTY_TYPE_FALLBACKS[normalized]}`
+    );
     return PROPERTY_TYPE_FALLBACKS[normalized];
   }
 
   try {
     const taxonomy = await loadTaxonomy();
-    logger.debug(`[Taxonomy] Available property types: ${taxonomy.propertyTypes.map(pt => pt.name).join(", ")}`);
+    logger.debug(
+      `[Taxonomy] Available property types: ${taxonomy.propertyTypes.map((pt) => pt.name).join(", ")}`
+    );
 
     // Common aliases - maps user input to taxonomy names
     const aliases: Record<string, string[]> = {
       apartment: ["flat", "apt"],
-      villa: ["detached", "detached house", "standalone house", "independent house"],
+      villa: [
+        "detached",
+        "detached house",
+        "standalone house",
+        "independent house",
+      ],
       house: ["home", "detached house"],
       maisonette: ["maisonette", "split-level"],
       bungalow: ["single-story", "single storey"],
@@ -828,7 +1016,9 @@ export async function findPropertyTypeUuid(typeName: string): Promise<string> {
       (pt) => pt.name.toLowerCase() === normalized
     );
     if (exact) {
-      logger.debug(`[Taxonomy] Exact match for "${typeName}": ${exact.name} (${exact.id})`);
+      logger.debug(
+        `[Taxonomy] Exact match for "${typeName}": ${exact.name} (${exact.id})`
+      );
       return exact.id;
     }
 
@@ -840,12 +1030,16 @@ export async function findPropertyTypeUuid(typeName: string): Promise<string> {
           (pt) => pt.name.toLowerCase() === canonical
         );
         if (match) {
-          logger.debug(`[Taxonomy] Alias match: "${typeName}" -> "${canonical}" -> ${match.id}`);
+          logger.debug(
+            `[Taxonomy] Alias match: "${typeName}" -> "${canonical}" -> ${match.id}`
+          );
           return match.id;
         }
         // If canonical not in taxonomy, use hardcoded fallback
         if (PROPERTY_TYPE_FALLBACKS[canonical]) {
-          logger.debug(`[Taxonomy] Alias fallback: "${typeName}" -> "${canonical}" -> ${PROPERTY_TYPE_FALLBACKS[canonical]}`);
+          logger.debug(
+            `[Taxonomy] Alias fallback: "${typeName}" -> "${canonical}" -> ${PROPERTY_TYPE_FALLBACKS[canonical]}`
+          );
           return PROPERTY_TYPE_FALLBACKS[canonical];
         }
       }
@@ -853,21 +1047,29 @@ export async function findPropertyTypeUuid(typeName: string): Promise<string> {
 
     // Try partial match - but be careful not to match too broadly
     // Only match if the property type is contained in the taxonomy name
-    const partial = taxonomy.propertyTypes.find(
-      (pt) => pt.name.toLowerCase().includes(normalized)
+    const partial = taxonomy.propertyTypes.find((pt) =>
+      pt.name.toLowerCase().includes(normalized)
     );
     if (partial) {
-      logger.debug(`[Taxonomy] Partial match for "${typeName}": ${partial.name} (${partial.id})`);
+      logger.debug(
+        `[Taxonomy] Partial match for "${typeName}": ${partial.name} (${partial.id})`
+      );
       return partial.id;
     }
 
     // Last resort: return first property type if available
     if (taxonomy.propertyTypes.length > 0) {
-      logger.debug(`[Taxonomy] WARNING: Using first available property type: ${taxonomy.propertyTypes[0].name}`);
+      logger.debug(
+        `[Taxonomy] WARNING: Using first available property type: ${taxonomy.propertyTypes[0].name}`
+      );
       return taxonomy.propertyTypes[0].id;
     }
   } catch (error) {
-    logger.error("[Taxonomy] Error finding property type", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[Taxonomy] Error finding property type",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
   }
 
   // Ultimate fallback: use default UUID
@@ -879,15 +1081,20 @@ export async function findPropertyTypeUuid(typeName: string): Promise<string> {
  * Find listing type UUID (sale/rent)
  * Uses DEFAULT_LISTING_TYPE_UUID from config as fallback
  */
-export async function findListingTypeUuid(type: "sale" | "rent"): Promise<string> {
+export async function findListingTypeUuid(
+  type: "sale" | "rent"
+): Promise<string> {
   try {
     const taxonomy = await loadTaxonomy();
 
-    const searchTerms = type === "sale" ? ["sale", "for sale", "buy"] : ["rent", "for rent", "rental"];
+    const searchTerms =
+      type === "sale"
+        ? ["sale", "for sale", "buy"]
+        : ["rent", "for rent", "rental"];
 
     for (const term of searchTerms) {
-      const match = taxonomy.listingTypes.find(
-        (lt) => lt.name.toLowerCase().includes(term)
+      const match = taxonomy.listingTypes.find((lt) =>
+        lt.name.toLowerCase().includes(term)
       );
       if (match) {
         return match.id;
@@ -896,22 +1103,30 @@ export async function findListingTypeUuid(type: "sale" | "rent"): Promise<string
 
     // Fallback: return first listing type if available
     if (taxonomy.listingTypes.length > 0) {
-      logger.debug(`[Taxonomy] Using first available listing type: ${taxonomy.listingTypes[0].name}`);
+      logger.debug(
+        `[Taxonomy] Using first available listing type: ${taxonomy.listingTypes[0].name}`
+      );
       return taxonomy.listingTypes[0].id;
     }
   } catch (error) {
-    logger.error("[Taxonomy] Error finding listing type", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[Taxonomy] Error finding listing type",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
   }
 
   // Ultimate fallback: use documented default UUID
-  logger.debug(`[Taxonomy] Using hardcoded default listing type UUID`);
+  logger.debug("[Taxonomy] Using hardcoded default listing type UUID");
   return DEFAULT_LISTING_TYPE_UUID;
 }
 
 /**
  * Find feature UUIDs by names
  */
-export async function findFeatureUuids(featureNames: string[]): Promise<string[]> {
+export async function findFeatureUuids(
+  featureNames: string[]
+): Promise<string[]> {
   const taxonomy = await loadTaxonomy();
   const allFeatures = [
     ...taxonomy.features,
@@ -942,7 +1157,9 @@ export async function findFeatureUuids(featureNames: string[]): Promise<string[]
 /**
  * Get all locations for a region
  */
-export async function getLocationsByRegion(region: string): Promise<TaxonomyItem[]> {
+export async function getLocationsByRegion(
+  region: string
+): Promise<TaxonomyItem[]> {
   const taxonomy = await loadTaxonomy();
 
   // Region to parent location mapping
@@ -974,7 +1191,10 @@ export async function getLocationsByRegion(region: string): Promise<TaxonomyItem
  * Live API values: Price, Guide Price, Offers in region of, Offers over, Negotiable
  * Uses DEFAULT_PRICE_MODIFIER_UUID from config as fallback
  */
-export async function findPriceModifierUuid(modifier?: string, negotiable?: boolean): Promise<string> {
+export async function findPriceModifierUuid(
+  modifier?: string,
+  negotiable?: boolean
+): Promise<string> {
   try {
     const taxonomy = await loadTaxonomy();
 
@@ -1007,12 +1227,19 @@ export async function findPriceModifierUuid(modifier?: string, negotiable?: bool
     }
 
     // Log available terms for debugging
-    logger.debug(`[Taxonomy] Price modifier search: terms=${searchTerms.join(",")}, modifier=${modifier}, negotiable=${negotiable}`, { category: LogCategory.CACHE });
-    logger.debug(`[Taxonomy] Available price modifiers: ${taxonomy.priceModifiers.map(pm => pm.name).join(", ")}`, { category: LogCategory.CACHE });
+    logger.debug(
+      `[Taxonomy] Price modifier search: terms=${searchTerms.join(",")}, modifier=${modifier}, negotiable=${negotiable}`,
+      { category: LogCategory.CACHE }
+    );
+    logger.debug(
+      `[Taxonomy] Available price modifiers: ${taxonomy.priceModifiers.map((pm) => pm.name).join(", ")}`,
+      { category: LogCategory.CACHE }
+    );
 
     for (const term of searchTerms) {
       const match = taxonomy.priceModifiers.find(
-        (pm) => pm.name.toLowerCase() === term || pm.name.toLowerCase().includes(term)
+        (pm) =>
+          pm.name.toLowerCase() === term || pm.name.toLowerCase().includes(term)
       );
       if (match) {
         return match.id;
@@ -1021,15 +1248,21 @@ export async function findPriceModifierUuid(modifier?: string, negotiable?: bool
 
     // Fallback: return first price modifier if available
     if (taxonomy.priceModifiers.length > 0) {
-      logger.debug(`[Taxonomy] Using first available price modifier: ${taxonomy.priceModifiers[0].name}`);
+      logger.debug(
+        `[Taxonomy] Using first available price modifier: ${taxonomy.priceModifiers[0].name}`
+      );
       return taxonomy.priceModifiers[0].id;
     }
   } catch (error) {
-    logger.error("[Taxonomy] Error finding price modifier", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[Taxonomy] Error finding price modifier",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
   }
 
   // Ultimate fallback: use documented default UUID
-  logger.debug(`[Taxonomy] Using hardcoded default price modifier UUID`);
+  logger.debug("[Taxonomy] Using hardcoded default price modifier UUID");
   return DEFAULT_PRICE_MODIFIER_UUID;
 }
 
@@ -1044,10 +1277,32 @@ export async function findTitleDeedUuid(status?: string): Promise<string> {
 
     // Map common user inputs to actual Zyprus terms (both prod and dev)
     const statusMappings: Record<string, string[]> = {
-      "available": ["available", "yes", "title deed", "full ownership", "has title"],
+      available: [
+        "available",
+        "yes",
+        "title deed",
+        "full ownership",
+        "has title",
+      ],
       "title deed": ["title deed", "full ownership", "has title", "available"],
-      "not available": ["not available", "no", "pending", "no title", "without title", "permits_only", "permits only"],
-      "on application": ["on application", "applied", "in progress", "in process", "being issued", "in_process", "final approval"],
+      "not available": [
+        "not available",
+        "no",
+        "pending",
+        "no title",
+        "without title",
+        "permits_only",
+        "permits only",
+      ],
+      "on application": [
+        "on application",
+        "applied",
+        "in progress",
+        "in process",
+        "being issued",
+        "in_process",
+        "final approval",
+      ],
       "share of land": ["share of land", "shared", "fractional"],
     };
 
@@ -1058,7 +1313,13 @@ export async function findTitleDeedUuid(status?: string): Promise<string> {
       const normalizedStatus = status.toLowerCase().trim();
       // Check if status maps to a known term
       for (const [zyprusTerm, aliases] of Object.entries(statusMappings)) {
-        if (aliases.some(alias => normalizedStatus.includes(alias) || alias.includes(normalizedStatus))) {
+        if (
+          aliases.some(
+            (alias) =>
+              normalizedStatus.includes(alias) ||
+              alias.includes(normalizedStatus)
+          )
+        ) {
           searchTerms = [zyprusTerm, ...aliases];
           break;
         }
@@ -1067,7 +1328,8 @@ export async function findTitleDeedUuid(status?: string): Promise<string> {
 
     for (const term of searchTerms) {
       const match = taxonomy.titleDeeds.find(
-        (td) => td.name.toLowerCase() === term || td.name.toLowerCase().includes(term)
+        (td) =>
+          td.name.toLowerCase() === term || td.name.toLowerCase().includes(term)
       );
       if (match) {
         return match.id;
@@ -1076,15 +1338,21 @@ export async function findTitleDeedUuid(status?: string): Promise<string> {
 
     // Fallback: return first title deed if available
     if (taxonomy.titleDeeds.length > 0) {
-      logger.debug(`[Taxonomy] Using first available title deed: ${taxonomy.titleDeeds[0].name}`);
+      logger.debug(
+        `[Taxonomy] Using first available title deed: ${taxonomy.titleDeeds[0].name}`
+      );
       return taxonomy.titleDeeds[0].id;
     }
   } catch (error) {
-    logger.error("[Taxonomy] Error finding title deed", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[Taxonomy] Error finding title deed",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
   }
 
   // Ultimate fallback: use documented default UUID
-  logger.debug(`[Taxonomy] Using hardcoded default title deed UUID`);
+  logger.debug("[Taxonomy] Using hardcoded default title deed UUID");
   return DEFAULT_TITLE_DEED_UUID;
 }
 
@@ -1099,7 +1367,9 @@ export async function findTitleDeedUuid(status?: string): Promise<string> {
  */
 export async function findUserUuid(email: string): Promise<string> {
   if (!email) {
-    logger.debug("[Taxonomy] No email provided, using SOPHIA_AI_UUID", { category: LogCategory.ZYPRUS });
+    logger.debug("[Taxonomy] No email provided, using SOPHIA_AI_UUID", {
+      category: LogCategory.ZYPRUS,
+    });
     return SOPHIA_AI_UUID;
   }
 
@@ -1115,9 +1385,11 @@ export async function findUserUuid(email: string): Promise<string> {
     const taxonomy = await loadTaxonomy();
 
     // Strategy 1: Direct email match from Zyprus API
-    const userByEmail = taxonomy.users.find(u => u.email === normalizedEmail);
+    const userByEmail = taxonomy.users.find((u) => u.email === normalizedEmail);
     if (userByEmail) {
-      logger.debug(`[Taxonomy] Found user by email ${normalizedEmail}: ${userByEmail.id}`);
+      logger.debug(
+        `[Taxonomy] Found user by email ${normalizedEmail}: ${userByEmail.id}`
+      );
       return userByEmail.id;
     }
 
@@ -1126,13 +1398,16 @@ export async function findUserUuid(email: string): Promise<string> {
     if (possibleNames && possibleNames.length > 0) {
       for (const name of possibleNames) {
         const normalizedName = name.toLowerCase();
-        const userByName = taxonomy.users.find(u =>
-          u.name.toLowerCase() === normalizedName ||
-          u.name.toLowerCase().includes(normalizedName) ||
-          normalizedName.includes(u.name.toLowerCase())
+        const userByName = taxonomy.users.find(
+          (u) =>
+            u.name.toLowerCase() === normalizedName ||
+            u.name.toLowerCase().includes(normalizedName) ||
+            normalizedName.includes(u.name.toLowerCase())
         );
         if (userByName) {
-          logger.debug(`[Taxonomy] Found user by name "${name}" for ${normalizedEmail}: ${userByName.id}`);
+          logger.debug(
+            `[Taxonomy] Found user by name "${name}" for ${normalizedEmail}: ${userByName.id}`
+          );
           return userByName.id;
         }
       }
@@ -1141,30 +1416,43 @@ export async function findUserUuid(email: string): Promise<string> {
     // Strategy 3: Try matching just the username part of email (e.g., "evelina" from "evelina@zyprus.com")
     const emailUsername = normalizedEmail.split("@")[0];
     if (emailUsername && emailUsername.length > 2) {
-      const userByUsername = taxonomy.users.find(u =>
-        u.name.toLowerCase() === emailUsername ||
-        u.name.toLowerCase().includes(emailUsername)
+      const userByUsername = taxonomy.users.find(
+        (u) =>
+          u.name.toLowerCase() === emailUsername ||
+          u.name.toLowerCase().includes(emailUsername)
       );
       if (userByUsername) {
-        logger.debug(`[Taxonomy] Found user by username "${emailUsername}" for ${normalizedEmail}: ${userByUsername.id}`);
+        logger.debug(
+          `[Taxonomy] Found user by username "${emailUsername}" for ${normalizedEmail}: ${userByUsername.id}`
+        );
         return userByUsername.id;
       }
     }
 
-    logger.debug(`[Taxonomy] User not found in API for ${normalizedEmail}, checking fallbacks`);
+    logger.debug(
+      `[Taxonomy] User not found in API for ${normalizedEmail}, checking fallbacks`
+    );
   } catch (error) {
-    logger.error("[Taxonomy] Error finding user", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[Taxonomy] Error finding user",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
   }
 
   // Strategy 4: Check hardcoded fallbacks
   const fallback = USER_FALLBACKS[normalizedEmail];
   if (fallback) {
-    logger.debug(`[Taxonomy] Using hardcoded fallback for ${normalizedEmail}: ${fallback}`);
+    logger.debug(
+      `[Taxonomy] Using hardcoded fallback for ${normalizedEmail}: ${fallback}`
+    );
     return fallback;
   }
 
   // Ultimate fallback: use SOPHIA_AI_UUID
-  logger.debug(`[Taxonomy] Using SOPHIA_AI_UUID fallback for ${normalizedEmail}`);
+  logger.debug(
+    `[Taxonomy] Using SOPHIA_AI_UUID fallback for ${normalizedEmail}`
+  );
   return SOPHIA_AI_UUID;
 }
 
@@ -1175,7 +1463,9 @@ export async function findUserUuid(email: string): Promise<string> {
  */
 export async function findUserUuids(emails: string[]): Promise<string[]> {
   const validEmails = emails.filter(Boolean);
-  const results = await Promise.all(validEmails.map(email => findUserUuid(email)));
+  const results = await Promise.all(
+    validEmails.map((email) => findUserUuid(email))
+  );
 
   const uuids: string[] = [];
   for (let i = 0; i < results.length; i++) {
@@ -1183,7 +1473,9 @@ export async function findUserUuids(emails: string[]): Promise<string[]> {
     if (uuid !== SOPHIA_AI_UUID && !uuids.includes(uuid)) {
       uuids.push(uuid);
     } else if (uuid === SOPHIA_AI_UUID) {
-      logger.debug(`[Taxonomy] Skipping SOPHIA_AI_UUID for reviewer email: ${validEmails[i]}`);
+      logger.debug(
+        `[Taxonomy] Skipping SOPHIA_AI_UUID for reviewer email: ${validEmails[i]}`
+      );
     }
   }
   return uuids;
@@ -1195,12 +1487,22 @@ export async function findUserUuids(emails: string[]): Promise<string[]> {
  * Resolve user input to canonical taxonomy term using aliases
  * Returns the canonical term if found, otherwise returns the original input
  */
-function resolveFeatureAlias(input: string, aliasMap: Record<string, string[]>): string {
+function resolveFeatureAlias(
+  input: string,
+  aliasMap: Record<string, string[]>
+): string {
   const normalized = input.toLowerCase().trim();
 
   // Check if input matches any alias
   for (const [canonical, aliases] of Object.entries(aliasMap)) {
-    if (aliases.some(alias => alias === normalized || normalized.includes(alias) || alias.includes(normalized))) {
+    if (
+      aliases.some(
+        (alias) =>
+          alias === normalized ||
+          normalized.includes(alias) ||
+          alias.includes(normalized)
+      )
+    ) {
       logger.debug(`[Taxonomy] ALIAS: "${input}" -> "${canonical}"`);
       return canonical;
     }
@@ -1215,24 +1517,33 @@ function resolveFeatureAlias(input: string, aliasMap: Record<string, string[]>):
  * @param featureNames - Array of feature names to look up
  * @param bathrooms - Optional bathroom count. If >= 2, auto-adds "guest toilet" and "master bed"
  */
-export async function findIndoorFeatureUuids(featureNames: string[], bathrooms?: number): Promise<string[]> {
+export async function findIndoorFeatureUuids(
+  featureNames: string[],
+  bathrooms?: number
+): Promise<string[]> {
   const taxonomy = await loadTaxonomy();
   const uuids: string[] = [];
 
   // Auto-add features based on bathroom count
   const effectiveFeatures = [...featureNames];
   if (bathrooms && bathrooms >= 2) {
-    logger.debug(`[Taxonomy] Bathrooms >= 2 (${bathrooms}), auto-adding guest toilet and master bed`);
-    if (!effectiveFeatures.some(f => f.toLowerCase().includes("guest"))) {
+    logger.debug(
+      `[Taxonomy] Bathrooms >= 2 (${bathrooms}), auto-adding guest toilet and master bed`
+    );
+    if (!effectiveFeatures.some((f) => f.toLowerCase().includes("guest"))) {
       effectiveFeatures.push("guest toilet");
     }
-    if (!effectiveFeatures.some(f => f.toLowerCase().includes("master"))) {
+    if (!effectiveFeatures.some((f) => f.toLowerCase().includes("master"))) {
       effectiveFeatures.push("master bed");
     }
   }
 
-  logger.debug(`[Taxonomy] Finding indoor features from: ${effectiveFeatures.join(", ")}`);
-  logger.debug(`[Taxonomy] Available indoor features (${taxonomy.indoorFeatures.length}): ${taxonomy.indoorFeatures.map(f => f.name).join(", ")}`);
+  logger.debug(
+    `[Taxonomy] Finding indoor features from: ${effectiveFeatures.join(", ")}`
+  );
+  logger.debug(
+    `[Taxonomy] Available indoor features (${taxonomy.indoorFeatures.length}): ${taxonomy.indoorFeatures.map((f) => f.name).join(", ")}`
+  );
 
   for (const name of effectiveFeatures) {
     if (!name) continue;
@@ -1244,44 +1555,72 @@ export async function findIndoorFeatureUuids(featureNames: string[], bathrooms?:
     // Skip features that are clearly outdoor-only (pool, garden, etc.)
     // But be careful - "covered parking" is INDOOR in Zyprus taxonomy!
     const isOutdoorOnly = [
-      "private pool", "communal pool", "swimming pool", "heated swimming pool",
-      "landscape garden", "standard garden", "roof garden",
-      "barbecue", "bbq", "outdoor shower", "bore hole",
-      "photovoltaic", "solar system", "irrigation"
-    ].some(kw => normalized.includes(kw));
+      "private pool",
+      "communal pool",
+      "swimming pool",
+      "heated swimming pool",
+      "landscape garden",
+      "standard garden",
+      "roof garden",
+      "barbecue",
+      "bbq",
+      "outdoor shower",
+      "bore hole",
+      "photovoltaic",
+      "solar system",
+      "irrigation",
+    ].some((kw) => normalized.includes(kw));
 
     if (isOutdoorOnly) continue;
 
     // Strategy 1: Try EXACT match in taxonomy (case-insensitive)
-    let match = taxonomy.indoorFeatures.find(f => f.name.toLowerCase() === normalized);
+    let match = taxonomy.indoorFeatures.find(
+      (f) => f.name.toLowerCase() === normalized
+    );
 
     if (!match) {
       // Strategy 2: Try normalized match (remove hyphens, slashes)
-      const normalizedClean = normalized.replace(/[-\/]/g, " ").replace(/\s+/g, " ");
-      match = taxonomy.indoorFeatures.find(f => {
-        const taxClean = f.name.toLowerCase().replace(/[-\/]/g, " ").replace(/\s+/g, " ");
+      const normalizedClean = normalized
+        .replace(/[-/]/g, " ")
+        .replace(/\s+/g, " ");
+      match = taxonomy.indoorFeatures.find((f) => {
+        const taxClean = f.name
+          .toLowerCase()
+          .replace(/[-/]/g, " ")
+          .replace(/\s+/g, " ");
         return taxClean === normalizedClean;
       });
     }
 
     if (!match) {
       // Strategy 3: Check if taxonomy item contains our input (e.g., "parking" in "Covered Parking")
-      match = taxonomy.indoorFeatures.find(f => {
+      match = taxonomy.indoorFeatures.find((f) => {
         const taxLower = f.name.toLowerCase();
         // Must be an exact word match, not substring
-        return taxLower === normalized ||
-               taxLower.includes(normalized) && !hasContradictoryModifiers(normalized, f.name);
+        return (
+          taxLower === normalized ||
+          (taxLower.includes(normalized) &&
+            !hasContradictoryModifiers(normalized, f.name))
+        );
       });
     }
 
     if (match && !uuids.includes(match.id)) {
-      logger.debug(`[Taxonomy] INDOOR MATCHED: "${name}" -> "${match.name}" (${match.id})`);
+      logger.debug(
+        `[Taxonomy] INDOOR MATCHED: "${name}" -> "${match.name}" (${match.id})`
+      );
       uuids.push(match.id);
     } else if (!match) {
       // Strategy 4: Use hardcoded fallback
       const fallbackUuid = INDOOR_FEATURE_FALLBACKS[normalized];
-      if (fallbackUuid && !fallbackUuid.includes("placeholder") && !uuids.includes(fallbackUuid)) {
-        logger.debug(`[Taxonomy] INDOOR FALLBACK: "${name}" -> ${fallbackUuid}`);
+      if (
+        fallbackUuid &&
+        !fallbackUuid.includes("placeholder") &&
+        !uuids.includes(fallbackUuid)
+      ) {
+        logger.debug(
+          `[Taxonomy] INDOOR FALLBACK: "${name}" -> ${fallbackUuid}`
+        );
         uuids.push(fallbackUuid);
       } else {
         logger.debug(`[Taxonomy] INDOOR NO MATCH: "${name}"`);
@@ -1297,15 +1636,22 @@ export async function findIndoorFeatureUuids(featureNames: string[], bathrooms?:
  * Check if input and taxonomy term have contradictory modifiers
  * Returns true if they contradict (should NOT match)
  */
-function hasContradictoryModifiers(input: string, taxonomyTerm: string): boolean {
+function hasContradictoryModifiers(
+  input: string,
+  taxonomyTerm: string
+): boolean {
   const inputLower = input.toLowerCase();
   const taxLower = taxonomyTerm.toLowerCase();
 
   for (const [mod1, mod2] of OPPOSITE_MODIFIERS) {
     // Check both directions: input has mod1 & tax has mod2, or input has mod2 & tax has mod1
-    if ((inputLower.includes(mod1) && taxLower.includes(mod2)) ||
-        (inputLower.includes(mod2) && taxLower.includes(mod1))) {
-      logger.debug(`[Taxonomy] REJECTED: "${input}" vs "${taxonomyTerm}" - contradictory modifiers (${mod1}/${mod2})`);
+    if (
+      (inputLower.includes(mod1) && taxLower.includes(mod2)) ||
+      (inputLower.includes(mod2) && taxLower.includes(mod1))
+    ) {
+      logger.debug(
+        `[Taxonomy] REJECTED: "${input}" vs "${taxonomyTerm}" - contradictory modifiers (${mod1}/${mod2})`
+      );
       return true;
     }
   }
@@ -1318,12 +1664,18 @@ function hasContradictoryModifiers(input: string, taxonomyTerm: string): boolean
  * Find outdoor feature UUIDs from feature names
  * IMPROVED: Uses exact matching against taxonomy, with hardcoded fallbacks
  */
-export async function findOutdoorFeatureUuids(featureNames: string[]): Promise<string[]> {
+export async function findOutdoorFeatureUuids(
+  featureNames: string[]
+): Promise<string[]> {
   const taxonomy = await loadTaxonomy();
   const uuids: string[] = [];
 
-  logger.debug(`[Taxonomy] Finding outdoor features from: ${featureNames.join(", ")}`);
-  logger.debug(`[Taxonomy] Available outdoor features (${taxonomy.outdoorFeatures.length}): ${taxonomy.outdoorFeatures.map(f => f.name).join(", ")}`);
+  logger.debug(
+    `[Taxonomy] Finding outdoor features from: ${featureNames.join(", ")}`
+  );
+  logger.debug(
+    `[Taxonomy] Available outdoor features (${taxonomy.outdoorFeatures.length}): ${taxonomy.outdoorFeatures.map((f) => f.name).join(", ")}`
+  );
 
   for (const name of featureNames) {
     if (!name) continue;
@@ -1334,47 +1686,82 @@ export async function findOutdoorFeatureUuids(featureNames: string[]): Promise<s
 
     // Skip features that are clearly indoor-only
     const isIndoorOnly = [
-      "air conditioning", "central heating", "fireplace", "elevator",
-      "fitted kitchen", "electrical appliances", "water heater",
-      "guest toilet", "basement", "mezzanine", "jacuzzi",
-      "internal pool", "playroom", "conference room", "cctv"
-    ].some(kw => normalized.includes(kw));
+      "air conditioning",
+      "central heating",
+      "fireplace",
+      "elevator",
+      "fitted kitchen",
+      "electrical appliances",
+      "water heater",
+      "guest toilet",
+      "basement",
+      "mezzanine",
+      "jacuzzi",
+      "internal pool",
+      "playroom",
+      "conference room",
+      "cctv",
+    ].some((kw) => normalized.includes(kw));
 
     if (isIndoorOnly) continue;
 
     // Skip views - they go in property_views, not outdoor features
-    const isView = ["view", "sea view", "mountain view", "city view", "green area view"].some(kw => normalized.includes(kw));
+    const isView = [
+      "view",
+      "sea view",
+      "mountain view",
+      "city view",
+      "green area view",
+    ].some((kw) => normalized.includes(kw));
     if (isView) continue;
 
     // Strategy 1: Try EXACT match in taxonomy (case-insensitive)
-    let match = taxonomy.outdoorFeatures.find(f => f.name.toLowerCase() === normalized);
+    let match = taxonomy.outdoorFeatures.find(
+      (f) => f.name.toLowerCase() === normalized
+    );
 
     if (!match) {
       // Strategy 2: Try normalized match (remove hyphens, slashes)
-      const normalizedClean = normalized.replace(/[-\/]/g, " ").replace(/\s+/g, " ");
-      match = taxonomy.outdoorFeatures.find(f => {
-        const taxClean = f.name.toLowerCase().replace(/[-\/]/g, " ").replace(/\s+/g, " ");
+      const normalizedClean = normalized
+        .replace(/[-/]/g, " ")
+        .replace(/\s+/g, " ");
+      match = taxonomy.outdoorFeatures.find((f) => {
+        const taxClean = f.name
+          .toLowerCase()
+          .replace(/[-/]/g, " ")
+          .replace(/\s+/g, " ");
         return taxClean === normalizedClean;
       });
     }
 
     if (!match) {
       // Strategy 3: Check if taxonomy item contains our input
-      match = taxonomy.outdoorFeatures.find(f => {
+      match = taxonomy.outdoorFeatures.find((f) => {
         const taxLower = f.name.toLowerCase();
-        return taxLower === normalized ||
-               taxLower.includes(normalized) && !hasContradictoryModifiers(normalized, f.name);
+        return (
+          taxLower === normalized ||
+          (taxLower.includes(normalized) &&
+            !hasContradictoryModifiers(normalized, f.name))
+        );
       });
     }
 
     if (match && !uuids.includes(match.id)) {
-      logger.debug(`[Taxonomy] OUTDOOR MATCHED: "${name}" -> "${match.name}" (${match.id})`);
+      logger.debug(
+        `[Taxonomy] OUTDOOR MATCHED: "${name}" -> "${match.name}" (${match.id})`
+      );
       uuids.push(match.id);
     } else if (!match) {
       // Strategy 4: Use hardcoded fallback
       const fallbackUuid = OUTDOOR_FEATURE_FALLBACKS[normalized];
-      if (fallbackUuid && !fallbackUuid.includes("placeholder") && !uuids.includes(fallbackUuid)) {
-        logger.debug(`[Taxonomy] OUTDOOR FALLBACK: "${name}" -> ${fallbackUuid}`);
+      if (
+        fallbackUuid &&
+        !fallbackUuid.includes("placeholder") &&
+        !uuids.includes(fallbackUuid)
+      ) {
+        logger.debug(
+          `[Taxonomy] OUTDOOR FALLBACK: "${name}" -> ${fallbackUuid}`
+        );
         uuids.push(fallbackUuid);
       } else {
         logger.debug(`[Taxonomy] OUTDOOR NO MATCH: "${name}"`);
@@ -1391,12 +1778,18 @@ export async function findOutdoorFeatureUuids(featureNames: string[]): Promise<s
  * Views have their own taxonomy: taxonomy_term--property_views
  * IMPROVED: Uses correct property_views taxonomy, not outdoor_property_features
  */
-export async function findPropertyViewUuids(featureNames: string[]): Promise<string[]> {
+export async function findPropertyViewUuids(
+  featureNames: string[]
+): Promise<string[]> {
   const taxonomy = await loadTaxonomy();
   const uuids: string[] = [];
 
-  logger.debug(`[Taxonomy] Finding property views from: ${featureNames.join(", ")}`);
-  logger.debug(`[Taxonomy] Available property views (${taxonomy.propertyViews.length}): ${taxonomy.propertyViews.map(f => f.name).join(", ")}`);
+  logger.debug(
+    `[Taxonomy] Finding property views from: ${featureNames.join(", ")}`
+  );
+  logger.debug(
+    `[Taxonomy] Available property views (${taxonomy.propertyViews.length}): ${taxonomy.propertyViews.map((f) => f.name).join(", ")}`
+  );
 
   for (const name of featureNames) {
     const normalized = name.toLowerCase().trim();
@@ -1406,32 +1799,45 @@ export async function findPropertyViewUuids(featureNames: string[]): Promise<str
     if (!normalized.includes("view")) continue;
 
     // Strategy 1: Try EXACT match in property_views taxonomy
-    let match = taxonomy.propertyViews.find(f => f.name.toLowerCase() === normalized);
+    let match = taxonomy.propertyViews.find(
+      (f) => f.name.toLowerCase() === normalized
+    );
 
     if (!match) {
       // Strategy 2: Try normalized match
-      const normalizedClean = normalized.replace(/[-\/]/g, " ").replace(/\s+/g, " ");
-      match = taxonomy.propertyViews.find(f => {
-        const taxClean = f.name.toLowerCase().replace(/[-\/]/g, " ").replace(/\s+/g, " ");
+      const normalizedClean = normalized
+        .replace(/[-/]/g, " ")
+        .replace(/\s+/g, " ");
+      match = taxonomy.propertyViews.find((f) => {
+        const taxClean = f.name
+          .toLowerCase()
+          .replace(/[-/]/g, " ")
+          .replace(/\s+/g, " ");
         return taxClean === normalizedClean;
       });
     }
 
     if (!match) {
       // Strategy 3: Check if taxonomy item contains our input
-      match = taxonomy.propertyViews.find(f => {
+      match = taxonomy.propertyViews.find((f) => {
         const taxLower = f.name.toLowerCase();
         return taxLower.includes(normalized) || normalized.includes(taxLower);
       });
     }
 
     if (match && !uuids.includes(match.id)) {
-      logger.debug(`[Taxonomy] VIEW MATCHED: "${name}" -> "${match.name}" (${match.id})`);
+      logger.debug(
+        `[Taxonomy] VIEW MATCHED: "${name}" -> "${match.name}" (${match.id})`
+      );
       uuids.push(match.id);
     } else if (!match) {
       // Strategy 4: Use hardcoded fallback
       const fallbackUuid = VIEW_FALLBACKS[normalized];
-      if (fallbackUuid && !fallbackUuid.includes("placeholder") && !uuids.includes(fallbackUuid)) {
+      if (
+        fallbackUuid &&
+        !fallbackUuid.includes("placeholder") &&
+        !uuids.includes(fallbackUuid)
+      ) {
         logger.debug(`[Taxonomy] VIEW FALLBACK: "${name}" -> ${fallbackUuid}`);
         uuids.push(fallbackUuid);
       } else {
@@ -1451,41 +1857,59 @@ export async function findPropertyViewUuids(featureNames: string[]): Promise<str
 export async function findLandTypeUuid(landType: string): Promise<string> {
   if (!landType) return "";
   const normalized = landType.toLowerCase().trim();
-  logger.debug(`[Taxonomy] Finding land type UUID for: "${landType}" (normalized: "${normalized}")`);
+  logger.debug(
+    `[Taxonomy] Finding land type UUID for: "${landType}" (normalized: "${normalized}")`
+  );
 
   try {
     const taxonomy = await loadTaxonomy();
-    logger.debug(`[Taxonomy] Available land types: ${taxonomy.landTypes.map(lt => lt.name).join(", ")}`);
+    logger.debug(
+      `[Taxonomy] Available land types: ${taxonomy.landTypes.map((lt) => lt.name).join(", ")}`
+    );
 
     // Try exact match
     const exact = taxonomy.landTypes.find(
       (lt) => lt.name.toLowerCase() === normalized
     );
     if (exact) {
-      logger.debug(`[Taxonomy] Exact match for "${landType}": ${exact.name} (${exact.id})`);
+      logger.debug(
+        `[Taxonomy] Exact match for "${landType}": ${exact.name} (${exact.id})`
+      );
       return exact.id;
     }
 
     // Try partial match
     const partial = taxonomy.landTypes.find(
-      (lt) => lt.name.toLowerCase().includes(normalized) || normalized.includes(lt.name.toLowerCase())
+      (lt) =>
+        lt.name.toLowerCase().includes(normalized) ||
+        normalized.includes(lt.name.toLowerCase())
     );
     if (partial) {
-      logger.debug(`[Taxonomy] Partial match for "${landType}": ${partial.name} (${partial.id})`);
+      logger.debug(
+        `[Taxonomy] Partial match for "${landType}": ${partial.name} (${partial.id})`
+      );
       return partial.id;
     }
 
     // Return first land type if available
     if (taxonomy.landTypes.length > 0) {
-      logger.debug(`[Taxonomy] Using first available land type: ${taxonomy.landTypes[0].name}`);
+      logger.debug(
+        `[Taxonomy] Using first available land type: ${taxonomy.landTypes[0].name}`
+      );
       return taxonomy.landTypes[0].id;
     }
   } catch (error) {
-    logger.error("[Taxonomy] Error finding land type", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[Taxonomy] Error finding land type",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
   }
 
   // Fallback: empty string (land type is optional in some cases)
-  logger.warn(`[Taxonomy] No land type found for: "${landType}", using empty fallback`);
+  logger.warn(
+    `[Taxonomy] No land type found for: "${landType}", using empty fallback`
+  );
   return "";
 }
 
@@ -1493,7 +1917,9 @@ export async function findLandTypeUuid(landType: string): Promise<string> {
  * Find infrastructure UUIDs (electricity, water, road_access, sewage, telephone)
  * Returns array of matched UUIDs
  */
-export async function findInfrastructureUuids(infrastructure: string[]): Promise<string[]> {
+export async function findInfrastructureUuids(
+  infrastructure: string[]
+): Promise<string[]> {
   if (!infrastructure || infrastructure.length === 0) {
     return [];
   }
@@ -1502,45 +1928,61 @@ export async function findInfrastructureUuids(infrastructure: string[]): Promise
 
   try {
     const taxonomy = await loadTaxonomy();
-    logger.debug(`[Taxonomy] Finding infrastructure from: ${infrastructure.join(", ")}`);
-    logger.debug(`[Taxonomy] Available infrastructure (${taxonomy.infrastructure.length}): ${taxonomy.infrastructure.map(i => i.name).join(", ")}`);
+    logger.debug(
+      `[Taxonomy] Finding infrastructure from: ${infrastructure.join(", ")}`
+    );
+    logger.debug(
+      `[Taxonomy] Available infrastructure (${taxonomy.infrastructure.length}): ${taxonomy.infrastructure.map((i) => i.name).join(", ")}`
+    );
 
     for (const name of infrastructure) {
       const normalized = name.toLowerCase().trim().replace(/_/g, " ");
       if (!normalized) continue;
 
       // Try exact match
-      let match = taxonomy.infrastructure.find(i => i.name.toLowerCase() === normalized);
+      let match = taxonomy.infrastructure.find(
+        (i) => i.name.toLowerCase() === normalized
+      );
 
       if (!match) {
         // Try normalized match (replace underscores, hyphens with spaces)
-        const normalizedClean = normalized.replace(/[-\/]/g, " ").replace(/\s+/g, " ");
-        match = taxonomy.infrastructure.find(i => {
-          const taxClean = i.name.toLowerCase().replace(/[-\/]/g, " ").replace(/\s+/g, " ");
+        const normalizedClean = normalized
+          .replace(/[-/]/g, " ")
+          .replace(/\s+/g, " ");
+        match = taxonomy.infrastructure.find((i) => {
+          const taxClean = i.name
+            .toLowerCase()
+            .replace(/[-/]/g, " ")
+            .replace(/\s+/g, " ");
           return taxClean === normalizedClean;
         });
       }
 
       if (!match) {
         // Try partial match
-        match = taxonomy.infrastructure.find(i => {
+        match = taxonomy.infrastructure.find((i) => {
           const taxLower = i.name.toLowerCase();
           return taxLower.includes(normalized) || normalized.includes(taxLower);
         });
       }
 
       if (match && !uuids.includes(match.id)) {
-        logger.debug(`[Taxonomy] INFRASTRUCTURE MATCHED: "${name}" -> "${match.name}" (${match.id})`);
+        logger.debug(
+          `[Taxonomy] INFRASTRUCTURE MATCHED: "${name}" -> "${match.name}" (${match.id})`
+        );
         uuids.push(match.id);
       } else if (!match) {
         logger.debug(`[Taxonomy] INFRASTRUCTURE NO MATCH: "${name}"`);
       }
     }
   } catch (error) {
-    logger.error("[Taxonomy] Error finding infrastructure", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[Taxonomy] Error finding infrastructure",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
   }
 
   logger.debug(`[Taxonomy] Found ${uuids.length} infrastructure UUIDs`);
   return uuids;
 }
-

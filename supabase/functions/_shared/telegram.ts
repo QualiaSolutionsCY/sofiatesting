@@ -7,7 +7,7 @@
  * Phase 12, Plan 01
  */
 
-import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
+import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -74,11 +74,15 @@ export class TelegramBotClient {
     const data = await response.json();
 
     if (!data.ok) {
-      logger.error("Telegram sendMessage error", new Error(data.description ?? "Unknown error"), {
-        category: LogCategory.GENERAL,
-        chatId: String(chatId),
-        errorCode: data.error_code,
-      });
+      logger.error(
+        "Telegram sendMessage error",
+        new Error(data.description ?? "Unknown error"),
+        {
+          category: LogCategory.GENERAL,
+          chatId: String(chatId),
+          errorCode: data.error_code,
+        }
+      );
       throw new Error(data.description || "Failed to send message");
     }
 
@@ -99,10 +103,14 @@ export class TelegramBotClient {
       const data = await response.json();
 
       if (!data.ok) {
-        logger.error("Telegram getChat error", new Error(data.description ?? "Unknown error"), {
-          category: LogCategory.GENERAL,
-          chatId: String(chatId),
-        });
+        logger.error(
+          "Telegram getChat error",
+          new Error(data.description ?? "Unknown error"),
+          {
+            category: LogCategory.GENERAL,
+            chatId: String(chatId),
+          }
+        );
         return null;
       }
 
@@ -111,7 +119,7 @@ export class TelegramBotClient {
       logger.error(
         "Error getting chat info",
         error instanceof Error ? error : new Error(String(error)),
-        { category: LogCategory.GENERAL, chatId: String(chatId) },
+        { category: LogCategory.GENERAL, chatId: String(chatId) }
       );
       return null;
     }
@@ -133,7 +141,7 @@ export function getTelegramBot(): TelegramBotClient {
     const token = Deno.env.get("TELEGRAM_BOT_TOKEN");
     if (!token) {
       throw new Error(
-        "TELEGRAM_BOT_TOKEN env var is not set. Get your token from @BotFather on Telegram.",
+        "TELEGRAM_BOT_TOKEN env var is not set. Get your token from @BotFather on Telegram."
       );
     }
     _instance = new TelegramBotClient(token);

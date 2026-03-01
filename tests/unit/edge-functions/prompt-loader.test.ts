@@ -9,41 +9,66 @@
  * - Agent context injection
  * - Manual cache invalidation
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { mockConsole, restoreConsole, setEnv, clearEnv } from "./setup";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { clearEnv, mockConsole, restoreConsole, setEnv } from "./setup";
 
 // Mock the prompt imports
-vi.mock("../../../supabase/functions/sophia-bot/prompts/core/identity.ts", () => ({
-  IDENTITY: "# SOPHIA Identity\nYou are SOPHIA, a real estate AI assistant.",
-}));
+vi.mock(
+  "../../../supabase/functions/sophia-bot/prompts/core/identity.ts",
+  () => ({
+    IDENTITY: "# SOPHIA Identity\nYou are SOPHIA, a real estate AI assistant.",
+  })
+);
 
-vi.mock("../../../supabase/functions/sophia-bot/prompts/core/safety-rules.ts", () => ({
-  SAFETY_RULES: "# Safety Rules\nAlways be helpful and professional.",
-}));
+vi.mock(
+  "../../../supabase/functions/sophia-bot/prompts/core/safety-rules.ts",
+  () => ({
+    SAFETY_RULES: "# Safety Rules\nAlways be helpful and professional.",
+  })
+);
 
-vi.mock("../../../supabase/functions/sophia-bot/prompts/behaviors/document-routing.ts", () => ({
-  DOCUMENT_ROUTING: "# Document Routing\nRoute documents appropriately.",
-}));
+vi.mock(
+  "../../../supabase/functions/sophia-bot/prompts/behaviors/document-routing.ts",
+  () => ({
+    DOCUMENT_ROUTING: "# Document Routing\nRoute documents appropriately.",
+  })
+);
 
-vi.mock("../../../supabase/functions/sophia-bot/prompts/behaviors/property-upload.ts", () => ({
-  PROPERTY_UPLOAD: "# Property Upload\nHandle property uploads correctly.",
-}));
+vi.mock(
+  "../../../supabase/functions/sophia-bot/prompts/behaviors/property-upload.ts",
+  () => ({
+    PROPERTY_UPLOAD: "# Property Upload\nHandle property uploads correctly.",
+  })
+);
 
-vi.mock("../../../supabase/functions/sophia-bot/prompts/behaviors/response-format.ts", () => ({
-  RESPONSE_FORMAT: "# Response Format\nFormat responses consistently.",
-}));
+vi.mock(
+  "../../../supabase/functions/sophia-bot/prompts/behaviors/response-format.ts",
+  () => ({
+    RESPONSE_FORMAT: "# Response Format\nFormat responses consistently.",
+  })
+);
 
-vi.mock("../../../supabase/functions/sophia-bot/prompts/knowledge/calculators.ts", () => ({
-  CALCULATOR_CAPABILITIES: "# Calculators\nCalculate VAT, transfer fees, etc.",
-}));
+vi.mock(
+  "../../../supabase/functions/sophia-bot/prompts/knowledge/calculators.ts",
+  () => ({
+    CALCULATOR_CAPABILITIES:
+      "# Calculators\nCalculate VAT, transfer fees, etc.",
+  })
+);
 
-vi.mock("../../../supabase/functions/sophia-bot/prompts/knowledge/cyprus-real-estate.ts", () => ({
-  CYPRUS_KNOWLEDGE: "# Cyprus Knowledge\nKnow Cyprus real estate market.",
-}));
+vi.mock(
+  "../../../supabase/functions/sophia-bot/prompts/knowledge/cyprus-real-estate.ts",
+  () => ({
+    CYPRUS_KNOWLEDGE: "# Cyprus Knowledge\nKnow Cyprus real estate market.",
+  })
+);
 
-vi.mock("../../../supabase/functions/sophia-bot/prompts/templates/content.ts", () => ({
-  TEMPLATES: "# Templates\nDocument templates content.",
-}));
+vi.mock(
+  "../../../supabase/functions/sophia-bot/prompts/templates/content.ts",
+  () => ({
+    TEMPLATES: "# Templates\nDocument templates content.",
+  })
+);
 
 // Configuration constants (matching prompt-loader.ts)
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -53,9 +78,9 @@ const VERSION_CHECK_INTERVAL_MS = 30_000;
 // This mirrors the key logic from the actual prompt-loader.ts
 class TestablePromptLoader {
   private cachedPromptSections: Map<string, string> | null = null;
-  private cacheTimestamp: number = 0;
+  private cacheTimestamp = 0;
   private cacheVersion: string | null = null;
-  private lastVersionCheckTime: number = 0;
+  private lastVersionCheckTime = 0;
 
   private readonly FALLBACK_PROMPTS: Record<string, string> = {
     identity: "# SOPHIA Identity\nYou are SOPHIA, a real estate AI assistant.",
@@ -85,7 +110,8 @@ class TestablePromptLoader {
       cacheMissReason = "expired";
     } else {
       // Check version periodically
-      const shouldCheckVersion = now - this.lastVersionCheckTime >= VERSION_CHECK_INTERVAL_MS;
+      const shouldCheckVersion =
+        now - this.lastVersionCheckTime >= VERSION_CHECK_INTERVAL_MS;
 
       if (shouldCheckVersion) {
         this.lastVersionCheckTime = now;
@@ -112,7 +138,8 @@ class TestablePromptLoader {
     }
 
     // Store version and update timestamps
-    this.cacheVersion = detectedDbVersion ?? await this.getDatabaseVersion(mockSupabase);
+    this.cacheVersion =
+      detectedDbVersion ?? (await this.getDatabaseVersion(mockSupabase));
     this.cachedPromptSections = mergedPrompts;
     this.cacheTimestamp = now;
     this.lastVersionCheckTime = now; // Reset version check time on cache population
@@ -120,12 +147,16 @@ class TestablePromptLoader {
     return mergedPrompts;
   }
 
-  private async getDatabaseVersion(mockSupabase: MockSupabaseClient): Promise<string | null> {
+  private async getDatabaseVersion(
+    mockSupabase: MockSupabaseClient
+  ): Promise<string | null> {
     const result = await mockSupabase.getDatabaseVersion();
     return result;
   }
 
-  private async loadFromDB(mockSupabase: MockSupabaseClient): Promise<Map<string, string> | null> {
+  private async loadFromDB(
+    mockSupabase: MockSupabaseClient
+  ): Promise<Map<string, string> | null> {
     try {
       const data = await mockSupabase.loadPrompts();
       if (!data || data.length === 0) {
@@ -162,7 +193,9 @@ class TestablePromptLoader {
     sectionCount: number;
     version: string | null;
   } {
-    const age = this.cachedPromptSections ? Date.now() - this.cacheTimestamp : 0;
+    const age = this.cachedPromptSections
+      ? Date.now() - this.cacheTimestamp
+      : 0;
     return {
       isCached: !!this.cachedPromptSections,
       age,
@@ -188,7 +221,11 @@ class TestablePromptLoader {
 
 // Mock Supabase client for prompt loading
 interface MockSupabaseClient {
-  loadPrompts: () => Promise<Array<{ key: string; content: string; priority: number }> | null>;
+  loadPrompts: () => Promise<Array<{
+    key: string;
+    content: string;
+    priority: number;
+  }> | null>;
   getDatabaseVersion: () => Promise<string | null>;
 }
 
@@ -283,9 +320,7 @@ describe("PromptLoader", () => {
 
     it("should reload when database version changes", async () => {
       const mockSupabase = createMockPromptSupabase({
-        prompts: [
-          { key: "identity", content: "Old Content", priority: 10 },
-        ],
+        prompts: [{ key: "identity", content: "Old Content", priority: 10 }],
         version: "2024-01-01T00:00:00.000Z",
       });
 
@@ -295,14 +330,14 @@ describe("PromptLoader", () => {
 
       // Update mock to return new version
       const updatedSupabase = createMockPromptSupabase({
-        prompts: [
-          { key: "identity", content: "New Content", priority: 10 },
-        ],
+        prompts: [{ key: "identity", content: "New Content", priority: 10 }],
         version: "2024-01-02T00:00:00.000Z", // New version
       });
 
       // Simulate version check interval passed
-      loader._setLastVersionCheckTime(Date.now() - VERSION_CHECK_INTERVAL_MS - 1000);
+      loader._setLastVersionCheckTime(
+        Date.now() - VERSION_CHECK_INTERVAL_MS - 1000
+      );
       loader._setCacheVersion("2024-01-01T00:00:00.000Z"); // Old version
 
       // Should reload due to version mismatch
@@ -313,9 +348,7 @@ describe("PromptLoader", () => {
 
     it("should invalidate cache when invalidateCache() is called", async () => {
       const mockSupabase = createMockPromptSupabase({
-        prompts: [
-          { key: "identity", content: "DB Content", priority: 10 },
-        ],
+        prompts: [{ key: "identity", content: "DB Content", priority: 10 }],
         version: "2024-01-01T00:00:00.000Z",
       });
 
@@ -431,19 +464,21 @@ describe("PromptLoader", () => {
   describe("Version-Based Invalidation", () => {
     it("should not check version more frequently than VERSION_CHECK_INTERVAL_MS", async () => {
       const mockSupabase = createMockPromptSupabase({
-        prompts: [
-          { key: "identity", content: "Content", priority: 10 },
-        ],
+        prompts: [{ key: "identity", content: "Content", priority: 10 }],
         version: "2024-01-01T00:00:00.000Z",
       });
 
       // First request - this will call getDatabaseVersion at least once for caching
       await loader.getPromptSections(mockSupabase);
-      const callsAfterFirst = (mockSupabase.getDatabaseVersion as ReturnType<typeof vi.fn>).mock.calls.length;
+      const callsAfterFirst = (
+        mockSupabase.getDatabaseVersion as ReturnType<typeof vi.fn>
+      ).mock.calls.length;
 
       // Immediate second request - should use cache and NOT check version again
       await loader.getPromptSections(mockSupabase);
-      const callsAfterSecond = (mockSupabase.getDatabaseVersion as ReturnType<typeof vi.fn>).mock.calls.length;
+      const callsAfterSecond = (
+        mockSupabase.getDatabaseVersion as ReturnType<typeof vi.fn>
+      ).mock.calls.length;
 
       // Version should not be checked again (still within interval)
       // The call count should remain the same as after first request
@@ -452,22 +487,26 @@ describe("PromptLoader", () => {
 
     it("should check version after VERSION_CHECK_INTERVAL_MS passes", async () => {
       const mockSupabase = createMockPromptSupabase({
-        prompts: [
-          { key: "identity", content: "Content", priority: 10 },
-        ],
+        prompts: [{ key: "identity", content: "Content", priority: 10 }],
         version: "2024-01-01T00:00:00.000Z",
       });
 
       // First request
       await loader.getPromptSections(mockSupabase);
-      const callsAfterFirst = (mockSupabase.getDatabaseVersion as ReturnType<typeof vi.fn>).mock.calls.length;
+      const callsAfterFirst = (
+        mockSupabase.getDatabaseVersion as ReturnType<typeof vi.fn>
+      ).mock.calls.length;
 
       // Simulate time passing
-      loader._setLastVersionCheckTime(Date.now() - VERSION_CHECK_INTERVAL_MS - 1000);
+      loader._setLastVersionCheckTime(
+        Date.now() - VERSION_CHECK_INTERVAL_MS - 1000
+      );
 
       // Second request - should check version
       await loader.getPromptSections(mockSupabase);
-      const callsAfterSecond = (mockSupabase.getDatabaseVersion as ReturnType<typeof vi.fn>).mock.calls.length;
+      const callsAfterSecond = (
+        mockSupabase.getDatabaseVersion as ReturnType<typeof vi.fn>
+      ).mock.calls.length;
 
       // Version should be checked
       expect(callsAfterSecond).toBeGreaterThan(callsAfterFirst);
@@ -477,7 +516,11 @@ describe("PromptLoader", () => {
   describe("Edge Cases", () => {
     it("should handle null prompts gracefully", async () => {
       const mockSupabase = createMockPromptSupabase({
-        prompts: null as unknown as Array<{ key: string; content: string; priority: number }>,
+        prompts: null as unknown as Array<{
+          key: string;
+          content: string;
+          priority: number;
+        }>,
         version: null,
       });
 
@@ -489,9 +532,7 @@ describe("PromptLoader", () => {
 
     it("should handle empty string content", async () => {
       const mockSupabase = createMockPromptSupabase({
-        prompts: [
-          { key: "identity", content: "", priority: 10 },
-        ],
+        prompts: [{ key: "identity", content: "", priority: 10 }],
         version: "2024-01-01T00:00:00.000Z",
       });
 
@@ -502,11 +543,10 @@ describe("PromptLoader", () => {
     });
 
     it("should handle special characters in prompt content", async () => {
-      const specialContent = "# Identity\n{AGENT_NAME} works at \"Zyprus\" & handles <properties>\n$1000";
+      const specialContent =
+        '# Identity\n{AGENT_NAME} works at "Zyprus" & handles <properties>\n$1000';
       const mockSupabase = createMockPromptSupabase({
-        prompts: [
-          { key: "identity", content: specialContent, priority: 10 },
-        ],
+        prompts: [{ key: "identity", content: specialContent, priority: 10 }],
         version: "2024-01-01T00:00:00.000Z",
       });
 

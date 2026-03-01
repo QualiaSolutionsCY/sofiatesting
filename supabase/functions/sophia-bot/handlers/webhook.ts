@@ -8,77 +8,87 @@
  * - Request processing orchestration
  */
 
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { Document, Packer } from "https://esm.sh/docx@8.5.0";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { type Document, Packer } from "https://esm.sh/docx@8.5.0";
+import {
+  addMessage,
+  claimMessageForProcessing,
+  getHistory,
+  getLastDocument,
+  saveLastDocument,
+} from "../../_shared/db.ts";
+import { identifyAgentByPhone } from "../agents/identifier.ts";
 import { SOPHIA_LOGO_BASE64 } from "../assets/sophia-logo.ts";
 import { VIEWING_FORM_LOGO_BASE64 } from "../assets/viewing-form-logo.ts";
-import { logger, LogCategory } from "../utils/logger.ts";
+import { detectDocxTemplateType } from "../docx/detector.ts";
 import {
-  verifyWebhookSignature,
-  extractSignatureHeader,
-} from "../utils/webhook-auth.ts";
+  createMarketingAgreement,
+  createReservationAgreement,
+  createViewingFormAdvanced,
+  createViewingFormMultiple,
+  createViewingFormSingle,
+  parseMarketingAgreementData,
+  parseReservationAgreementData,
+  parseViewingFormAdvancedData,
+  parseViewingFormMultipleData,
+  parseViewingFormSingleData,
+} from "../docx/templates/index.ts";
 import {
-  validatePhoneNumber,
-  sanitizeUserInput,
-  sanitizeAiOutput,
-  validateWebhookPayload,
-} from "../utils/validation.ts";
-import { checkRateLimit } from "../utils/rate-limiter.ts";
-import { getHistory, addMessage, claimMessageForProcessing, saveLastDocument, getLastDocument } from "../../_shared/db.ts";
-import { identifyAgentByPhone } from "../agents/identifier.ts";
+  createDocxFile,
+  isDocxTemplate,
+  wasDocxTemplateRequested,
+} from "../docx-generator.ts";
+import {
+  buildUserContext,
+  calculateImportance,
+  extractTopics,
+  formatContextForPrompt,
+  storeMemory,
+} from "../memory/sophia-memory.ts";
+import { buildSystemPrompt, chat } from "../services/ai-chat.ts";
+import {
+  createTimer,
+  trackDocumentGenerated,
+  trackError,
+  trackMessageReceived,
+  trackMessageSent,
+} from "../services/analytics.ts";
+import {
+  detectEmailSendingIntent,
+  sendEmail,
+} from "../services/email-service.ts";
 import {
   extractMessage,
   generateMessageKey,
   parseTemplateResponse,
 } from "../services/message-processor.ts";
-import { buildSystemPrompt, chat } from "../services/ai-chat.ts";
-import {
-  sendTextMessage,
-  sendDocxFile,
-  sendLogoImage,
-  formatPhoneNumber,
-} from "../utils/wasend.ts";
-import {
-  buildUserContext,
-  formatContextForPrompt,
-  storeMemory,
-  extractTopics,
-  calculateImportance,
-} from "../memory/sophia-memory.ts";
-import { createDocxFile, isDocxTemplate, wasDocxTemplateRequested } from "../docx-generator.ts";
-import { detectDocxTemplateType } from "../docx/detector.ts";
-import {
-  createViewingFormSingle,
-  createViewingFormMultiple,
-  createViewingFormAdvanced,
-  parseViewingFormSingleData,
-  parseViewingFormMultipleData,
-  parseViewingFormAdvancedData,
-  createReservationAgreement,
-  parseReservationAgreementData,
-  createMarketingAgreement,
-  parseMarketingAgreementData,
-} from "../docx/templates/index.ts";
-import {
-  hasAllRequiredFields,
-  isCollectingInformation,
-} from "../utils/field-validator.ts";
 // Import centralized detection functions
 import {
   isConfirmationMessage as centralizedIsConfirmation,
   detectTemplateTypeFromMessage,
 } from "../templates/detection.ts";
 import {
-  trackMessageReceived,
-  trackMessageSent,
-  trackDocumentGenerated,
-  trackError,
-  createTimer,
-} from "../services/analytics.ts";
+  hasAllRequiredFields,
+  isCollectingInformation,
+} from "../utils/field-validator.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
+import { checkRateLimit } from "../utils/rate-limiter.ts";
 import {
-  detectEmailSendingIntent,
-  sendEmail,
-} from "../services/email-service.ts";
+  sanitizeAiOutput,
+  sanitizeUserInput,
+  validatePhoneNumber,
+  validateWebhookPayload,
+} from "../utils/validation.ts";
+import {
+  formatPhoneNumber,
+  sendDocxFile,
+  sendLogoImage,
+  sendTextMessage,
+} from "../utils/wasend.ts";
+import {
+  extractSignatureHeader,
+  verifyWebhookSignature,
+} from "../utils/webhook-auth.ts";
 
 const WASEND_WEBHOOK_SECRET = Deno.env.get("WASEND_WEBHOOK_SECRET");
 
@@ -88,27 +98,47 @@ const isConfirmationMessage = centralizedIsConfirmation;
 /**
  * Detects if the AI response is informational (listing templates) rather than an actual document
  */
-function isInformationalResponse(aiResponse: string, userMessage: string): boolean {
+function isInformationalResponse(
+  aiResponse: string,
+  userMessage: string
+): boolean {
   const lowerResponse = aiResponse.toLowerCase();
   const lowerMessage = userMessage.toLowerCase();
 
   const capabilityQuestions = [
-    'what templates do', 'which templates', 'list templates',
-    'available templates', 'templates can you', 'your templates',
-    'all templates', 'templates do you generate', 'what can you'
+    "what templates do",
+    "which templates",
+    "list templates",
+    "available templates",
+    "templates can you",
+    "your templates",
+    "all templates",
+    "templates do you generate",
+    "what can you",
   ];
 
-  const isShowRequest = lowerMessage.includes('show me') || lowerMessage.includes('show the');
+  const isShowRequest =
+    lowerMessage.includes("show me") || lowerMessage.includes("show the");
 
-  if (!isShowRequest && capabilityQuestions.some(q => lowerMessage.includes(q))) {
+  if (
+    !isShowRequest &&
+    capabilityQuestions.some((q) => lowerMessage.includes(q))
+  ) {
     const listingIndicators = [
-      'i can help with', 'i can generate', 'available templates',
-      'here are the', 'categories i can', 'would you like me to list',
-      'templates include', 'template categories', 'predefined templates',
-      'across four main categories', '43 predefined templates'
+      "i can help with",
+      "i can generate",
+      "available templates",
+      "here are the",
+      "categories i can",
+      "would you like me to list",
+      "templates include",
+      "template categories",
+      "predefined templates",
+      "across four main categories",
+      "43 predefined templates",
     ];
 
-    if (listingIndicators.some(ind => lowerResponse.includes(ind))) {
+    if (listingIndicators.some((ind) => lowerResponse.includes(ind))) {
       return true;
     }
   }
@@ -137,7 +167,7 @@ function isLogoRequest(message: string): boolean {
     /\bshare.*logo\b/,
   ];
 
-  return logoPatterns.some(pattern => pattern.test(lowerMessage));
+  return logoPatterns.some((pattern) => pattern.test(lowerMessage));
 }
 
 /**
@@ -150,15 +180,21 @@ async function processRequest(
   userId: string,
   userMessage: string,
   phoneNumber: string,
-  imageUrls: string[] = [],
+  imageUrls: string[] = []
 ): Promise<void> {
   try {
     // Check for logo request first
     if (isLogoRequest(userMessage)) {
-      logger.info("[Logo] Logo request detected, sending logo image", { category: LogCategory.GENERAL });
+      logger.info("[Logo] Logo request detected, sending logo image", {
+        category: LogCategory.GENERAL,
+      });
       await sendLogoImage(supabase, phoneNumber, SOPHIA_LOGO_BASE64);
       await addMessage(userId, "user", userMessage);
-      await addMessage(userId, "assistant", "Here's the Zyprus Property Group logo!");
+      await addMessage(
+        userId,
+        "assistant",
+        "Here's the Zyprus Property Group logo!"
+      );
       return;
     }
 
@@ -174,7 +210,9 @@ async function processRequest(
     ] = await Promise.all([
       buildUserContext(phoneNumber, userMessage).catch(() => null),
       getHistory(userId).catch(() => []),
-      identifyAgentByPhone(phoneNumber, supabaseUrl, supabaseKey).catch(() => null),
+      identifyAgentByPhone(phoneNumber, supabaseUrl, supabaseKey).catch(
+        () => null
+      ),
       getLastDocument(userId).catch(() => null),
     ]);
 
@@ -193,18 +231,22 @@ async function processRequest(
     const identifiedAgent = identifiedAgentResult;
 
     // Build system prompt
-    const systemPrompt = await buildSystemPrompt(supabase, {
-      userId,
-      phoneNumber,
-      agentName: identifiedAgent?.fullName,
-      agentEmail: identifiedAgent?.communicationEmail,
-      agentRegion: identifiedAgent?.region,
-      agentCanUpload: identifiedAgent?.canUpload,
-      personalizationContext,
-      imageUrls,
-      userMessage,  // P1 PERFORMANCE: Used for conditional image fetching
-      lastDocument: lastDocumentResult,
-    }, identifiedAgent);
+    const systemPrompt = await buildSystemPrompt(
+      supabase,
+      {
+        userId,
+        phoneNumber,
+        agentName: identifiedAgent?.fullName,
+        agentEmail: identifiedAgent?.communicationEmail,
+        agentRegion: identifiedAgent?.region,
+        agentCanUpload: identifiedAgent?.canUpload,
+        personalizationContext,
+        imageUrls,
+        userMessage, // P1 PERFORMANCE: Used for conditional image fetching
+        lastDocument: lastDocumentResult,
+      },
+      identifiedAgent
+    );
 
     // Call AI
     const aiResult = await chat(
@@ -219,7 +261,11 @@ async function processRequest(
     );
 
     if (!aiResult.success || !aiResult.response) {
-      await sendTextMessage(phoneNumber, aiResult.response || "I couldn't process your request. Please try again.");
+      await sendTextMessage(
+        phoneNumber,
+        aiResult.response ||
+          "I couldn't process your request. Please try again."
+      );
       return;
     }
 
@@ -268,7 +314,10 @@ async function processRequest(
 
     // Check if confirmation message - always send as text
     if (isConfirmationMessage(aiResponse)) {
-      logger.info("[Confirmation] Detected confirmation message -> sending as TEXT", { category: LogCategory.GENERAL });
+      logger.info(
+        "[Confirmation] Detected confirmation message -> sending as TEXT",
+        { category: LogCategory.GENERAL }
+      );
       await sendTextMessage(phoneNumber, aiResponse);
       return;
     }
@@ -277,7 +326,10 @@ async function processRequest(
     const isInformational = isInformationalResponse(aiResponse, userMessage);
 
     if (isInformational) {
-      const messages = parseTemplateResponse(aiResponse, identifiedAgent?.landline);
+      const messages = parseTemplateResponse(
+        aiResponse,
+        identifiedAgent?.landline
+      );
       for (const msg of messages) {
         await sendTextMessage(phoneNumber, msg);
       }
@@ -285,50 +337,85 @@ async function processRequest(
     }
 
     // Reuse the already-constructed history (avoids redundant DB call)
-    let shouldSendAsDocx = !isInformational && isDocxTemplate(aiResponse, updatedHistory);
+    let shouldSendAsDocx =
+      !isInformational && isDocxTemplate(aiResponse, updatedHistory);
     const detectedTemplateType = detectTemplateType(userMessage);
 
     // DEBUG: Log initial DOCX detection result
-    logger.info(`[DOCX DEBUG] Initial check - isDocxTemplate: ${shouldSendAsDocx}, isInformational: ${isInformational}, responseLength: ${aiResponse.length}`, { category: LogCategory.GENERAL });
+    logger.info(
+      `[DOCX DEBUG] Initial check - isDocxTemplate: ${shouldSendAsDocx}, isInformational: ${isInformational}, responseLength: ${aiResponse.length}`,
+      { category: LogCategory.GENERAL }
+    );
 
     // SAFETY: Registration templates (containing "Dear XXXXXXXX" or "Subject:") are ALWAYS TEXT
     // This prevents misrouting Advanced Seller Registration as Marketing Agreement DOCX
-    if (shouldSendAsDocx && (/Dear\s+X{6,}/i.test(aiResponse) || aiResponse.includes("Subject:"))) {
-      logger.info("[Webhook] Registration template detected in DOCX response - forcing TEXT", { category: LogCategory.GENERAL });
+    if (
+      shouldSendAsDocx &&
+      (/Dear\s+X{6,}/i.test(aiResponse) || aiResponse.includes("Subject:"))
+    ) {
+      logger.info(
+        "[Webhook] Registration template detected in DOCX response - forcing TEXT",
+        { category: LogCategory.GENERAL }
+      );
       shouldSendAsDocx = false;
     }
 
     // Field validation checks
     const isCollecting = isCollectingInformation(aiResponse);
     if (shouldSendAsDocx && isCollecting) {
-      logger.info(`[DOCX DEBUG] Blocked - isCollectingInformation returned true`, { category: LogCategory.GENERAL });
+      logger.info(
+        "[DOCX DEBUG] Blocked - isCollectingInformation returned true",
+        { category: LogCategory.GENERAL }
+      );
       shouldSendAsDocx = false;
     }
 
-    const hasAllFields = hasAllRequiredFields(aiResponse, detectedTemplateType || undefined);
+    const hasAllFields = hasAllRequiredFields(
+      aiResponse,
+      detectedTemplateType || undefined
+    );
     if (shouldSendAsDocx && !hasAllFields) {
-      logger.info(`[DOCX DEBUG] Blocked - hasAllRequiredFields returned false, templateType: ${detectedTemplateType}`, { category: LogCategory.GENERAL });
+      logger.info(
+        `[DOCX DEBUG] Blocked - hasAllRequiredFields returned false, templateType: ${detectedTemplateType}`,
+        { category: LogCategory.GENERAL }
+      );
       shouldSendAsDocx = false;
     }
 
     // Final decision log
-    logger.info(`[DOCX DEBUG] Final decision - shouldSendAsDocx: ${shouldSendAsDocx}`, { category: LogCategory.GENERAL });
+    logger.info(
+      `[DOCX DEBUG] Final decision - shouldSendAsDocx: ${shouldSendAsDocx}`,
+      { category: LogCategory.GENERAL }
+    );
 
     if (shouldSendAsDocx) {
       // Send as DOCX file
-      logger.info("Detected DOCX template - generating and sending as file attachment", { category: LogCategory.GENERAL });
-      trackDocumentGenerated(phoneNumber, detectedTemplateType || "unknown", identifiedAgent?.id);
+      logger.info(
+        "Detected DOCX template - generating and sending as file attachment",
+        { category: LogCategory.GENERAL }
+      );
+      trackDocumentGenerated(
+        phoneNumber,
+        detectedTemplateType || "unknown",
+        identifiedAgent?.id
+      );
 
       let filename = `document_${Date.now()}.docx`;
       const templateType = detectDocxTemplateType(aiResponse);
       let docxContent: Uint8Array;
 
-      if (templateType.startsWith('viewing-form-') || templateType === 'reservation-agreement' || templateType === 'marketing-non-exclusive') {
+      if (
+        templateType.startsWith("viewing-form-") ||
+        templateType === "reservation-agreement" ||
+        templateType === "marketing-non-exclusive"
+      ) {
         try {
           // Convert base64 viewing form logo to Uint8Array for viewing forms
           let logoData: Uint8Array | undefined;
-          const isViewingForm = templateType.startsWith('viewing-form-');
-          const logoBase64 = isViewingForm ? VIEWING_FORM_LOGO_BASE64 : SOPHIA_LOGO_BASE64;
+          const isViewingForm = templateType.startsWith("viewing-form-");
+          const logoBase64 = isViewingForm
+            ? VIEWING_FORM_LOGO_BASE64
+            : SOPHIA_LOGO_BASE64;
           if (logoBase64) {
             try {
               const binaryString = atob(logoBase64);
@@ -344,39 +431,52 @@ async function processRequest(
 
           let docxDoc: Document | null = null;
 
-          switch(templateType) {
-            case 'viewing-form-single': {
+          switch (templateType) {
+            case "viewing-form-single": {
               const singleData = parseViewingFormSingleData(aiResponse);
               if (singleData) {
                 docxDoc = createViewingFormSingle(singleData, logoData, "jpg");
               }
               break;
             }
-            case 'viewing-form-multiple': {
+            case "viewing-form-multiple": {
               const multipleData = parseViewingFormMultipleData(aiResponse);
               if (multipleData) {
-                docxDoc = createViewingFormMultiple(multipleData, logoData, "jpg");
+                docxDoc = createViewingFormMultiple(
+                  multipleData,
+                  logoData,
+                  "jpg"
+                );
               }
               break;
             }
-            case 'viewing-form-advanced': {
+            case "viewing-form-advanced": {
               const advancedData = parseViewingFormAdvancedData(aiResponse);
               if (advancedData) {
-                docxDoc = createViewingFormAdvanced(advancedData, logoData, "jpg");
+                docxDoc = createViewingFormAdvanced(
+                  advancedData,
+                  logoData,
+                  "jpg"
+                );
               } else {
                 // Fallback: try multiple parser and still use advanced template
-                const multipleAsAdvanced = parseViewingFormMultipleData(aiResponse);
+                const multipleAsAdvanced =
+                  parseViewingFormMultipleData(aiResponse);
                 if (multipleAsAdvanced) {
-                  docxDoc = createViewingFormAdvanced({
-                    date: multipleAsAdvanced.date,
-                    persons: multipleAsAdvanced.persons,
-                    property: multipleAsAdvanced.property,
-                  }, logoData, "jpg");
+                  docxDoc = createViewingFormAdvanced(
+                    {
+                      date: multipleAsAdvanced.date,
+                      persons: multipleAsAdvanced.persons,
+                      property: multipleAsAdvanced.property,
+                    },
+                    logoData,
+                    "jpg"
+                  );
                 }
               }
               break;
             }
-            case 'reservation-agreement': {
+            case "reservation-agreement": {
               const reservationData = parseReservationAgreementData(aiResponse);
               if (reservationData) {
                 docxDoc = createReservationAgreement(reservationData);
@@ -384,9 +484,12 @@ async function processRequest(
               }
               break;
             }
-            case 'marketing-non-exclusive': {
+            case "marketing-non-exclusive": {
               const agentName = identifiedAgent?.fullName || "Agent";
-              const marketingData = parseMarketingAgreementData(aiResponse, agentName);
+              const marketingData = parseMarketingAgreementData(
+                aiResponse,
+                agentName
+              );
               if (marketingData) {
                 docxDoc = createMarketingAgreement(marketingData);
                 filename = "Non_Exclusive_Marketing_Agreement.docx";
@@ -423,19 +526,24 @@ async function processRequest(
       }
     } else {
       // Send as text message(s)
-      const messageParts = parseTemplateResponse(aiResponse, identifiedAgent?.landline);
+      const messageParts = parseTemplateResponse(
+        aiResponse,
+        identifiedAgent?.landline
+      );
 
       for (let i = 0; i < messageParts.length; i++) {
         const part = messageParts[i];
         await sendTextMessage(phoneNumber, part);
 
         if (i < messageParts.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
     }
   } catch (error) {
-    logger.error("Error in processRequest: " + String(error), undefined, { category: LogCategory.GENERAL });
+    logger.error("Error in processRequest: " + String(error), undefined, {
+      category: LogCategory.GENERAL,
+    });
     trackError(phoneNumber, "PROCESS_REQUEST_ERROR", String(error));
   }
 }
@@ -451,7 +559,9 @@ export async function handleWebhook(
 ): Promise<Response> {
   // Handle GET requests (webhook verification)
   if (req.method === "GET") {
-    logger.info("Webhook verification request received", { category: LogCategory.WEBHOOK });
+    logger.info("Webhook verification request received", {
+      category: LogCategory.WEBHOOK,
+    });
     return new Response("Webhook functional", { status: 200 });
   }
 
@@ -465,22 +575,37 @@ export async function handleWebhook(
 
   // Verify webhook signature - FAIL-CLOSED if secret not configured
   if (!WASEND_WEBHOOK_SECRET) {
-    logger.error("SECURITY: WASEND_WEBHOOK_SECRET not configured - rejecting webhook", undefined, {
-      category: LogCategory.WEBHOOK,
-      operation: "webhook_auth",
-    });
-    return new Response("Service Unavailable - webhook authentication not configured", { status: 503 });
+    logger.error(
+      "SECURITY: WASEND_WEBHOOK_SECRET not configured - rejecting webhook",
+      undefined,
+      {
+        category: LogCategory.WEBHOOK,
+        operation: "webhook_auth",
+      }
+    );
+    return new Response(
+      "Service Unavailable - webhook authentication not configured",
+      { status: 503 }
+    );
   }
 
   const signature = extractSignatureHeader(req.headers);
 
-  const isValidSignature = await verifyWebhookSignature(signature, rawBody, WASEND_WEBHOOK_SECRET);
+  const isValidSignature = await verifyWebhookSignature(
+    signature,
+    rawBody,
+    WASEND_WEBHOOK_SECRET
+  );
   if (!isValidSignature) {
-    logger.error("SECURITY: Invalid webhook signature - rejecting request", undefined, {
-      category: LogCategory.WEBHOOK,
-      operation: "webhook_auth",
-      hasSignature: !!signature,
-    });
+    logger.error(
+      "SECURITY: Invalid webhook signature - rejecting request",
+      undefined,
+      {
+        category: LogCategory.WEBHOOK,
+        operation: "webhook_auth",
+        hasSignature: !!signature,
+      }
+    );
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -489,13 +614,17 @@ export async function handleWebhook(
   try {
     payload = JSON.parse(rawBody);
   } catch {
-    logger.error("Invalid JSON payload", undefined, { category: LogCategory.GENERAL });
+    logger.error("Invalid JSON payload", undefined, {
+      category: LogCategory.GENERAL,
+    });
     return new Response("Bad Request", { status: 400 });
   }
 
   // Validate payload structure
   if (!validateWebhookPayload(payload)) {
-    logger.warn("Invalid webhook payload structure", { operation: "validation" });
+    logger.warn("Invalid webhook payload structure", {
+      operation: "validation",
+    });
     return new Response("OK", { status: 200 });
   }
 
@@ -503,21 +632,27 @@ export async function handleWebhook(
   const extracted = await extractMessage(payload);
 
   if (!extracted) {
-    logger.info("Could not extract valid message from payload", { category: LogCategory.GENERAL });
+    logger.info("Could not extract valid message from payload", {
+      category: LogCategory.GENERAL,
+    });
     return new Response("OK", { status: 200 });
   }
 
   const { message, remoteJid, userMessage, imageUrls } = extracted;
 
   if (!remoteJid) {
-    logger.error("No remoteJid found in message", undefined, { category: LogCategory.GENERAL });
+    logger.error("No remoteJid found in message", undefined, {
+      category: LogCategory.GENERAL,
+    });
     return new Response("OK", { status: 200 });
   }
 
   // Format phone number
   const phoneNumber = formatPhoneNumber(remoteJid);
   if (!phoneNumber) {
-    logger.error("Could not format phone number", undefined, { category: LogCategory.GENERAL });
+    logger.error("Could not format phone number", undefined, {
+      category: LogCategory.GENERAL,
+    });
     return new Response("OK", { status: 200 });
   }
 
@@ -551,7 +686,9 @@ export async function handleWebhook(
   if (messageKey) {
     const claimed = await claimMessageForProcessing(messageKey, remoteJid);
     if (!claimed) {
-      logger.info("Duplicate webhook detected, skipping", { operation: "deduplication" });
+      logger.info("Duplicate webhook detected, skipping", {
+        operation: "deduplication",
+      });
       return new Response("OK", { status: 200 });
     }
   }
@@ -559,8 +696,9 @@ export async function handleWebhook(
   // Image-only messages: images are already stored in pending_images by extractMessage().
   // Skip AI processing - the AI will see accumulated images when the next TEXT message arrives.
   // BUT still save to chat_history so the AI has conversation continuity.
-  const isImageOnlyMessage = sanitizedMessage === "[User sent image(s)]" ||
-                             sanitizedMessage === "[User sent image(s) but decryption failed]";
+  const isImageOnlyMessage =
+    sanitizedMessage === "[User sent image(s)]" ||
+    sanitizedMessage === "[User sent image(s) but decryption failed]";
   if (isImageOnlyMessage) {
     logger.info("Image-only message - stored to pending, skipping AI", {
       category: LogCategory.IMAGE,
@@ -600,7 +738,9 @@ export async function handleWebhook(
     // Track successful response
     trackMessageSent(phoneNumber, requestTimer.end());
   } catch (err) {
-    logger.error("processRequest failed: " + String(err), undefined, { category: LogCategory.GENERAL });
+    logger.error("processRequest failed: " + String(err), undefined, {
+      category: LogCategory.GENERAL,
+    });
     trackError(phoneNumber, "PROCESS_REQUEST_FAILED", String(err));
   }
 

@@ -26,7 +26,7 @@ With this email we kindly request your approval for the marketing of your proper
 *Property:* COPY-PASTE the property details EXACTLY as the user typed them. Do NOT add commas, do NOT reorder words. Preserve the user's exact spacing, commas, and word order.
 
 *CRITICAL*: NEVER add commas the user did not type. NEVER reorder or restructure. Just copy-paste exactly what the user said.
-Example: if user says \"Registration No. 0/1456 Souni-Zanakia Limassol Pertridio Building Apartment No. 105\" → output EXACTLY that.
+Example: if user says "Registration No. 0/1456 Souni-Zanakia Limassol Pertridio Building Apartment No. 105" → output EXACTLY that.
 
 *IMPORTANT*: SOPHIA should generate Email Marketing Agreement when EITHER registration number OR location is provided. If one is mentioned and the other information is available, generate immediately.
 

@@ -1,7 +1,14 @@
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 
-const CodeEditor = dynamic(() => import("@/components/code-editor").then((mod) => ({ default: mod.CodeEditor })), { ssr: false });
+const CodeEditor = dynamic(
+  () =>
+    import("@/components/code-editor").then((mod) => ({
+      default: mod.CodeEditor,
+    })),
+  { ssr: false }
+);
+
 import {
   Console,
   type ConsoleOutput,

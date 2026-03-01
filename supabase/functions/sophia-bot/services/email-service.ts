@@ -7,10 +7,10 @@
  * SINGLE RESPONSIBILITY: Detect email intent from AI + send emails
  */
 
-import { logger, LogCategory } from "../utils/logger.ts";
-import { validateExternalUrl, safeFetch } from "../utils/url-validator.ts";
-import { maskEmailForLogging } from "../rules/index.ts";
 import { getLastDocument } from "../../_shared/db.ts";
+import { maskEmailForLogging } from "../rules/index.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
+import { safeFetch, validateExternalUrl } from "../utils/url-validator.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -91,13 +91,20 @@ export function formatEmailBodyAsHtml(body: string): string {
 /**
  * Find document content from conversation history (for email body)
  */
-function findDocumentContent(conversationHistory: ChatMessage[]): { documentContent: string; subject: string } {
+function findDocumentContent(conversationHistory: ChatMessage[]): {
+  documentContent: string;
+  subject: string;
+} {
   let documentContent = "";
   for (let j = conversationHistory.length - 1; j >= 0; j--) {
     const msg = conversationHistory[j];
     if (msg.role === "model") {
-      const text = msg.parts.map(p => p.text).join("");
-      if (text.includes("Subject:") || text.includes("Dear ") || text.length > 500) {
+      const text = msg.parts.map((p) => p.text).join("");
+      if (
+        text.includes("Subject:") ||
+        text.includes("Dear ") ||
+        text.length > 500
+      ) {
         documentContent = text;
         break;
       }
@@ -112,8 +119,10 @@ function findDocumentContent(conversationHistory: ChatMessage[]): { documentCont
 /**
  * Find most recent document URL from database
  */
-async function findDocumentUrl(userId: string | undefined): Promise<string | undefined> {
-  if (!userId) return undefined;
+async function findDocumentUrl(
+  userId: string | undefined
+): Promise<string | undefined> {
+  if (!userId) return;
   try {
     const lastDoc = await getLastDocument(userId);
     if (lastDoc) {
@@ -133,9 +142,11 @@ async function findDocumentUrl(userId: string | undefined): Promise<string | und
       });
     }
   } catch (err) {
-    logger.error("Email detection: Failed to fetch last document from DB", { error: err });
+    logger.error("Email detection: Failed to fetch last document from DB", {
+      error: err,
+    });
   }
-  return undefined;
+  return;
 }
 
 /**
@@ -148,7 +159,9 @@ export async function detectEmailSendingIntent(
   agentEmail?: string,
   userId?: string
 ): Promise<EmailSendingIntent | null> {
-  logger.debug("Email detection: Starting email detection...", { category: LogCategory.WEBHOOK });
+  logger.debug("Email detection: Starting email detection...", {
+    category: LogCategory.WEBHOOK,
+  });
 
   // FIRST: Check for patterns without explicit email ("to your email", "to my email")
   if (agentEmail) {
@@ -165,12 +178,14 @@ export async function detectEmailSendingIntent(
       const match = aiResponse.match(pattern);
       if (match) {
         const documentType = match[1]?.trim() || "Document";
-        const { documentContent, subject: extractedSubject } = findDocumentContent(conversationHistory);
+        const { documentContent, subject: extractedSubject } =
+          findDocumentContent(conversationHistory);
         const documentUrl = await findDocumentUrl(userId);
 
         return {
           recipientEmail: agentEmail,
-          subject: extractedSubject !== "Document" ? extractedSubject : documentType,
+          subject:
+            extractedSubject !== "Document" ? extractedSubject : documentType,
           body: documentContent || `Please see the attached ${documentType}.`,
           documentUrl,
         };
@@ -192,12 +207,14 @@ export async function detectEmailSendingIntent(
     if (match) {
       const documentType = match[1]?.trim() || "Document";
       const email = match[2];
-      const { documentContent, subject: extractedSubject } = findDocumentContent(conversationHistory);
+      const { documentContent, subject: extractedSubject } =
+        findDocumentContent(conversationHistory);
       const documentUrl = await findDocumentUrl(userId);
 
       return {
         recipientEmail: email,
-        subject: extractedSubject !== "Document" ? extractedSubject : documentType,
+        subject:
+          extractedSubject !== "Document" ? extractedSubject : documentType,
         body: documentContent || `Please see the attached ${documentType}.`,
         documentUrl,
       };
@@ -214,12 +231,17 @@ export async function sendEmail(
   intent: EmailSendingIntent
 ): Promise<EmailResult> {
   if (!RESEND_API_KEY) {
-    logger.error("Email error: RESEND_API_KEY is not configured", undefined, { category: LogCategory.WEBHOOK });
+    logger.error("Email error: RESEND_API_KEY is not configured", undefined, {
+      category: LogCategory.WEBHOOK,
+    });
     return { success: false, error: "Email service not configured" };
   }
 
   // P1 SECURITY: Mask email address in logs to prevent PII exposure
-  logger.info(`Email: Sending email to ${maskEmailForLogging(intent.recipientEmail)}`, { category: LogCategory.WEBHOOK });
+  logger.info(
+    `Email: Sending email to ${maskEmailForLogging(intent.recipientEmail)}`,
+    { category: LogCategory.WEBHOOK }
+  );
 
   try {
     const attachments: Array<{ filename: string; content: string }> = [];
@@ -257,7 +279,7 @@ export async function sendEmail(
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
+        Authorization: `Bearer ${RESEND_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(emailPayload),
@@ -266,21 +288,27 @@ export async function sendEmail(
     const responseData = await response.json();
 
     if (!response.ok) {
-      logger.error("Email error: Resend API error: " + String(responseData), { category: LogCategory.WEBHOOK });
+      logger.error("Email error: Resend API error: " + String(responseData), {
+        category: LogCategory.WEBHOOK,
+      });
       return {
         success: false,
-        error: responseData.message || `Failed to send email: ${response.status}`
+        error:
+          responseData.message || `Failed to send email: ${response.status}`,
       };
     }
 
-    logger.info("Email: Email sent successfully", { category: LogCategory.WEBHOOK });
+    logger.info("Email: Email sent successfully", {
+      category: LogCategory.WEBHOOK,
+    });
     return { success: true };
-
   } catch (error) {
-    logger.error("Email error: Error sending email: " + String(error), { category: LogCategory.WEBHOOK });
+    logger.error("Email error: Error sending email: " + String(error), {
+      category: LogCategory.WEBHOOK,
+    });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error"
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }

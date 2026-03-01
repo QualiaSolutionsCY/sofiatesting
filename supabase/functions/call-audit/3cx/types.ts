@@ -72,7 +72,10 @@ export interface CallAuditResult {
  * Custom error for 3CX authentication failures
  */
 export class ThreeCXAuthError extends Error {
-  constructor(message: string, public readonly statusCode?: number) {
+  constructor(
+    message: string,
+    public readonly statusCode?: number
+  ) {
     super(message);
     this.name = "ThreeCXAuthError";
   }

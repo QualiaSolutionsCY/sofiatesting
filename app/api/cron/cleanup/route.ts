@@ -105,13 +105,15 @@ export async function GET(request: Request) {
         const result = await db.execute(
           sql`DELETE FROM ${sql.identifier(table)} WHERE ${sql.identifier(column)} < ${thirtyDaysAgo}`
         );
-        const count = typeof result === "object" && result !== null && "rowCount" in result
-          ? (result as { rowCount: number }).rowCount
-          : 0;
+        const count =
+          typeof result === "object" && result !== null && "rowCount" in result
+            ? (result as { rowCount: number }).rowCount
+            : 0;
         results.retentionRowsDeleted += count;
       } catch (error) {
         // Table may not exist yet - non-critical
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         results.errors.push(`Retention cleanup for ${table}: ${message}`);
       }
     }

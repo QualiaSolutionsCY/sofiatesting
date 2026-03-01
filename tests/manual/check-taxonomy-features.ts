@@ -95,7 +95,9 @@ const main = async () => {
 
   console.log("\n=== OUTDOOR FEATURES (outdoor_property_features) ===");
   console.log(`Total: ${outdoorFeatures.length}`);
-  for (const f of outdoorFeatures.sort((a, b) => a.name.localeCompare(b.name))) {
+  for (const f of outdoorFeatures.sort((a, b) =>
+    a.name.localeCompare(b.name)
+  )) {
     console.log(`  - ${f.name} (${f.id})`);
   }
 
@@ -126,24 +128,27 @@ const main = async () => {
     const featureLower = feature.toLowerCase();
 
     // Try indoor
-    const indoorMatch = indoorFeatures.find(f =>
-      f.name.toLowerCase() === featureLower ||
-      f.name.toLowerCase().includes(featureLower) ||
-      featureLower.includes(f.name.toLowerCase())
+    const indoorMatch = indoorFeatures.find(
+      (f) =>
+        f.name.toLowerCase() === featureLower ||
+        f.name.toLowerCase().includes(featureLower) ||
+        featureLower.includes(f.name.toLowerCase())
     );
 
     // Try outdoor
-    const outdoorMatch = outdoorFeatures.find(f =>
-      f.name.toLowerCase() === featureLower ||
-      f.name.toLowerCase().includes(featureLower) ||
-      featureLower.includes(f.name.toLowerCase())
+    const outdoorMatch = outdoorFeatures.find(
+      (f) =>
+        f.name.toLowerCase() === featureLower ||
+        f.name.toLowerCase().includes(featureLower) ||
+        featureLower.includes(f.name.toLowerCase())
     );
 
     // Try views
-    const viewMatch = propertyViews.find(f =>
-      f.name.toLowerCase() === featureLower ||
-      f.name.toLowerCase().includes(featureLower) ||
-      featureLower.includes(f.name.toLowerCase())
+    const viewMatch = propertyViews.find(
+      (f) =>
+        f.name.toLowerCase() === featureLower ||
+        f.name.toLowerCase().includes(featureLower) ||
+        featureLower.includes(f.name.toLowerCase())
     );
 
     if (indoorMatch) {

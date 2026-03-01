@@ -11,27 +11,30 @@
  * Phase 13, Plan 01
  */
 
-import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
-import { AUDIT_CONFIG, get3CXConfig } from "./config.ts";
-import { ThreeCXClient } from "./3cx/client.ts";
-import { extractTodayCalls, filterExternalCallers } from "./3cx/call-log-extractor.ts";
 import {
   claimAuditRun,
-  saveCallRecords,
-  createCallerAlert,
-  updateAlertStatus,
   completeAuditRun,
+  createCallerAlert,
   failAuditRun,
+  saveCallRecords,
+  updateAlertStatus,
 } from "../_shared/call-tracking.ts";
 import {
-  searchPhoneInGroups,
+  type MissingCallerInfo,
+  sendMissingCallerAlert,
+} from "../_shared/telegram-alerts.ts";
+import {
   REGIONAL_GROUP_IDS,
+  searchPhoneInGroups,
   ZYPRESS_OTHERS_CHAT_ID,
 } from "../_shared/telegram-search.ts";
+import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
 import {
-  sendMissingCallerAlert,
-  type MissingCallerInfo,
-} from "../_shared/telegram-alerts.ts";
+  extractTodayCalls,
+  filterExternalCallers,
+} from "./3cx/call-log-extractor.ts";
+import { ThreeCXClient } from "./3cx/client.ts";
+import { AUDIT_CONFIG, get3CXConfig } from "./config.ts";
 import { processFollowUpReminders } from "./follow-up.ts";
 
 // ---------------------------------------------------------------------------
@@ -67,7 +70,9 @@ export interface AuditPipelineResult {
  * @param dateOverride - Optional date override (YYYY-MM-DD format) for testing
  * @returns Pipeline execution result
  */
-export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelineResult> {
+export async function runDailyAudit(
+  dateOverride?: string
+): Promise<AuditPipelineResult> {
   const errors: string[] = [];
 
   // Step 1: Calculate audit date
@@ -150,17 +155,22 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
     // Check if Telegram is configured
     const groupIds = Object.values(REGIONAL_GROUP_IDS);
     if (groupIds.some((id) => id === 0)) {
-      logger.warn("[Audit Pipeline] REGIONAL_GROUP_IDS contains unconfigured (0) values - skipping Telegram search", {
-        category: LogCategory.GENERAL,
-        operation: "runDailyAudit",
-        runId,
-      });
+      logger.warn(
+        "[Audit Pipeline] REGIONAL_GROUP_IDS contains unconfigured (0) values - skipping Telegram search",
+        {
+          category: LogCategory.GENERAL,
+          operation: "runDailyAudit",
+          runId,
+        }
+      );
 
       // Mark all callers as missing since we can't search
       for (const phone of auditResult.externalCallers) {
         missingCallers.push({
           phoneNumber: phone,
-          callTime: formatCallTimeDisplay(callTimeMap[phone] || new Date().toISOString()),
+          callTime: formatCallTimeDisplay(
+            callTimeMap[phone] || new Date().toISOString()
+          ),
           callDate: auditDate,
           searchedGroups: [],
         });
@@ -194,7 +204,9 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
             // Not found - add to missing callers
             missingCallers.push({
               phoneNumber: phone,
-              callTime: formatCallTimeDisplay(callTimeMap[phone] || new Date().toISOString()),
+              callTime: formatCallTimeDisplay(
+                callTimeMap[phone] || new Date().toISOString()
+              ),
               callDate: auditDate,
               searchedGroups: Object.keys(REGIONAL_GROUP_IDS),
             });
@@ -207,7 +219,10 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
             });
           }
         } catch (searchError) {
-          const err = searchError instanceof Error ? searchError : new Error(String(searchError));
+          const err =
+            searchError instanceof Error
+              ? searchError
+              : new Error(String(searchError));
           logger.error("[Audit Pipeline] Error searching for caller", err, {
             category: LogCategory.GENERAL,
             operation: "runDailyAudit",
@@ -220,7 +235,9 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
           // Treat search failure as "not found" - safer to alert
           missingCallers.push({
             phoneNumber: phone,
-            callTime: formatCallTimeDisplay(callTimeMap[phone] || new Date().toISOString()),
+            callTime: formatCallTimeDisplay(
+              callTimeMap[phone] || new Date().toISOString()
+            ),
             callDate: auditDate,
             searchedGroups: [],
           });
@@ -282,21 +299,29 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
             });
           } else {
             alertsFailed++;
-            errors.push(`Failed to send alert for ${caller.phoneNumber}: ${result.error}`);
+            errors.push(
+              `Failed to send alert for ${caller.phoneNumber}: ${result.error}`
+            );
           }
 
           // Rate limiting: 1 second delay between alerts
           await new Promise((resolve) => setTimeout(resolve, 1000));
         } catch (alertError) {
-          const err = alertError instanceof Error ? alertError : new Error(String(alertError));
+          const err =
+            alertError instanceof Error
+              ? alertError
+              : new Error(String(alertError));
 
           // Check if this is an unconfigured chat ID error
           if (err.message.includes("ZYPRESS_OTHERS_CHAT_ID is 0")) {
-            logger.warn("[Audit Pipeline] Alert sending skipped - ZYPRESS_OTHERS_CHAT_ID not configured", {
-              category: LogCategory.GENERAL,
-              operation: "runDailyAudit",
-              runId,
-            });
+            logger.warn(
+              "[Audit Pipeline] Alert sending skipped - ZYPRESS_OTHERS_CHAT_ID not configured",
+              {
+                category: LogCategory.GENERAL,
+                operation: "runDailyAudit",
+                runId,
+              }
+            );
             // Skip all remaining alerts
             break;
           }
@@ -321,7 +346,11 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
     }
 
     // Step 6: Complete audit run
-    await completeAuditRun(runId, auditResult.totalCalls, missingCallers.length);
+    await completeAuditRun(
+      runId,
+      auditResult.totalCalls,
+      missingCallers.length
+    );
 
     logger.info("[Audit Pipeline] Audit completed successfully", {
       category: LogCategory.GENERAL,
@@ -357,10 +386,16 @@ export async function runDailyAudit(dateOverride?: string): Promise<AuditPipelin
       });
     } catch (followUpError) {
       // Follow-up failures should NOT fail the entire audit
-      logger.error("[Audit Pipeline] Follow-up processing failed", followUpError instanceof Error ? followUpError : new Error(String(followUpError)), {
-        category: LogCategory.GENERAL,
-        operation: "runDailyAudit",
-      });
+      logger.error(
+        "[Audit Pipeline] Follow-up processing failed",
+        followUpError instanceof Error
+          ? followUpError
+          : new Error(String(followUpError)),
+        {
+          category: LogCategory.GENERAL,
+          operation: "runDailyAudit",
+        }
+      );
     }
 
     // Step 8: Return result

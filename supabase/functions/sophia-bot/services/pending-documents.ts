@@ -6,7 +6,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { logger, LogCategory } from "../utils/logger.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -27,17 +27,15 @@ export async function addPendingDocument(
   filename?: string,
   mimetype?: string
 ): Promise<void> {
-  const { error } = await supabase
-    .from("pending_documents")
-    .upsert(
-      {
-        phone_number: phoneNumber,
-        document_url: documentUrl,
-        filename: filename || null,
-        mimetype: mimetype || null,
-      },
-      { onConflict: "phone_number,document_url", ignoreDuplicates: true }
-    );
+  const { error } = await supabase.from("pending_documents").upsert(
+    {
+      phone_number: phoneNumber,
+      document_url: documentUrl,
+      filename: filename || null,
+      mimetype: mimetype || null,
+    },
+    { onConflict: "phone_number,document_url", ignoreDuplicates: true }
+  );
 
   if (error) {
     logger.error("Failed to add pending document", error, {
@@ -57,7 +55,9 @@ export async function addPendingDocument(
 /**
  * Get all pending documents for a user
  */
-export async function getPendingDocuments(phoneNumber: string): Promise<PendingDocument[]> {
+export async function getPendingDocuments(
+  phoneNumber: string
+): Promise<PendingDocument[]> {
   const { data, error } = await supabase
     .from("pending_documents")
     .select("document_url, filename, mimetype")
@@ -78,7 +78,9 @@ export async function getPendingDocuments(phoneNumber: string): Promise<PendingD
 /**
  * Clear all pending documents for a user (call after successful upload)
  */
-export async function clearPendingDocuments(phoneNumber: string): Promise<void> {
+export async function clearPendingDocuments(
+  phoneNumber: string
+): Promise<void> {
   const { error } = await supabase
     .from("pending_documents")
     .delete()

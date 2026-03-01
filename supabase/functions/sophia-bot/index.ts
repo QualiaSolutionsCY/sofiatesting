@@ -19,11 +19,11 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { logger, LogCategory, ErrorCategory } from "./utils/logger.ts";
-import { withContext } from "./utils/context.ts";
-import { handleHealthCheck } from "./handlers/health.ts";
 import { handleAdminRequest } from "./handlers/admin.ts";
+import { handleHealthCheck } from "./handlers/health.ts";
 import { handleWebhook } from "./handlers/webhook.ts";
+import { withContext } from "./utils/context.ts";
+import { ErrorCategory, LogCategory, logger } from "./utils/logger.ts";
 
 // Environment variables
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
@@ -47,9 +47,12 @@ if (!WASEND_API_KEY) {
   });
 }
 if (!RESEND_API_KEY) {
-  logger.warn("WARNING: RESEND_API_KEY is not set - email sending will be disabled", {
-    category: LogCategory.GENERAL,
-  });
+  logger.warn(
+    "WARNING: RESEND_API_KEY is not set - email sending will be disabled",
+    {
+      category: LogCategory.GENERAL,
+    }
+  );
 }
 
 // CORS headers - restricted to admin endpoints only
@@ -66,13 +69,15 @@ const ALLOWED_ADMIN_ORIGINS = [
 
 const getCorsHeaders = (origin: string | null): Record<string, string> => {
   // Only allow CORS for known admin origins
-  const allowedOrigin = origin && ALLOWED_ADMIN_ORIGINS.includes(origin) ? origin : "";
+  const allowedOrigin =
+    origin && ALLOWED_ADMIN_ORIGINS.includes(origin) ? origin : "";
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Webhook-Signature, X-Request-ID, X-Admin-Secret",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-Webhook-Signature, X-Request-ID, X-Admin-Secret",
     "Access-Control-Max-Age": "86400",
-    "Vary": "Origin",
+    Vary: "Origin",
   };
 };
 
@@ -131,20 +136,19 @@ serve(async (req) => {
 // =====================================================
 
 export {
-  createViewingFormSingle,
-  parseViewingFormSingleData,
-  type ViewingFormSingleData,
-} from "./docx/templates/viewing-form-single.ts";
-
-export {
-  createViewingFormMultiple,
-  parseViewingFormMultipleData,
-  type ViewingFormMultipleData,
-  type PersonData,
-} from "./docx/templates/viewing-form-multiple.ts";
-
-export {
   createViewingFormAdvanced,
   parseViewingFormAdvancedData,
   type ViewingFormAdvancedData,
 } from "./docx/templates/viewing-form-advanced.ts";
+
+export {
+  createViewingFormMultiple,
+  type PersonData,
+  parseViewingFormMultipleData,
+  type ViewingFormMultipleData,
+} from "./docx/templates/viewing-form-multiple.ts";
+export {
+  createViewingFormSingle,
+  parseViewingFormSingleData,
+  type ViewingFormSingleData,
+} from "./docx/templates/viewing-form-single.ts";

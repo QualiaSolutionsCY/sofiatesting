@@ -4,6 +4,7 @@
  */
 
 import { config } from "dotenv";
+
 config({ path: ".env.local" });
 
 const PROPERTY_ID = "b291177c-60b8-4ba7-b878-f1dd66cafccf";
@@ -56,7 +57,7 @@ async function checkTrachoniLocation() {
   console.log("📍 Searching for 'Trachoni' in locations...");
   let trachoniFound = false;
   let nextUrl: string | null = `${apiUrl}/jsonapi/node/location?page[limit]=50`;
-  const limassolLocations: Array<{id: string; name: string}> = [];
+  const limassolLocations: Array<{ id: string; name: string }> = [];
 
   while (nextUrl) {
     const response = await fetch(nextUrl, {
@@ -76,8 +77,10 @@ async function checkTrachoniLocation() {
         console.log(`   ✅ FOUND TRACHONI: "${name}" (${item.id})`);
         trachoniFound = true;
       }
-      if (name.toLowerCase().includes("limassol") ||
-          name.toLowerCase().includes("lemesos")) {
+      if (
+        name.toLowerCase().includes("limassol") ||
+        name.toLowerCase().includes("lemesos")
+      ) {
         limassolLocations.push({ id: item.id, name });
       }
     }
@@ -117,11 +120,14 @@ async function checkTrachoniLocation() {
   console.log(`   Location reference ID: ${locationRef?.id || "NOT SET"}`);
 
   const includedLocation = propertyData.included?.find(
-    (inc: { id: string; type: string }) => inc.type === "node--location" && inc.id === locationRef?.id
+    (inc: { id: string; type: string }) =>
+      inc.type === "node--location" && inc.id === locationRef?.id
   );
 
   if (includedLocation) {
-    console.log(`   ✅ Property location: "${includedLocation.attributes.title}" (${includedLocation.id})`);
+    console.log(
+      `   ✅ Property location: "${includedLocation.attributes.title}" (${includedLocation.id})`
+    );
   } else {
     console.log("   ❌ Location details not included in response");
     console.log("   Looking up location separately...");
@@ -139,13 +145,17 @@ async function checkTrachoniLocation() {
       );
       if (locResponse.ok) {
         const locData = await locResponse.json();
-        console.log(`   ✅ Property location: "${locData.data.attributes.title}" (${locData.data.id})`);
+        console.log(
+          `   ✅ Property location: "${locData.data.attributes.title}" (${locData.data.id})`
+        );
       }
     }
   }
 
   // Show property title for context
-  console.log(`\n   Property title: ${propertyData.data?.attributes?.title || "N/A"}`);
+  console.log(
+    `\n   Property title: ${propertyData.data?.attributes?.title || "N/A"}`
+  );
 }
 
 checkTrachoniLocation().catch(console.error);

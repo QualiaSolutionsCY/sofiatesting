@@ -6,7 +6,11 @@
  */
 
 import type { ToolResult } from "./adapters/types.ts";
-import { calculateVAT, calculateTransferFees, calculateCapitalGains } from "./calculators.ts";
+import {
+  calculateCapitalGains,
+  calculateTransferFees,
+  calculateVAT,
+} from "./calculators.ts";
 
 export interface ToolDefinition {
   type: "function";
@@ -47,8 +51,20 @@ export const TOOLS: ToolDefinition[] = [
           },
           propertyType: {
             type: "string",
-            enum: ["apartment", "house", "detached house", "villa", "maisonette", "bungalow", "penthouse", "townhouse", "studio", "semi-detached"],
-            description: "The type of property (use 'detached house' for standalone houses, 'semi-detached' for joined houses)",
+            enum: [
+              "apartment",
+              "house",
+              "detached house",
+              "villa",
+              "maisonette",
+              "bungalow",
+              "penthouse",
+              "townhouse",
+              "studio",
+              "semi-detached",
+            ],
+            description:
+              "The type of property (use 'detached house' for standalone houses, 'semi-detached' for joined houses)",
           },
           price: {
             type: "number",
@@ -56,7 +72,8 @@ export const TOOLS: ToolDefinition[] = [
           },
           location: {
             type: "string",
-            description: "The area/location of the property (e.g., Tala, Potamos Germasogeia)",
+            description:
+              "The area/location of the property (e.g., Tala, Potamos Germasogeia)",
           },
           bedrooms: {
             type: "integer",
@@ -99,7 +116,8 @@ export const TOOLS: ToolDefinition[] = [
           features: {
             type: "array",
             items: { type: "string" },
-            description: "Property features like pool, garden, sea view, air conditioning",
+            description:
+              "Property features like pool, garden, sea view, air conditioning",
           },
           yearBuilt: {
             type: "integer",
@@ -111,7 +129,8 @@ export const TOOLS: ToolDefinition[] = [
           },
           assignTo: {
             type: "string",
-            description: "For management only: email of agent to assign as listing owner",
+            description:
+              "For management only: email of agent to assign as listing owner",
           },
           specialNotes: {
             type: "string",
@@ -120,10 +139,17 @@ export const TOOLS: ToolDefinition[] = [
           coordinates: {
             type: "object",
             properties: {
-              lat: { type: "number", description: "Latitude (e.g., 34.6841 for Limassol)" },
-              lon: { type: "number", description: "Longitude (e.g., 33.0413 for Limassol)" },
+              lat: {
+                type: "number",
+                description: "Latitude (e.g., 34.6841 for Limassol)",
+              },
+              lon: {
+                type: "number",
+                description: "Longitude (e.g., 33.0413 for Limassol)",
+              },
             },
-            description: "GPS coordinates for the property location. Use approximate city coordinates if exact address unknown. Cyprus coordinates: Limassol (34.68, 33.04), Paphos (34.77, 32.42), Nicosia (35.17, 33.36), Larnaca (34.92, 33.63)",
+            description:
+              "GPS coordinates for the property location. Use approximate city coordinates if exact address unknown. Cyprus coordinates: Limassol (34.68, 33.04), Paphos (34.77, 32.42), Nicosia (35.17, 33.36), Larnaca (34.92, 33.63)",
           },
         },
         required: [
@@ -284,7 +310,9 @@ export const getToolByName = (name: string): ToolDefinition | undefined =>
 /**
  * Handle VAT calculation tool call
  */
-export const handleCalculateVAT = (args: Record<string, unknown>): ToolResult => {
+export const handleCalculateVAT = (
+  args: Record<string, unknown>
+): ToolResult => {
   const result = calculateVAT({
     price: args.price as number,
     isNewProperty: args.isNewProperty as boolean,
@@ -301,7 +329,9 @@ export const handleCalculateVAT = (args: Record<string, unknown>): ToolResult =>
 /**
  * Handle Transfer Fees calculation tool call
  */
-export const handleCalculateTransferFees = (args: Record<string, unknown>): ToolResult => {
+export const handleCalculateTransferFees = (
+  args: Record<string, unknown>
+): ToolResult => {
   const result = calculateTransferFees({
     price: args.price as number,
     isFirstProperty: args.isFirstProperty as boolean | undefined,
@@ -317,7 +347,9 @@ export const handleCalculateTransferFees = (args: Record<string, unknown>): Tool
 /**
  * Handle Capital Gains calculation tool call
  */
-export const handleCalculateCapitalGains = (args: Record<string, unknown>): ToolResult => {
+export const handleCalculateCapitalGains = (
+  args: Record<string, unknown>
+): ToolResult => {
   const result = calculateCapitalGains({
     purchasePrice: args.purchasePrice as number,
     salePrice: args.salePrice as number,

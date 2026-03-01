@@ -24,7 +24,7 @@ const applyMigration = async () => {
     `;
     console.log("Verification:", result[0]);
   } catch (err: any) {
-    if (err.code === '42P07' || err.message?.includes('already exists')) {
+    if (err.code === "42P07" || err.message?.includes("already exists")) {
       console.log("⚠️  Column already expanded (migration already applied)");
     } else {
       throw err;

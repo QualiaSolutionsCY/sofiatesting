@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { checkAdminAuth, hasMinimumRole } from "@/lib/auth/admin";
 import { createLogger } from "@/lib/logger";
 import { getAdminSupabase } from "@/lib/supabase/admin";
-import { checkAdminAuth, hasMinimumRole } from "@/lib/auth/admin";
 
 const logger = createLogger("api:admin:agents:link-telegram");
 

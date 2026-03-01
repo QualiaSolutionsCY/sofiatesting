@@ -56,17 +56,15 @@ export async function GET(
     }
 
     if (!versions || versions.length === 0) {
-      return NextResponse.json(
-        { error: "Prompt not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Prompt not found" }, { status: 404 });
     }
 
     const formattedVersions = (versions as PromptRow[]).map((v) => ({
       id: v.id,
       version: v.version,
       contentSize: v.content?.length || 0,
-      contentPreview: v.content?.substring(0, 200) + (v.content?.length > 200 ? "..." : ""),
+      contentPreview:
+        v.content?.substring(0, 200) + (v.content?.length > 200 ? "..." : ""),
       isActive: v.is_active,
       isCurrent: v.is_current,
       updatedAt: v.updated_at,

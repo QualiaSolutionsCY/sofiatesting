@@ -5,10 +5,13 @@
  * Includes chat history and message deduplication operations.
  */
 
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import type { ChatMessage } from "./adapters/types.ts";
+import {
+  createClient,
+  type SupabaseClient,
+} from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
 import { withRetry } from "../sophia-bot/utils/retry.ts";
-import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
+import type { ChatMessage } from "./adapters/types.ts";
 
 // Singleton client
 let _client: SupabaseClient | null = null;
@@ -66,9 +69,7 @@ export const getHistory = async (userId: string): Promise<ChatMessage[]> => {
   // Ensure parts is always an array of objects with text property
   return reversed.map((msg) => ({
     role: msg.role as "user" | "model",
-    parts: Array.isArray(msg.parts)
-      ? msg.parts
-      : [{ text: String(msg.parts) }],
+    parts: Array.isArray(msg.parts) ? msg.parts : [{ text: String(msg.parts) }],
   }));
 };
 
@@ -87,8 +88,8 @@ export const addMessage = async (
       const result = await supabase.from("chat_history").insert([
         {
           user_id: userId,
-          role: role,
-          parts: [{ text: text }],
+          role,
+          parts: [{ text }],
         },
       ]);
       if (result.error) throw result.error;
@@ -172,7 +173,9 @@ export const claimMessageForProcessing = async (
 /**
  * @deprecated Use claimMessageForProcessing() instead for race-condition-safe deduplication
  */
-export const isMessageProcessed = async (messageKey: string): Promise<boolean> => {
+export const isMessageProcessed = async (
+  messageKey: string
+): Promise<boolean> => {
   const supabase = getSupabaseAdmin();
 
   try {
@@ -220,14 +223,12 @@ export const markMessageProcessed = async (
       },
     ]);
 
-    if (error) {
-      if (error.code !== "23505") {
-        logger.error("Error marking message as processed", error, {
-          category: LogCategory.DATABASE,
-          operation: "markMessageProcessed",
-          messageKey,
-        });
-      }
+    if (error && error.code !== "23505") {
+      logger.error("Error marking message as processed", error, {
+        category: LogCategory.DATABASE,
+        operation: "markMessageProcessed",
+        messageKey,
+      });
     }
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
@@ -296,7 +297,9 @@ export const saveLastDocument = async (
 /**
  * Get the most recent document for a user (for email attachment)
  */
-export const getLastDocument = async (userId: string): Promise<LastDocument | null> => {
+export const getLastDocument = async (
+  userId: string
+): Promise<LastDocument | null> => {
   const supabase = getSupabaseAdmin();
 
   const { data, error } = await supabase
@@ -320,10 +323,7 @@ export const getLastDocument = async (userId: string): Promise<LastDocument | nu
 export const clearLastDocument = async (userId: string): Promise<void> => {
   const supabase = getSupabaseAdmin();
 
-  await supabase
-    .from("last_documents")
-    .delete()
-    .eq("user_id", userId);
+  await supabase.from("last_documents").delete().eq("user_id", userId);
 
   logger.info("Cleared documents for user", {
     category: LogCategory.DATABASE,
@@ -344,7 +344,7 @@ export const trackListingUpload = async (
   agentPhone: string,
   agentName: string,
   propertyTitle: string,
-  listingUrl: string,
+  listingUrl: string
 ): Promise<void> => {
   const supabase = getSupabaseAdmin();
 
@@ -373,15 +373,17 @@ export const trackListingUpload = async (
  * Get all draft listings that haven't been checked recently.
  * Used by the polling function to avoid hammering the API.
  */
-export const getPendingListingUploads = async (): Promise<Array<{
-  id: string;
-  zyprus_listing_id: string;
-  agent_phone: string;
-  agent_name: string;
-  property_title: string;
-  listing_url: string;
-  created_at: string;
-}>> => {
+export const getPendingListingUploads = async (): Promise<
+  Array<{
+    id: string;
+    zyprus_listing_id: string;
+    agent_phone: string;
+    agent_name: string;
+    property_title: string;
+    listing_url: string;
+    created_at: string;
+  }>
+> => {
   const supabase = getSupabaseAdmin();
 
   // Only check listings that are still "draft" and were uploaded at least 5 min ago
@@ -390,7 +392,9 @@ export const getPendingListingUploads = async (): Promise<Array<{
 
   const { data, error } = await supabase
     .from("listing_uploads")
-    .select("id, zyprus_listing_id, agent_phone, agent_name, property_title, listing_url, created_at")
+    .select(
+      "id, zyprus_listing_id, agent_phone, agent_name, property_title, listing_url, created_at"
+    )
     .eq("status", "draft")
     .lt("created_at", fiveMinAgo)
     .order("created_at", { ascending: true })

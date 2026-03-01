@@ -3,8 +3,10 @@
  *
  * Uploads 3 different property types to test the new description format
  */
-import { config } from "dotenv";
+
 import crypto from "crypto";
+import { config } from "dotenv";
+
 config({ path: ".env.local" });
 
 const SUPABASE_URL = "https://vceeheaxcrhmpqueudqx.supabase.co";
@@ -135,7 +137,11 @@ function generateSignature(payload: string, secret: string): string {
   return crypto.createHmac("sha256", secret).update(payload).digest("hex");
 }
 
-async function sendWebhookMessage(message: string, phoneNumber: string, propertyName: string) {
+async function sendWebhookMessage(
+  message: string,
+  phoneNumber: string,
+  propertyName: string
+) {
   const webhookPayload = {
     event: "messages.received",
     timestamp: Date.now(),
@@ -144,15 +150,15 @@ async function sendWebhookMessage(message: string, phoneNumber: string, property
         key: {
           remoteJid: `${phoneNumber}@s.whatsapp.net`,
           fromMe: false,
-          id: `TEST_${Date.now()}_${Math.random().toString(36).substring(7)}`
+          id: `TEST_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         },
         pushName: "Michelle Test",
         message: {
-          conversation: message
+          conversation: message,
         },
-        messageTimestamp: Math.floor(Date.now() / 1000)
-      }
-    }
+        messageTimestamp: Math.floor(Date.now() / 1000),
+      },
+    },
   };
 
   const payloadString = JSON.stringify(webhookPayload);
@@ -168,7 +174,7 @@ async function sendWebhookMessage(message: string, phoneNumber: string, property
         "Content-Type": "application/json",
         "x-wasend-signature": signature,
       },
-      body: payloadString
+      body: payloadString,
     });
 
     const responseText = await response.text();
@@ -177,9 +183,11 @@ async function sendWebhookMessage(message: string, phoneNumber: string, property
     try {
       const responseJson = JSON.parse(responseText);
       if (responseJson.success) {
-        console.log(`   ✅ Success!`);
+        console.log("   ✅ Success!");
       } else {
-        console.log(`   Response: ${JSON.stringify(responseJson, null, 2).substring(0, 300)}`);
+        console.log(
+          `   Response: ${JSON.stringify(responseJson, null, 2).substring(0, 300)}`
+        );
       }
     } catch {
       console.log(`   Body: ${responseText.substring(0, 200)}`);
@@ -187,7 +195,7 @@ async function sendWebhookMessage(message: string, phoneNumber: string, property
 
     return response;
   } catch (error) {
-    console.error(`   ❌ Error:`, error);
+    console.error("   ❌ Error:", error);
     throw error;
   }
 }
@@ -196,28 +204,42 @@ async function main() {
   console.log("=".repeat(60));
   console.log("SOPHIA MULTI-PROPERTY UPLOAD TEST");
   console.log("=".repeat(60));
-  console.log("\nTesting new comprehensive description format with 3 Limassol properties:");
+  console.log(
+    "\nTesting new comprehensive description format with 3 Limassol properties:"
+  );
   console.log("1. Luxury Villa in Agios Tychonas (4 bed)");
   console.log("2. Modern Apartment in Potamos Germasogeia (2 bed)");
   console.log("3. Townhouse in Mesa Geitonia (3 bed)");
   console.log("");
 
   // Upload property 1
-  await sendWebhookMessage(PROPERTY_1, AGENT_PHONE, "Luxury Villa in Agios Tychonas");
+  await sendWebhookMessage(
+    PROPERTY_1,
+    AGENT_PHONE,
+    "Luxury Villa in Agios Tychonas"
+  );
 
   // Wait a bit between uploads
   console.log("\n⏳ Waiting 5 seconds...");
-  await new Promise(resolve => setTimeout(resolve, 5000));
+  await new Promise((resolve) => setTimeout(resolve, 5000));
 
   // Upload property 2
-  await sendWebhookMessage(PROPERTY_2, AGENT_PHONE, "Modern Apartment in Potamos Germasogeia");
+  await sendWebhookMessage(
+    PROPERTY_2,
+    AGENT_PHONE,
+    "Modern Apartment in Potamos Germasogeia"
+  );
 
   // Wait a bit between uploads
   console.log("\n⏳ Waiting 5 seconds...");
-  await new Promise(resolve => setTimeout(resolve, 5000));
+  await new Promise((resolve) => setTimeout(resolve, 5000));
 
   // Upload property 3
-  await sendWebhookMessage(PROPERTY_3, AGENT_PHONE, "Townhouse in Mesa Geitonia");
+  await sendWebhookMessage(
+    PROPERTY_3,
+    AGENT_PHONE,
+    "Townhouse in Mesa Geitonia"
+  );
 
   console.log("\n" + "=".repeat(60));
   console.log("UPLOADS COMPLETE");

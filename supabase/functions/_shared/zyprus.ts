@@ -8,7 +8,7 @@
  * - UUID resolution for all reference fields
  */
 
-import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
+import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
 
 // =============================================================================
 // TYPES
@@ -125,18 +125,55 @@ const DEFAULT_PRICE_MODIFIER_UUID = "ab39af2d-c8f5-4971-9fa5-2df6822ab9a9";
 const DEFAULT_TITLE_DEED_UUID = "5c553db1-e53d-46a2-b609-093d17e75a7a";
 
 const INDOOR_FEATURE_KEYWORDS = [
-  "air conditioning", "a/c", "ac", "central heating", "heating",
-  "fireplace", "elevator", "lift", "storage", "fitted wardrobes",
-  "double glazing", "alarm", "intercom", "underfloor", "jacuzzi",
-  "sauna", "gym", "wine cellar", "office", "maid room", "laundry"
+  "air conditioning",
+  "a/c",
+  "ac",
+  "central heating",
+  "heating",
+  "fireplace",
+  "elevator",
+  "lift",
+  "storage",
+  "fitted wardrobes",
+  "double glazing",
+  "alarm",
+  "intercom",
+  "underfloor",
+  "jacuzzi",
+  "sauna",
+  "gym",
+  "wine cellar",
+  "office",
+  "maid room",
+  "laundry",
 ];
 
 const OUTDOOR_FEATURE_KEYWORDS = [
-  "pool", "swimming", "garden", "parking", "garage", "carport",
-  "covered parking", "uncovered parking", "private parking",
-  "bbq", "barbecue", "terrace", "balcony", "veranda", "patio",
-  "gated", "security", "sea view", "mountain view", "city view",
-  "solar", "photovoltaic", "well", "borehole", "irrigation"
+  "pool",
+  "swimming",
+  "garden",
+  "parking",
+  "garage",
+  "carport",
+  "covered parking",
+  "uncovered parking",
+  "private parking",
+  "bbq",
+  "barbecue",
+  "terrace",
+  "balcony",
+  "veranda",
+  "patio",
+  "gated",
+  "security",
+  "sea view",
+  "mountain view",
+  "city view",
+  "solar",
+  "photovoltaic",
+  "well",
+  "borehole",
+  "irrigation",
 ];
 
 // =============================================================================
@@ -174,7 +211,9 @@ export const getAccessToken = async (config: ZyprusConfig): Promise<string> => {
     return cachedToken.token;
   }
 
-  logger.info("[Zyprus] Fetching new access token...", { category: LogCategory.ZYPRUS });
+  logger.info("[Zyprus] Fetching new access token...", {
+    category: LogCategory.ZYPRUS,
+  });
 
   const response = await fetch(`${config.apiUrl}/oauth/token`, {
     method: "POST",
@@ -191,7 +230,10 @@ export const getAccessToken = async (config: ZyprusConfig): Promise<string> => {
 
   if (!response.ok) {
     const errorText = await response.text();
-    logger.error("[Zyprus] Token error", new Error(errorText), { category: LogCategory.ZYPRUS, statusCode: response.status });
+    logger.error("[Zyprus] Token error", new Error(errorText), {
+      category: LogCategory.ZYPRUS,
+      statusCode: response.status,
+    });
     throw new Error(`Failed to get access token: ${response.status}`);
   }
 
@@ -202,7 +244,9 @@ export const getAccessToken = async (config: ZyprusConfig): Promise<string> => {
     expiresAt: Date.now() + data.expires_in * 1000,
   };
 
-  logger.info("[Zyprus] Access token obtained successfully", { category: LogCategory.ZYPRUS });
+  logger.info("[Zyprus] Access token obtained successfully", {
+    category: LogCategory.ZYPRUS,
+  });
   return data.access_token;
 };
 
@@ -216,7 +260,8 @@ const fetchTaxonomy = async (
   apiUrl: string
 ): Promise<TaxonomyItem[]> => {
   const items: TaxonomyItem[] = [];
-  let nextUrl: string | null = `${apiUrl}/jsonapi/taxonomy_term/${vocabularyName}?page[limit]=50`;
+  let nextUrl: string | null =
+    `${apiUrl}/jsonapi/taxonomy_term/${vocabularyName}?page[limit]=50`;
 
   while (nextUrl) {
     const response = await fetch(nextUrl, {
@@ -228,7 +273,11 @@ const fetchTaxonomy = async (
     });
 
     if (!response.ok) {
-      logger.error(`[Taxonomy] Failed to fetch ${vocabularyName}: ${response.status}`, undefined, { category: LogCategory.ZYPRUS });
+      logger.error(
+        `[Taxonomy] Failed to fetch ${vocabularyName}: ${response.status}`,
+        undefined,
+        { category: LogCategory.ZYPRUS }
+      );
       break;
     }
 
@@ -245,7 +294,9 @@ const fetchTaxonomy = async (
     nextUrl = data.links?.next?.href || null;
   }
 
-  logger.debug(`[Taxonomy] Loaded ${items.length} ${vocabularyName} terms`, { category: LogCategory.CACHE });
+  logger.debug(`[Taxonomy] Loaded ${items.length} ${vocabularyName} terms`, {
+    category: LogCategory.CACHE,
+  });
   return items;
 };
 
@@ -266,7 +317,11 @@ const fetchLocations = async (
     });
 
     if (!response.ok) {
-      logger.error(`[Taxonomy] Failed to fetch locations: ${response.status}`, undefined, { category: LogCategory.ZYPRUS });
+      logger.error(
+        `[Taxonomy] Failed to fetch locations: ${response.status}`,
+        undefined,
+        { category: LogCategory.ZYPRUS }
+      );
       break;
     }
 
@@ -283,7 +338,9 @@ const fetchLocations = async (
     nextUrl = data.links?.next?.href || null;
   }
 
-  logger.debug(`[Taxonomy] Loaded ${items.length} location nodes`, { category: LogCategory.CACHE });
+  logger.debug(`[Taxonomy] Loaded ${items.length} location nodes`, {
+    category: LogCategory.CACHE,
+  });
   return items;
 };
 
@@ -292,7 +349,8 @@ const fetchUsers = async (
   apiUrl: string
 ): Promise<UserItem[]> => {
   const items: UserItem[] = [];
-  let nextUrl: string | null = `${apiUrl}/jsonapi/user/user?filter[status]=1&page[limit]=50`;
+  let nextUrl: string | null =
+    `${apiUrl}/jsonapi/user/user?filter[status]=1&page[limit]=50`;
 
   while (nextUrl) {
     const response = await fetch(nextUrl, {
@@ -304,7 +362,11 @@ const fetchUsers = async (
     });
 
     if (!response.ok) {
-      logger.error(`[Taxonomy] Failed to fetch users: ${response.status}`, undefined, { category: LogCategory.ZYPRUS });
+      logger.error(
+        `[Taxonomy] Failed to fetch users: ${response.status}`,
+        undefined,
+        { category: LogCategory.ZYPRUS }
+      );
       break;
     }
 
@@ -323,7 +385,9 @@ const fetchUsers = async (
     nextUrl = data.links?.next?.href || null;
   }
 
-  logger.debug(`[Taxonomy] Loaded ${items.length} users`, { category: LogCategory.CACHE });
+  logger.debug(`[Taxonomy] Loaded ${items.length} users`, {
+    category: LogCategory.CACHE,
+  });
   return items;
 };
 
@@ -333,11 +397,15 @@ export const loadTaxonomy = async (): Promise<TaxonomyCache> => {
   }
 
   if (taxonomyLoadPromise) {
-    logger.debug("[Taxonomy] Waiting for existing load operation...", { category: LogCategory.CACHE });
+    logger.debug("[Taxonomy] Waiting for existing load operation...", {
+      category: LogCategory.CACHE,
+    });
     return taxonomyLoadPromise;
   }
 
-  logger.info("[Taxonomy] Loading taxonomy data...", { category: LogCategory.CACHE });
+  logger.info("[Taxonomy] Loading taxonomy data...", {
+    category: LogCategory.CACHE,
+  });
 
   taxonomyLoadPromise = (async () => {
     try {
@@ -379,7 +447,9 @@ export const loadTaxonomy = async (): Promise<TaxonomyCache> => {
         lastUpdated: Date.now(),
       };
 
-      logger.info("[Taxonomy] Taxonomy loaded successfully", { category: LogCategory.CACHE });
+      logger.info("[Taxonomy] Taxonomy loaded successfully", {
+        category: LogCategory.CACHE,
+      });
       return cache;
     } finally {
       taxonomyLoadPromise = null;
@@ -393,7 +463,9 @@ export const loadTaxonomy = async (): Promise<TaxonomyCache> => {
 // UUID FINDERS
 // =============================================================================
 
-export const findLocationUuid = async (locationName: string): Promise<string> => {
+export const findLocationUuid = async (
+  locationName: string
+): Promise<string> => {
   try {
     const taxonomy = await loadTaxonomy();
     const normalized = locationName.toLowerCase().trim();
@@ -403,30 +475,45 @@ export const findLocationUuid = async (locationName: string): Promise<string> =>
     );
     if (exact) return exact.id;
 
-    const words = normalized.split(/[\s,]+/).filter(w => w.length > 2);
+    const words = normalized.split(/[\s,]+/).filter((w) => w.length > 2);
     for (const word of words) {
-      const match = taxonomy.locations.find(
-        (loc) => loc.name.toLowerCase().includes(word)
+      const match = taxonomy.locations.find((loc) =>
+        loc.name.toLowerCase().includes(word)
       );
       if (match) {
-        logger.debug(`[Taxonomy] Partial match for "${locationName}": ${match.name}`, { category: LogCategory.ZYPRUS });
+        logger.debug(
+          `[Taxonomy] Partial match for "${locationName}": ${match.name}`,
+          { category: LogCategory.ZYPRUS }
+        );
         return match.id;
       }
     }
 
     if (taxonomy.locations.length > 0) {
-      logger.debug(`[Taxonomy] Using first available location: ${taxonomy.locations[0].name}`, { category: LogCategory.ZYPRUS });
+      logger.debug(
+        `[Taxonomy] Using first available location: ${taxonomy.locations[0].name}`,
+        { category: LogCategory.ZYPRUS }
+      );
       return taxonomy.locations[0].id;
     }
   } catch (error) {
-    logger.error("[Taxonomy] Error finding location", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[Taxonomy] Error finding location",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
   }
 
-  logger.debug(`[Taxonomy] Using hardcoded default location UUID for: ${locationName}`, { category: LogCategory.ZYPRUS });
+  logger.debug(
+    `[Taxonomy] Using hardcoded default location UUID for: ${locationName}`,
+    { category: LogCategory.ZYPRUS }
+  );
   return DEFAULT_LOCATION_UUID;
 };
 
-export const findPropertyTypeUuid = async (typeName: string): Promise<string> => {
+export const findPropertyTypeUuid = async (
+  typeName: string
+): Promise<string> => {
   const normalized = typeName.toLowerCase().trim();
 
   try {
@@ -434,7 +521,12 @@ export const findPropertyTypeUuid = async (typeName: string): Promise<string> =>
 
     const aliases: Record<string, string[]> = {
       apartment: ["flat", "apt"],
-      villa: ["detached", "detached house", "standalone house", "independent house"],
+      villa: [
+        "detached",
+        "detached house",
+        "standalone house",
+        "independent house",
+      ],
       house: ["home", "detached house"],
       maisonette: ["maisonette", "split-level"],
       bungalow: ["single-story", "single storey"],
@@ -464,44 +556,71 @@ export const findPropertyTypeUuid = async (typeName: string): Promise<string> =>
     if (partial) return partial.id;
 
     if (taxonomy.propertyTypes.length > 0) {
-      logger.debug(`[Taxonomy] Using first available property type: ${taxonomy.propertyTypes[0].name}`, { category: LogCategory.ZYPRUS });
+      logger.debug(
+        `[Taxonomy] Using first available property type: ${taxonomy.propertyTypes[0].name}`,
+        { category: LogCategory.ZYPRUS }
+      );
       return taxonomy.propertyTypes[0].id;
     }
   } catch (error) {
-    logger.error("[Taxonomy] Error finding property type", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[Taxonomy] Error finding property type",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
   }
 
-  const fallbackUuid = PROPERTY_TYPE_FALLBACKS[normalized] || DEFAULT_PROPERTY_TYPE_UUID;
-  logger.debug(`[Taxonomy] Using hardcoded fallback property type UUID for: ${typeName}`, { category: LogCategory.ZYPRUS });
+  const fallbackUuid =
+    PROPERTY_TYPE_FALLBACKS[normalized] || DEFAULT_PROPERTY_TYPE_UUID;
+  logger.debug(
+    `[Taxonomy] Using hardcoded fallback property type UUID for: ${typeName}`,
+    { category: LogCategory.ZYPRUS }
+  );
   return fallbackUuid;
 };
 
-export const findListingTypeUuid = async (type: "sale" | "rent"): Promise<string> => {
+export const findListingTypeUuid = async (
+  type: "sale" | "rent"
+): Promise<string> => {
   try {
     const taxonomy = await loadTaxonomy();
 
-    const searchTerms = type === "sale" ? ["sale", "for sale", "buy"] : ["rent", "for rent", "rental"];
+    const searchTerms =
+      type === "sale"
+        ? ["sale", "for sale", "buy"]
+        : ["rent", "for rent", "rental"];
 
     for (const term of searchTerms) {
-      const match = taxonomy.listingTypes.find(
-        (lt) => lt.name.toLowerCase().includes(term)
+      const match = taxonomy.listingTypes.find((lt) =>
+        lt.name.toLowerCase().includes(term)
       );
       if (match) return match.id;
     }
 
     if (taxonomy.listingTypes.length > 0) {
-      logger.debug(`[Taxonomy] Using first available listing type: ${taxonomy.listingTypes[0].name}`, { category: LogCategory.ZYPRUS });
+      logger.debug(
+        `[Taxonomy] Using first available listing type: ${taxonomy.listingTypes[0].name}`,
+        { category: LogCategory.ZYPRUS }
+      );
       return taxonomy.listingTypes[0].id;
     }
   } catch (error) {
-    logger.error("[Taxonomy] Error finding listing type", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[Taxonomy] Error finding listing type",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
   }
 
-  logger.debug("[Taxonomy] Using hardcoded default listing type UUID", { category: LogCategory.ZYPRUS });
+  logger.debug("[Taxonomy] Using hardcoded default listing type UUID", {
+    category: LogCategory.ZYPRUS,
+  });
   return DEFAULT_LISTING_TYPE_UUID;
 };
 
-export const findPriceModifierUuid = async (modifier?: string): Promise<string> => {
+export const findPriceModifierUuid = async (
+  modifier?: string
+): Promise<string> => {
   try {
     const taxonomy = await loadTaxonomy();
 
@@ -511,20 +630,30 @@ export const findPriceModifierUuid = async (modifier?: string): Promise<string> 
 
     for (const term of searchTerms) {
       const match = taxonomy.priceModifiers.find(
-        (pm) => pm.name.toLowerCase() === term || pm.name.toLowerCase().includes(term)
+        (pm) =>
+          pm.name.toLowerCase() === term || pm.name.toLowerCase().includes(term)
       );
       if (match) return match.id;
     }
 
     if (taxonomy.priceModifiers.length > 0) {
-      logger.debug(`[Taxonomy] Using first available price modifier: ${taxonomy.priceModifiers[0].name}`, { category: LogCategory.ZYPRUS });
+      logger.debug(
+        `[Taxonomy] Using first available price modifier: ${taxonomy.priceModifiers[0].name}`,
+        { category: LogCategory.ZYPRUS }
+      );
       return taxonomy.priceModifiers[0].id;
     }
   } catch (error) {
-    logger.error("[Taxonomy] Error finding price modifier", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[Taxonomy] Error finding price modifier",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
   }
 
-  logger.debug("[Taxonomy] Using hardcoded default price modifier UUID", { category: LogCategory.ZYPRUS });
+  logger.debug("[Taxonomy] Using hardcoded default price modifier UUID", {
+    category: LogCategory.ZYPRUS,
+  });
   return DEFAULT_PRICE_MODIFIER_UUID;
 };
 
@@ -533,10 +662,27 @@ export const findTitleDeedUuid = async (status?: string): Promise<string> => {
     const taxonomy = await loadTaxonomy();
 
     const statusMappings: Record<string, string[]> = {
-      "available": ["available", "yes", "title deed", "full ownership", "has title"],
+      available: [
+        "available",
+        "yes",
+        "title deed",
+        "full ownership",
+        "has title",
+      ],
       "title deed": ["title deed", "full ownership", "has title", "available"],
-      "not available": ["not available", "no", "pending", "no title", "without title"],
-      "on application": ["on application", "applied", "in progress", "final approval"],
+      "not available": [
+        "not available",
+        "no",
+        "pending",
+        "no title",
+        "without title",
+      ],
+      "on application": [
+        "on application",
+        "applied",
+        "in progress",
+        "final approval",
+      ],
       "share of land": ["share of land", "shared", "fractional"],
     };
 
@@ -545,7 +691,13 @@ export const findTitleDeedUuid = async (status?: string): Promise<string> => {
     if (status) {
       const normalizedStatus = status.toLowerCase().trim();
       for (const [zyprusTerm, aliases] of Object.entries(statusMappings)) {
-        if (aliases.some(alias => normalizedStatus.includes(alias) || alias.includes(normalizedStatus))) {
+        if (
+          aliases.some(
+            (alias) =>
+              normalizedStatus.includes(alias) ||
+              alias.includes(normalizedStatus)
+          )
+        ) {
           searchTerms = [zyprusTerm, ...aliases];
           break;
         }
@@ -554,26 +706,38 @@ export const findTitleDeedUuid = async (status?: string): Promise<string> => {
 
     for (const term of searchTerms) {
       const match = taxonomy.titleDeeds.find(
-        (td) => td.name.toLowerCase() === term || td.name.toLowerCase().includes(term)
+        (td) =>
+          td.name.toLowerCase() === term || td.name.toLowerCase().includes(term)
       );
       if (match) return match.id;
     }
 
     if (taxonomy.titleDeeds.length > 0) {
-      logger.debug(`[Taxonomy] Using first available title deed: ${taxonomy.titleDeeds[0].name}`, { category: LogCategory.ZYPRUS });
+      logger.debug(
+        `[Taxonomy] Using first available title deed: ${taxonomy.titleDeeds[0].name}`,
+        { category: LogCategory.ZYPRUS }
+      );
       return taxonomy.titleDeeds[0].id;
     }
   } catch (error) {
-    logger.error("[Taxonomy] Error finding title deed", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[Taxonomy] Error finding title deed",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
   }
 
-  logger.debug("[Taxonomy] Using hardcoded default title deed UUID", { category: LogCategory.ZYPRUS });
+  logger.debug("[Taxonomy] Using hardcoded default title deed UUID", {
+    category: LogCategory.ZYPRUS,
+  });
   return DEFAULT_TITLE_DEED_UUID;
 };
 
 export const findUserUuid = async (email: string): Promise<string> => {
   if (!email) {
-    logger.debug("[Taxonomy] No email provided, using SOPHIA_AI_UUID", { category: LogCategory.ZYPRUS });
+    logger.debug("[Taxonomy] No email provided, using SOPHIA_AI_UUID", {
+      category: LogCategory.ZYPRUS,
+    });
     return SOPHIA_AI_UUID;
   }
 
@@ -581,23 +745,38 @@ export const findUserUuid = async (email: string): Promise<string> => {
 
   try {
     const taxonomy = await loadTaxonomy();
-    const user = taxonomy.users.find(u => u.email === normalizedEmail);
+    const user = taxonomy.users.find((u) => u.email === normalizedEmail);
     if (user) {
-      logger.debug(`[Taxonomy] Found user UUID for ${normalizedEmail}: ${user.id}`, { category: LogCategory.ZYPRUS });
+      logger.debug(
+        `[Taxonomy] Found user UUID for ${normalizedEmail}: ${user.id}`,
+        { category: LogCategory.ZYPRUS }
+      );
       return user.id;
     }
-    logger.debug(`[Taxonomy] User not found for ${normalizedEmail}, checking fallbacks`, { category: LogCategory.ZYPRUS });
+    logger.debug(
+      `[Taxonomy] User not found for ${normalizedEmail}, checking fallbacks`,
+      { category: LogCategory.ZYPRUS }
+    );
   } catch (error) {
-    logger.error("[Taxonomy] Error finding user", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "[Taxonomy] Error finding user",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
   }
 
   const fallback = USER_FALLBACKS[normalizedEmail];
   if (fallback) {
-    logger.debug(`[Taxonomy] Using hardcoded fallback for ${normalizedEmail}`, { category: LogCategory.ZYPRUS });
+    logger.debug(`[Taxonomy] Using hardcoded fallback for ${normalizedEmail}`, {
+      category: LogCategory.ZYPRUS,
+    });
     return fallback;
   }
 
-  logger.debug(`[Taxonomy] Using SOPHIA_AI_UUID fallback for ${normalizedEmail}`, { category: LogCategory.ZYPRUS });
+  logger.debug(
+    `[Taxonomy] Using SOPHIA_AI_UUID fallback for ${normalizedEmail}`,
+    { category: LogCategory.ZYPRUS }
+  );
   return SOPHIA_AI_UUID;
 };
 
@@ -614,13 +793,17 @@ export const findUserUuids = async (emails: string[]): Promise<string[]> => {
   return uuids;
 };
 
-export const findIndoorFeatureUuids = async (featureNames: string[]): Promise<string[]> => {
+export const findIndoorFeatureUuids = async (
+  featureNames: string[]
+): Promise<string[]> => {
   const taxonomy = await loadTaxonomy();
   const uuids: string[] = [];
 
   for (const name of featureNames) {
     const normalized = name.toLowerCase().trim();
-    const isIndoor = INDOOR_FEATURE_KEYWORDS.some(kw => normalized.includes(kw));
+    const isIndoor = INDOOR_FEATURE_KEYWORDS.some((kw) =>
+      normalized.includes(kw)
+    );
     if (!isIndoor) continue;
 
     const match = taxonomy.indoorFeatures.find(
@@ -638,13 +821,17 @@ export const findIndoorFeatureUuids = async (featureNames: string[]): Promise<st
   return uuids;
 };
 
-export const findOutdoorFeatureUuids = async (featureNames: string[]): Promise<string[]> => {
+export const findOutdoorFeatureUuids = async (
+  featureNames: string[]
+): Promise<string[]> => {
   const taxonomy = await loadTaxonomy();
   const uuids: string[] = [];
 
   for (const name of featureNames) {
     const normalized = name.toLowerCase().trim();
-    const isOutdoor = OUTDOOR_FEATURE_KEYWORDS.some(kw => normalized.includes(kw));
+    const isOutdoor = OUTDOOR_FEATURE_KEYWORDS.some((kw) =>
+      normalized.includes(kw)
+    );
     if (!isOutdoor) continue;
 
     const match = taxonomy.outdoorFeatures.find(
@@ -662,22 +849,32 @@ export const findOutdoorFeatureUuids = async (featureNames: string[]): Promise<s
   return uuids;
 };
 
-export const findPropertyViewUuids = async (featureNames: string[]): Promise<string[]> => {
+export const findPropertyViewUuids = async (
+  featureNames: string[]
+): Promise<string[]> => {
   const taxonomy = await loadTaxonomy();
   const uuids: string[] = [];
-  const viewKeywords = ["view", "sea", "mountain", "city", "garden", "pool", "panoramic"];
+  const viewKeywords = [
+    "view",
+    "sea",
+    "mountain",
+    "city",
+    "garden",
+    "pool",
+    "panoramic",
+  ];
 
   for (const name of featureNames) {
     const normalized = name.toLowerCase().trim();
-    const isView = viewKeywords.some(kw => normalized.includes(kw));
+    const isView = viewKeywords.some((kw) => normalized.includes(kw));
     if (!isView) continue;
 
     const match = taxonomy.outdoorFeatures.find(
       (f) =>
         f.name.toLowerCase().includes("view") &&
         (f.name.toLowerCase() === normalized ||
-         f.name.toLowerCase().includes(normalized) ||
-         normalized.includes(f.name.toLowerCase()))
+          f.name.toLowerCase().includes(normalized) ||
+          normalized.includes(f.name.toLowerCase()))
     );
 
     if (match && !uuids.includes(match.id)) {
@@ -688,7 +885,9 @@ export const findPropertyViewUuids = async (featureNames: string[]): Promise<str
   return uuids;
 };
 
-export const findFeatureUuids = async (featureNames: string[]): Promise<string[]> => {
+export const findFeatureUuids = async (
+  featureNames: string[]
+): Promise<string[]> => {
   const taxonomy = await loadTaxonomy();
   const allFeatures = [
     ...taxonomy.features,
@@ -716,7 +915,9 @@ export const findFeatureUuids = async (featureNames: string[]): Promise<string[]
   return uuids;
 };
 
-export const getLocationsByRegion = async (region: string): Promise<TaxonomyItem[]> => {
+export const getLocationsByRegion = async (
+  region: string
+): Promise<TaxonomyItem[]> => {
   const taxonomy = await loadTaxonomy();
 
   const regionParents: Record<string, string[]> = {
@@ -744,7 +945,10 @@ export const getLocationsByRegion = async (region: string): Promise<TaxonomyItem
 // HELPERS
 // =============================================================================
 
-const addPrivacyOffset = (coords: { lat: number; lon: number }): { lat: number; lon: number } => {
+const addPrivacyOffset = (coords: {
+  lat: number;
+  lon: number;
+}): { lat: number; lon: number } => {
   const offset = 0.002;
   return {
     lat: coords.lat + (Math.random() - 0.5) * offset,
@@ -848,7 +1052,10 @@ const buildJsonApiPayload = (
   };
 
   relationships.field_location = {
-    data: { type: "node--location", id: listing.locationUuid || DEFAULT_LOCATION_UUID },
+    data: {
+      type: "node--location",
+      id: listing.locationUuid || DEFAULT_LOCATION_UUID,
+    },
   };
 
   if (imageFileIds.length > 0) {
@@ -919,7 +1126,11 @@ const uploadSingleImage = async (
     // Download image
     const imageResponse = await fetch(url);
     if (!imageResponse.ok) {
-      logger.error(`[Zyprus] Failed to download image ${index}: ${url}`, undefined, { category: LogCategory.ZYPRUS });
+      logger.error(
+        `[Zyprus] Failed to download image ${index}: ${url}`,
+        undefined,
+        { category: LogCategory.ZYPRUS }
+      );
       return null;
     }
 
@@ -947,18 +1158,28 @@ const uploadSingleImage = async (
     );
 
     if (!uploadResponse.ok) {
-      logger.error(`[Zyprus] Failed to upload image ${index}: ${uploadResponse.status}`, undefined, { category: LogCategory.ZYPRUS });
+      logger.error(
+        `[Zyprus] Failed to upload image ${index}: ${uploadResponse.status}`,
+        undefined,
+        { category: LogCategory.ZYPRUS }
+      );
       return null;
     }
 
     const uploadResult = await uploadResponse.json();
     if (uploadResult.data?.id) {
-      logger.debug(`[Zyprus] Uploaded image ${index + 1}`, { category: LogCategory.ZYPRUS });
+      logger.debug(`[Zyprus] Uploaded image ${index + 1}`, {
+        category: LogCategory.ZYPRUS,
+      });
       return uploadResult.data.id;
     }
     return null;
   } catch (error) {
-    logger.error(`[Zyprus] Image upload error for ${url}`, error instanceof Error ? error : new Error(String(error)), { category: LogCategory.ZYPRUS });
+    logger.error(
+      `[Zyprus] Image upload error for ${url}`,
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.ZYPRUS }
+    );
     return null;
   }
 };
@@ -968,7 +1189,9 @@ const uploadImages = async (
   token: string,
   config: ZyprusConfig
 ): Promise<string[]> => {
-  logger.info(`[Zyprus] Uploading ${imageUrls.length} images in parallel...`, { category: LogCategory.ZYPRUS });
+  logger.info(`[Zyprus] Uploading ${imageUrls.length} images in parallel...`, {
+    category: LogCategory.ZYPRUS,
+  });
 
   const results = await Promise.all(
     imageUrls.map((url, index) => uploadSingleImage(url, index, token, config))
@@ -976,7 +1199,10 @@ const uploadImages = async (
 
   const fileIds = results.filter((id): id is string => id !== null);
 
-  logger.info(`[Zyprus] Successfully uploaded ${fileIds.length}/${imageUrls.length} images`, { category: LogCategory.ZYPRUS });
+  logger.info(
+    `[Zyprus] Successfully uploaded ${fileIds.length}/${imageUrls.length} images`,
+    { category: LogCategory.ZYPRUS }
+  );
   return fileIds;
 };
 
@@ -986,7 +1212,9 @@ export const createDraftListing = async (
   const config = getZyprusConfig();
   const token = await getAccessToken(config);
 
-  logger.info("[Zyprus] Creating draft listing...", { category: LogCategory.ZYPRUS });
+  logger.info("[Zyprus] Creating draft listing...", {
+    category: LogCategory.ZYPRUS,
+  });
 
   const reviewerEmails: string[] = [];
   if (listing.reviewer1) reviewerEmails.push(listing.reviewer1);
@@ -1031,7 +1259,9 @@ export const createDraftListing = async (
   });
 
   const imageFileIds = await uploadImages(listing.images, token, config);
-  logger.debug(`[Zyprus] Uploaded ${imageFileIds.length} images`, { category: LogCategory.ZYPRUS });
+  logger.debug(`[Zyprus] Uploaded ${imageFileIds.length} images`, {
+    category: LogCategory.ZYPRUS,
+  });
 
   const payload = buildJsonApiPayload(
     listing,
@@ -1061,23 +1291,35 @@ export const createDraftListing = async (
 
   if (!response.ok) {
     const errorText = await response.text();
-    logger.error("[Zyprus] Create listing error", new Error(errorText), { category: LogCategory.ZYPRUS, statusCode: response.status });
+    logger.error("[Zyprus] Create listing error", new Error(errorText), {
+      category: LogCategory.ZYPRUS,
+      statusCode: response.status,
+    });
     let errorDetail = "";
     try {
       const errorJson = JSON.parse(errorText);
       if (errorJson.errors) {
-        errorDetail = errorJson.errors.map((e: Record<string, unknown>) => e.detail || e.title || JSON.stringify(e)).join("; ");
+        errorDetail = errorJson.errors
+          .map(
+            (e: Record<string, unknown>) =>
+              e.detail || e.title || JSON.stringify(e)
+          )
+          .join("; ");
       }
     } catch {
       errorDetail = errorText.substring(0, 200);
     }
-    throw new Error(`Failed to create listing (${response.status}): ${errorDetail || "Unknown error"}`);
+    throw new Error(
+      `Failed to create listing (${response.status}): ${errorDetail || "Unknown error"}`
+    );
   }
 
   const result = await response.json();
   const listingId = result.data.id;
 
-  logger.info(`[Zyprus] Created listing: ${listingId}`, { category: LogCategory.ZYPRUS });
+  logger.info(`[Zyprus] Created listing: ${listingId}`, {
+    category: LogCategory.ZYPRUS,
+  });
 
   return {
     listingId,
@@ -1113,7 +1355,9 @@ export const searchProperties = async (
   });
 
   if (!response.ok) {
-    logger.error(`[Zyprus] Search error: ${response.status}`, undefined, { category: LogCategory.ZYPRUS });
+    logger.error(`[Zyprus] Search error: ${response.status}`, undefined, {
+      category: LogCategory.ZYPRUS,
+    });
     return [];
   }
 

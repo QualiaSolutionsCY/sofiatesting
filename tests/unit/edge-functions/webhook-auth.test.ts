@@ -6,7 +6,7 @@
  * - Constant-time comparison for timing attack prevention
  * - Header extraction for various formats
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockConsole, restoreConsole } from "./setup";
 
 // Import the functions to test
@@ -102,7 +102,10 @@ function extractSignatureHeader(headers: Headers): string | null {
 /**
  * Helper to create HMAC signature for testing
  */
-async function createHmacSignature(body: string, secret: string): Promise<string> {
+async function createHmacSignature(
+  body: string,
+  secret: string
+): Promise<string> {
   const encoder = new TextEncoder();
   const keyData = encoder.encode(secret);
   const messageData = encoder.encode(body);
@@ -187,7 +190,8 @@ describe("Webhook Authentication", () => {
 
         // The times should be similar (within an order of magnitude)
         // This is a weak test but validates the constant-time property
-        const ratio = Math.max(shortTime, longTime) / Math.min(shortTime, longTime);
+        const ratio =
+          Math.max(shortTime, longTime) / Math.min(shortTime, longTime);
         expect(ratio).toBeLessThan(10); // Within 10x is reasonable for constant-time
       });
 
@@ -216,12 +220,20 @@ describe("Webhook Authentication", () => {
 
     it("should accept valid signatures", async () => {
       const validSignature = await createHmacSignature(testBody, testSecret);
-      const result = await verifyWebhookSignature(validSignature, testBody, testSecret);
+      const result = await verifyWebhookSignature(
+        validSignature,
+        testBody,
+        testSecret
+      );
       expect(result).toBe(true);
     });
 
     it("should reject invalid signatures", async () => {
-      const result = await verifyWebhookSignature("invalid-signature", testBody, testSecret);
+      const result = await verifyWebhookSignature(
+        "invalid-signature",
+        testBody,
+        testSecret
+      );
       expect(result).toBe(false);
     });
 
@@ -244,27 +256,46 @@ describe("Webhook Authentication", () => {
     it("should reject modified payload", async () => {
       const validSignature = await createHmacSignature(testBody, testSecret);
       const modifiedBody = JSON.stringify({ message: "Tampered" });
-      const result = await verifyWebhookSignature(validSignature, modifiedBody, testSecret);
+      const result = await verifyWebhookSignature(
+        validSignature,
+        modifiedBody,
+        testSecret
+      );
       expect(result).toBe(false);
     });
 
     it("should reject signatures created with wrong secret", async () => {
-      const signatureWithWrongSecret = await createHmacSignature(testBody, "wrong-secret");
-      const result = await verifyWebhookSignature(signatureWithWrongSecret, testBody, testSecret);
+      const signatureWithWrongSecret = await createHmacSignature(
+        testBody,
+        "wrong-secret"
+      );
+      const result = await verifyWebhookSignature(
+        signatureWithWrongSecret,
+        testBody,
+        testSecret
+      );
       expect(result).toBe(false);
     });
 
     it("should handle empty body", async () => {
       const emptyBody = "";
       const signature = await createHmacSignature(emptyBody, testSecret);
-      const result = await verifyWebhookSignature(signature, emptyBody, testSecret);
+      const result = await verifyWebhookSignature(
+        signature,
+        emptyBody,
+        testSecret
+      );
       expect(result).toBe(true);
     });
 
     it("should handle unicode payload", async () => {
       const unicodeBody = JSON.stringify({ message: "Hello World" });
       const signature = await createHmacSignature(unicodeBody, testSecret);
-      const result = await verifyWebhookSignature(signature, unicodeBody, testSecret);
+      const result = await verifyWebhookSignature(
+        signature,
+        unicodeBody,
+        testSecret
+      );
       expect(result).toBe(true);
     });
 
@@ -356,7 +387,11 @@ describe("Webhook Authentication", () => {
       const signature = await createHmacSignature(webhookPayload, secret);
 
       // Receiver verifies
-      const isValid = await verifyWebhookSignature(signature, webhookPayload, secret);
+      const isValid = await verifyWebhookSignature(
+        signature,
+        webhookPayload,
+        secret
+      );
       expect(isValid).toBe(true);
     });
 
@@ -365,16 +400,30 @@ describe("Webhook Authentication", () => {
       const signature = await createHmacSignature(originalPayload, secret);
 
       const tamperedPayload = JSON.stringify({ message: "Malicious" });
-      const isValid = await verifyWebhookSignature(signature, tamperedPayload, secret);
+      const isValid = await verifyWebhookSignature(
+        signature,
+        tamperedPayload,
+        secret
+      );
       expect(isValid).toBe(false);
     });
 
     it("should reject replay attacks with modified timestamp", async () => {
-      const originalPayload = JSON.stringify({ timestamp: 1000, message: "Hello" });
+      const originalPayload = JSON.stringify({
+        timestamp: 1000,
+        message: "Hello",
+      });
       const signature = await createHmacSignature(originalPayload, secret);
 
-      const replayedPayload = JSON.stringify({ timestamp: 2000, message: "Hello" });
-      const isValid = await verifyWebhookSignature(signature, replayedPayload, secret);
+      const replayedPayload = JSON.stringify({
+        timestamp: 2000,
+        message: "Hello",
+      });
+      const isValid = await verifyWebhookSignature(
+        signature,
+        replayedPayload,
+        secret
+      );
       expect(isValid).toBe(false);
     });
   });

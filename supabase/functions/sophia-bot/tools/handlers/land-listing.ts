@@ -3,25 +3,62 @@
  * Handles the createLandListing tool
  */
 
-import { Agent, getAgentByEmail } from "../../agents/identifier.ts";
-import { validateRegionalAccess, determineRegion } from "../../rules/region-validator.ts";
-import { assignReviewers, needsAssignmentInput } from "../../rules/reviewer-assignment.ts";
-import { handleSpecialCases, handleUnknownSender, validateRequiredFields, getMissingFieldsMessage } from "../../rules/special-cases.ts";
-import { checkForDuplicates, generateDuplicateWarning } from "../../services/duplicate-checker.ts";
-import { generateLandDescription } from "../../services/description-generator.ts";
-import { generateMyNotes } from "../../services/my-notes-generator.ts";
-import { processImages, validateImages, hasEnoughImages } from "../../services/image-handler.ts";
-import { createDraftLandListing, getZyprusConfig, getAccessToken } from "../../zyprus/client.ts";
-import { findLocationUuid } from "../../zyprus/taxonomy-cache.ts";
-import { clearPendingImages, getPendingImages } from "../../services/pending-images.ts";
-import { classifyImagesWithVision } from "../../services/image-classifier.ts";
-import { getPendingDocuments, clearPendingDocuments } from "../../services/pending-documents.ts";
-import { logger, LogCategory } from "../../utils/logger.ts";
-import { classifyError, ErrorType } from "../../utils/error-mapper.ts";
-import { trackListingUpload } from "../../../_shared/db.ts";
-import { DEFAULT_COORDINATES, REGIONAL_EMAILS } from "../../config/business-rules.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { extractAreaFromGoogleMapsUrl, isCityOnlyLocation, isStreetAddress, isLocationAStreetInUrl, isDocumentUrl } from "../validators/location.ts";
+import { trackListingUpload } from "../../../_shared/db.ts";
+import { type Agent, getAgentByEmail } from "../../agents/identifier.ts";
+import {
+  DEFAULT_COORDINATES,
+  REGIONAL_EMAILS,
+} from "../../config/business-rules.ts";
+import {
+  determineRegion,
+  validateRegionalAccess,
+} from "../../rules/region-validator.ts";
+import {
+  assignReviewers,
+  needsAssignmentInput,
+} from "../../rules/reviewer-assignment.ts";
+import {
+  getMissingFieldsMessage,
+  handleSpecialCases,
+  handleUnknownSender,
+  validateRequiredFields,
+} from "../../rules/special-cases.ts";
+import { generateLandDescription } from "../../services/description-generator.ts";
+import {
+  checkForDuplicates,
+  generateDuplicateWarning,
+} from "../../services/duplicate-checker.ts";
+import { classifyImagesWithVision } from "../../services/image-classifier.ts";
+import {
+  hasEnoughImages,
+  processImages,
+  validateImages,
+} from "../../services/image-handler.ts";
+import { generateMyNotes } from "../../services/my-notes-generator.ts";
+import {
+  clearPendingDocuments,
+  getPendingDocuments,
+} from "../../services/pending-documents.ts";
+import {
+  clearPendingImages,
+  getPendingImages,
+} from "../../services/pending-images.ts";
+import { classifyError, ErrorType } from "../../utils/error-mapper.ts";
+import { LogCategory, logger } from "../../utils/logger.ts";
+import {
+  createDraftLandListing,
+  getAccessToken,
+  getZyprusConfig,
+} from "../../zyprus/client.ts";
+import { findLocationUuid } from "../../zyprus/taxonomy-cache.ts";
+import {
+  extractAreaFromGoogleMapsUrl,
+  isCityOnlyLocation,
+  isDocumentUrl,
+  isLocationAStreetInUrl,
+  isStreetAddress,
+} from "../validators/location.ts";
 import { acquireUploadLock } from "../validators/upload-lock.ts";
 
 export interface ToolResult {
@@ -98,28 +135,47 @@ export async function handleCreateLandListing(
       .limit(5);
 
     if (recentUploads && recentUploads.length > 0) {
-      const locationLower = (args.location as string || "").toLowerCase();
-      const match = recentUploads.find((p: Record<string, unknown>) =>
-        locationLower && (p.property_title as string || "").toLowerCase().includes(locationLower)
+      const locationLower = ((args.location as string) || "").toLowerCase();
+      const match = recentUploads.find(
+        (p: Record<string, unknown>) =>
+          locationLower &&
+          ((p.property_title as string) || "")
+            .toLowerCase()
+            .includes(locationLower)
       );
       if (match) {
         potentialDuplicateNote = `POTENTIAL DUPLICATE - similar listing exists: ${match.property_title} (${match.zyprus_listing_id})`;
-        logger.warn("Potential duplicate detected - proceeding with upload anyway", {
-          category: LogCategory.TOOL,
-          operation: "createLandListing",
-          existingId: match.zyprus_listing_id,
-          existingTitle: match.property_title,
-          agentPhone,
-        });
+        logger.warn(
+          "Potential duplicate detected - proceeding with upload anyway",
+          {
+            category: LogCategory.TOOL,
+            operation: "createLandListing",
+            existingId: match.zyprus_listing_id,
+            existingTitle: match.property_title,
+            agentPhone,
+          }
+        );
       }
     }
   }
 
   // 2. Validate required fields (land-specific)
-  const requiredLandFields = ["listingType", "landType", "price", "location", "landSize", "ownerName", "ownerPhone", "imageUrls"];
+  const requiredLandFields = [
+    "listingType",
+    "landType",
+    "price",
+    "location",
+    "landSize",
+    "ownerName",
+    "ownerPhone",
+    "imageUrls",
+  ];
   const missing: string[] = [];
   for (const field of requiredLandFields) {
-    if (!args[field] || (Array.isArray(args[field]) && (args[field] as unknown[]).length === 0)) {
+    if (
+      !args[field] ||
+      (Array.isArray(args[field]) && (args[field] as unknown[]).length === 0)
+    ) {
       missing.push(field);
     }
   }
@@ -129,7 +185,9 @@ export async function handleCreateLandListing(
       category: LogCategory.TOOL,
       operation: "createLandListing",
       missingFields: missing,
-      providedFields: Object.keys(args).filter(k => args[k] !== undefined && args[k] !== null),
+      providedFields: Object.keys(args).filter(
+        (k) => args[k] !== undefined && args[k] !== null
+      ),
     });
     return {
       needsInput: true,
@@ -143,38 +201,48 @@ export async function handleCreateLandListing(
   const locationUrl = args.locationUrl as string | undefined;
 
   // 2.5 CRITICAL: Correct street addresses to area names
-  const streetDetected = isStreetAddress(location) ||
+  const streetDetected =
+    isStreetAddress(location) ||
     (locationUrl ? isLocationAStreetInUrl(location, locationUrl) : false);
 
   if (streetDetected && locationUrl) {
     const areaFromUrl = extractAreaFromGoogleMapsUrl(locationUrl);
     if (areaFromUrl) {
-      logger.warn("Location corrected: AI passed street address, extracted area from Google Maps URL", {
-        category: LogCategory.TOOL,
-        operation: "createLandListing",
-        originalLocation: location,
-        correctedLocation: areaFromUrl,
-        googleMapsUrl: locationUrl.substring(0, 100),
-      });
+      logger.warn(
+        "Location corrected: AI passed street address, extracted area from Google Maps URL",
+        {
+          category: LogCategory.TOOL,
+          operation: "createLandListing",
+          originalLocation: location,
+          correctedLocation: areaFromUrl,
+          googleMapsUrl: locationUrl.substring(0, 100),
+        }
+      );
       location = areaFromUrl;
     } else {
-      logger.warn("Location appears to be a street address, asking agent for area name", {
-        category: LogCategory.TOOL,
-        operation: "createLandListing",
-        location,
-        googleMapsUrl: locationUrl.substring(0, 100),
-      });
+      logger.warn(
+        "Location appears to be a street address, asking agent for area name",
+        {
+          category: LogCategory.TOOL,
+          operation: "createLandListing",
+          location,
+          googleMapsUrl: locationUrl.substring(0, 100),
+        }
+      );
       return {
         needsInput: true,
         question: `I've captured the pin location from the Google Maps link, but "${location}" appears to be a street name. What is the area/neighborhood? (e.g., Agios Athanasios, Kato Paphos, Germasogeia, Mesa Geitonia)`,
       };
     }
   } else if (streetDetected && !locationUrl) {
-    logger.warn("Location appears to be a street address with no Google Maps URL to extract area from", {
-      category: LogCategory.TOOL,
-      operation: "createLandListing",
-      location,
-    });
+    logger.warn(
+      "Location appears to be a street address with no Google Maps URL to extract area from",
+      {
+        category: LogCategory.TOOL,
+        operation: "createLandListing",
+        location,
+      }
+    );
     return {
       needsInput: true,
       question: `"${location}" appears to be a street address. I need the area/neighborhood name for the listing (e.g., Agios Athanasios, Kato Paphos, Germasogeia). What area is this land in?`,
@@ -200,7 +268,8 @@ export async function handleCreateLandListing(
     return { error: regionResult.message };
   }
 
-  const propertyRegion = regionResult.propertyRegion || determineRegion(location) || agent.region;
+  const propertyRegion =
+    regionResult.propertyRegion || determineRegion(location) || agent.region;
 
   // 4. Handle special cases
   const specialCase = await handleSpecialCases(
@@ -227,19 +296,23 @@ export async function handleCreateLandListing(
   if (needsAssignmentInput(agent, listingType) && !args.assignTo) {
     return {
       needsInput: true,
-      question: "To whom would you like me to assign this land listing as the listing owner?",
+      question:
+        "To whom would you like me to assign this land listing as the listing owner?",
     };
   }
 
   // 5.1 SECURITY: Only management agents can use assignTo
   if (args.assignTo && agent.role !== "management") {
-    logger.warn("Stripped assignTo from non-management agent — only management can assign", {
-      category: LogCategory.TOOL,
-      operation: "createLandListing",
-      agentRole: agent.role,
-      agentEmail: agent.communicationEmail,
-      attemptedAssignTo: args.assignTo,
-    });
+    logger.warn(
+      "Stripped assignTo from non-management agent — only management can assign",
+      {
+        category: LogCategory.TOOL,
+        operation: "createLandListing",
+        agentRole: agent.role,
+        agentEmail: agent.communicationEmail,
+        attemptedAssignTo: args.assignTo,
+      }
+    );
     args.assignTo = undefined;
   }
 
@@ -252,9 +325,23 @@ export async function handleCreateLandListing(
         error: "Assignments must be to a @zyprus.com email address.",
       };
     }
-    const isRegionalOffice = Object.values(REGIONAL_EMAILS).includes(assignToEmail);
-    if (!isRegionalOffice) {
-      const assigneeAgent = await getAgentByEmail(assignToEmail, supabaseUrl, supabaseKey);
+    const isRegionalOffice =
+      Object.values(REGIONAL_EMAILS).includes(assignToEmail);
+    if (isRegionalOffice) {
+      logger.info(
+        "assignTo is a regional office email — skipping agent DB check",
+        {
+          category: LogCategory.TOOL,
+          operation: "createLandListing",
+          assignToEmail,
+        }
+      );
+    } else {
+      const assigneeAgent = await getAgentByEmail(
+        assignToEmail,
+        supabaseUrl,
+        supabaseKey
+      );
       if (!assigneeAgent) {
         logger.warn("assignTo email not found in agents database — stripping", {
           category: LogCategory.TOOL,
@@ -263,12 +350,6 @@ export async function handleCreateLandListing(
         });
         args.assignTo = undefined;
       }
-    } else {
-      logger.info("assignTo is a regional office email — skipping agent DB check", {
-        category: LogCategory.TOOL,
-        operation: "createLandListing",
-        assignToEmail,
-      });
     }
   }
 
@@ -314,7 +395,7 @@ export async function handleCreateLandListing(
     });
 
     const rawDirectUrls = (args.imageUrls as string[]) || [];
-    const directUrls = rawDirectUrls.filter(url => {
+    const directUrls = rawDirectUrls.filter((url) => {
       if (isDocumentUrl(url)) {
         logger.warn("Filtered out document URL from imageUrls", {
           category: LogCategory.IMAGE,
@@ -335,11 +416,12 @@ export async function handleCreateLandListing(
       });
       imageUrls = pendingImages;
     } else {
-      imageUrls = directUrls.filter(url => {
-        const isFake = url.includes("images.zyprus.com") ||
-                       (url.includes("ibb.co") && !url.includes("i.ibb.co")) ||
-                       url.includes("placeholder") ||
-                       url.includes("example.com");
+      imageUrls = directUrls.filter((url) => {
+        const isFake =
+          url.includes("images.zyprus.com") ||
+          (url.includes("ibb.co") && !url.includes("i.ibb.co")) ||
+          url.includes("placeholder") ||
+          url.includes("example.com");
         if (isFake) {
           logger.warn("Filtered out fake/hallucinated URL", {
             category: LogCategory.IMAGE,
@@ -365,7 +447,7 @@ export async function handleCreateLandListing(
     });
   } else {
     const rawUrls = (args.imageUrls as string[]) || [];
-    imageUrls = rawUrls.filter(url => !isDocumentUrl(url));
+    imageUrls = rawUrls.filter((url) => !isDocumentUrl(url));
     logger.info("No agent phone - using AI-provided URLs", {
       category: LogCategory.IMAGE,
       operation: "createLandListing",
@@ -379,7 +461,7 @@ export async function handleCreateLandListing(
   if (titleDeedImageIndices.length === 0 && imageUrls.length >= 2) {
     const visionResult = await classifyImagesWithVision(imageUrls);
     if (visionResult.titleDeedIndices.length > 0) {
-      titleDeedImageIndices = visionResult.titleDeedIndices.map(i => i + 1);
+      titleDeedImageIndices = visionResult.titleDeedIndices.map((i) => i + 1);
       logger.info("Vision auto-detected title deed images", {
         category: LogCategory.IMAGE,
         operation: "createLandListing",
@@ -392,7 +474,9 @@ export async function handleCreateLandListing(
   let titleDeedImageUrls: string[] = [];
   if (titleDeedImageIndices.length > 0 && imageUrls.length > 0) {
     const validIndices = new Set(
-      titleDeedImageIndices.map(i => i - 1).filter(i => i >= 0 && i < imageUrls.length)
+      titleDeedImageIndices
+        .map((i) => i - 1)
+        .filter((i) => i >= 0 && i < imageUrls.length)
     );
     titleDeedImageUrls = imageUrls.filter((_, idx) => validIndices.has(idx));
     imageUrls = imageUrls.filter((_, idx) => !validIndices.has(idx));
@@ -410,12 +494,15 @@ export async function handleCreateLandListing(
   if (agentPhone) {
     const pendingDocs = await getPendingDocuments(agentPhone);
     if (pendingDocs.length > 0) {
-      titleDeedFileUrls = [...titleDeedFileUrls, ...pendingDocs.map(d => d.document_url)];
+      titleDeedFileUrls = [
+        ...titleDeedFileUrls,
+        ...pendingDocs.map((d) => d.document_url),
+      ];
       logger.info("Retrieved pending documents for upload", {
         category: LogCategory.GENERAL,
         operation: "createLandListing",
         documentCount: pendingDocs.length,
-        filenames: pendingDocs.map(d => d.filename).filter(Boolean),
+        filenames: pendingDocs.map((d) => d.filename).filter(Boolean),
       });
     }
   }
@@ -450,7 +537,8 @@ export async function handleCreateLandListing(
       operation: "createLandListing",
     });
   } catch (tokenError) {
-    const err = tokenError instanceof Error ? tokenError : new Error(String(tokenError));
+    const err =
+      tokenError instanceof Error ? tokenError : new Error(String(tokenError));
     logger.error("Failed to get Zyprus token", err, {
       category: LogCategory.ZYPRUS,
       operation: "createLandListing",
@@ -458,11 +546,7 @@ export async function handleCreateLandListing(
     return { error: `Failed to authenticate with Zyprus API: ${err.message}` };
   }
 
-  const [
-    imageValidation,
-    duplicates,
-    locationResult,
-  ] = await Promise.all([
+  const [imageValidation, duplicates, locationResult] = await Promise.all([
     validateImages(processedImages),
     checkForDuplicates(
       args.ownerPhone as string,
@@ -477,13 +561,19 @@ export async function handleCreateLandListing(
   const locationUuid = locationResult.uuid;
   const descriptionLocation = location;
 
-  if (locationResult.matchedName && locationResult.matchedName.toLowerCase() !== location.toLowerCase()) {
-    logger.info("Taxonomy resolved to different name (UUID only, location text unchanged)", {
-      category: LogCategory.TOOL,
-      operation: "createLandListing",
-      agentLocation: location,
-      taxonomyMatch: locationResult.matchedName,
-    });
+  if (
+    locationResult.matchedName &&
+    locationResult.matchedName.toLowerCase() !== location.toLowerCase()
+  ) {
+    logger.info(
+      "Taxonomy resolved to different name (UUID only, location text unchanged)",
+      {
+        category: LogCategory.TOOL,
+        operation: "createLandListing",
+        agentLocation: location,
+        taxonomyMatch: locationResult.matchedName,
+      }
+    );
   }
 
   const { valid: validImages, invalid: invalidImages } = imageValidation;
@@ -503,35 +593,54 @@ export async function handleCreateLandListing(
   if (args.specialNotes) {
     aiMessageParts.push(`Agent notes: ${args.specialNotes}`);
   }
-  if (locationResult.matchedName && locationResult.matchedName.toLowerCase() !== location.toLowerCase()) {
-    aiMessageParts.push(`Zyprus location dropdown: "${locationResult.matchedName}" (closest match for "${location}")`);
+  if (
+    locationResult.matchedName &&
+    locationResult.matchedName.toLowerCase() !== location.toLowerCase()
+  ) {
+    aiMessageParts.push(
+      `Zyprus location dropdown: "${locationResult.matchedName}" (closest match for "${location}")`
+    );
   }
-  const aiMessageContent: string | null = aiMessageParts.length > 0 ? aiMessageParts.join("\n") : null;
+  const aiMessageContent: string | null =
+    aiMessageParts.length > 0 ? aiMessageParts.join("\n") : null;
 
   // 9b. Resolve coordinates
-  const resolvedCoordinates = (args.coordinates as { lat: number; lon: number } | undefined) ||
+  const resolvedCoordinates =
+    (args.coordinates as { lat: number; lon: number } | undefined) ||
     (() => {
       if (locationUrl) {
         const atMatch = locationUrl.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
         if (atMatch) {
-          return { lat: parseFloat(atMatch[1]), lon: parseFloat(atMatch[2]) };
+          return {
+            lat: Number.parseFloat(atMatch[1]),
+            lon: Number.parseFloat(atMatch[2]),
+          };
         }
-        const placeMatch = locationUrl.match(/place\/(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+        const placeMatch = locationUrl.match(
+          /place\/(-?\d+\.?\d*),(-?\d+\.?\d*)/
+        );
         if (placeMatch) {
-          return { lat: parseFloat(placeMatch[1]), lon: parseFloat(placeMatch[2]) };
+          return {
+            lat: Number.parseFloat(placeMatch[1]),
+            lon: Number.parseFloat(placeMatch[2]),
+          };
         }
       }
-      return undefined;
+      return;
     })() ||
     (() => {
       const locationLower = location.toLowerCase();
-      let bestMatch: { key: string; coords: { lat: number; lon: number } } | null = null;
+      let bestMatch: {
+        key: string;
+        coords: { lat: number; lon: number };
+      } | null = null;
 
       for (const [key, coords] of Object.entries(DEFAULT_COORDINATES)) {
-        if (locationLower.includes(key)) {
-          if (!bestMatch || key.length > bestMatch.key.length) {
-            bestMatch = { key, coords };
-          }
+        if (
+          locationLower.includes(key) &&
+          (!bestMatch || key.length > bestMatch.key.length)
+        ) {
+          bestMatch = { key, coords };
         }
       }
 
@@ -545,14 +654,18 @@ export async function handleCreateLandListing(
         });
         return bestMatch.coords;
       }
-      return undefined;
+      return;
     })();
 
   // 9c. Check we have at least 1 valid image
   if (validImages.length === 0) {
-    const invalidDetails = invalidImages.length > 0
-      ? invalidImages.slice(0, 3).map((img) => `• ${img.error}`).join('\n')
-      : "";
+    const invalidDetails =
+      invalidImages.length > 0
+        ? invalidImages
+            .slice(0, 3)
+            .map((img) => `• ${img.error}`)
+            .join("\n")
+        : "";
 
     logger.error("No valid images after validation", undefined, {
       category: LogCategory.IMAGE,
@@ -561,9 +674,10 @@ export async function handleCreateLandListing(
     });
 
     return {
-      error: `None of the images could be uploaded.\n\n` +
+      error:
+        "None of the images could be uploaded.\n\n" +
         (invalidDetails ? `Issues:\n${invalidDetails}\n\n` : "") +
-        `Please send photos directly from your phone gallery, or use direct image URLs.`,
+        "Please send photos directly from your phone gallery, or use direct image URLs.",
     };
   }
 
@@ -614,7 +728,9 @@ export async function handleCreateLandListing(
     myNotesLines.push(`\n${potentialDuplicateNote}`);
   }
   if (duplicates.isDuplicate) {
-    myNotesLines.push(`\nWARNING: ${generateDuplicateWarning(duplicates.potentialMatches)}`);
+    myNotesLines.push(
+      `\nWARNING: ${generateDuplicateWarning(duplicates.potentialMatches)}`
+    );
   }
 
   const myNotes = myNotesLines.join("\n");
@@ -637,8 +753,13 @@ export async function handleCreateLandListing(
       listingInstructor: reviewers.listingInstructor,
       titleDeedStatus: args.titleDeedStatus as string | undefined,
       coordinates: resolvedCoordinates,
-      priceModifier: args.priceModifier as "no_vat" | "plus_vat" | "vat_included" | undefined,
-      titleDeedFileUrls: titleDeedFileUrls.length > 0 ? titleDeedFileUrls : undefined,
+      priceModifier: args.priceModifier as
+        | "no_vat"
+        | "plus_vat"
+        | "vat_included"
+        | undefined,
+      titleDeedFileUrls:
+        titleDeedFileUrls.length > 0 ? titleDeedFileUrls : undefined,
       buildingDensity: args.buildingDensity as number | undefined,
       siteCoverage: args.siteCoverage as number | undefined,
       maxFloors: args.maxFloors as number | undefined,
@@ -659,8 +780,13 @@ export async function handleCreateLandListing(
       agentPhone,
       agent.fullName,
       listingTitle,
-      result.listingUrl,
-    ).catch((err) => logger.warn("Failed to track listing upload (non-critical)", { category: LogCategory.TOOL, error: String(err) }));
+      result.listingUrl
+    ).catch((err) =>
+      logger.warn("Failed to track listing upload (non-critical)", {
+        category: LogCategory.TOOL,
+        error: String(err),
+      })
+    );
 
     // Clear pending images and documents
     if (agentPhone) {
@@ -677,15 +803,16 @@ export async function handleCreateLandListing(
 
     return {
       success: true,
-      message: `✅ Land listing created successfully!\n\n` +
+      message:
+        "✅ Land listing created successfully!\n\n" +
         `📍 Location: ${descriptionLocation}\n` +
         `📏 Land Size: ${args.landSize}m²\n` +
         `💰 Price: €${(args.price as number).toLocaleString()}\n\n` +
         `🔗 View on Zyprus: ${result.listingUrl}\n\n` +
-        `The listing is currently UNPUBLISHED and assigned to:\n` +
+        "The listing is currently UNPUBLISHED and assigned to:\n" +
         `• Reviewer 1: ${reviewers.reviewer1}\n` +
         (reviewers.reviewer2 ? `• Reviewer 2: ${reviewers.reviewer2}\n` : "") +
-        `\nThey will review and publish it shortly.`,
+        "\nThey will review and publish it shortly.",
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));

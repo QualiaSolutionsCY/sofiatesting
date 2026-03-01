@@ -90,7 +90,10 @@ export class WhatsAppClient {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        log.error("Upload failed", undefined, { status: response.status, error: errorData });
+        log.error("Upload failed", undefined, {
+          status: response.status,
+          error: errorData,
+        });
         return {
           success: false,
           error:
@@ -157,7 +160,10 @@ export class WhatsAppClient {
     error?: string;
   }> {
     if (isTestEnvironment) {
-      log.debug("Test mode: skipping WhatsApp send", { to, textLength: text.length });
+      log.debug("Test mode: skipping WhatsApp send", {
+        to,
+        textLength: text.length,
+      });
       return { success: true, messageId: `test-${Date.now()}` };
     }
 
@@ -239,7 +245,9 @@ export class WhatsAppClient {
       });
 
       if (!uploadResult.success || !uploadResult.url) {
-        log.error("Document upload failed", undefined, { error: uploadResult.error });
+        log.error("Document upload failed", undefined, {
+          error: uploadResult.error,
+        });
         return {
           success: false,
           error: uploadResult.error || "Failed to upload document",

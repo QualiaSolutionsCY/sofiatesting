@@ -4,9 +4,16 @@
  */
 
 import { getAgentsByRegion } from "../../agents/identifier.ts";
-import { loadTaxonomy, getLocationsByRegion } from "../../zyprus/taxonomy-cache.ts";
-import { extractFromBazaraki as extractBazarakiListing, isBazarakiUrl, formatBazarakiSummary } from "../../services/bazaraki-scraper.ts";
-import { logger, LogCategory } from "../../utils/logger.ts";
+import {
+  extractFromBazaraki as extractBazarakiListing,
+  formatBazarakiSummary,
+  isBazarakiUrl,
+} from "../../services/bazaraki-scraper.ts";
+import { LogCategory, logger } from "../../utils/logger.ts";
+import {
+  getLocationsByRegion,
+  loadTaxonomy,
+} from "../../zyprus/taxonomy-cache.ts";
 
 export interface ToolResult {
   success?: boolean;
@@ -49,7 +56,7 @@ export async function handleGetZyprusData(
           data: taxonomy.propertyTypes.map((p) => p.name),
         };
 
-      case "features":
+      case "features": {
         const allFeatures = [
           ...taxonomy.features,
           ...taxonomy.indoorFeatures,
@@ -59,6 +66,7 @@ export async function handleGetZyprusData(
           success: true,
           data: allFeatures.map((f) => f.name),
         };
+      }
 
       case "listing_types":
         return {
@@ -120,7 +128,9 @@ export async function handleGetRegionalAgents(
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    logger.error("Failed to get regional agents", err, { category: LogCategory.TOOL });
+    logger.error("Failed to get regional agents", err, {
+      category: LogCategory.TOOL,
+    });
     return { error: `Failed to retrieve agents for ${region}` };
   }
 }
@@ -134,7 +144,10 @@ export async function handleExtractFromBazaraki(
   const url = args.url as string;
 
   if (!url || !isBazarakiUrl(url)) {
-    return { error: "Please provide a valid Bazaraki URL (bazaraki.com or bazaraki.cy)" };
+    return {
+      error:
+        "Please provide a valid Bazaraki URL (bazaraki.com or bazaraki.cy)",
+    };
   }
 
   try {
@@ -162,9 +175,12 @@ export async function handleExtractFromBazaraki(
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    logger.error("Bazaraki extraction failed", err, { category: LogCategory.TOOL });
+    logger.error("Bazaraki extraction failed", err, {
+      category: LogCategory.TOOL,
+    });
     return {
-      error: "I couldn't extract details from that Bazaraki link. Could you please provide the property details directly?",
+      error:
+        "I couldn't extract details from that Bazaraki link. Could you please provide the property details directly?",
     };
   }
 }

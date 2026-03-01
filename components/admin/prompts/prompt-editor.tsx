@@ -1,15 +1,16 @@
 "use client";
 
+import { History, Loader2, Save, Undo2 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { Save, Undo2, History, Loader2 } from "lucide-react";
 
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
+
 import { useRouter } from "next/navigation";
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 type Prompt = {
   id: string;
@@ -102,11 +103,7 @@ export function PromptEditor({ prompt }: PromptEditorProps) {
             History
           </Button>
           {hasChanges && (
-            <Button
-              onClick={handleDiscard}
-              size="sm"
-              variant="ghost"
-            >
+            <Button onClick={handleDiscard} size="sm" variant="ghost">
               <Undo2 className="mr-2 h-4 w-4" />
               Discard
             </Button>
@@ -128,7 +125,7 @@ export function PromptEditor({ prompt }: PromptEditorProps) {
 
       {/* Status bar */}
       {hasChanges && (
-        <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-2 text-yellow-800 text-sm dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200">
+        <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200">
           You have unsaved changes
         </div>
       )}
@@ -161,9 +158,7 @@ export function PromptEditor({ prompt }: PromptEditorProps) {
           Last updated: {new Date(prompt.updatedAt).toLocaleString()}
           {prompt.updatedBy && ` by ${prompt.updatedBy}`}
         </div>
-        <div>
-          {content.length.toLocaleString()} characters
-        </div>
+        <div>{content.length.toLocaleString()} characters</div>
       </div>
     </div>
   );

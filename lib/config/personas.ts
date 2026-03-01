@@ -1,5 +1,5 @@
 export const PERSONAS = {
-  "sarah_chen": {
+  sarah_chen: {
     name: "Sarah Chen",
     role: "Senior Sales Shark",
     tone: "Dead rude, aggressive, high-pressure, no-nonsense",
@@ -14,18 +14,18 @@ export const PERSONAS = {
       - YOUR GOAL IS MONEY.
     `,
     pronunciation: {
-      "EUR": "Euros",
-      "USD": "Dollars",
-      "GBP": "Pounds",
+      EUR: "Euros",
+      USD: "Dollars",
+      GBP: "Pounds",
       "0": "Zero",
-      "1": "One"
-    }
+      "1": "One",
+    },
   },
-  "default": {
+  default: {
     name: "Sophia",
     role: "Assistant",
     tone: "Professional, helpful",
     instructions: "You are Sophia, a helpful AI assistant.",
-    pronunciation: {}
-  }
+    pronunciation: {},
+  },
 };

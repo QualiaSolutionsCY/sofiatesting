@@ -15,6 +15,7 @@
  */
 
 import { config } from "dotenv";
+
 config({ path: ".env.local" });
 
 // ─── Configuration ───────────────────────────────────────────────────────
@@ -60,7 +61,8 @@ async function fetchEdge(
   options: RequestInit = {}
 ): Promise<Response> {
   const url = path.startsWith("http") ? path : `${EDGE_FUNCTION_URL}${path}`;
-  const isHealthCheck = path === "/health" && (options.method || "GET") === "GET";
+  const isHealthCheck =
+    path === "/health" && (options.method || "GET") === "GET";
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...((options.headers as Record<string, string>) || {}),
@@ -73,11 +75,7 @@ async function fetchEdge(
   return fetch(url, { ...options, headers });
 }
 
-function webhookPayload(
-  phone: string,
-  message: string,
-  pushName = "TestUser"
-) {
+function webhookPayload(phone: string, message: string, pushName = "TestUser") {
   return {
     event: "messages.upsert",
     data: {
@@ -103,7 +101,8 @@ async function testHealthEndpoint(): Promise<void> {
     const dur = Date.now() - start;
 
     const isHealthy =
-      res.status === 200 && (body.status === "healthy" || body.status === "degraded");
+      res.status === 200 &&
+      (body.status === "healthy" || body.status === "degraded");
 
     // Check individual dependencies
     const deps = body.dependencies || {};
@@ -284,14 +283,14 @@ async function testCalculatorMathAccuracy(): Promise<void> {
 
   // VAT: €300,000, 150m², primary residence
   {
-    const price = 300000;
+    const price = 300_000;
     const area = 150;
     const areaRatio = Math.min(130, area) / area;
-    const reducedBase = areaRatio * Math.min(price, 350000);
+    const reducedBase = areaRatio * Math.min(price, 350_000);
     const vatAt5 = reducedBase * 0.05;
     const vatAt19 = (price - reducedBase) * 0.19;
     const total = vatAt5 + vatAt19;
-    const expected = 20600;
+    const expected = 20_600;
     if (Math.abs(total - expected) > 1) {
       errors.push(`VAT: expected €${expected}, got €${total.toFixed(0)}`);
     }
@@ -299,11 +298,13 @@ async function testCalculatorMathAccuracy(): Promise<void> {
 
   // VAT: €500,000, 200m² — exceeds €475k limit, standard 19%
   {
-    const price = 500000;
+    const price = 500_000;
     const vat = price * 0.19;
-    const expected = 95000;
+    const expected = 95_000;
     if (Math.abs(vat - expected) > 1) {
-      errors.push(`VAT (standard): expected €${expected}, got €${vat.toFixed(0)}`);
+      errors.push(
+        `VAT (standard): expected €${expected}, got €${vat.toFixed(0)}`
+      );
     }
   }
 
@@ -311,13 +312,14 @@ async function testCalculatorMathAccuracy(): Promise<void> {
   // Band: 85000*0.03 + 85000*0.05 + (250000-170000)*0.08
   // = 2550 + 4250 + 6400 = 13200, then 50% discount = 6600
   {
-    const price = 250000;
-    const fee =
-      85000 * 0.03 + 85000 * 0.05 + (price - 170000) * 0.08;
+    const price = 250_000;
+    const fee = 85_000 * 0.03 + 85_000 * 0.05 + (price - 170_000) * 0.08;
     const discounted = fee * 0.5;
     const expected = 6600;
     if (Math.abs(discounted - expected) > 1) {
-      errors.push(`Transfer: expected €${expected}, got €${discounted.toFixed(0)}`);
+      errors.push(
+        `Transfer: expected €${expected}, got €${discounted.toFixed(0)}`
+      );
     }
   }
 
@@ -325,13 +327,15 @@ async function testCalculatorMathAccuracy(): Promise<void> {
   // Each buyer: 125000 → 85000*0.03 + (125000-85000)*0.05 = 2550 + 2000 = 4550
   // Total: 4550*2 = 9100, then 50% discount = 4550
   {
-    const half = 125000;
-    const perPerson = 85000 * 0.03 + (half - 85000) * 0.05;
+    const half = 125_000;
+    const perPerson = 85_000 * 0.03 + (half - 85_000) * 0.05;
     const total = perPerson * 2;
     const discounted = total * 0.5;
     const expected = 4550;
     if (Math.abs(discounted - expected) > 1) {
-      errors.push(`Transfer (joint): expected €${expected}, got €${discounted.toFixed(0)}`);
+      errors.push(
+        `Transfer (joint): expected €${expected}, got €${discounted.toFixed(0)}`
+      );
     }
   }
 
@@ -342,16 +346,16 @@ async function testCalculatorMathAccuracy(): Promise<void> {
   // taxable = 96618 - 85430 = 11188
   // tax = 11188 * 0.20 = 2238
   {
-    const purchasePrice = 200000;
-    const salePrice = 350000;
+    const purchasePrice = 200_000;
+    const salePrice = 350_000;
     const yearsHeld = new Date().getFullYear() - 2018;
-    const adjusted = purchasePrice * Math.pow(1.03, yearsHeld);
+    const adjusted = purchasePrice * 1.03 ** yearsHeld;
     const gain = salePrice - adjusted;
-    const exemption = Math.min(gain, 85430);
+    const exemption = Math.min(gain, 85_430);
     const taxable = Math.max(0, gain - exemption);
     const tax = taxable * 0.2;
     // Just check it's positive and reasonable
-    if (tax < 0 || tax > 50000) {
+    if (tax < 0 || tax > 50_000) {
       errors.push(`CGT: got €${tax.toFixed(0)}, seems wrong`);
     }
   }
@@ -362,7 +366,8 @@ async function testCalculatorMathAccuracy(): Promise<void> {
     tier: 1,
     passed: errors.length === 0,
     duration: dur,
-    detail: errors.length === 0 ? "All calculations correct" : errors.join("; "),
+    detail:
+      errors.length === 0 ? "All calculations correct" : errors.join("; "),
   });
 }
 
@@ -403,7 +408,10 @@ async function testAgentIdentificationUnknown(): Promise<void> {
     const res = await fetchEdge("", {
       method: "POST",
       body: JSON.stringify(
-        webhookPayload(UNKNOWN_PHONE, "Hello, I want information about Cyprus properties")
+        webhookPayload(
+          UNKNOWN_PHONE,
+          "Hello, I want information about Cyprus properties"
+        )
       ),
     });
     const dur = Date.now() - start;
@@ -490,9 +498,7 @@ async function testWebhookResponseTime(): Promise<void> {
   try {
     const res = await fetchEdge("", {
       method: "POST",
-      body: JSON.stringify(
-        webhookPayload(UNKNOWN_PHONE, "Hi")
-      ),
+      body: JSON.stringify(webhookPayload(UNKNOWN_PHONE, "Hi")),
     });
     const dur = Date.now() - start;
 
@@ -500,7 +506,7 @@ async function testWebhookResponseTime(): Promise<void> {
     record({
       name: "2.1 Webhook response time < 30s",
       tier: 2,
-      passed: res.status === 200 && dur < 30000,
+      passed: res.status === 200 && dur < 30_000,
       duration: dur,
       detail: `${dur}ms (limit: 30000ms)`,
     });
@@ -817,9 +823,10 @@ async function testSQLInjection(): Promise<void> {
       tier: 3,
       passed: res.status === 200 || res.status === 403,
       duration: dur,
-      detail: res.status === 403
-        ? `HTTP 403 (blocked by WAF — safe)`
-        : `HTTP ${res.status}`,
+      detail:
+        res.status === 403
+          ? "HTTP 403 (blocked by WAF — safe)"
+          : `HTTP ${res.status}`,
     });
   } catch (err) {
     record({
@@ -868,7 +875,7 @@ async function testOversizedMessage(): Promise<void> {
   const start = Date.now();
   try {
     // 50KB message — well above normal
-    const bigMessage = "A".repeat(50000);
+    const bigMessage = "A".repeat(50_000);
     const res = await fetchEdge("", {
       method: "POST",
       body: JSON.stringify(webhookPayload(UNKNOWN_PHONE, bigMessage)),
@@ -936,7 +943,7 @@ async function testGroupMessageSkipped(): Promise<void> {
         key: {
           id: `group-test-${Date.now()}`,
           fromMe: false,
-          remoteJid: `120363123456789@g.us`, // Group JID format
+          remoteJid: "120363123456789@g.us", // Group JID format
         },
         pushName: "GroupUser",
         message: { conversation: "This is a group message" },
@@ -1017,7 +1024,7 @@ async function testVercelWebAppHealth(): Promise<void> {
     const res = await fetch("https://sofiatesting.vercel.app", {
       method: "HEAD",
       redirect: "manual",
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(15_000),
     });
     const dur = Date.now() - start;
 
@@ -1050,13 +1057,11 @@ async function run() {
   console.log(`\nTarget: ${EDGE_FUNCTION_URL}`);
   console.log(`Time:   ${new Date().toISOString()}`);
 
-  if (!WEBHOOK_SECRET) {
-    console.log(
-      "\n⚠ WASENDER_WEBHOOK_SECRET not found in .env.local"
-    );
-    console.log("  Webhook tests will fail without signature auth.\n");
+  if (WEBHOOK_SECRET) {
+    console.log("Auth:   Webhook signature configured\n");
   } else {
-    console.log(`Auth:   Webhook signature configured\n`);
+    console.log("\n⚠ WASENDER_WEBHOOK_SECRET not found in .env.local");
+    console.log("  Webhook tests will fail without signature auth.\n");
   }
 
   // ── Tier 1 ──
@@ -1140,7 +1145,9 @@ async function run() {
   const totalFailed = results.filter((r) => !r.passed && !r.skipped).length;
   const total = results.length;
 
-  console.log(`\n  Total: ${totalPassed}/${total} passed, ${totalFailed} failed`);
+  console.log(
+    `\n  Total: ${totalPassed}/${total} passed, ${totalFailed} failed`
+  );
 
   // Timing
   const avgDuration =

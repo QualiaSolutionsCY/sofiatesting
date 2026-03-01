@@ -51,7 +51,10 @@ export async function checkRateLimit(userId: string): Promise<boolean> {
       const { success } = await ratelimit.limit(userId);
       return success;
     } catch (error) {
-      logger.error("Redis rate limit check failed, falling back to in-memory", error);
+      logger.error(
+        "Redis rate limit check failed, falling back to in-memory",
+        error
+      );
       // Fall through to in-memory
     }
   }

@@ -285,7 +285,9 @@ export class TelegramClient {
       const response = await fetch(downloadUrl);
 
       if (!response.ok) {
-        log.error("Failed to download file", undefined, { status: response.statusText });
+        log.error("Failed to download file", undefined, {
+          status: response.statusText,
+        });
         return null;
       }
 

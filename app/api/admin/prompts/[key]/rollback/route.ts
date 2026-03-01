@@ -61,12 +61,13 @@ export async function POST(
     }
 
     // Get the version to rollback to
-    const { data: targetVersion, error: fetchTargetError } = await getAdminSupabase()
-      .from("sophia_prompts")
-      .select("*")
-      .eq("id", versionId)
-      .eq("key", key)
-      .single();
+    const { data: targetVersion, error: fetchTargetError } =
+      await getAdminSupabase()
+        .from("sophia_prompts")
+        .select("*")
+        .eq("id", versionId)
+        .eq("key", key)
+        .single();
 
     if (fetchTargetError || !targetVersion) {
       return NextResponse.json(
@@ -78,12 +79,13 @@ export async function POST(
     const target = targetVersion as PromptRow;
 
     // Get current version
-    const { data: currentVersion, error: fetchCurrentError } = await getAdminSupabase()
-      .from("sophia_prompts")
-      .select("*")
-      .eq("key", key)
-      .eq("is_current", true)
-      .single();
+    const { data: currentVersion, error: fetchCurrentError } =
+      await getAdminSupabase()
+        .from("sophia_prompts")
+        .select("*")
+        .eq("key", key)
+        .eq("is_current", true)
+        .single();
 
     if (fetchCurrentError || !currentVersion) {
       return NextResponse.json(

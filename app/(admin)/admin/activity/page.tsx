@@ -31,7 +31,9 @@ async function getActivityData() {
     .order("created_at", { ascending: false });
 
   // Get unique agent IDs from recent activity
-  const activeAgentIds = [...new Set((recentActivity || []).map(a => a.agent_id).filter(Boolean))];
+  const activeAgentIds = [
+    ...new Set((recentActivity || []).map((a) => a.agent_id).filter(Boolean)),
+  ];
 
   let onlineAgents: Array<{
     id: string;
@@ -54,7 +56,8 @@ async function getActivityData() {
       email: a.communication_email || "",
       role: a.role,
       region: a.region,
-      lastActiveAt: recentActivity?.find(r => r.agent_id === a.id)?.created_at || null,
+      lastActiveAt:
+        recentActivity?.find((r) => r.agent_id === a.id)?.created_at || null,
     }));
   }
 
@@ -65,23 +68,26 @@ async function getActivityData() {
     .order("created_at", { ascending: false })
     .limit(50);
 
-  const formattedMessages = (chatMessages || []).map((msg) => {
-    // Extract text from parts array
-    const parts = Array.isArray(msg.parts) ? msg.parts : [];
-    const textPart = parts.find((p: any) => p.text)?.text || "";
-    // Skip empty messages or system messages
-    const displayText = textPart.trim() || (msg.role === "user" ? "[Media/Attachment]" : "");
+  const formattedMessages = (chatMessages || [])
+    .map((msg) => {
+      // Extract text from parts array
+      const parts = Array.isArray(msg.parts) ? msg.parts : [];
+      const textPart = parts.find((p: any) => p.text)?.text || "";
+      // Skip empty messages or system messages
+      const displayText =
+        textPart.trim() || (msg.role === "user" ? "[Media/Attachment]" : "");
 
-    return {
-      id: msg.id,
-      action: msg.role === "user" ? "message_received" : "message_sent",
-      timestamp: msg.created_at,
-      metadata: {
-        from: msg.phone_number || "Unknown",
-        message: displayText,
-      },
-    };
-  }).filter((msg) => msg.metadata.message !== ""); // Filter out empty messages
+      return {
+        id: msg.id,
+        action: msg.role === "user" ? "message_received" : "message_sent",
+        timestamp: msg.created_at,
+        metadata: {
+          from: msg.phone_number || "Unknown",
+          message: displayText,
+        },
+      };
+    })
+    .filter((msg) => msg.metadata.message !== ""); // Filter out empty messages
 
   return { onlineAgents, recentMessages: formattedMessages };
 }
@@ -185,7 +191,10 @@ export default async function ActivityPage() {
               ) : (
                 <div className="space-y-4">
                   {recentMessages.map((msg) => {
-                    const metadata = msg.metadata as { from?: string; message?: string };
+                    const metadata = msg.metadata as {
+                      from?: string;
+                      message?: string;
+                    };
                     const isReceived = msg.action === "message_received";
 
                     return (

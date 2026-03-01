@@ -6,7 +6,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { logger, LogCategory } from "../utils/logger.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -40,7 +40,10 @@ export function trackEvent(event: AnalyticsEvent): void {
   // Fire and forget - don't await to avoid blocking
   trackEventAsync(event).catch((err) => {
     // Silently fail - analytics should never break main flow
-    logger.warn("[Analytics] Failed to track event", { category: LogCategory.DATABASE, error: err.message });
+    logger.warn("[Analytics] Failed to track event", {
+      category: LogCategory.DATABASE,
+      error: err.message,
+    });
   });
 }
 
@@ -63,14 +66,21 @@ export async function trackEventAsync(event: AnalyticsEvent): Promise<void> {
     });
   } catch (err) {
     // Log but don't throw - analytics failures shouldn't break main flow
-    logger.warn("[Analytics] Insert failed", { category: LogCategory.DATABASE, error: String(err) });
+    logger.warn("[Analytics] Insert failed", {
+      category: LogCategory.DATABASE,
+      error: String(err),
+    });
   }
 }
 
 /**
  * Helper to track message received
  */
-export function trackMessageReceived(phoneNumber: string, agentId?: string, metadata?: Record<string, unknown>): void {
+export function trackMessageReceived(
+  phoneNumber: string,
+  agentId?: string,
+  metadata?: Record<string, unknown>
+): void {
   trackEvent({
     phoneNumber,
     agentId,

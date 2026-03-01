@@ -9,28 +9,28 @@
  * - ../templates/registry.ts (for template definitions)
  */
 
-import { logger, LogCategory } from "../utils/logger.ts";
 import { shouldSendAsDocx as centralizedShouldSendAsDocx } from "../templates/detection.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
 
 // Re-export all detection functions from centralized module
 export {
-  shouldSendAsDocx,
+  containsPlaceholders,
+  type DocxTemplateType,
+  detectDocxTemplateType,
   isClarificationQuestion,
+  isCompletedMarketingAgreement,
   isCompletedReservationAgreement,
   isCompletedViewingForm,
-  isCompletedMarketingAgreement,
   isConfirmationMessage,
-  containsPlaceholders,
-  detectDocxTemplateType,
+  shouldSendAsDocx,
   wasDocxTemplateRequested,
-  type DocxTemplateType,
 } from "../templates/detection.ts";
 
 // Re-export registry functions
 export {
+  DOCX_TEMPLATE_TITLES,
   extractTemplateTitle,
   isDocxTemplateTitle,
-  DOCX_TEMPLATE_TITLES,
 } from "../templates/registry.ts";
 
 /**
@@ -60,22 +60,30 @@ export function hasValidDocumentContent(response: string): boolean {
 
   // Reject very short responses
   if (trimmed.length < MIN_DOCUMENT_LENGTH) {
-    logger.debug(`[DOCX Detector] Response too short: ${trimmed.length} chars (min: ${MIN_DOCUMENT_LENGTH})`, { category: LogCategory.GENERAL });
+    logger.debug(
+      `[DOCX Detector] Response too short: ${trimmed.length} chars (min: ${MIN_DOCUMENT_LENGTH})`,
+      { category: LogCategory.GENERAL }
+    );
     return false;
   }
 
   // Reject placeholder messages
   for (const pattern of PLACEHOLDER_PATTERNS) {
     if (pattern.test(trimmed)) {
-      logger.debug("[DOCX Detector] Response matches placeholder pattern", { category: LogCategory.GENERAL });
+      logger.debug("[DOCX Detector] Response matches placeholder pattern", {
+        category: LogCategory.GENERAL,
+      });
       return false;
     }
   }
 
   // Check line count
-  const lines = trimmed.split('\n').filter(line => line.trim().length > 0);
+  const lines = trimmed.split("\n").filter((line) => line.trim().length > 0);
   if (lines.length < MIN_DOCUMENT_LINES) {
-    logger.debug(`[DOCX Detector] Too few lines: ${lines.length} (min: ${MIN_DOCUMENT_LINES})`, { category: LogCategory.GENERAL });
+    logger.debug(
+      `[DOCX Detector] Too few lines: ${lines.length} (min: ${MIN_DOCUMENT_LINES})`,
+      { category: LogCategory.GENERAL }
+    );
     return false;
   }
 
@@ -92,17 +100,21 @@ export function hasValidDocumentContent(response: string): boolean {
  */
 export function isDocxTemplate(
   aiResponse: string,
-  _conversationHistory?: Array<{role: string, parts: Array<{text: string}>}>
+  _conversationHistory?: Array<{ role: string; parts: Array<{ text: string }> }>
 ): boolean {
   // Step 1: Check if response has Subject: line -> always TEXT (it's an email)
   if (aiResponse.includes("Subject:")) {
-    logger.debug("[DOCX Detector] Has Subject: line -> TEXT message", { category: LogCategory.GENERAL });
+    logger.debug("[DOCX Detector] Has Subject: line -> TEXT message", {
+      category: LogCategory.GENERAL,
+    });
     return false;
   }
 
   // Step 2: Validate content is substantial enough for a document
   if (!hasValidDocumentContent(aiResponse)) {
-    logger.debug("[DOCX Detector] Content validation failed -> TEXT message", { category: LogCategory.GENERAL });
+    logger.debug("[DOCX Detector] Content validation failed -> TEXT message", {
+      category: LogCategory.GENERAL,
+    });
     return false;
   }
 

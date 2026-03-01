@@ -12,7 +12,12 @@ import {
   UndoIcon,
 } from "@/components/icons";
 
-const Editor = dynamic(() => import("@/components/text-editor").then((mod) => ({ default: mod.Editor })), { ssr: false });
+const Editor = dynamic(
+  () =>
+    import("@/components/text-editor").then((mod) => ({ default: mod.Editor })),
+  { ssr: false }
+);
+
 import type { Suggestion } from "@/lib/db/schema";
 import { getSuggestions } from "../actions";
 

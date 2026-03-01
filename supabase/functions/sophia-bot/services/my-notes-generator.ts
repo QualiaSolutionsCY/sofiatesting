@@ -7,7 +7,7 @@
  * 2. Agent notes / special instructions
  */
 
-import { Agent } from "../agents/identifier.ts";
+import type { Agent } from "../agents/identifier.ts";
 
 export interface OwnerInfo {
   name: string;
@@ -97,7 +97,9 @@ export function generateAIAssistantNotes(
 
   // Listing Instructor — matches Listing Owner in My Notes
   if (listingInstructor) {
-    lines.push(`Listing Instructor: ${listingInstructor.name} (${listingInstructor.email})`);
+    lines.push(
+      `Listing Instructor: ${listingInstructor.name} (${listingInstructor.email})`
+    );
   }
 
   // Google Maps link
@@ -144,8 +146,8 @@ export function parseOwnerDetails(text: string): Partial<OwnerInfo> {
 
   // Name is harder - look for common patterns
   const namePatterns = [
-    /owner(?:'s)?(?:\s+name)?(?:\s*[:\-])?\s*([A-Za-z]+(?:\s+[A-Za-z]+)+)/i,
-    /name(?:\s*[:\-])?\s*([A-Za-z]+(?:\s+[A-Za-z]+)+)/i,
+    /owner(?:'s)?(?:\s+name)?(?:\s*[:-])?\s*([A-Za-z]+(?:\s+[A-Za-z]+)+)/i,
+    /name(?:\s*[:-])?\s*([A-Za-z]+(?:\s+[A-Za-z]+)+)/i,
     /(?:mr|mrs|ms|miss)\.?\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)/i,
   ];
 

@@ -4,7 +4,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { logger, LogCategory } from "../utils/logger.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
 
 export interface Agent {
   id: string;
@@ -12,8 +12,8 @@ export interface Agent {
   mobile: string;
   communicationEmail: string;
   listingOwnerEmail: string;
-  region: 'paphos' | 'limassol' | 'larnaca' | 'nicosia' | 'famagusta' | 'all';
-  role: 'management' | 'manager' | 'agent';
+  region: "paphos" | "limassol" | "larnaca" | "nicosia" | "famagusta" | "all";
+  role: "management" | "manager" | "agent";
   canUpload: boolean;
   landline?: string; // Office landline for CREA compliance
 }
@@ -24,15 +24,15 @@ export interface Agent {
  */
 export function normalizePhone(phone: string): string {
   // Remove all non-digit characters
-  let normalized = phone.replace(/\D/g, '');
+  let normalized = phone.replace(/\D/g, "");
 
   // Remove Cyprus country code if present
-  if (normalized.startsWith('357')) {
+  if (normalized.startsWith("357")) {
     normalized = normalized.slice(3);
   }
 
   // Remove leading zero if present
-  if (normalized.startsWith('0')) {
+  if (normalized.startsWith("0")) {
     normalized = normalized.slice(1);
   }
 
@@ -53,7 +53,9 @@ export async function identifyAgentByPhone(
 
   // Validate normalized phone contains only digits (defense in depth)
   if (!/^\d+$/.test(normalized) || normalized.length < 6) {
-    logger.debug(`[AgentIdentifier] Invalid normalized phone`, { category: LogCategory.DATABASE });
+    logger.debug("[AgentIdentifier] Invalid normalized phone", {
+      category: LogCategory.DATABASE,
+    });
     return null;
   }
 
@@ -63,31 +65,40 @@ export async function identifyAgentByPhone(
   // Use separate ilike queries to avoid filter injection with .or() string interpolation
   // First try with last 8 digits
   const { data: partialData, error: partialError } = await supabase
-    .from('agents')
-    .select('*')
-    .ilike('mobile', `%${last8}%`)
+    .from("agents")
+    .select("*")
+    .ilike("mobile", `%${last8}%`)
     .limit(1)
     .maybeSingle();
 
   if (!partialError && partialData) {
-    logger.debug(`[AgentIdentifier] Found agent: ${partialData.full_name} (${partialData.region})`, { category: LogCategory.DATABASE });
+    logger.debug(
+      `[AgentIdentifier] Found agent: ${partialData.full_name} (${partialData.region})`,
+      { category: LogCategory.DATABASE }
+    );
     return mapAgentData(partialData);
   }
 
   // Try with full normalized number
   const { data: fullData, error: fullError } = await supabase
-    .from('agents')
-    .select('*')
-    .ilike('mobile', `%${normalized}%`)
+    .from("agents")
+    .select("*")
+    .ilike("mobile", `%${normalized}%`)
     .limit(1)
     .maybeSingle();
 
   if (!fullError && fullData) {
-    logger.debug(`[AgentIdentifier] Found agent: ${fullData.full_name} (${fullData.region})`, { category: LogCategory.DATABASE });
+    logger.debug(
+      `[AgentIdentifier] Found agent: ${fullData.full_name} (${fullData.region})`,
+      { category: LogCategory.DATABASE }
+    );
     return mapAgentData(fullData);
   }
 
-  logger.debug(`[AgentIdentifier] No agent found for phone`, { category: LogCategory.DATABASE, normalized });
+  logger.debug("[AgentIdentifier] No agent found for phone", {
+    category: LogCategory.DATABASE,
+    normalized,
+  });
   return null;
 }
 
@@ -97,7 +108,10 @@ export async function identifyAgentByPhone(
  */
 function sanitizeEmailForFilter(email: string): string {
   // Only allow alphanumeric, @, ., _, -, and +
-  return email.replace(/[^a-zA-Z0-9@._+-]/g, '').toLowerCase().trim();
+  return email
+    .replace(/[^a-zA-Z0-9@._+-]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 /**
@@ -113,17 +127,19 @@ export async function getAgentByEmail(
 
   // Sanitize email to prevent filter injection
   const sanitizedEmail = sanitizeEmailForFilter(email);
-  if (!sanitizedEmail || !sanitizedEmail.includes('@')) {
-    logger.debug(`[AgentIdentifier] Invalid email format`, { category: LogCategory.DATABASE });
+  if (!sanitizedEmail || !sanitizedEmail.includes("@")) {
+    logger.debug("[AgentIdentifier] Invalid email format", {
+      category: LogCategory.DATABASE,
+    });
     return null;
   }
 
   // Use separate queries to avoid filter injection with .or() string interpolation
   // First try communication_email
   const { data: commData, error: commError } = await supabase
-    .from('agents')
-    .select('*')
-    .eq('communication_email', sanitizedEmail)
+    .from("agents")
+    .select("*")
+    .eq("communication_email", sanitizedEmail)
     .limit(1)
     .maybeSingle();
 
@@ -133,9 +149,9 @@ export async function getAgentByEmail(
 
   // Then try listing_owner_email
   const { data: ownerData, error: ownerError } = await supabase
-    .from('agents')
-    .select('*')
-    .eq('listing_owner_email', sanitizedEmail)
+    .from("agents")
+    .select("*")
+    .eq("listing_owner_email", sanitizedEmail)
     .limit(1)
     .maybeSingle();
 
@@ -156,8 +172,8 @@ function mapAgentData(data: Record<string, unknown>): Agent {
     mobile: data.mobile as string,
     communicationEmail: data.communication_email as string,
     listingOwnerEmail: data.listing_owner_email as string,
-    region: data.region as Agent['region'],
-    role: data.role as Agent['role'],
+    region: data.region as Agent["region"],
+    role: data.role as Agent["role"],
     canUpload: data.can_upload as boolean,
     landline: data.landline as string | undefined,
   };
@@ -174,10 +190,10 @@ export async function getAgentsByRegion(
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   const { data, error } = await supabase
-    .from('agents')
-    .select('*')
-    .eq('region', region)
-    .eq('can_upload', true);
+    .from("agents")
+    .select("*")
+    .eq("region", region)
+    .eq("can_upload", true);
 
   if (error || !data) {
     return [];
@@ -185,4 +201,3 @@ export async function getAgentsByRegion(
 
   return data.map((d: Record<string, unknown>) => mapAgentData(d));
 }
-

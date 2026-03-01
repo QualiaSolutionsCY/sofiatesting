@@ -3,23 +3,23 @@
  * Handles OAuth2 authentication and property listing operations
  */
 
+import { logClassifiedError } from "../utils/error-mapper.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
+import { withRetry } from "../utils/retry.ts";
 import { validateImageUrl } from "../utils/url-validator.ts";
 import {
+  findIndoorFeatureUuids,
+  findInfrastructureUuids,
+  findLandTypeUuid,
   findListingTypeUuid,
-  findPropertyTypeUuid,
+  findOutdoorFeatureUuids,
   findPriceModifierUuid,
+  findPropertyTypeUuid,
+  findPropertyViewUuids,
   findTitleDeedUuid,
   findUserUuid,
   findUserUuids,
-  findIndoorFeatureUuids,
-  findOutdoorFeatureUuids,
-  findPropertyViewUuids,
-  findLandTypeUuid,
-  findInfrastructureUuids,
 } from "./taxonomy-cache.ts";
-import { logger, LogCategory } from "../utils/logger.ts";
-import { withRetry } from "../utils/retry.ts";
-import { logClassifiedError } from "../utils/error-mapper.ts";
 
 export interface TokenCache {
   token: string;
@@ -71,11 +71,11 @@ export interface ListingData {
 
 export interface LandListingData {
   listingType: "sale" | "rent";
-  landType: string;           // plot, field, agricultural
+  landType: string; // plot, field, agricultural
   price: number;
   location: string;
   locationUuid?: string;
-  landSize: number;           // sqm (MANDATORY for land)
+  landSize: number; // sqm (MANDATORY for land)
   description: string;
   myNotes: string;
   images: string[];
@@ -180,7 +180,9 @@ export async function getAccessToken(config: ZyprusConfig): Promise<string> {
       errorPreview: errorText.substring(0, 200),
     });
     // Generic error message - don't expose OAuth token flow details to users
-    throw new Error("Unable to connect to property system. Please try again later.");
+    throw new Error(
+      "Unable to connect to property system. Please try again later."
+    );
   }
 
   const data = await response.json();
@@ -203,7 +205,10 @@ export async function getAccessToken(config: ZyprusConfig): Promise<string> {
  * Per spec: NEVER place pin at exact property address
  * Pin should land on a general area like a roundabout or supermarket nearby
  */
-function addPrivacyOffset(coords: { lat: number; lon: number }): { lat: number; lon: number } {
+function addPrivacyOffset(coords: { lat: number; lon: number }): {
+  lat: number;
+  lon: number;
+} {
   // ~0.008 degrees ≈ 900m offset — pin should NOT be near the actual property
   // Must be far enough that the property location is NOT identifiable
   const minOffset = 0.007;
@@ -221,7 +226,9 @@ function addPrivacyOffset(coords: { lat: number; lon: number }): { lat: number; 
     // Already at center (unlikely), small random offset
     return {
       lat: coords.lat + (minOffset + Math.random() * range),
-      lon: coords.lon + (Math.random() > 0.5 ? 1 : -1) * (minOffset + Math.random() * range),
+      lon:
+        coords.lon +
+        (Math.random() > 0.5 ? 1 : -1) * (minOffset + Math.random() * range),
     };
   }
 
@@ -276,7 +283,7 @@ function generateOwnReferenceId(
 
   if (ownerPhone) {
     // Clean phone number - remove spaces, +357, etc.
-    const cleanPhone = ownerPhone.replace(/[\s\-\+]/g, "").replace(/^357/, "");
+    const cleanPhone = ownerPhone.replace(/[\s\-+]/g, "").replace(/^357/, "");
     parts.push(cleanPhone);
   }
 
@@ -323,25 +330,36 @@ function buildJsonApiPayload(
 
   // Build proper title: "2 Bedroom Bungalow (125m²) For Sale in Kamares, Tala"
   // If there's a covered veranda, include total area (Net Indoor Area + Covered Veranda only)
-  const bedroomText = listing.bedrooms === 1 ? "1 Bedroom" : `${listing.bedrooms} Bedroom`;
-  const listingTypeText = listing.listingType === "rent" ? "For Rent" : "For Sale";
-  const propertyTypeCapitalized = listing.propertyType.charAt(0).toUpperCase() + listing.propertyType.slice(1).toLowerCase();
+  const bedroomText =
+    listing.bedrooms === 1 ? "1 Bedroom" : `${listing.bedrooms} Bedroom`;
+  const listingTypeText =
+    listing.listingType === "rent" ? "For Rent" : "For Sale";
+  const propertyTypeCapitalized =
+    listing.propertyType.charAt(0).toUpperCase() +
+    listing.propertyType.slice(1).toLowerCase();
 
   // Calculate title area text: Show covered area + covered veranda separately (not summed)
-  const hasCoveredVeranda = listing.coveredVeranda && listing.coveredVeranda > 0;
+  const hasCoveredVeranda =
+    listing.coveredVeranda && listing.coveredVeranda > 0;
   let titleAreaText = "";
   if (hasCoveredVeranda) {
     titleAreaText = ` (${listing.coveredArea}m² + ${listing.coveredVeranda}m² covered veranda)`;
-    logger.info(`Title area calculation: ${listing.coveredArea}m² + ${listing.coveredVeranda}m² covered veranda`, {
-      category: LogCategory.ZYPRUS,
-      operation: "createDraftListing",
-    });
+    logger.info(
+      `Title area calculation: ${listing.coveredArea}m² + ${listing.coveredVeranda}m² covered veranda`,
+      {
+        category: LogCategory.ZYPRUS,
+        operation: "createDraftListing",
+      }
+    );
   } else {
     titleAreaText = ` (${listing.coveredArea}m²)`;
-    logger.info(`Title area calculation: ${listing.coveredArea}m² (no covered veranda)`, {
-      category: LogCategory.ZYPRUS,
-      operation: "createDraftListing",
-    });
+    logger.info(
+      `Title area calculation: ${listing.coveredArea}m² (no covered veranda)`,
+      {
+        category: LogCategory.ZYPRUS,
+        operation: "createDraftListing",
+      }
+    );
   }
 
   const generatedTitle = `${bedroomText} ${propertyTypeCapitalized}${titleAreaText} ${listingTypeText} in ${listing.location}`;
@@ -592,7 +610,7 @@ async function uploadSingleImage(
     // P1 SECURITY: Check Content-Length header before downloading full content
     const contentLength = imageResponse.headers.get("content-length");
     if (contentLength) {
-      const sizeBytes = parseInt(contentLength, 10);
+      const sizeBytes = Number.parseInt(contentLength, 10);
       if (sizeBytes > MAX_IMAGE_SIZE_BYTES) {
         logger.warn("Image exceeds maximum size limit - rejecting", {
           category: LogCategory.ZYPRUS,
@@ -751,7 +769,8 @@ async function uploadFloorPlans(
 
         const imageBlob = await imageResponse.blob();
         const imageBuffer = await imageBlob.arrayBuffer();
-        let filename = url.split("/").pop()?.split("?")[0] || `floor_plan_${index + 1}.jpg`;
+        let filename =
+          url.split("/").pop()?.split("?")[0] || `floor_plan_${index + 1}.jpg`;
         if (!filename.match(/\.(jpg|jpeg|png|gif|webp|pdf)$/i)) {
           filename = `floor_plan_${index + 1}.jpg`;
         }
@@ -868,15 +887,22 @@ async function uploadTitleDeedFiles(
         const fileBlob = await fileResponse.blob();
         const fileBuffer = await fileBlob.arrayBuffer();
         // Detect actual file type from Content-Type header or blob type
-        const contentType = fileResponse.headers.get("content-type") || fileBlob.type || "";
+        const contentType =
+          fileResponse.headers.get("content-type") || fileBlob.type || "";
         const extFromMime: Record<string, string> = {
-          "image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif",
-          "image/webp": ".webp", "application/pdf": ".pdf",
+          "image/jpeg": ".jpg",
+          "image/png": ".png",
+          "image/gif": ".gif",
+          "image/webp": ".webp",
+          "application/pdf": ".pdf",
           "application/msword": ".doc",
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            ".docx",
         };
-        const detectedExt = extFromMime[contentType.split(";")[0].trim().toLowerCase()];
-        let filename = url.split("/").pop()?.split("?")[0] || `title_deed_${index + 1}`;
+        const detectedExt =
+          extFromMime[contentType.split(";")[0].trim().toLowerCase()];
+        let filename =
+          url.split("/").pop()?.split("?")[0] || `title_deed_${index + 1}`;
         if (!filename.match(/\.(jpg|jpeg|png|gif|webp|pdf|doc|docx)$/i)) {
           // Use detected extension from content-type, default to .jpg for images
           filename = `title_deed_${index + 1}${detectedExt || ".jpg"}`;
@@ -915,7 +941,11 @@ async function uploadTitleDeedFiles(
 
         if (!response.ok) {
           let errorBody = "";
-          try { errorBody = await response.text(); } catch { /* ignore */ }
+          try {
+            errorBody = await response.text();
+          } catch {
+            /* ignore */
+          }
           logger.warn("Title deed upload to Zyprus failed", {
             category: LogCategory.ZYPRUS,
             operation: "uploadTitleDeedFile",
@@ -1089,20 +1119,30 @@ export async function createDraftListing(
     try {
       const errorJson = JSON.parse(errorText);
       if (errorJson.errors) {
-        errorDetail = errorJson.errors.map((e: any) => e.detail || e.title || JSON.stringify(e)).join("; ");
+        errorDetail = errorJson.errors
+          .map((e: any) => e.detail || e.title || JSON.stringify(e))
+          .join("; ");
       }
     } catch {
       errorDetail = errorText.substring(0, 200);
     }
     // Log full error details internally for debugging
-    logClassifiedError("Failed to create Zyprus listing", new Error(`API error: ${response.status} - ${errorDetail || "Unknown error"}`), {
-      category: LogCategory.ZYPRUS,
-      operation: "createDraftListing",
-      status: response.status,
-      errorDetail,
-    });
+    logClassifiedError(
+      "Failed to create Zyprus listing",
+      new Error(
+        `API error: ${response.status} - ${errorDetail || "Unknown error"}`
+      ),
+      {
+        category: LogCategory.ZYPRUS,
+        operation: "createDraftListing",
+        status: response.status,
+        errorDetail,
+      }
+    );
     // Include status and error detail in thrown error so executor can log the root cause
-    throw new Error(`Zyprus API ${response.status}: ${errorDetail || "Unknown error"}`);
+    throw new Error(
+      `Zyprus API ${response.status}: ${errorDetail || "Unknown error"}`
+    );
   }
 
   const result = await response.json();
@@ -1131,33 +1171,43 @@ export async function createDraftListing(
           },
         },
       };
-      const patchRes = await fetch(`${config.apiUrl}/jsonapi/node/property/${listingId}`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/vnd.api+json",
-          Accept: "application/vnd.api+json",
-          "User-Agent": "SophiaAI",
-        },
-        body: JSON.stringify(patchPayload),
-      });
-      if (!patchRes.ok) {
-        let patchErrorBody = "";
-        try { patchErrorBody = await patchRes.text(); } catch { /* ignore */ }
-        logger.warn("Could not attach title deed files to listing (non-blocking)", {
-          category: LogCategory.ZYPRUS,
-          operation: "patchTitleDeedFiles",
-          listingId,
-          status: patchRes.status,
-          errorBody: patchErrorBody.substring(0, 500),
-        });
-      } else {
+      const patchRes = await fetch(
+        `${config.apiUrl}/jsonapi/node/property/${listingId}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/vnd.api+json",
+            Accept: "application/vnd.api+json",
+            "User-Agent": "SophiaAI",
+          },
+          body: JSON.stringify(patchPayload),
+        }
+      );
+      if (patchRes.ok) {
         logger.info("Title deed files attached to listing via PATCH", {
           category: LogCategory.ZYPRUS,
           operation: "patchTitleDeedFiles",
           listingId,
           fileCount: titleDeedFileIds.length,
         });
+      } else {
+        let patchErrorBody = "";
+        try {
+          patchErrorBody = await patchRes.text();
+        } catch {
+          /* ignore */
+        }
+        logger.warn(
+          "Could not attach title deed files to listing (non-blocking)",
+          {
+            category: LogCategory.ZYPRUS,
+            operation: "patchTitleDeedFiles",
+            listingId,
+            status: patchRes.status,
+            errorBody: patchErrorBody.substring(0, 500),
+          }
+        );
       }
     } catch (patchError) {
       logger.warn("Failed to PATCH title deed files (non-blocking)", {
@@ -1245,8 +1295,10 @@ function buildJsonApiPayloadLand(
 
   // Build proper title: "Plot (2,500m²) For Sale in Mesa Chorio, Paphos"
   const landTypeStr = listing.landType || "Plot";
-  const landTypeCapitalized = landTypeStr.charAt(0).toUpperCase() + landTypeStr.slice(1).toLowerCase();
-  const listingTypeText = listing.listingType === "rent" ? "For Rent" : "For Sale";
+  const landTypeCapitalized =
+    landTypeStr.charAt(0).toUpperCase() + landTypeStr.slice(1).toLowerCase();
+  const listingTypeText =
+    listing.listingType === "rent" ? "For Rent" : "For Sale";
   const generatedTitle = `${landTypeCapitalized} (${listing.landSize.toLocaleString()}m²) ${listingTypeText} in ${listing.location}`;
 
   logger.info(`Generated land title: ${generatedTitle}`, {
@@ -1434,7 +1486,7 @@ async function uploadLandImages(
 
         const contentLength = imageResponse.headers.get("content-length");
         if (contentLength) {
-          const sizeBytes = parseInt(contentLength, 10);
+          const sizeBytes = Number.parseInt(contentLength, 10);
           if (sizeBytes > MAX_IMAGE_SIZE_BYTES) {
             logger.warn("Image exceeds maximum size limit - rejecting", {
               category: LogCategory.ZYPRUS,
@@ -1619,7 +1671,9 @@ export async function createDraftLandListing(
 
   // Land gallery is REQUIRED by Zyprus — fail early if no images uploaded
   if (imageFileIds.length === 0 && listing.images.length > 0) {
-    throw new Error("All land image uploads failed — cannot create listing without gallery images");
+    throw new Error(
+      "All land image uploads failed — cannot create listing without gallery images"
+    );
   }
 
   // Build and send listing payload
@@ -1665,18 +1719,28 @@ export async function createDraftLandListing(
     try {
       const errorJson = JSON.parse(errorText);
       if (errorJson.errors) {
-        errorDetail = errorJson.errors.map((e: any) => e.detail || e.title || JSON.stringify(e)).join("; ");
+        errorDetail = errorJson.errors
+          .map((e: any) => e.detail || e.title || JSON.stringify(e))
+          .join("; ");
       }
     } catch {
       errorDetail = errorText.substring(0, 200);
     }
-    logClassifiedError("Failed to create Zyprus land listing", new Error(`API error: ${response.status} - ${errorDetail || "Unknown error"}`), {
-      category: LogCategory.ZYPRUS,
-      operation: "createDraftLandListing",
-      status: response.status,
-      errorDetail,
-    });
-    throw new Error(`Zyprus API ${response.status}: ${errorDetail || "Unknown error"}`);
+    logClassifiedError(
+      "Failed to create Zyprus land listing",
+      new Error(
+        `API error: ${response.status} - ${errorDetail || "Unknown error"}`
+      ),
+      {
+        category: LogCategory.ZYPRUS,
+        operation: "createDraftLandListing",
+        status: response.status,
+        errorDetail,
+      }
+    );
+    throw new Error(
+      `Zyprus API ${response.status}: ${errorDetail || "Unknown error"}`
+    );
   }
 
   const result = await response.json();
@@ -1705,40 +1769,53 @@ export async function createDraftLandListing(
           },
         },
       };
-      const patchRes = await fetch(`${config.apiUrl}/jsonapi/node/land/${listingId}`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/vnd.api+json",
-          Accept: "application/vnd.api+json",
-          "User-Agent": "SophiaAI",
-        },
-        body: JSON.stringify(patchPayload),
-      });
-      if (!patchRes.ok) {
-        let patchErrorBody = "";
-        try { patchErrorBody = await patchRes.text(); } catch { /* ignore */ }
-        logger.warn("Could not attach title deed files to land listing (non-blocking)", {
-          category: LogCategory.ZYPRUS,
-          operation: "patchLandTitleDeedFiles",
-          listingId,
-          status: patchRes.status,
-          errorBody: patchErrorBody.substring(0, 500),
-        });
-      } else {
+      const patchRes = await fetch(
+        `${config.apiUrl}/jsonapi/node/land/${listingId}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/vnd.api+json",
+            Accept: "application/vnd.api+json",
+            "User-Agent": "SophiaAI",
+          },
+          body: JSON.stringify(patchPayload),
+        }
+      );
+      if (patchRes.ok) {
         logger.info("Title deed files attached to land listing via PATCH", {
           category: LogCategory.ZYPRUS,
           operation: "patchLandTitleDeedFiles",
           listingId,
           fileCount: titleDeedFileIds.length,
         });
+      } else {
+        let patchErrorBody = "";
+        try {
+          patchErrorBody = await patchRes.text();
+        } catch {
+          /* ignore */
+        }
+        logger.warn(
+          "Could not attach title deed files to land listing (non-blocking)",
+          {
+            category: LogCategory.ZYPRUS,
+            operation: "patchLandTitleDeedFiles",
+            listingId,
+            status: patchRes.status,
+            errorBody: patchErrorBody.substring(0, 500),
+          }
+        );
       }
     } catch (patchError) {
-      logger.warn("Failed to PATCH title deed files to land listing (non-blocking)", {
-        category: LogCategory.ZYPRUS,
-        operation: "patchLandTitleDeedFiles",
-        listingId,
-      });
+      logger.warn(
+        "Failed to PATCH title deed files to land listing (non-blocking)",
+        {
+          category: LogCategory.ZYPRUS,
+          operation: "patchLandTitleDeedFiles",
+          listingId,
+        }
+      );
     }
   }
 
@@ -1747,4 +1824,3 @@ export async function createDraftLandListing(
     listingUrl: `${config.siteUrl}/land/${listingId}`,
   };
 }
-

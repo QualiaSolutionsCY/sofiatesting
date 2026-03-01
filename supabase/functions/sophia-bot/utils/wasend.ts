@@ -7,8 +7,8 @@
  * - Image sending
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { logger, LogCategory } from "./logger.ts";
+import type { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { LogCategory, logger } from "./logger.ts";
 import { withRetry } from "./retry.ts";
 
 const WASEND_API_KEY = Deno.env.get("WASEND_API_KEY");
@@ -19,33 +19,43 @@ const WASEND_BASE_URL = "https://www.wasenderapi.com/api";
  */
 export async function sendTextMessage(
   phoneNumber: string,
-  text: string,
+  text: string
 ): Promise<Response> {
   const sendUrl = `${WASEND_BASE_URL}/send-message`;
 
-  logger.info("WASEND API CALL: sending text message", { category: LogCategory.GENERAL, textLength: text.length });
+  logger.info("WASEND API CALL: sending text message", {
+    category: LogCategory.GENERAL,
+    textLength: text.length,
+  });
 
   try {
     let sendRes = await withRetry(
-      () => fetch(sendUrl, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${WASEND_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          to: phoneNumber,
-          text: text,
+      () =>
+        fetch(sendUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${WASEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            to: phoneNumber,
+            text,
+          }),
         }),
-      }),
       { maxRetries: 2, baseDelayMs: 1000, maxDelayMs: 5000 },
       "wasend-send-text"
     );
 
     const responseText = await sendRes.text();
-    logger.info(`WaSend text send response status: ${sendRes.status}`, { category: LogCategory.GENERAL });
-    logger.info(`WaSend text send response body: ${responseText}`, { category: LogCategory.GENERAL });
-    logger.info(`=== WASEND API CALL COMPLETE ===`, { category: LogCategory.GENERAL });
+    logger.info(`WaSend text send response status: ${sendRes.status}`, {
+      category: LogCategory.GENERAL,
+    });
+    logger.info(`WaSend text send response body: ${responseText}`, {
+      category: LogCategory.GENERAL,
+    });
+    logger.info("=== WASEND API CALL COMPLETE ===", {
+      category: LogCategory.GENERAL,
+    });
 
     // Handle rate limiting (429 status)
     if (sendRes.status === 429) {
@@ -61,44 +71,53 @@ export async function sendTextMessage(
       }
 
       logger.info(
-        `WaSendAPI Rate Limit hit. Retrying in ${retryAfter / 1000} seconds...`,
+        `WaSendAPI Rate Limit hit. Retrying in ${retryAfter / 1000} seconds...`
       );
       await new Promise((resolve) => setTimeout(resolve, retryAfter));
       sendRes = await withRetry(
-        () => fetch(sendUrl, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${WASEND_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            to: phoneNumber,
-            text: text,
+        () =>
+          fetch(sendUrl, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${WASEND_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              to: phoneNumber,
+              text,
+            }),
           }),
-        }),
         { maxRetries: 2, baseDelayMs: 1000, maxDelayMs: 5000 },
         "wasend-send-text-retry"
       );
 
       const retryResponseText = await sendRes.text();
-      logger.info(`WaSend retry response status: ${sendRes.status}`, { category: LogCategory.GENERAL });
-      logger.info(`WaSend retry response body: ${retryResponseText}`, { category: LogCategory.GENERAL });
+      logger.info(`WaSend retry response status: ${sendRes.status}`, {
+        category: LogCategory.GENERAL,
+      });
+      logger.info(`WaSend retry response body: ${retryResponseText}`, {
+        category: LogCategory.GENERAL,
+      });
 
       // Return a new Response since we consumed the body
       return new Response(retryResponseText, {
         status: sendRes.status,
-        headers: sendRes.headers
+        headers: sendRes.headers,
       });
     }
 
     // Return a new Response since we consumed the body
     return new Response(responseText, {
       status: sendRes.status,
-      headers: sendRes.headers
+      headers: sendRes.headers,
     });
   } catch (error) {
-    logger.error("Error sending text message via WaSend: " + String(error), { category: LogCategory.GENERAL });
-    return new Response(JSON.stringify({ error: String(error) }), { status: 500 });
+    logger.error("Error sending text message via WaSend: " + String(error), {
+      category: LogCategory.GENERAL,
+    });
+    return new Response(JSON.stringify({ error: String(error) }), {
+      status: 500,
+    });
   }
 }
 
@@ -108,13 +127,14 @@ export async function sendTextMessage(
  */
 export function generateUniqueFilename(baseFilename: string): string {
   const now = new Date();
-  const timestamp = now.toISOString()
-    .replace(/[-:T]/g, '')
-    .replace(/\.\d{3}Z$/, '');
+  const timestamp = now
+    .toISOString()
+    .replace(/[-:T]/g, "")
+    .replace(/\.\d{3}Z$/, "");
   const random = Math.random().toString(36).substring(2, 6).toUpperCase();
 
   // Extract base name without extension
-  const baseName = baseFilename.replace(/\.docx$/i, '');
+  const baseName = baseFilename.replace(/\.docx$/i, "");
 
   return `${baseName}_${timestamp}_${random}.docx`;
 }
@@ -134,27 +154,35 @@ export async function uploadDocxToStorage(
 
     // Upload to Supabase Storage in 'documents' bucket
     const { error } = await supabase.storage
-      .from('documents')
+      .from("documents")
       .upload(`docx/${uniqueFilename}`, docxContent, {
-        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        cacheControl: 'no-cache, no-store, must-revalidate',
-        upsert: false  // Don't overwrite - each document is unique
+        contentType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        cacheControl: "no-cache, no-store, must-revalidate",
+        upsert: false, // Don't overwrite - each document is unique
       });
 
     if (error) {
-      logger.error("Error uploading to Supabase Storage: " + String(error), { category: LogCategory.ZYPRUS });
+      logger.error("Error uploading to Supabase Storage: " + String(error), {
+        category: LogCategory.ZYPRUS,
+      });
       return null;
     }
 
     // Get public URL
     const { data: urlData } = supabase.storage
-      .from('documents')
+      .from("documents")
       .getPublicUrl(`docx/${uniqueFilename}`);
 
-    logger.info("Uploaded DOCX to Supabase Storage:" + String(urlData.publicUrl), { category: LogCategory.DATABASE });
+    logger.info(
+      "Uploaded DOCX to Supabase Storage:" + String(urlData.publicUrl),
+      { category: LogCategory.DATABASE }
+    );
     return urlData.publicUrl;
   } catch (error) {
-    logger.error("Exception uploading to Supabase Storage: " + String(error), { category: LogCategory.ZYPRUS });
+    logger.error("Exception uploading to Supabase Storage: " + String(error), {
+      category: LogCategory.ZYPRUS,
+    });
     return null;
   }
 }
@@ -169,53 +197,81 @@ export async function sendDocxFile(
   phoneNumber: string,
   docxContent: Uint8Array,
   filename: string,
-  retries: number = 1,
+  retries = 1,
   userId?: string,
-  saveLastDocumentFn?: (userId: string, url: string, name: string, type: string) => Promise<void>
+  saveLastDocumentFn?: (
+    userId: string,
+    url: string,
+    name: string,
+    type: string
+  ) => Promise<void>
 ): Promise<Response> {
   const sendUrl = `${WASEND_BASE_URL}/send-message`;
 
   // Step 1: Upload DOCX to Supabase Storage to get a public URL
-  const documentUrl = await uploadDocxToStorage(supabase, docxContent, filename);
+  const documentUrl = await uploadDocxToStorage(
+    supabase,
+    docxContent,
+    filename
+  );
 
   if (!documentUrl) {
-    logger.error("Failed to upload DOCX to storage, cannot send document", undefined, { category: LogCategory.ZYPRUS });
+    logger.error(
+      "Failed to upload DOCX to storage, cannot send document",
+      undefined,
+      { category: LogCategory.ZYPRUS }
+    );
     // Return a fake error response
-    return new Response(JSON.stringify({ error: "Failed to upload document" }), { status: 500 });
+    return new Response(
+      JSON.stringify({ error: "Failed to upload document" }),
+      { status: 500 }
+    );
   }
 
-  logger.info("Sending document via WaSend with URL:" + String(documentUrl), { category: LogCategory.GENERAL });
+  logger.info("Sending document via WaSend with URL:" + String(documentUrl), {
+    category: LogCategory.GENERAL,
+  });
 
   // Step 1.5: Save document URL for later email attachment
   if (userId && saveLastDocumentFn) {
-    const docType = filename.toLowerCase().includes("viewing") ? "viewing_form" :
-                    filename.toLowerCase().includes("marketing") ? "marketing_agreement" :
-                    filename.toLowerCase().includes("reservation") ? "reservation_agreement" : "document";
+    const docType = filename.toLowerCase().includes("viewing")
+      ? "viewing_form"
+      : filename.toLowerCase().includes("marketing")
+        ? "marketing_agreement"
+        : filename.toLowerCase().includes("reservation")
+          ? "reservation_agreement"
+          : "document";
     await saveLastDocumentFn(userId, documentUrl, filename, docType);
   }
 
   try {
-    let sendRes = await withRetry(
-      () => fetch(sendUrl, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${WASEND_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          to: phoneNumber,
-          text: "Document generated by Sophia",
-          documentUrl: documentUrl,
-          fileName: filename,
+    const sendRes = await withRetry(
+      () =>
+        fetch(sendUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${WASEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            to: phoneNumber,
+            text: "Document generated by Sophia",
+            documentUrl,
+            fileName: filename,
+          }),
         }),
-      }),
       { maxRetries: 2, baseDelayMs: 1000, maxDelayMs: 5000 },
       "wasend-send-docx"
     );
 
     const responseText = await sendRes.text();
-    logger.info("WaSend document send response status:" + String(sendRes.status), { category: LogCategory.GENERAL });
-    logger.info("WaSend document send response body:" + String(responseText), { category: LogCategory.GENERAL });
+    logger.info(
+      "WaSend document send response status:" + String(sendRes.status),
+      { category: LogCategory.GENERAL }
+    );
+    logger.info("WaSend document send response body:" + String(responseText), {
+      category: LogCategory.GENERAL,
+    });
 
     // Handle rate limiting (429 status)
     if (sendRes.status === 429 && retries > 0) {
@@ -231,20 +287,32 @@ export async function sendDocxFile(
       }
 
       logger.info(
-        `WaSendAPI Rate Limit hit. Retrying in ${retryAfter / 1000} seconds...`,
+        `WaSendAPI Rate Limit hit. Retrying in ${retryAfter / 1000} seconds...`
       );
       await new Promise((resolve) => setTimeout(resolve, retryAfter));
-      return sendDocxFile(supabase, phoneNumber, docxContent, filename, retries - 1, userId, saveLastDocumentFn);
+      return sendDocxFile(
+        supabase,
+        phoneNumber,
+        docxContent,
+        filename,
+        retries - 1,
+        userId,
+        saveLastDocumentFn
+      );
     }
 
     // Return a new Response since we already consumed the body
     return new Response(responseText, {
       status: sendRes.status,
-      headers: sendRes.headers
+      headers: sendRes.headers,
     });
   } catch (error) {
-    logger.error("Error sending DOCX file via WaSend: " + String(error), { category: LogCategory.GENERAL });
-    return new Response(JSON.stringify({ error: String(error) }), { status: 500 });
+    logger.error("Error sending DOCX file via WaSend: " + String(error), {
+      category: LogCategory.GENERAL,
+    });
+    return new Response(JSON.stringify({ error: String(error) }), {
+      status: 500,
+    });
   }
 }
 
@@ -268,26 +336,34 @@ export async function uploadLogoToStorage(
 
     // Upload to Supabase Storage in 'documents' bucket under 'logos' folder
     const { error } = await supabase.storage
-      .from('documents')
+      .from("documents")
       .upload(`logos/${filename}`, bytes, {
-        contentType: 'image/jpeg',
-        upsert: true  // Overwrite if exists
+        contentType: "image/jpeg",
+        upsert: true, // Overwrite if exists
       });
 
-    if (error && !error.message.includes('already exists')) {
-      logger.error("Error uploading logo to Supabase Storage: " + String(error), { category: LogCategory.ZYPRUS });
+    if (error && !error.message.includes("already exists")) {
+      logger.error(
+        "Error uploading logo to Supabase Storage: " + String(error),
+        { category: LogCategory.ZYPRUS }
+      );
       return null;
     }
 
     // Get public URL
     const { data: urlData } = supabase.storage
-      .from('documents')
+      .from("documents")
       .getPublicUrl(`logos/${filename}`);
 
-    logger.info("Logo URL:" + String(urlData.publicUrl), { category: LogCategory.GENERAL });
+    logger.info("Logo URL:" + String(urlData.publicUrl), {
+      category: LogCategory.GENERAL,
+    });
     return urlData.publicUrl;
   } catch (error) {
-    logger.error("Exception uploading logo to Supabase Storage: " + String(error), { category: LogCategory.ZYPRUS });
+    logger.error(
+      "Exception uploading logo to Supabase Storage: " + String(error),
+      { category: LogCategory.ZYPRUS }
+    );
     return null;
   }
 }
@@ -306,44 +382,59 @@ export async function sendLogoImage(
   const logoUrl = await uploadLogoToStorage(supabase, logoBase64);
 
   if (!logoUrl) {
-    logger.error("Failed to get logo URL", undefined, { category: LogCategory.GENERAL });
-    return new Response(JSON.stringify({ error: "Failed to get logo" }), { status: 500 });
+    logger.error("Failed to get logo URL", undefined, {
+      category: LogCategory.GENERAL,
+    });
+    return new Response(JSON.stringify({ error: "Failed to get logo" }), {
+      status: 500,
+    });
   }
 
-  logger.info("Sending logo via WaSend with URL:" + String(logoUrl), { category: LogCategory.GENERAL });
+  logger.info("Sending logo via WaSend with URL:" + String(logoUrl), {
+    category: LogCategory.GENERAL,
+  });
 
   try {
     const sendRes = await withRetry(
-      () => fetch(sendUrl, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${WASEND_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          to: phoneNumber,
-          text: "Here's the Zyprus Property Group logo!",
-          imageUrl: logoUrl,
+      () =>
+        fetch(sendUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${WASEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            to: phoneNumber,
+            text: "Here's the Zyprus Property Group logo!",
+            imageUrl: logoUrl,
+          }),
         }),
-      }),
       { maxRetries: 2, baseDelayMs: 1000, maxDelayMs: 5000 },
       "wasend-send-logo"
     );
 
     const responseText = await sendRes.text();
-    logger.info("WaSend image response:" + String(responseText), { category: LogCategory.GENERAL });
+    logger.info("WaSend image response:" + String(responseText), {
+      category: LogCategory.GENERAL,
+    });
 
     if (!sendRes.ok) {
-      logger.error("WaSend image send failed: " + String(responseText), { category: LogCategory.GENERAL });
+      logger.error("WaSend image send failed: " + String(responseText), {
+        category: LogCategory.GENERAL,
+      });
     }
 
     return new Response(responseText, {
       status: sendRes.status,
-      headers: sendRes.headers
+      headers: sendRes.headers,
     });
   } catch (error) {
-    logger.error("Error sending logo via WaSend: " + String(error), { category: LogCategory.GENERAL });
-    return new Response(JSON.stringify({ error: String(error) }), { status: 500 });
+    logger.error("Error sending logo via WaSend: " + String(error), {
+      category: LogCategory.GENERAL,
+    });
+    return new Response(JSON.stringify({ error: String(error) }), {
+      status: 500,
+    });
   }
 }
 
@@ -358,14 +449,17 @@ export function formatPhoneNumber(remoteJid: string | null): string | null {
   let number = remoteJid;
 
   // Remove WhatsApp/LID suffixes if present
-  number = number.replace("@s.whatsapp.net", "")
-                 .replace("@c.us", "")
-                 .replace("@lid", "");
+  number = number
+    .replace("@s.whatsapp.net", "")
+    .replace("@c.us", "")
+    .replace("@lid", "");
 
   // If it's a LID (starts with numbers but isn't a phone number format)
   // LIDs are internal WhatsApp identifiers, not usable for sending
   if (number.includes("@") || number.length < 8) {
-    logger.info("Invalid phone format (possibly LID)", { category: LogCategory.GENERAL });
+    logger.info("Invalid phone format (possibly LID)", {
+      category: LogCategory.GENERAL,
+    });
     return null;
   }
 
@@ -380,12 +474,16 @@ export function formatPhoneNumber(remoteJid: string | null): string | null {
       if (digits && digits.length >= 8) {
         number = "+" + digits;
       } else {
-        logger.info("Could not extract valid phone number from input", { category: LogCategory.GENERAL });
+        logger.info("Could not extract valid phone number from input", {
+          category: LogCategory.GENERAL,
+        });
         return null;
       }
     }
   }
 
-  logger.info("Phone number formatted successfully", { category: LogCategory.GENERAL });
+  logger.info("Phone number formatted successfully", {
+    category: LogCategory.GENERAL,
+  });
   return number;
 }

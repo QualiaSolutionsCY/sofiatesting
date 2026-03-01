@@ -15,15 +15,12 @@
  */
 
 import { BASE_PROMPT, getDynamicContext } from "./base.ts";
-import {
-  detectIntent,
-  type TemplateCategory,
-} from "./template-registry.ts";
+import { detectIntent, type TemplateCategory } from "./template-registry.ts";
+import { CLIENT_COMMS_PROMPT } from "./templates/client-comms.ts";
+import { MARKETING_PROMPT } from "./templates/marketing.ts";
+import { PROPERTY_UPLOAD_PROMPT } from "./templates/property-upload.ts";
 import { REGISTRATIONS_PROMPT } from "./templates/registrations.ts";
 import { VIEWING_FORMS_PROMPT } from "./templates/viewing-forms.ts";
-import { MARKETING_PROMPT } from "./templates/marketing.ts";
-import { CLIENT_COMMS_PROMPT } from "./templates/client-comms.ts";
-import { PROPERTY_UPLOAD_PROMPT } from "./templates/property-upload.ts";
 
 /**
  * Map of template categories to their prompt content
@@ -35,8 +32,8 @@ const TEMPLATE_PROMPTS: Record<TemplateCategory, string> = {
   marketing: MARKETING_PROMPT,
   client_comms: CLIENT_COMMS_PROMPT,
   property_upload: PROPERTY_UPLOAD_PROMPT,
-  calculators: '', // Calculator rules are in base prompt
-  knowledge: '', // Knowledge rules are in base prompt
+  calculators: "", // Calculator rules are in base prompt
+  knowledge: "", // Knowledge rules are in base prompt
 };
 
 /**
@@ -57,7 +54,7 @@ export const buildPrompt = (userMessage: string): string => {
   for (const category of categories) {
     const templatePrompt = TEMPLATE_PROMPTS[category];
     if (templatePrompt && !addedCategories.has(templatePrompt)) {
-      prompt += '\n\n' + templatePrompt;
+      prompt += "\n\n" + templatePrompt;
       addedCategories.add(templatePrompt);
     }
   }
@@ -74,14 +71,16 @@ export const buildPrompt = (userMessage: string): string => {
  * @param categories - Array of categories to include
  * @returns Assembled system prompt with specified templates
  */
-export const buildPromptForCategories = (categories: TemplateCategory[]): string => {
+export const buildPromptForCategories = (
+  categories: TemplateCategory[]
+): string => {
   let prompt = BASE_PROMPT;
 
   const addedCategories = new Set<string>();
   for (const category of categories) {
     const templatePrompt = TEMPLATE_PROMPTS[category];
     if (templatePrompt && !addedCategories.has(templatePrompt)) {
-      prompt += '\n\n' + templatePrompt;
+      prompt += "\n\n" + templatePrompt;
       addedCategories.add(templatePrompt);
     }
   }
@@ -102,11 +101,11 @@ export const buildPromptForCategories = (categories: TemplateCategory[]): string
 export const FULL_SYSTEM_PROMPT = (() => {
   let prompt = BASE_PROMPT;
 
-  prompt += '\n\n' + REGISTRATIONS_PROMPT;
-  prompt += '\n\n' + VIEWING_FORMS_PROMPT;
-  prompt += '\n\n' + MARKETING_PROMPT;
-  prompt += '\n\n' + CLIENT_COMMS_PROMPT;
-  prompt += '\n\n' + PROPERTY_UPLOAD_PROMPT;
+  prompt += "\n\n" + REGISTRATIONS_PROMPT;
+  prompt += "\n\n" + VIEWING_FORMS_PROMPT;
+  prompt += "\n\n" + MARKETING_PROMPT;
+  prompt += "\n\n" + CLIENT_COMMS_PROMPT;
+  prompt += "\n\n" + PROPERTY_UPLOAD_PROMPT;
 
   prompt += getDynamicContext();
 
@@ -127,6 +126,6 @@ export const getAvailableCategories = (): TemplateCategory[] => {
   return Object.keys(TEMPLATE_PROMPTS) as TemplateCategory[];
 };
 
+export { getDynamicContext } from "./base.ts";
 // Re-export utilities
 export { detectIntent, type TemplateCategory } from "./template-registry.ts";
-export { getDynamicContext } from "./base.ts";

@@ -11,7 +11,14 @@ import {
   BulkSendInvitesDialog,
 } from "@/components/admin/bulk-action-dialogs";
 
-const ImportAgentsModal = dynamic(() => import("@/components/admin/import-agents-modal").then((mod) => ({ default: mod.ImportAgentsModal })), { ssr: false });
+const ImportAgentsModal = dynamic(
+  () =>
+    import("@/components/admin/import-agents-modal").then((mod) => ({
+      default: mod.ImportAgentsModal,
+    })),
+  { ssr: false }
+);
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {

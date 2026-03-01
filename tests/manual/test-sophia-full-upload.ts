@@ -5,6 +5,7 @@
  * through the sophia-bot Edge Function, testing all the new fields.
  */
 import { config } from "dotenv";
+
 config({ path: ".env.local" });
 
 const SUPABASE_URL = "https://vceeheaxcrhmpqueudqx.supabase.co";
@@ -18,7 +19,7 @@ const AGENT_NAME = "Test Agent";
 const TEST_PROPERTY = {
   listingType: "sale",
   propertyType: "detached house",
-  price: 485000,
+  price: 485_000,
   location: "Tala, Paphos",
   bedrooms: 4,
   bathrooms: 3,
@@ -39,15 +40,16 @@ const TEST_PROPERTY = {
     "covered parking",
     "garden",
     "solar panels",
-    "storage room"
+    "storage room",
   ],
-  specialNotes: "Owner motivated to sell. Accepts offers. Property has unobstructed views.",
+  specialNotes:
+    "Owner motivated to sell. Accepts offers. Property has unobstructed views.",
   imageUrls: [
     "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800",
     "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800",
-    "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800"
+    "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800",
   ],
-  coordinates: { lat: 34.8475, lon: 32.4297 }
+  coordinates: { lat: 34.8475, lon: 32.4297 },
 };
 
 async function testDirectToolCall() {
@@ -55,7 +57,9 @@ async function testDirectToolCall() {
   console.log("TESTING SOPHIA PROPERTY UPLOAD");
   console.log("=".repeat(60));
   console.log("\nProperty Details:");
-  console.log(`- Type: ${TEST_PROPERTY.bedrooms} bed ${TEST_PROPERTY.propertyType}`);
+  console.log(
+    `- Type: ${TEST_PROPERTY.bedrooms} bed ${TEST_PROPERTY.propertyType}`
+  );
   console.log(`- Location: ${TEST_PROPERTY.location}`);
   console.log(`- Price: €${TEST_PROPERTY.price.toLocaleString()}`);
   console.log(`- Features: ${TEST_PROPERTY.features.join(", ")}`);
@@ -68,7 +72,7 @@ async function testDirectToolCall() {
     test_mode: true,
     tool_call: {
       name: "createPropertyListing",
-      arguments: TEST_PROPERTY
+      arguments: TEST_PROPERTY,
     },
     agent_override: {
       phone: AGENT_PHONE,
@@ -77,8 +81,8 @@ async function testDirectToolCall() {
       communicationEmail: "limassol@zyprus.com",
       listingOwnerEmail: "michelle@zyprus.com",
       region: "paphos",
-      role: "agent"
-    }
+      role: "agent",
+    },
   };
 
   console.log("Sending to SOPHIA Edge Function...\n");
@@ -88,10 +92,10 @@ async function testDirectToolCall() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-        "x-test-mode": "true"
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        "x-test-mode": "true",
       },
-      body: JSON.stringify(toolPayload)
+      body: JSON.stringify(toolPayload),
     });
 
     const result = await response.json();
@@ -105,12 +109,16 @@ async function testDirectToolCall() {
       console.log("SUCCESS! Property uploaded.");
       console.log("=".repeat(60));
       console.log(`\nListing ID: ${result.data.listingId}`);
-      console.log(`\nCheck the draft dashboard:`);
-      console.log(`https://dev9.zyprus.com/draft-dashboard?ai_state=draft`);
-      console.log(`\nVerify these NEW fields are populated:`);
+      console.log("\nCheck the draft dashboard:");
+      console.log("https://dev9.zyprus.com/draft-dashboard?ai_state=draft");
+      console.log("\nVerify these NEW fields are populated:");
       console.log(`- field_listing_owner (should be Michelle's UUID)`);
-      console.log(`- field_ai_draft_own_reference_id (should be SOPHIA-YYYYMMDD-...)`);
-      console.log(`- field_property_views (should have Sea View, Mountain View)`);
+      console.log(
+        "- field_ai_draft_own_reference_id (should be SOPHIA-YYYYMMDD-...)"
+      );
+      console.log(
+        "- field_property_views (should have Sea View, Mountain View)"
+      );
     }
   } catch (error) {
     console.error("Error:", error);
@@ -127,7 +135,9 @@ async function testViaZyprusApiDirect() {
   const clientSecret = process.env.ZYPRUS_CLIENT_SECRET;
 
   if (!apiUrl || !clientId || !clientSecret) {
-    console.log("Missing Zyprus credentials in .env.local - skipping direct API test");
+    console.log(
+      "Missing Zyprus credentials in .env.local - skipping direct API test"
+    );
     return;
   }
 
@@ -135,11 +145,14 @@ async function testViaZyprusApiDirect() {
   console.log("\n1. Getting access token...");
   const tokenRes = await fetch(`${apiUrl}/oauth/token`, {
     method: "POST",
-    headers: { "User-Agent": "SophiaAI", "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "User-Agent": "SophiaAI",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
     body: new URLSearchParams({
       grant_type: "client_credentials",
       client_id: clientId,
-      client_secret: clientSecret
+      client_secret: clientSecret,
     }),
   });
 
@@ -153,18 +166,23 @@ async function testViaZyprusApiDirect() {
 
   // Upload test image
   console.log("\n2. Uploading test image...");
-  const imgRes = await fetch("https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800");
+  const imgRes = await fetch(
+    "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800"
+  );
   const imgBlob = await imgRes.blob();
-  const uploadRes = await fetch(`${apiUrl}/jsonapi/node/property/field_gallery_`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${access_token}`,
-      "User-Agent": "SophiaAI",
-      "Content-Type": "application/octet-stream",
-      "Content-Disposition": `file; filename="sophia-test-${Date.now()}.jpg"`,
-    },
-    body: imgBlob,
-  });
+  const uploadRes = await fetch(
+    `${apiUrl}/jsonapi/node/property/field_gallery_`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        "User-Agent": "SophiaAI",
+        "Content-Type": "application/octet-stream",
+        "Content-Disposition": `file; filename="sophia-test-${Date.now()}.jpg"`,
+      },
+      body: imgBlob,
+    }
+  );
 
   if (!uploadRes.ok) {
     console.error("Failed to upload image:", await uploadRes.text());
@@ -210,12 +228,12 @@ Built in 2018 to high specifications, the property includes solar panels for ene
 Located in a quiet residential area yet close to all amenities, this is an ideal family home or investment opportunity.
 
 Contact us today to arrange a viewing.`,
-          format: "plain_text"
+          format: "plain_text",
         },
         field_ai_state: "draft",
         field_ai_generated: true,
         field_negotiable: true,
-        field_price: 485000,
+        field_price: 485_000,
         field_no_bedrooms: 4,
         field_no_bathrooms: 3,
         field_covered_area: 220,
@@ -249,24 +267,41 @@ All details were extracted from WhatsApp conversation.`,
           geo_type: "Point",
           lat: 34.8475,
           lon: 32.4297,
-          latlon: "34.8475,32.4297"
-        }
+          latlon: "34.8475,32.4297",
+        },
       },
       relationships: {
-        field_location: { data: { type: "node--location", id: DEFAULT_LOCATION_ID } },
-        field_property_type: { data: { type: "taxonomy_term--property_type", id: VILLA_TYPE_ID } },
-        field_listing_type: { data: { type: "taxonomy_term--listing_type", id: FOR_SALE_ID } },
-        field_title_deed: { data: { type: "taxonomy_term--title_deed", id: TITLE_DEED_ID } },
-        field_price_modifier: { data: { type: "taxonomy_term--price_modifier", id: PRICE_MODIFIER_ID } },
+        field_location: {
+          data: { type: "node--location", id: DEFAULT_LOCATION_ID },
+        },
+        field_property_type: {
+          data: { type: "taxonomy_term--property_type", id: VILLA_TYPE_ID },
+        },
+        field_listing_type: {
+          data: { type: "taxonomy_term--listing_type", id: FOR_SALE_ID },
+        },
+        field_title_deed: {
+          data: { type: "taxonomy_term--title_deed", id: TITLE_DEED_ID },
+        },
+        field_price_modifier: {
+          data: {
+            type: "taxonomy_term--price_modifier",
+            id: PRICE_MODIFIER_ID,
+          },
+        },
         field_gallery_: { data: [{ type: "file--file", id: imageId }] },
         // Instructor (who requested the upload)
-        field_ai_listing_instructor: { data: { type: "user--user", id: MICHELLE_UUID } },
+        field_ai_listing_instructor: {
+          data: { type: "user--user", id: MICHELLE_UUID },
+        },
         // Reviewers
-        field_ai_listing_reviewer: { data: [
-          { type: "user--user", id: LAUREN_UUID }
-        ]},
+        field_ai_listing_reviewer: {
+          data: [{ type: "user--user", id: LAUREN_UUID }],
+        },
         // NEW FIELD: Listing Owner (the agent who "owns" this listing)
-        field_listing_owner: { data: { type: "user--user", id: MICHELLE_UUID } },
+        field_listing_owner: {
+          data: { type: "user--user", id: MICHELLE_UUID },
+        },
       },
     },
   };
@@ -310,16 +345,18 @@ All details were extracted from WhatsApp conversation.`,
   console.log(`\nNode ID: ${result.data.id}`);
   console.log(`Title: ${result.data.attributes.title}`);
   console.log(`AI State: ${result.data.attributes.field_ai_state}`);
-  console.log(`Draft Reference: ${result.data.attributes.field_ai_draft_own_reference_id || "(check dashboard)"}`);
+  console.log(
+    `Draft Reference: ${result.data.attributes.field_ai_draft_own_reference_id || "(check dashboard)"}`
+  );
 
-  console.log(`\n👉 Check the draft dashboard:`);
-  console.log(`   https://dev9.zyprus.com/draft-dashboard?ai_state=draft`);
+  console.log("\n👉 Check the draft dashboard:");
+  console.log("   https://dev9.zyprus.com/draft-dashboard?ai_state=draft");
 
-  console.log(`\n📋 Verify these fields in the listing:`);
-  console.log(`   - field_listing_owner: Should show Michelle`);
+  console.log("\n📋 Verify these fields in the listing:");
+  console.log("   - field_listing_owner: Should show Michelle");
   console.log(`   - field_ai_draft_own_reference_id: ${draftRefId}`);
-  console.log(`   - field_my_notes: Should show owner contact details`);
-  console.log(`   - field_ai_assistant_notes: Should show AI summary`);
+  console.log("   - field_my_notes: Should show owner contact details");
+  console.log("   - field_ai_assistant_notes: Should show AI summary");
 }
 
 // Run tests

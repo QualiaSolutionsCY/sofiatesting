@@ -39,7 +39,8 @@ async function getVersionHistory(key: string) {
     id: v.id,
     version: v.version,
     contentSize: v.content?.length || 0,
-    contentPreview: v.content?.substring(0, 200) + (v.content?.length > 200 ? "..." : ""),
+    contentPreview:
+      v.content?.substring(0, 200) + (v.content?.length > 200 ? "..." : ""),
     isActive: v.is_active,
     isCurrent: v.is_current,
     updatedAt: v.updated_at,

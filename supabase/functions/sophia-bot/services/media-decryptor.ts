@@ -6,7 +6,7 @@
  * to get a public URL that can be used in property listings.
  */
 
-import { logger, LogCategory } from "../utils/logger.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
 
 const WASEND_API_KEY = Deno.env.get("WASEND_API_KEY") || "";
 const DECRYPT_ENDPOINT = "https://www.wasenderapi.com/api/decrypt-media";
@@ -38,7 +38,9 @@ export async function decryptWhatsAppImage(
   imageData: ImageMessageData
 ): Promise<string | null> {
   if (!WASEND_API_KEY) {
-    logger.error("[MediaDecryptor] WASEND_API_KEY not set", undefined, { category: LogCategory.IMAGE });
+    logger.error("[MediaDecryptor] WASEND_API_KEY not set", undefined, {
+      category: LogCategory.IMAGE,
+    });
     return null;
   }
 
@@ -52,8 +54,13 @@ export async function decryptWhatsAppImage(
     return null;
   }
 
-  logger.debug(`[MediaDecryptor] Decrypting image for message ${messageId}`, { category: LogCategory.IMAGE });
-  logger.debug(`[MediaDecryptor] Encrypted URL: ${imageData.url.substring(0, 80)}...`, { category: LogCategory.IMAGE });
+  logger.debug(`[MediaDecryptor] Decrypting image for message ${messageId}`, {
+    category: LogCategory.IMAGE,
+  });
+  logger.debug(
+    `[MediaDecryptor] Encrypted URL: ${imageData.url.substring(0, 80)}...`,
+    { category: LogCategory.IMAGE }
+  );
 
   try {
     const requestBody = {
@@ -79,32 +86,51 @@ export async function decryptWhatsAppImage(
     const response = await fetch(DECRYPT_ENDPOINT, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${WASEND_API_KEY}`,
+        Authorization: `Bearer ${WASEND_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(requestBody),
     });
 
     const responseText = await response.text();
-    logger.debug(`[MediaDecryptor] Response status: ${response.status}`, { category: LogCategory.IMAGE });
-    logger.debug(`[MediaDecryptor] Response: ${responseText.substring(0, 200)}`, { category: LogCategory.IMAGE });
+    logger.debug(`[MediaDecryptor] Response status: ${response.status}`, {
+      category: LogCategory.IMAGE,
+    });
+    logger.debug(
+      `[MediaDecryptor] Response: ${responseText.substring(0, 200)}`,
+      { category: LogCategory.IMAGE }
+    );
 
     if (!response.ok) {
-      logger.error(`[MediaDecryptor] API error: ${response.status}`, new Error(responseText), { category: LogCategory.IMAGE });
+      logger.error(
+        `[MediaDecryptor] API error: ${response.status}`,
+        new Error(responseText),
+        { category: LogCategory.IMAGE }
+      );
       return null;
     }
 
     const result: DecryptResponse = JSON.parse(responseText);
 
     if (result.success && result.publicUrl) {
-      logger.debug(`[MediaDecryptor] Successfully decrypted! Public URL: ${result.publicUrl.substring(0, 80)}...`, { category: LogCategory.IMAGE });
+      logger.debug(
+        `[MediaDecryptor] Successfully decrypted! Public URL: ${result.publicUrl.substring(0, 80)}...`,
+        { category: LogCategory.IMAGE }
+      );
       return result.publicUrl;
-    } else {
-      logger.error(`[MediaDecryptor] Decryption failed`, new Error(result.error || "Unknown error"), { category: LogCategory.IMAGE });
-      return null;
     }
+    logger.error(
+      "[MediaDecryptor] Decryption failed",
+      new Error(result.error || "Unknown error"),
+      { category: LogCategory.IMAGE }
+    );
+    return null;
   } catch (error) {
-    logger.error("[MediaDecryptor] Error decrypting image", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.IMAGE });
+    logger.error(
+      "[MediaDecryptor] Error decrypting image",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.IMAGE }
+    );
     return null;
   }
 }

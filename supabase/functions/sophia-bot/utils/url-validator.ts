@@ -10,7 +10,7 @@
  * @see https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html
  */
 
-import { logger, LogCategory } from "./logger.ts";
+import { LogCategory, logger } from "./logger.ts";
 
 /**
  * Domains allowed for external URL fetching
@@ -169,10 +169,14 @@ export const validateExternalUrl = (url: string): UrlValidationResult => {
     if (isIpAddress(hostname)) {
       // Check if it's a private/internal IP
       if (isBlockedIp(hostname)) {
-        logger.error("[URL Validator] SSRF ATTACK BLOCKED: private IP range", undefined, {
-          category: LogCategory.GENERAL,
-          hostname,
-        });
+        logger.error(
+          "[URL Validator] SSRF ATTACK BLOCKED: private IP range",
+          undefined,
+          {
+            category: LogCategory.GENERAL,
+            hostname,
+          }
+        );
         return {
           valid: false,
           error: "Access to private networks is not allowed",
@@ -331,10 +335,14 @@ export const validateImageUrl = (url: string): UrlValidationResult => {
 
     // 3. Block private IP ranges (SSRF prevention)
     if (isIpAddress(hostname) && isBlockedIp(hostname)) {
-      logger.error("[URL Validator] SSRF blocked for image: private IP", undefined, {
-        category: LogCategory.IMAGE,
-        hostname,
-      });
+      logger.error(
+        "[URL Validator] SSRF blocked for image: private IP",
+        undefined,
+        {
+          category: LogCategory.IMAGE,
+          hostname,
+        }
+      );
       return {
         valid: false,
         error: "Access to private networks is not allowed",

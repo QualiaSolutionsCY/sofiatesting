@@ -707,7 +707,9 @@ export const supabaseTelegramGroup = pgTable("telegram_groups", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export type SupabaseTelegramGroup = InferSelectModel<typeof supabaseTelegramGroup>;
+export type SupabaseTelegramGroup = InferSelectModel<
+  typeof supabaseTelegramGroup
+>;
 
 export const supabaseTelegramLead = pgTable("telegram_leads", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -719,7 +721,9 @@ export const supabaseTelegramLead = pgTable("telegram_leads", {
   senderName: text("sender_name"),
   propertyReferenceId: text("property_reference_id"),
   propertyRegion: text("property_region"),
-  forwardedToAgentId: uuid("forwarded_to_agent_id").references(() => supabaseAgent.id),
+  forwardedToAgentId: uuid("forwarded_to_agent_id").references(
+    () => supabaseAgent.id
+  ),
   forwardedToTelegramId: bigint("forwarded_to_telegram_id", { mode: "number" }),
   forwardedMessageId: bigint("forwarded_message_id", { mode: "number" }),
   groupAckMessageId: bigint("group_ack_message_id", { mode: "number" }),
@@ -728,7 +732,9 @@ export const supabaseTelegramLead = pgTable("telegram_leads", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export type SupabaseTelegramLead = InferSelectModel<typeof supabaseTelegramLead>;
+export type SupabaseTelegramLead = InferSelectModel<
+  typeof supabaseTelegramLead
+>;
 
 // Telegram group message index (for phone number search)
 export const supabaseTelegramGroupMessage = pgTable("telegram_group_messages", {
@@ -743,16 +749,25 @@ export const supabaseTelegramGroupMessage = pgTable("telegram_group_messages", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export type SupabaseTelegramGroupMessage = InferSelectModel<typeof supabaseTelegramGroupMessage>;
+export type SupabaseTelegramGroupMessage = InferSelectModel<
+  typeof supabaseTelegramGroupMessage
+>;
 
-export const supabaseLeadForwardingRotation = pgTable("lead_forwarding_rotation", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  region: text("region").notNull(),
-  lastForwardedToAgentId: uuid("last_forwarded_to_agent_id").references(() => supabaseAgent.id),
-  forwardCount: integer("forward_count").default(0),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+export const supabaseLeadForwardingRotation = pgTable(
+  "lead_forwarding_rotation",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    region: text("region").notNull(),
+    lastForwardedToAgentId: uuid("last_forwarded_to_agent_id").references(
+      () => supabaseAgent.id
+    ),
+    forwardCount: integer("forward_count").default(0),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  }
+);
 
-export type SupabaseLeadForwardingRotation = InferSelectModel<typeof supabaseLeadForwardingRotation>;
+export type SupabaseLeadForwardingRotation = InferSelectModel<
+  typeof supabaseLeadForwardingRotation
+>;
 
 export type { InferInsertModel } from "drizzle-orm";

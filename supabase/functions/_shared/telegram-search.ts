@@ -8,8 +8,8 @@
  * Phase 12, Plan 01
  */
 
+import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
 import { getSupabaseAdmin } from "./db.ts";
-import { logger, LogCategory } from "../sophia-bot/utils/logger.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,10 +29,10 @@ export interface SearchResult {
 
 // TODO: Get actual group chat IDs from Fawzi
 export const REGIONAL_GROUP_IDS: Record<string, number> = {
-  paphos: 0,    // Replace with actual Paphos group chat ID
-  limassol: 0,  // Replace with actual Limassol group chat ID
-  larnaca: 0,   // Replace with actual Larnaca group chat ID
-  nicosia: 0,   // Replace with actual Nicosia group chat ID
+  paphos: 0, // Replace with actual Paphos group chat ID
+  limassol: 0, // Replace with actual Limassol group chat ID
+  larnaca: 0, // Replace with actual Larnaca group chat ID
+  nicosia: 0, // Replace with actual Nicosia group chat ID
 };
 
 export const ZYPRESS_OTHERS_CHAT_ID = 0; // Replace with actual "Zypress Others" group chat ID
@@ -53,7 +53,7 @@ export const VASYA_TELEGRAM_USER_ID = 0; // Replace with actual Vasya's Telegram
  */
 export function normalizePhoneForSearch(phone: string): string[] {
   // Strip spaces, dashes, parentheses
-  let cleaned = phone.replace(/[\s\-\(\)]/g, "");
+  const cleaned = phone.replace(/[\s\-()]/g, "");
 
   const variants: Set<string> = new Set();
 
@@ -83,7 +83,12 @@ export function normalizePhoneForSearch(phone: string): string[] {
   }
 
   // If starts with 357 (no + or 00), also add local part
-  if (cleaned.startsWith("357") && !cleaned.startsWith("+") && !cleaned.startsWith("00") && cleaned.length > 3) {
+  if (
+    cleaned.startsWith("357") &&
+    !cleaned.startsWith("+") &&
+    !cleaned.startsWith("00") &&
+    cleaned.length > 3
+  ) {
     variants.add(cleaned.slice(3));
   }
 
@@ -105,12 +110,12 @@ export function normalizePhoneForSearch(phone: string): string[] {
  */
 export async function searchPhoneInGroups(
   phoneNumber: string,
-  groupChatIds: number[],
+  groupChatIds: number[]
 ): Promise<SearchResult[]> {
   // Guard: fail loudly if any group ID is the placeholder value
   if (groupChatIds.some((id) => id === 0)) {
     throw new Error(
-      "Unconfigured group chat ID (0) detected \u2014 configure REGIONAL_GROUP_IDS before use",
+      "Unconfigured group chat ID (0) detected \u2014 configure REGIONAL_GROUP_IDS before use"
     );
   }
 
@@ -127,7 +132,9 @@ export async function searchPhoneInGroups(
 
     const { data, error } = await supabase
       .from("telegram_group_messages")
-      .select("group_name, group_chat_id, message_date, sender_name, message_text")
+      .select(
+        "group_name, group_chat_id, message_date, sender_name, message_text"
+      )
       .in("group_chat_id", groupChatIds)
       .or(orFilter)
       .order("message_date", { ascending: false })
@@ -153,7 +160,7 @@ export async function searchPhoneInGroups(
     logger.error(
       "Exception searching group messages",
       error instanceof Error ? error : new Error(String(error)),
-      { category: LogCategory.DATABASE, operation: "searchPhoneInGroups" },
+      { category: LogCategory.DATABASE, operation: "searchPhoneInGroups" }
     );
     return [];
   }

@@ -4,8 +4,10 @@
  * This test simulates a WhatsApp webhook message to SOPHIA
  * to trigger a full property upload flow.
  */
-import { config } from "dotenv";
+
 import crypto from "crypto";
+import { config } from "dotenv";
+
 config({ path: ".env.local" });
 
 const SUPABASE_URL = "https://vceeheaxcrhmpqueudqx.supabase.co";
@@ -68,15 +70,15 @@ async function sendWebhookMessage(message: string, phoneNumber: string) {
         key: {
           remoteJid: `${phoneNumber}@s.whatsapp.net`,
           fromMe: false,
-          id: `TEST_${Date.now()}`
+          id: `TEST_${Date.now()}`,
         },
         pushName: "Test Agent",
         message: {
-          conversation: message
+          conversation: message,
         },
-        messageTimestamp: Math.floor(Date.now() / 1000)
-      }
-    }
+        messageTimestamp: Math.floor(Date.now() / 1000),
+      },
+    },
   };
 
   const payloadString = JSON.stringify(webhookPayload);
@@ -93,7 +95,7 @@ async function sendWebhookMessage(message: string, phoneNumber: string) {
         "Content-Type": "application/json",
         "x-wasend-signature": signature,
       },
-      body: payloadString
+      body: payloadString,
     });
 
     const responseText = await response.text();

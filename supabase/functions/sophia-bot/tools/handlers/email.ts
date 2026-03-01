@@ -3,9 +3,9 @@
  * Handles sending emails via Resend API
  */
 
-import { Agent } from "../../agents/identifier.ts";
-import { logger, LogCategory } from "../../utils/logger.ts";
 import { getLastDocument } from "../../../_shared/db.ts";
+import type { Agent } from "../../agents/identifier.ts";
+import { LogCategory, logger } from "../../utils/logger.ts";
 
 export interface ToolResult {
   success?: boolean;
@@ -32,10 +32,13 @@ export async function handleSendEmail(
       category: LogCategory.TOOL,
       operation: "sendEmail",
     });
-    return { error: "Unable to send email - agent email not found. Please contact support." };
+    return {
+      error:
+        "Unable to send email - agent email not found. Please contact support.",
+    };
   }
 
-  const to = agent.communicationEmail;  // Force use of agent's registered email
+  const to = agent.communicationEmail; // Force use of agent's registered email
   const subject = String(args.subject || "");
   const body = String(args.body || "");
   let attachmentUrl = args.attachmentUrl as string | undefined;
@@ -64,7 +67,7 @@ export async function handleSendEmail(
             operation: "sendEmail",
             documentName: lastDoc.document_name,
             documentType: lastDoc.document_type,
-            ageMinutes: Math.round(docAge / 60000),
+            ageMinutes: Math.round(docAge / 60_000),
           });
           attachmentUrl = lastDoc.document_url;
           attachmentName = lastDoc.document_name;
@@ -73,7 +76,7 @@ export async function handleSendEmail(
           logger.info("Last document too old, not auto-attaching", {
             category: LogCategory.TOOL,
             operation: "sendEmail",
-            ageMinutes: Math.round(docAge / 60000),
+            ageMinutes: Math.round(docAge / 60_000),
           });
         }
       }
@@ -126,7 +129,9 @@ export async function handleSendEmail(
     from: "SOPHIA <sophia@zyprus.com>",
     to: [to],
     subject,
-    html: body.replace(/\*([^*]+)\*/g, "<strong>$1</strong>").replace(/\n/g, "<br>"),
+    html: body
+      .replace(/\*([^*]+)\*/g, "<strong>$1</strong>")
+      .replace(/\n/g, "<br>"),
     text: body.replace(/\*([^*]+)\*/g, "$1"),
   };
 
@@ -145,24 +150,31 @@ export async function handleSendEmail(
           operation: "sendEmail",
           status: attachmentResponse.status,
         });
-        return { error: `Failed to fetch attachment from URL: ${attachmentResponse.status}` };
+        return {
+          error: `Failed to fetch attachment from URL: ${attachmentResponse.status}`,
+        };
       }
       const attachmentBuffer = await attachmentResponse.arrayBuffer();
       const attachmentBase64 = btoa(
         String.fromCharCode(...new Uint8Array(attachmentBuffer))
       );
 
-      emailPayload.attachments = [{
-        filename: attachmentName || "attachment.docx",
-        content: attachmentBase64,
-      }];
+      emailPayload.attachments = [
+        {
+          filename: attachmentName || "attachment.docx",
+          content: attachmentBase64,
+        },
+      ];
       logger.info("Attachment prepared for email", {
         category: LogCategory.TOOL,
         operation: "sendEmail",
         filename: attachmentName || "attachment.docx",
       });
     } catch (attachError) {
-      const err = attachError instanceof Error ? attachError : new Error(String(attachError));
+      const err =
+        attachError instanceof Error
+          ? attachError
+          : new Error(String(attachError));
       logger.error("Error fetching email attachment", err, {
         category: LogCategory.TOOL,
         operation: "sendEmail",
@@ -180,7 +192,7 @@ export async function handleSendEmail(
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${resendApiKey}`,
+        Authorization: `Bearer ${resendApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(emailPayload),
@@ -225,9 +237,14 @@ export async function handleSendEmail(
 
     return {
       success: true,
-      message: `✅ Sent to your email\n\nSubject: ${subject}` +
+      message:
+        `✅ Sent to your email\n\nSubject: ${subject}` +
         (attachmentName ? `\nAttachment: ${attachmentName}` : ""),
-      data: { emailId: result.id, subject, attachedDocument: attachedFromLastDocument ? attachmentName : undefined },
+      data: {
+        emailId: result.id,
+        subject,
+        attachedDocument: attachedFromLastDocument ? attachmentName : undefined,
+      },
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));

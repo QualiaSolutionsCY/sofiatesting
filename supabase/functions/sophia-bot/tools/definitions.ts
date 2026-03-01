@@ -37,8 +37,21 @@ export const TOOLS: ToolDefinition[] = [
           },
           propertyType: {
             type: "string",
-            enum: ["apartment", "house", "detached house", "villa", "maisonette", "bungalow", "penthouse", "townhouse", "studio", "semi-detached", "residential building"],
-            description: "The type of property (use 'detached house' for standalone houses, 'semi-detached' for joined houses, 'residential building' for multi-unit buildings)",
+            enum: [
+              "apartment",
+              "house",
+              "detached house",
+              "villa",
+              "maisonette",
+              "bungalow",
+              "penthouse",
+              "townhouse",
+              "studio",
+              "semi-detached",
+              "residential building",
+            ],
+            description:
+              "The type of property (use 'detached house' for standalone houses, 'semi-detached' for joined houses, 'residential building' for multi-unit buildings)",
           },
           price: {
             type: "number",
@@ -46,7 +59,8 @@ export const TOOLS: ToolDefinition[] = [
           },
           location: {
             type: "string",
-            description: "The specific area/neighborhood EXACTLY as the agent stated it, plus the district. MUST include district (Paphos, Limassol, Larnaca, Nicosia, Famagusta). Example: agent says 'Mesa Geitonia' → pass 'Mesa Geitonia, Limassol'. ⛔ CRITICAL: NEVER extract location names from Google Maps URLs — the /place/ path often contains STREET ADDRESSES (e.g., 'Michali Sougioul 21') which are NOT valid area names. If agent only provides a Google Maps URL without stating the area, you MUST ASK: 'What is the area/neighborhood name?' ALWAYS pass the Google Maps URL separately as locationUrl.",
+            description:
+              "The specific area/neighborhood EXACTLY as the agent stated it, plus the district. MUST include district (Paphos, Limassol, Larnaca, Nicosia, Famagusta). Example: agent says 'Mesa Geitonia' → pass 'Mesa Geitonia, Limassol'. ⛔ CRITICAL: NEVER extract location names from Google Maps URLs — the /place/ path often contains STREET ADDRESSES (e.g., 'Michali Sougioul 21') which are NOT valid area names. If agent only provides a Google Maps URL without stating the area, you MUST ASK: 'What is the area/neighborhood name?' ALWAYS pass the Google Maps URL separately as locationUrl.",
           },
           bedrooms: {
             type: "integer",
@@ -66,7 +80,8 @@ export const TOOLS: ToolDefinition[] = [
           },
           coveredVeranda: {
             type: "number",
-            description: "Covered veranda area in square meters. ALWAYS include when user mentions veranda/balcony size - this is used in the listing title.",
+            description:
+              "Covered veranda area in square meters. ALWAYS include when user mentions veranda/balcony size - this is used in the listing title.",
           },
           uncoveredVeranda: {
             type: "number",
@@ -86,40 +101,66 @@ export const TOOLS: ToolDefinition[] = [
           },
           titleDeedStatus: {
             type: "string",
-            enum: ["separate", "final_approval", "in_process", "pending", "share_of_land", "permits_only", "unknown", "do_not_display"],
-            description: "Status of the title deeds: separate (full title deeds), final_approval, in_process (title deeds currently being issued / in the process of issuance — use when agent says 'being issued', 'in process', 'issuance process'), pending (applied but not yet in process), share_of_land (shared ownership of land), permits_only (NO title deeds — only building/planning permits exist. Use when agent says 'permits only', 'no title deeds only permits', 'building permit only'), unknown, do_not_display (agent explicitly asked to NOT show deed status)",
+            enum: [
+              "separate",
+              "final_approval",
+              "in_process",
+              "pending",
+              "share_of_land",
+              "permits_only",
+              "unknown",
+              "do_not_display",
+            ],
+            description:
+              "Status of the title deeds: separate (full title deeds), final_approval, in_process (title deeds currently being issued / in the process of issuance — use when agent says 'being issued', 'in process', 'issuance process'), pending (applied but not yet in process), share_of_land (shared ownership of land), permits_only (NO title deeds — only building/planning permits exist. Use when agent says 'permits only', 'no title deeds only permits', 'building permit only'), unknown, do_not_display (agent explicitly asked to NOT show deed status)",
           },
           priceNegotiable: {
             type: "boolean",
-            description: "Whether the price is negotiable. Default is TRUE (negotiable) unless agent explicitly says 'non-negotiable' or 'fixed price'",
+            description:
+              "Whether the price is negotiable. Default is TRUE (negotiable) unless agent explicitly says 'non-negotiable' or 'fixed price'",
           },
           isNewBuild: {
             type: "boolean",
-            description: "Whether this is a new build property. Set to true if agent mentions 'new build', 'brand new', 'newly built', or year built is recent (within last 2-3 years)",
+            description:
+              "Whether this is a new build property. Set to true if agent mentions 'new build', 'brand new', 'newly built', or year built is recent (within last 2-3 years)",
           },
           parkingType: {
             type: "string",
             enum: ["covered", "open", "garage", "carport", "none"],
-            description: "Type of parking available. Ask agent to specify: covered parking, open parking, garage, carport, or none",
+            description:
+              "Type of parking available. Ask agent to specify: covered parking, open parking, garage, carport, or none",
           },
           condition: {
             type: "string",
             enum: ["new", "excellent", "good", "fair", "needs_renovation"],
-            description: "Property condition. Set based on agent description: 'brand new'→new, 'perfect/excellent condition'→excellent, 'good condition'→good, 'needs work/renovation'→needs_renovation",
+            description:
+              "Property condition. Set based on agent description: 'brand new'→new, 'perfect/excellent condition'→excellent, 'good condition'→good, 'needs work/renovation'→needs_renovation",
           },
           orientation: {
             type: "string",
-            enum: ["north", "south", "east", "west", "northeast", "northwest", "southeast", "southwest"],
-            description: "Compass orientation of the property (which direction it faces)",
+            enum: [
+              "north",
+              "south",
+              "east",
+              "west",
+              "northeast",
+              "northwest",
+              "southeast",
+              "southwest",
+            ],
+            description:
+              "Compass orientation of the property (which direction it faces)",
           },
           priceModifier: {
             type: "string",
             enum: ["no_vat", "plus_vat", "vat_included"],
-            description: "VAT status of the price. Default 'no_vat' for resale properties. Use 'plus_vat' if price is before VAT, 'vat_included' if VAT is already in the price. Only relevant for new builds.",
+            description:
+              "VAT status of the price. Default 'no_vat' for resale properties. Use 'plus_vat' if price is before VAT, 'vat_included' if VAT is already in the price. Only relevant for new builds.",
           },
           registrationNumber: {
             type: "string",
-            description: "Property registration number from title deed (e.g., 0/1234)",
+            description:
+              "Property registration number from title deed (e.g., 0/1234)",
           },
           imageUrls: {
             type: "array",
@@ -129,49 +170,59 @@ export const TOOLS: ToolDefinition[] = [
           floorPlanUrls: {
             type: "array",
             items: { type: "string" },
-            description: "Array of floor plan image URLs (separate from property photos). These are uploaded to a dedicated floor plan field on the listing.",
+            description:
+              "Array of floor plan image URLs (separate from property photos). These are uploaded to a dedicated floor plan field on the listing.",
           },
           titleDeedFileUrls: {
             type: "array",
             items: { type: "string" },
-            description: "Array of title deed document URLs (PDF or scanned image of title deeds). When agent sends a document attachment during property upload, pass the URL here. These are uploaded to the title deed documents field on the listing.",
+            description:
+              "Array of title deed document URLs (PDF or scanned image of title deeds). When agent sends a document attachment during property upload, pass the URL here. These are uploaded to the title deed documents field on the listing.",
           },
           titleDeedImageIndices: {
             type: "array",
             items: { type: "integer" },
-            description: "1-based indices of photos that are title deed images (not property photos). Example: if photo #3 is a title deed, pass [3]. These images will be moved from gallery to title deed documents field.",
+            description:
+              "1-based indices of photos that are title deed images (not property photos). Example: if photo #3 is a title deed, pass [3]. These images will be moved from gallery to title deed documents field.",
           },
           floorPlanImageIndices: {
             type: "array",
             items: { type: "integer" },
-            description: "1-based indices of photos that are floor plans. Example: if photo #4 is a floor plan, pass [4]. These images will be placed as the LAST photos in the gallery AND also added to the dedicated floor plan section.",
+            description:
+              "1-based indices of photos that are floor plans. Example: if photo #4 is a floor plan, pass [4]. These images will be placed as the LAST photos in the gallery AND also added to the dedicated floor plan section.",
           },
           imageOrder: {
             type: "array",
             items: { type: "integer" },
-            description: "Reordered 1-based photo indices for the gallery. Correct order: exterior shots first, then living areas, kitchen, additional rooms, bedrooms, bathrooms, floor plans last. Example: if agent says photos 5,6 are exterior, 1 is living room, 3 is kitchen, 2,4 are bedrooms, 7 is bathroom → pass [5, 6, 1, 3, 2, 4, 7]. Only pass this if the agent provides photo classifications.",
+            description:
+              "Reordered 1-based photo indices for the gallery. Correct order: exterior shots first, then living areas, kitchen, additional rooms, bedrooms, bathrooms, floor plans last. Example: if agent says photos 5,6 are exterior, 1 is living room, 3 is kitchen, 2,4 are bedrooms, 7 is bathroom → pass [5, 6, 1, 3, 2, 4, 7]. Only pass this if the agent provides photo classifications.",
           },
           mainPhotoIndex: {
             type: "integer",
-            description: "1-based index of the photo that should be FIRST in the gallery (the main listing image). Use this when the agent says 'photo X is the best exterior shot' or 'start with photo X'. This is simpler than imageOrder — just pass the single photo number and the system moves it to position 1. Example: agent says 'photo 3 is the best exterior' → pass mainPhotoIndex: 3. If you also pass imageOrder, imageOrder takes precedence.",
+            description:
+              "1-based index of the photo that should be FIRST in the gallery (the main listing image). Use this when the agent says 'photo X is the best exterior shot' or 'start with photo X'. This is simpler than imageOrder — just pass the single photo number and the system moves it to position 1. Example: agent says 'photo 3 is the best exterior' → pass mainPhotoIndex: 3. If you also pass imageOrder, imageOrder takes precedence.",
           },
           unitBreakdown: {
             type: "string",
-            description: "For residential buildings / multi-unit properties: describes the unit breakdown. Format with NEWLINES between lines and BLANK LINES between unit groups. Example:\n4 x 2 Bedroom Units\n83m2 - 84m2 of Net Indoor area each\n21m2 - 26m2 of Covered Veranda each\n\n2 x 3 Bedroom Penthouse\n98m2 - 100m2 of Net Indoor area each\n19m2 - 24m2 of Covered Veranda each\n31m2 - 32m2 of Roof Garden area each",
+            description:
+              "For residential buildings / multi-unit properties: describes the unit breakdown. Format with NEWLINES between lines and BLANK LINES between unit groups. Example:\n4 x 2 Bedroom Units\n83m2 - 84m2 of Net Indoor area each\n21m2 - 26m2 of Covered Veranda each\n\n2 x 3 Bedroom Penthouse\n98m2 - 100m2 of Net Indoor area each\n19m2 - 24m2 of Covered Veranda each\n31m2 - 32m2 of Roof Garden area each",
           },
           poolType: {
             type: "string",
             enum: ["private", "communal", "provisions"],
-            description: "Type of swimming pool. 'private' = private pool on the property. 'communal' = shared pool in the complex/building. 'provisions' = plumbing/infrastructure ready to ADD a pool but NO pool exists yet. CRITICAL: 'provisions' means there is NO pool — do NOT list pool as a feature.",
+            description:
+              "Type of swimming pool. 'private' = private pool on the property. 'communal' = shared pool in the complex/building. 'provisions' = plumbing/infrastructure ready to ADD a pool but NO pool exists yet. CRITICAL: 'provisions' means there is NO pool — do NOT list pool as a feature.",
           },
           features: {
             type: "array",
             items: { type: "string" },
-            description: "Property features. Include: INDOOR (fitted kitchen, air conditioning, central heating, underfloor heating, fireplace, storage room, elevator, furnished, electrical appliances), OUTDOOR (garden, BBQ area, covered parking, open parking, garage, solar system, water heater), VIEWS (sea view, mountain view, city view). Do NOT include pool in features — use poolType field instead.",
+            description:
+              "Property features. Include: INDOOR (fitted kitchen, air conditioning, central heating, underfloor heating, fireplace, storage room, elevator, furnished, electrical appliances), OUTDOOR (garden, BBQ area, covered parking, open parking, garage, solar system, water heater), VIEWS (sea view, mountain view, city view). Do NOT include pool in features — use poolType field instead.",
           },
           energyClass: {
             type: "string",
-            description: "Energy performance rating (e.g., 'A', 'B', 'C', 'D'). Goes to the dedicated Energy Class field ONLY — do NOT include energy class in description or features array.",
+            description:
+              "Energy performance rating (e.g., 'A', 'B', 'C', 'D'). Goes to the dedicated Energy Class field ONLY — do NOT include energy class in description or features array.",
           },
           yearBuilt: {
             type: "integer",
@@ -179,7 +230,8 @@ export const TOOLS: ToolDefinition[] = [
           },
           yearRenovated: {
             type: "integer",
-            description: "Year the property was last renovated. Capture when agent mentions renovation (e.g., 'renovated in 2025', 'recently renovated'). A recently renovated property is a major selling point.",
+            description:
+              "Year the property was last renovated. Capture when agent mentions renovation (e.g., 'renovated in 2025', 'recently renovated'). A recently renovated property is a major selling point.",
           },
           floor: {
             type: "string",
@@ -187,43 +239,60 @@ export const TOOLS: ToolDefinition[] = [
           },
           basementRooms: {
             type: "integer",
-            description: "Number of bedrooms/rooms in the basement (e.g., if agent says '5 bedrooms plus 1 in the basement', pass bedrooms=5 and basementRooms=1). These will be shown as '5 Bedrooms + 1 Basement Bedroom' in the description.",
+            description:
+              "Number of bedrooms/rooms in the basement (e.g., if agent says '5 bedrooms plus 1 in the basement', pass bedrooms=5 and basementRooms=1). These will be shown as '5 Bedrooms + 1 Basement Bedroom' in the description.",
           },
           roofRooms: {
             type: "integer",
-            description: "Number of rooms on the roof garden (e.g., if agent says '3 bedrooms + 1 room on the roof garden', pass bedrooms=3 and roofRooms=1). These will be shown as '3+1 Bedroom Penthouse' in the title and '3 Bedrooms + 1 Roof Garden Room' in the description. Use for penthouses with extra rooms on the roof level.",
+            description:
+              "Number of rooms on the roof garden (e.g., if agent says '3 bedrooms + 1 room on the roof garden', pass bedrooms=3 and roofRooms=1). These will be shown as '3+1 Bedroom Penthouse' in the title and '3 Bedrooms + 1 Roof Garden Room' in the description. Use for penthouses with extra rooms on the roof level.",
           },
           assignTo: {
             type: "string",
-            description: "For management only: email of agent to assign as listing owner. CRITICAL: If the user says 'assign to [name]' or 'assign to [email]', extract the email and pass it here. Check the agent name-to-email mapping in your instructions. If user provides the email directly (e.g., 'danae@zyprus.com'), use it as-is.",
+            description:
+              "For management only: email of agent to assign as listing owner. CRITICAL: If the user says 'assign to [name]' or 'assign to [email]', extract the email and pass it here. Check the agent name-to-email mapping in your instructions. If user provides the email directly (e.g., 'danae@zyprus.com'), use it as-is.",
           },
           buildingName: {
             type: "string",
-            description: "Name of the building/complex (e.g., 'Flow Residence', 'Kings Tower'). Added to the Reference ID for quick identification. Capture when the agent mentions a building or complex name.",
+            description:
+              "Name of the building/complex (e.g., 'Flow Residence', 'Kings Tower'). Added to the Reference ID for quick identification. Capture when the agent mentions a building or complex name.",
           },
           specialNotes: {
             type: "string",
-            description: "Any special notes from the owner or agent. Include ALL agent notes verbatim, especially: multi-structure info (e.g., 'main house + separate bungalow'), title deed details, provisions info, and anything else the reviewer needs to know.",
+            description:
+              "Any special notes from the owner or agent. Include ALL agent notes verbatim, especially: multi-structure info (e.g., 'main house + separate bungalow'), title deed details, provisions info, and anything else the reviewer needs to know.",
           },
           structureDescription: {
             type: "string",
-            description: "For multi-structure properties ONLY. Describe the full property structure for the listing description. Example: 'a 3-bedroom main house and a separate 2-bedroom bungalow/maid\\'s quarters'. This text appears in the description body. ALWAYS use when the property has multiple buildings/structures (house+bungalow, villa+guest house, etc.).",
+            description:
+              "For multi-structure properties ONLY. Describe the full property structure for the listing description. Example: 'a 3-bedroom main house and a separate 2-bedroom bungalow/maid\\'s quarters'. This text appears in the description body. ALWAYS use when the property has multiple buildings/structures (house+bungalow, villa+guest house, etc.).",
           },
           areaDescription: {
             type: "string",
-            description: "Description of the area/neighborhood for the listing. IMPORTANT: When user provides a Google Maps link, analyze the location and describe what is specifically nearby (e.g., supermarkets, schools, parks, beach proximity, restaurants, highway access). Also capture any area details the user provides verbatim - these are valuable marketing points that should NOT be replaced with generic descriptions.",
+            description:
+              "Description of the area/neighborhood for the listing. IMPORTANT: When user provides a Google Maps link, analyze the location and describe what is specifically nearby (e.g., supermarkets, schools, parks, beach proximity, restaurants, highway access). Also capture any area details the user provides verbatim - these are valuable marketing points that should NOT be replaced with generic descriptions.",
           },
           locationUrl: {
             type: "string",
-            description: "Google Maps URL or pin link provided by the agent for the property location. Pass the EXACT URL as-is — do NOT modify it. This goes directly into the listing notes for reviewers.",
+            description:
+              "Google Maps URL or pin link provided by the agent for the property location. Pass the EXACT URL as-is — do NOT modify it. This goes directly into the listing notes for reviewers.",
           },
           coordinates: {
             type: "object",
             properties: {
-              lat: { type: "number", description: "Latitude (e.g., 35.17 for Nicosia, 34.68 for Limassol)" },
-              lon: { type: "number", description: "Longitude (e.g., 33.36 for Nicosia, 33.04 for Limassol)" },
+              lat: {
+                type: "number",
+                description:
+                  "Latitude (e.g., 35.17 for Nicosia, 34.68 for Limassol)",
+              },
+              lon: {
+                type: "number",
+                description:
+                  "Longitude (e.g., 33.36 for Nicosia, 33.04 for Limassol)",
+              },
             },
-            description: "GPS coordinates for the property location. Extract from Google Maps URL if provided (the @lat,lon part). Otherwise use approximate city coordinates. Cyprus coordinates: Nicosia (35.17, 33.36), Limassol (34.68, 33.04), Paphos (34.77, 32.42), Larnaca (34.92, 33.63), Famagusta (35.12, 33.95)",
+            description:
+              "GPS coordinates for the property location. Extract from Google Maps URL if provided (the @lat,lon part). Otherwise use approximate city coordinates. Cyprus coordinates: Nicosia (35.17, 33.36), Limassol (34.68, 33.04), Paphos (34.77, 32.42), Larnaca (34.92, 33.63), Famagusta (35.12, 33.95)",
           },
         },
         required: [
@@ -260,7 +329,8 @@ export const TOOLS: ToolDefinition[] = [
           landType: {
             type: "string",
             enum: ["plot", "field", "agricultural"],
-            description: "The type of land (plot for building plots, field for undeveloped land, agricultural for farming land)",
+            description:
+              "The type of land (plot for building plots, field for undeveloped land, agricultural for farming land)",
           },
           price: {
             type: "number",
@@ -268,7 +338,8 @@ export const TOOLS: ToolDefinition[] = [
           },
           location: {
             type: "string",
-            description: "The specific area/neighborhood EXACTLY as the agent stated it, plus the district. MUST include district (Paphos, Limassol, Larnaca, Nicosia, Famagusta). Example: agent says 'Mesa Geitonia' → pass 'Mesa Geitonia, Limassol'. ⛔ CRITICAL: NEVER extract location names from Google Maps URLs — the /place/ path often contains STREET ADDRESSES (e.g., 'Michali Sougioul 21') which are NOT valid area names. If agent only provides a Google Maps URL without stating the area, you MUST ASK: 'What is the area/neighborhood name?' ALWAYS pass the Google Maps URL separately as locationUrl.",
+            description:
+              "The specific area/neighborhood EXACTLY as the agent stated it, plus the district. MUST include district (Paphos, Limassol, Larnaca, Nicosia, Famagusta). Example: agent says 'Mesa Geitonia' → pass 'Mesa Geitonia, Limassol'. ⛔ CRITICAL: NEVER extract location names from Google Maps URLs — the /place/ path often contains STREET ADDRESSES (e.g., 'Michali Sougioul 21') which are NOT valid area names. If agent only provides a Google Maps URL without stating the area, you MUST ASK: 'What is the area/neighborhood name?' ALWAYS pass the Google Maps URL separately as locationUrl.",
           },
           landSize: {
             type: "number",
@@ -288,40 +359,57 @@ export const TOOLS: ToolDefinition[] = [
           },
           titleDeedStatus: {
             type: "string",
-            enum: ["separate", "final_approval", "in_process", "pending", "share_of_land", "permits_only", "unknown", "do_not_display"],
-            description: "Status of the title deeds: separate (full title deeds), final_approval, in_process (title deeds currently being issued / in the process of issuance), pending (applied but not yet in process), share_of_land (shared ownership of land), permits_only (NO title deeds — only building/planning permits exist), unknown, do_not_display (agent explicitly asked to NOT show deed status)",
+            enum: [
+              "separate",
+              "final_approval",
+              "in_process",
+              "pending",
+              "share_of_land",
+              "permits_only",
+              "unknown",
+              "do_not_display",
+            ],
+            description:
+              "Status of the title deeds: separate (full title deeds), final_approval, in_process (title deeds currently being issued / in the process of issuance), pending (applied but not yet in process), share_of_land (shared ownership of land), permits_only (NO title deeds — only building/planning permits exist), unknown, do_not_display (agent explicitly asked to NOT show deed status)",
           },
           priceModifier: {
             type: "string",
             enum: ["no_vat", "plus_vat", "vat_included"],
-            description: "VAT status of the price. Default 'no_vat' for resale land. Use 'plus_vat' if price is before VAT, 'vat_included' if VAT is already in the price.",
+            description:
+              "VAT status of the price. Default 'no_vat' for resale land. Use 'plus_vat' if price is before VAT, 'vat_included' if VAT is already in the price.",
           },
           registrationNumber: {
             type: "string",
-            description: "Land registration number from title deed (e.g., 0/1234)",
+            description:
+              "Land registration number from title deed (e.g., 0/1234)",
           },
           imageUrls: {
             type: "array",
             items: { type: "string" },
-            description: "Array of image URLs for the land (photos showing the plot, surrounding area, access roads, etc.)",
+            description:
+              "Array of image URLs for the land (photos showing the plot, surrounding area, access roads, etc.)",
           },
           titleDeedFileUrls: {
             type: "array",
             items: { type: "string" },
-            description: "Array of title deed document URLs (PDF or scanned image of title deeds). When agent sends a document attachment during land upload, pass the URL here. These are uploaded to the title deed documents field on the listing.",
+            description:
+              "Array of title deed document URLs (PDF or scanned image of title deeds). When agent sends a document attachment during land upload, pass the URL here. These are uploaded to the title deed documents field on the listing.",
           },
           titleDeedImageIndices: {
             type: "array",
             items: { type: "integer" },
-            description: "1-based indices of photos that are title deed images (not land photos). Example: if photo #3 is a title deed, pass [3]. These images will be moved from gallery to title deed documents field.",
+            description:
+              "1-based indices of photos that are title deed images (not land photos). Example: if photo #3 is a title deed, pass [3]. These images will be moved from gallery to title deed documents field.",
           },
           buildingDensity: {
             type: "integer",
-            description: "Building density percentage allowed (e.g., 60 means 60% of land can be built)",
+            description:
+              "Building density percentage allowed (e.g., 60 means 60% of land can be built)",
           },
           siteCoverage: {
             type: "integer",
-            description: "Site coverage percentage allowed (e.g., 40 means 40% of land can be covered by buildings)",
+            description:
+              "Site coverage percentage allowed (e.g., 40 means 40% of land can be covered by buildings)",
           },
           maxFloors: {
             type: "integer",
@@ -329,41 +417,57 @@ export const TOOLS: ToolDefinition[] = [
           },
           maxHeight: {
             type: "number",
-            description: "Maximum building height allowed in meters (e.g., 12.5)",
+            description:
+              "Maximum building height allowed in meters (e.g., 12.5)",
           },
           infrastructure: {
             type: "array",
             items: { type: "string" },
-            description: "Available infrastructure on the plot. Options: electricity, water, road_access, sewage, telephone. Example: ['electricity', 'water', 'road_access']",
+            description:
+              "Available infrastructure on the plot. Options: electricity, water, road_access, sewage, telephone. Example: ['electricity', 'water', 'road_access']",
           },
           features: {
             type: "array",
             items: { type: "string" },
-            description: "Land features, primarily VIEWS: sea view, mountain view, city view, valley view, panoramic view, etc.",
+            description:
+              "Land features, primarily VIEWS: sea view, mountain view, city view, valley view, panoramic view, etc.",
           },
           assignTo: {
             type: "string",
-            description: "For management only: email of agent to assign as listing owner. CRITICAL: If the user says 'assign to [name]' or 'assign to [email]', extract the email and pass it here. Check the agent name-to-email mapping in your instructions. If user provides the email directly (e.g., 'danae@zyprus.com'), use it as-is.",
+            description:
+              "For management only: email of agent to assign as listing owner. CRITICAL: If the user says 'assign to [name]' or 'assign to [email]', extract the email and pass it here. Check the agent name-to-email mapping in your instructions. If user provides the email directly (e.g., 'danae@zyprus.com'), use it as-is.",
           },
           specialNotes: {
             type: "string",
-            description: "Any special notes from the owner or agent. Include ALL agent notes verbatim, especially: title deed details, zoning info, development potential, access restrictions, and anything else the reviewer needs to know.",
+            description:
+              "Any special notes from the owner or agent. Include ALL agent notes verbatim, especially: title deed details, zoning info, development potential, access restrictions, and anything else the reviewer needs to know.",
           },
           areaDescription: {
             type: "string",
-            description: "Description of the area/neighborhood for the listing. IMPORTANT: When user provides a Google Maps link, analyze the location and describe what is specifically nearby (e.g., supermarkets, schools, parks, beach proximity, restaurants, highway access). Also capture any area details the user provides verbatim - these are valuable marketing points that should NOT be replaced with generic descriptions.",
+            description:
+              "Description of the area/neighborhood for the listing. IMPORTANT: When user provides a Google Maps link, analyze the location and describe what is specifically nearby (e.g., supermarkets, schools, parks, beach proximity, restaurants, highway access). Also capture any area details the user provides verbatim - these are valuable marketing points that should NOT be replaced with generic descriptions.",
           },
           locationUrl: {
             type: "string",
-            description: "Google Maps URL or pin link provided by the agent for the land location. Pass the EXACT URL as-is — do NOT modify it. This goes directly into the listing notes for reviewers.",
+            description:
+              "Google Maps URL or pin link provided by the agent for the land location. Pass the EXACT URL as-is — do NOT modify it. This goes directly into the listing notes for reviewers.",
           },
           coordinates: {
             type: "object",
             properties: {
-              lat: { type: "number", description: "Latitude (e.g., 35.17 for Nicosia, 34.68 for Limassol)" },
-              lon: { type: "number", description: "Longitude (e.g., 33.36 for Nicosia, 33.04 for Limassol)" },
+              lat: {
+                type: "number",
+                description:
+                  "Latitude (e.g., 35.17 for Nicosia, 34.68 for Limassol)",
+              },
+              lon: {
+                type: "number",
+                description:
+                  "Longitude (e.g., 33.36 for Nicosia, 33.04 for Limassol)",
+              },
             },
-            description: "GPS coordinates for the land location. Extract from Google Maps URL if provided (the @lat,lon part). Otherwise use approximate city coordinates. Cyprus coordinates: Nicosia (35.17, 33.36), Limassol (34.68, 33.04), Paphos (34.77, 32.42), Larnaca (34.92, 33.63), Famagusta (35.12, 33.95)",
+            description:
+              "GPS coordinates for the land location. Extract from Google Maps URL if provided (the @lat,lon part). Otherwise use approximate city coordinates. Cyprus coordinates: Nicosia (35.17, 33.36), Limassol (34.68, 33.04), Paphos (34.77, 32.42), Larnaca (34.92, 33.63), Famagusta (35.12, 33.95)",
           },
         },
         required: [
@@ -422,11 +526,13 @@ export const TOOLS: ToolDefinition[] = [
           },
           area: {
             type: "number",
-            description: "Property area in square meters (required for accurate calculation)",
+            description:
+              "Property area in square meters (required for accurate calculation)",
           },
           isPrimaryResidence: {
             type: "boolean",
-            description: "Whether buyer will use as primary residence (defaults to true)",
+            description:
+              "Whether buyer will use as primary residence (defaults to true)",
           },
         },
         required: ["price", "area"],
@@ -450,7 +556,8 @@ export const TOOLS: ToolDefinition[] = [
           },
           jointNames: {
             type: "boolean",
-            description: "Whether the property is being bought in joint names (splits price between 2 buyers for lower progressive rates)",
+            description:
+              "Whether the property is being bought in joint names (splits price between 2 buyers for lower progressive rates)",
           },
           isFirstProperty: {
             type: "boolean",
@@ -535,7 +642,8 @@ export const TOOLS: ToolDefinition[] = [
         properties: {
           url: {
             type: "string",
-            description: "The full Bazaraki listing URL (e.g., https://www.bazaraki.com/adv/12345678_...)",
+            description:
+              "The full Bazaraki listing URL (e.g., https://www.bazaraki.com/adv/12345678_...)",
           },
         },
         required: ["url"],
@@ -563,11 +671,13 @@ export const TOOLS: ToolDefinition[] = [
           },
           attachmentUrl: {
             type: "string",
-            description: "URL of a document to attach (optional, e.g., DOCX file URL)",
+            description:
+              "URL of a document to attach (optional, e.g., DOCX file URL)",
           },
           attachmentName: {
             type: "string",
-            description: "Filename for the attachment (optional, e.g., 'Marketing_Agreement.docx')",
+            description:
+              "Filename for the attachment (optional, e.g., 'Marketing_Agreement.docx')",
           },
         },
         required: ["subject", "body"],
@@ -589,4 +699,3 @@ export function getToolDefinitions(): ToolDefinition[] {
 export function getToolByName(name: string): ToolDefinition | undefined {
   return TOOLS.find((t) => t.function.name === name);
 }
-

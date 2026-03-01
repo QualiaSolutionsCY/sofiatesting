@@ -3,9 +3,11 @@
  * Simulates a WhatsApp webhook message with property details
  */
 import { config } from "dotenv";
+
 config({ path: ".env.local" });
 
-const EDGE_FUNCTION_URL = "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot";
+const EDGE_FUNCTION_URL =
+  "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot";
 
 // Use a known agent phone number from the database (Maria Georgiou - Limassol agent)
 const TEST_AGENT_PHONE = "35799581359";
@@ -73,10 +75,14 @@ async function testEdgeFunctionUpload() {
   console.log("🧪 SOPHIA EDGE FUNCTION UPLOAD TEST\n");
   console.log("Testing property upload through sophia-bot Edge Function...\n");
   console.log("Property details:");
-  console.log(`  Type: ${TEST_PROPERTY.propertyType} for ${TEST_PROPERTY.listingType}`);
+  console.log(
+    `  Type: ${TEST_PROPERTY.propertyType} for ${TEST_PROPERTY.listingType}`
+  );
   console.log(`  Location: ${TEST_PROPERTY.location}`);
   console.log(`  Price: €${TEST_PROPERTY.price}`);
-  console.log(`  Bedrooms: ${TEST_PROPERTY.bedrooms}, Bathrooms: ${TEST_PROPERTY.bathrooms}`);
+  console.log(
+    `  Bedrooms: ${TEST_PROPERTY.bedrooms}, Bathrooms: ${TEST_PROPERTY.bathrooms}`
+  );
   console.log(`  Area: ${TEST_PROPERTY.coveredArea} sqm\n`);
 
   try {
@@ -101,8 +107,12 @@ async function testEdgeFunctionUpload() {
       console.log("\n✅ Webhook accepted (200 OK)");
       console.log("\n⏳ The Edge Function processes asynchronously.");
       console.log("   Check the logs for processing details:");
-      console.log("   supabase functions logs sophia-bot --project-ref vceeheaxcrhmpqueudqx\n");
-      console.log("👉 Check draft dashboard: https://dev9.zyprus.com/draft-dashboard?ai_state=draft");
+      console.log(
+        "   supabase functions logs sophia-bot --project-ref vceeheaxcrhmpqueudqx\n"
+      );
+      console.log(
+        "👉 Check draft dashboard: https://dev9.zyprus.com/draft-dashboard?ai_state=draft"
+      );
     } else {
       console.error("\n❌ Webhook rejected:", response.status, responseText);
     }

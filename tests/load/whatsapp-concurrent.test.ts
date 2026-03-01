@@ -12,7 +12,8 @@
  */
 import { randomUUID } from "crypto";
 
-const WEBHOOK_URL = process.env.TEST_WEBHOOK_URL || "http://localhost:3000/api/whatsapp/webhook";
+const WEBHOOK_URL =
+  process.env.TEST_WEBHOOK_URL || "http://localhost:3000/api/whatsapp/webhook";
 const WEBHOOK_SECRET = process.env.WASENDER_WEBHOOK_SECRET || "test-secret";
 const CONCURRENT_USERS = 20;
 const MESSAGES_PER_USER = 3;
@@ -28,10 +29,14 @@ interface LoadTestResult {
   error?: string;
 }
 
-async function sendMessage(userId: number, messageNum: number, messageId?: string): Promise<LoadTestResult> {
+async function sendMessage(
+  userId: number,
+  messageNum: number,
+  messageId?: string
+): Promise<LoadTestResult> {
   const startTime = Date.now();
   const id = messageId || randomUUID();
-  const phoneNumber = `357${99000000 + userId}`; // Cyprus numbers
+  const phoneNumber = `357${99_000_000 + userId}`; // Cyprus numbers
 
   const payload = {
     type: "messages.upsert",
@@ -119,7 +124,10 @@ async function runBatchedLoadTest(): Promise<LoadTestResult[]> {
   return results;
 }
 
-async function runDeduplicationTest(): Promise<{ passed: boolean; detail: string }> {
+async function runDeduplicationTest(): Promise<{
+  passed: boolean;
+  detail: string;
+}> {
   const duplicateId = randomUUID();
 
   // Send the same message twice
@@ -131,7 +139,10 @@ async function runDeduplicationTest(): Promise<{ passed: boolean; detail: string
   // Both should return 200 (webhook accepts both), but only one should be processed
   // The dedup layer returns 200 with a "duplicate" indicator or processes only one
   if (first.status === 200 && second.status === 200) {
-    return { passed: true, detail: `Both returned 200 (dedup handled server-side). IDs: ${duplicateId}` };
+    return {
+      passed: true,
+      detail: `Both returned 200 (dedup handled server-side). IDs: ${duplicateId}`,
+    };
   }
 
   return {
@@ -142,9 +153,13 @@ async function runDeduplicationTest(): Promise<{ passed: boolean; detail: string
 
 async function runLoadTest() {
   const totalMessages = CONCURRENT_USERS * MESSAGES_PER_USER;
-  console.log(`\n=== WHATSAPP LOAD TEST ===`);
-  console.log(`Users: ${CONCURRENT_USERS} | Messages/user: ${MESSAGES_PER_USER} | Total: ${totalMessages}`);
-  console.log(`Batch size: ${BATCH_SIZE} users | Delay: ${BATCH_DELAY_MS}ms between waves`);
+  console.log("\n=== WHATSAPP LOAD TEST ===");
+  console.log(
+    `Users: ${CONCURRENT_USERS} | Messages/user: ${MESSAGES_PER_USER} | Total: ${totalMessages}`
+  );
+  console.log(
+    `Batch size: ${BATCH_SIZE} users | Delay: ${BATCH_DELAY_MS}ms between waves`
+  );
   console.log(`Target: ${WEBHOOK_URL}\n`);
 
   // --- Batched load test ---
@@ -156,7 +171,9 @@ async function runLoadTest() {
   // --- Deduplication test ---
   console.log("\n--- Deduplication Test ---");
   const dedupResult = await runDeduplicationTest();
-  console.log(`  ${dedupResult.passed ? "PASS" : "FAIL"}: ${dedupResult.detail}`);
+  console.log(
+    `  ${dedupResult.passed ? "PASS" : "FAIL"}: ${dedupResult.detail}`
+  );
 
   // --- Analysis ---
   const successful = results.filter((r) => r.status === 200);
@@ -169,17 +186,23 @@ async function runLoadTest() {
   const minDuration = durations[0];
   const successRate = (successful.length / results.length) * 100;
 
-  console.log(`\n=== RESULTS ===\n`);
-  console.log(`Requests:  ${results.length} total, ${successful.length} ok, ${failed.length} failed`);
+  console.log("\n=== RESULTS ===\n");
+  console.log(
+    `Requests:  ${results.length} total, ${successful.length} ok, ${failed.length} failed`
+  );
   console.log(`Success:   ${successRate.toFixed(1)}%`);
   console.log(`Duration:  ${totalDuration}ms total`);
-  console.log(`Response:  avg=${avgDuration.toFixed(0)}ms  p95=${p95Duration}ms  p99=${p99Duration}ms  min=${minDuration}ms  max=${maxDuration}ms`);
+  console.log(
+    `Response:  avg=${avgDuration.toFixed(0)}ms  p95=${p95Duration}ms  p99=${p99Duration}ms  min=${minDuration}ms  max=${maxDuration}ms`
+  );
   console.log(`Dedup:     ${dedupResult.passed ? "PASS" : "FAIL"}`);
 
   if (failed.length > 0) {
-    console.log(`\nFailed requests:`);
+    console.log("\nFailed requests:");
     for (const r of failed.slice(0, 10)) {
-      console.log(`  User ${r.userId}, Msg ${r.messageNum}: HTTP ${r.status} - ${r.error || "Unknown"}`);
+      console.log(
+        `  User ${r.userId}, Msg ${r.messageNum}: HTTP ${r.status} - ${r.error || "Unknown"}`
+      );
     }
     if (failed.length > 10) {
       console.log(`  ... and ${failed.length - 10} more`);
@@ -190,11 +213,11 @@ async function runLoadTest() {
   const checks = [
     { name: "Success rate >= 95%", passed: successRate >= 95 },
     { name: "Avg response < 5000ms", passed: avgDuration < 5000 },
-    { name: "p95 response < 10000ms", passed: p95Duration < 10000 },
+    { name: "p95 response < 10000ms", passed: p95Duration < 10_000 },
     { name: "Deduplication", passed: dedupResult.passed },
   ];
 
-  console.log(`\n=== CHECKS ===`);
+  console.log("\n=== CHECKS ===");
   let allPassed = true;
   for (const check of checks) {
     console.log(`  ${check.passed ? "PASS" : "FAIL"}  ${check.name}`);
@@ -202,10 +225,10 @@ async function runLoadTest() {
   }
 
   if (allPassed) {
-    console.log(`\nOVERALL: PASS`);
+    console.log("\nOVERALL: PASS");
     process.exit(0);
   } else {
-    console.log(`\nOVERALL: FAIL`);
+    console.log("\nOVERALL: FAIL");
     process.exit(1);
   }
 }

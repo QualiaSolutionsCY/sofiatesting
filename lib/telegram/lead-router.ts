@@ -13,6 +13,8 @@ import { getTelegramClient } from "./client";
 import { indexGroupMessage } from "./message-indexer";
 
 const log = logger.telegram.child("lead-router");
+
+import { handleAuditAlertResponse } from "./audit-response-handler";
 import {
   AGENT_REQUEST_PATTERN,
   detectRussianLanguage,
@@ -27,7 +29,6 @@ import {
   RUSSIAN_SPEAKER_AGENT,
 } from "./routing-constants";
 import type { TelegramMessage } from "./types";
-import { handleAuditAlertResponse } from "./audit-response-handler";
 
 // Top-level regex for lead mention detection
 const LEAD_MENTION_PATTERN =
@@ -414,7 +415,9 @@ async function getNextAgentInRotation(
 
   if (lastIndex === -1) {
     // Last agent no longer available - start fresh
-    log.debug("Previous agent no longer available, restarting rotation", { region });
+    log.debug("Previous agent no longer available, restarting rotation", {
+      region,
+    });
     return sortedAgents[0];
   }
 
@@ -534,7 +537,9 @@ async function logLead(data: {
       status: "forwarded",
     });
   } catch (error) {
-    log.error("Error logging lead", error, { propertyReferenceId: data.propertyReferenceId });
+    log.error("Error logging lead", error, {
+      propertyReferenceId: data.propertyReferenceId,
+    });
   }
 }
 
@@ -619,7 +624,9 @@ export async function handleGroupMessage(
   // Per spec: "Client wants to speak with [Agent Name]" → Forward directly to named agent
   const requestedAgent = await detectRequestedAgent(messageText);
   if (requestedAgent) {
-    log.info("Client requested specific agent", { agentName: requestedAgent.fullName });
+    log.info("Client requested specific agent", {
+      agentName: requestedAgent.fullName,
+    });
     await forwardLeadToAgent(
       telegramClient,
       message,
@@ -794,6 +801,8 @@ async function forwardLeadToAgent(
       log.error("Failed to send acknowledgment", error);
     }
   } catch (error) {
-    log.error("Failed to forward to agent", error, { agentName: agent.fullName });
+    log.error("Failed to forward to agent", error, {
+      agentName: agent.fullName,
+    });
   }
 }

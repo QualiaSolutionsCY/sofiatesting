@@ -6,14 +6,15 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { logger, LogCategory } from "../utils/logger.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Google AI API for embeddings (check both possible env var names)
-const GOOGLE_API_KEY = Deno.env.get("GOOGLE_API_KEY") || Deno.env.get("GEMINI_API_KEY");
+const GOOGLE_API_KEY =
+  Deno.env.get("GOOGLE_API_KEY") || Deno.env.get("GEMINI_API_KEY");
 
 // Embedding model configuration
 // text-embedding-004 was deprecated Jan 14, 2026 → replaced by gemini-embedding-001
@@ -29,7 +30,7 @@ interface CachedEmbedding {
 }
 
 const embeddingCache = new Map<string, CachedEmbedding>();
-const CACHE_TTL_MS = 3600000; // 1 hour
+const CACHE_TTL_MS = 3_600_000; // 1 hour
 const MAX_CACHE_SIZE = 1000;
 
 /**
@@ -46,7 +47,9 @@ function evictOldestCacheEntries(): void {
   for (let i = 0; i < toRemove && i < entries.length; i++) {
     embeddingCache.delete(entries[i][0]);
   }
-  logger.debug(`[Memory] Cache eviction: removed ${toRemove} oldest entries`, { category: LogCategory.CACHE });
+  logger.debug(`[Memory] Cache eviction: removed ${toRemove} oldest entries`, {
+    category: LogCategory.CACHE,
+  });
 }
 
 // =====================================================
@@ -99,9 +102,13 @@ export interface UserContext {
  * Uses in-memory LRU cache with TTL to reduce API calls.
  * Falls back to null if API key not configured.
  */
-export async function generateEmbedding(text: string): Promise<number[] | null> {
+export async function generateEmbedding(
+  text: string
+): Promise<number[] | null> {
   if (!GOOGLE_API_KEY) {
-    logger.warn("[Memory] GOOGLE_API_KEY not set - embeddings disabled", { category: LogCategory.AI });
+    logger.warn("[Memory] GOOGLE_API_KEY not set - embeddings disabled", {
+      category: LogCategory.AI,
+    });
     return null;
   }
 
@@ -110,7 +117,9 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
   const cached = embeddingCache.get(cacheKey);
 
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    logger.debug("[Memory] Embedding cache HIT", { category: LogCategory.CACHE });
+    logger.debug("[Memory] Embedding cache HIT", {
+      category: LogCategory.CACHE,
+    });
     return cached.embedding;
   }
 
@@ -137,7 +146,11 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
 
     if (!response.ok) {
       const errorText = await response.text();
-      logger.error(`[Memory] Embedding API error: ${response.status}`, new Error(errorText), { category: LogCategory.AI });
+      logger.error(
+        `[Memory] Embedding API error: ${response.status}`,
+        new Error(errorText),
+        { category: LogCategory.AI }
+      );
       return null;
     }
 
@@ -151,12 +164,19 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
         embedding,
         timestamp: Date.now(),
       });
-      logger.debug(`[Memory] Embedding cached, cache size: ${embeddingCache.size}`, { category: LogCategory.CACHE });
+      logger.debug(
+        `[Memory] Embedding cached, cache size: ${embeddingCache.size}`,
+        { category: LogCategory.CACHE }
+      );
     }
 
     return embedding;
   } catch (error) {
-    logger.error("[Memory] Embedding generation failed", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.AI });
+    logger.error(
+      "[Memory] Embedding generation failed",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.AI }
+    );
     return null;
   }
 }
@@ -180,13 +200,21 @@ export async function getOrCreateUser(
     });
 
     if (error) {
-      logger.error("[Memory] Error getting/creating user", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
+      logger.error(
+        "[Memory] Error getting/creating user",
+        error instanceof Error ? error : new Error(String(error)),
+        { category: LogCategory.DATABASE }
+      );
       return null;
     }
 
     return data as SophiaUserProfile;
   } catch (error) {
-    logger.error("[Memory] Exception in getOrCreateUser", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
+    logger.error(
+      "[Memory] Exception in getOrCreateUser",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.DATABASE }
+    );
     return null;
   }
 }
@@ -215,13 +243,21 @@ export async function updateUserPreferences(
     });
 
     if (error) {
-      logger.error("[Memory] Error updating preferences", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
+      logger.error(
+        "[Memory] Error updating preferences",
+        error instanceof Error ? error : new Error(String(error)),
+        { category: LogCategory.DATABASE }
+      );
       return false;
     }
 
     return true;
   } catch (error) {
-    logger.error("[Memory] Exception in updateUserPreferences", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
+    logger.error(
+      "[Memory] Exception in updateUserPreferences",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.DATABASE }
+    );
     return false;
   }
 }
@@ -258,13 +294,21 @@ export async function storeMemory(
     });
 
     if (error) {
-      logger.error("[Memory] Error storing memory", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
+      logger.error(
+        "[Memory] Error storing memory",
+        error instanceof Error ? error : new Error(String(error)),
+        { category: LogCategory.DATABASE }
+      );
       return false;
     }
 
     return true;
   } catch (error) {
-    logger.error("[Memory] Exception in storeMemory", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
+    logger.error(
+      "[Memory] Exception in storeMemory",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.DATABASE }
+    );
     return false;
   }
 }
@@ -290,7 +334,11 @@ export async function searchMemory(
 
     return searchMemoryWithEmbedding(userId, embedding, options);
   } catch (error) {
-    logger.error("[Memory] Exception in searchMemory", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
+    logger.error(
+      "[Memory] Exception in searchMemory",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.DATABASE }
+    );
     return [];
   }
 }
@@ -316,13 +364,23 @@ export async function searchMemoryWithEmbedding(
     });
 
     if (error) {
-      logger.error("[Memory] Error searching memory", new Error(typeof error === "object" ? JSON.stringify(error) : String(error)), { category: LogCategory.DATABASE });
+      logger.error(
+        "[Memory] Error searching memory",
+        new Error(
+          typeof error === "object" ? JSON.stringify(error) : String(error)
+        ),
+        { category: LogCategory.DATABASE }
+      );
       return [];
     }
 
     return data || [];
   } catch (error) {
-    logger.error("[Memory] Exception in searchMemoryWithEmbedding", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
+    logger.error(
+      "[Memory] Exception in searchMemoryWithEmbedding",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.DATABASE }
+    );
     return [];
   }
 }
@@ -332,7 +390,7 @@ export async function searchMemoryWithEmbedding(
  */
 export async function getRecentMemories(
   userId: string,
-  limit: number = 10
+  limit = 10
 ): Promise<ConversationMemory[]> {
   try {
     const { data, error } = await supabase.rpc("get_sophia_recent_context", {
@@ -341,13 +399,21 @@ export async function getRecentMemories(
     });
 
     if (error) {
-      logger.error("[Memory] Error getting recent context", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
+      logger.error(
+        "[Memory] Error getting recent context",
+        error instanceof Error ? error : new Error(String(error)),
+        { category: LogCategory.DATABASE }
+      );
       return [];
     }
 
     return data || [];
   } catch (error) {
-    logger.error("[Memory] Exception in getRecentMemories", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
+    logger.error(
+      "[Memory] Exception in getRecentMemories",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.DATABASE }
+    );
     return [];
   }
 }
@@ -371,13 +437,19 @@ export async function searchKnowledge(
     const embedding = await generateEmbedding(query);
 
     if (!embedding) {
-      logger.warn("[Memory] Knowledge search skipped - no embedding", { category: LogCategory.AI });
+      logger.warn("[Memory] Knowledge search skipped - no embedding", {
+        category: LogCategory.AI,
+      });
       return [];
     }
 
     return searchKnowledgeWithEmbedding(embedding, options);
   } catch (error) {
-    logger.error("[Memory] Exception in searchKnowledge", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
+    logger.error(
+      "[Memory] Exception in searchKnowledge",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.DATABASE }
+    );
     return [];
   }
 }
@@ -403,13 +475,23 @@ export async function searchKnowledgeWithEmbedding(
     });
 
     if (error) {
-      logger.error("[Memory] Error searching knowledge", new Error(typeof error === "object" ? JSON.stringify(error) : String(error)), { category: LogCategory.DATABASE });
+      logger.error(
+        "[Memory] Error searching knowledge",
+        new Error(
+          typeof error === "object" ? JSON.stringify(error) : String(error)
+        ),
+        { category: LogCategory.DATABASE }
+      );
       return [];
     }
 
     return data || [];
   } catch (error) {
-    logger.error("[Memory] Exception in searchKnowledgeWithEmbedding", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
+    logger.error(
+      "[Memory] Exception in searchKnowledgeWithEmbedding",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.DATABASE }
+    );
     return [];
   }
 }
@@ -442,7 +524,9 @@ export async function buildUserContext(
     const profile = await getOrCreateUser(phoneNumber, userName);
 
     if (!profile) {
-      logger.warn("[Memory] Could not get/create user profile", { category: LogCategory.DATABASE });
+      logger.warn("[Memory] Could not get/create user profile", {
+        category: LogCategory.DATABASE,
+      });
       return null;
     }
 
@@ -454,17 +538,18 @@ export async function buildUserContext(
 
     if (messageEmbedding) {
       // Run semantic searches in parallel with recent memories fetch
-      [relevantMemories, relevantKnowledge, fetchedRecentMemories] = await Promise.all([
-        searchMemoryWithEmbedding(profile.id, messageEmbedding, {
-          limit: 5,
-          minImportance: 0.3,
-        }),
-        searchKnowledgeWithEmbedding(messageEmbedding, {
-          limit: 3,
-          language: profile.preferred_language,
-        }),
-        getRecentMemories(profile.id, 5),
-      ]);
+      [relevantMemories, relevantKnowledge, fetchedRecentMemories] =
+        await Promise.all([
+          searchMemoryWithEmbedding(profile.id, messageEmbedding, {
+            limit: 5,
+            minImportance: 0.3,
+          }),
+          searchKnowledgeWithEmbedding(messageEmbedding, {
+            limit: 3,
+            language: profile.preferred_language,
+          }),
+          getRecentMemories(profile.id, 5),
+        ]);
     } else {
       // Fallback: just get recent memories if embedding failed
       fetchedRecentMemories = await getRecentMemories(profile.id, 5);
@@ -479,7 +564,10 @@ export async function buildUserContext(
     }
 
     const duration = Date.now() - startTime;
-    logger.debug(`[Memory] buildUserContext completed in ${duration}ms`, { category: LogCategory.DATABASE, duration });
+    logger.debug(`[Memory] buildUserContext completed in ${duration}ms`, {
+      category: LogCategory.DATABASE,
+      duration,
+    });
 
     return {
       profile,
@@ -487,7 +575,11 @@ export async function buildUserContext(
       relevantKnowledge,
     };
   } catch (error) {
-    logger.error("[Memory] Exception in buildUserContext", error instanceof Error ? error : new Error(String(error)), { category: LogCategory.DATABASE });
+    logger.error(
+      "[Memory] Exception in buildUserContext",
+      error instanceof Error ? error : new Error(String(error)),
+      { category: LogCategory.DATABASE }
+    );
     return null;
   }
 }
@@ -514,7 +606,9 @@ export function formatContextForPrompt(context: UserContext): string {
   // P2 FIX: Phone number removed - PII should not be sent to AI providers
   lines.push(`- **User ID**: ${context.profile.id.slice(0, 8)}...`);
   lines.push(`- **Preferred Language**: ${context.profile.preferred_language}`);
-  lines.push(`- **Communication Style**: ${context.profile.communication_style}`);
+  lines.push(
+    `- **Communication Style**: ${context.profile.communication_style}`
+  );
   lines.push(`- **Total Messages**: ${context.profile.total_messages}`);
   lines.push(`- **First Contact**: ${context.profile.first_contact}`);
 
@@ -532,9 +626,10 @@ export function formatContextForPrompt(context: UserContext): string {
 
     for (const memory of context.recentMemories.slice(0, 5)) {
       const role = memory.role === "user" ? "User" : "SOPHIA";
-      const preview = memory.content.length > 200
-        ? memory.content.substring(0, 200) + "..."
-        : memory.content;
+      const preview =
+        memory.content.length > 200
+          ? memory.content.substring(0, 200) + "..."
+          : memory.content;
       lines.push(`- **${role}**: "${preview}"`);
     }
   }
@@ -548,9 +643,10 @@ export function formatContextForPrompt(context: UserContext): string {
 
     for (const knowledge of context.relevantKnowledge) {
       lines.push(`**${knowledge.title}** (${knowledge.category})`);
-      const preview = knowledge.content.length > 300
-        ? knowledge.content.substring(0, 300) + "..."
-        : knowledge.content;
+      const preview =
+        knowledge.content.length > 300
+          ? knowledge.content.substring(0, 300) + "..."
+          : knowledge.content;
       lines.push(`> ${preview}`);
       lines.push("");
     }
@@ -597,16 +693,28 @@ export function extractTopics(text: string): string[] {
 
   // Real estate topics
   const topicPatterns: Record<string, string[]> = {
-    "property-search": ["looking for", "searching for", "want to buy", "want to rent"],
+    "property-search": [
+      "looking for",
+      "searching for",
+      "want to buy",
+      "want to rent",
+    ],
     "property-sale": ["selling", "sell my", "list my property", "want to sell"],
-    "mortgage": ["mortgage", "loan", "financing", "bank"],
-    "legal": ["lawyer", "solicitor", "contract", "title deed", "legal"],
-    "tax": ["tax", "vat", "transfer fee", "capital gains"],
-    "residency": ["residency", "pr", "permanent resident", "immigration"],
-    "viewing": ["viewing", "visit", "see the property", "schedule"],
-    "documents": ["document", "form", "agreement", "contract"],
-    "pricing": ["price", "cost", "how much", "budget", "afford"],
-    "location": ["nicosia", "limassol", "paphos", "larnaca", "famagusta", "ayia napa"],
+    mortgage: ["mortgage", "loan", "financing", "bank"],
+    legal: ["lawyer", "solicitor", "contract", "title deed", "legal"],
+    tax: ["tax", "vat", "transfer fee", "capital gains"],
+    residency: ["residency", "pr", "permanent resident", "immigration"],
+    viewing: ["viewing", "visit", "see the property", "schedule"],
+    documents: ["document", "form", "agreement", "contract"],
+    pricing: ["price", "cost", "how much", "budget", "afford"],
+    location: [
+      "nicosia",
+      "limassol",
+      "paphos",
+      "larnaca",
+      "famagusta",
+      "ayia napa",
+    ],
     "property-type": ["apartment", "villa", "house", "land", "office", "shop"],
   };
 
@@ -630,7 +738,13 @@ export function calculateImportance(text: string, topics: string[]): number {
   let score = 0.5; // Base score
 
   // Important topics boost
-  const importantTopics = ["legal", "tax", "residency", "mortgage", "property-sale"];
+  const importantTopics = [
+    "legal",
+    "tax",
+    "residency",
+    "mortgage",
+    "property-sale",
+  ];
   for (const topic of topics) {
     if (importantTopics.includes(topic)) {
       score += 0.1;
@@ -655,4 +769,3 @@ export function calculateImportance(text: string, topics: string[]): number {
   // Cap at 1.0
   return Math.min(score, 1.0);
 }
-

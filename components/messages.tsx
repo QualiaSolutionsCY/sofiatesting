@@ -24,7 +24,10 @@ type MessagesProps = {
 };
 
 // Helper to determine if we should show the thinking indicator
-function shouldShowThinking(messages: ChatMessage[]): { show: boolean; hasReasoning: boolean } {
+function shouldShowThinking(messages: ChatMessage[]): {
+  show: boolean;
+  hasReasoning: boolean;
+} {
   if (messages.length === 0) return { show: false, hasReasoning: false };
 
   const lastMessage = messages[messages.length - 1];
@@ -119,11 +122,11 @@ function PureMessages({
             {(status === "submitted" || status === "streaming") &&
               messages.length > 0 &&
               shouldShowThinking(messages).show && (
-              <ThinkingMessage
-                key="thinking"
-                hasReasoning={shouldShowThinking(messages).hasReasoning}
-              />
-            )}
+                <ThinkingMessage
+                  hasReasoning={shouldShowThinking(messages).hasReasoning}
+                  key="thinking"
+                />
+              )}
           </AnimatePresence>
 
           <div

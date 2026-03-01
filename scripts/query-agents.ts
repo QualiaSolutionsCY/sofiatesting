@@ -37,11 +37,31 @@ async function queryAgents() {
     console.log("\n✅ Expected Mappings Verification:\n");
 
     const expectedMappings = [
-      { name: "Marios Azinas", email: "paphos@zyprus.com", expectedOwner: "azinas@zyprus.com" },
-      { name: "Michelle", email: "limassol@zyprus.com", expectedOwner: "michelle@zyprus.com" },
-      { name: "Lysandros", email: "larnaca@zyprus.com", expectedOwner: "requestlarnaca@zyprus.com" },
-      { name: "Ivan", email: "nicosia@zyprus.com", expectedOwner: "requestnicosia@zyprus.com" },
-      { name: "Narine", email: "famagusta@zyprus.com", expectedOwner: "requestfamagusta@zyprus.com" },
+      {
+        name: "Marios Azinas",
+        email: "paphos@zyprus.com",
+        expectedOwner: "azinas@zyprus.com",
+      },
+      {
+        name: "Michelle",
+        email: "limassol@zyprus.com",
+        expectedOwner: "michelle@zyprus.com",
+      },
+      {
+        name: "Lysandros",
+        email: "larnaca@zyprus.com",
+        expectedOwner: "requestlarnaca@zyprus.com",
+      },
+      {
+        name: "Ivan",
+        email: "nicosia@zyprus.com",
+        expectedOwner: "requestnicosia@zyprus.com",
+      },
+      {
+        name: "Narine",
+        email: "famagusta@zyprus.com",
+        expectedOwner: "requestfamagusta@zyprus.com",
+      },
       { name: "Charalambos", email: "csc@zyprus.com", expectedOwner: "ASK" },
       { name: "Lauren", email: "listings@zyprus.com", expectedOwner: "ASK" },
     ];
@@ -53,7 +73,8 @@ async function queryAgents() {
           a.full_name?.includes(expected.name)
       );
       if (agent) {
-        const actualOwner = agent.listing_owner_email || agent.communication_email;
+        const actualOwner =
+          agent.listing_owner_email || agent.communication_email;
         const match = actualOwner === expected.expectedOwner;
         console.log(
           `${match ? "✅" : "❌"} ${expected.name}: ${actualOwner} ${match ? "" : `(expected: ${expected.expectedOwner})`}`

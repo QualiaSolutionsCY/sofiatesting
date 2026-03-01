@@ -72,7 +72,6 @@ export function pruneConversationHistory(
   // Combine: first message + recent messages
   const prunedMessages = [firstMessage, ...recentMessages];
 
-
   return prunedMessages;
 }
 

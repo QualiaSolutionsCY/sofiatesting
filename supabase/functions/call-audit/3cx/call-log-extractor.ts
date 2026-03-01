@@ -13,10 +13,10 @@
  * - Resilient parsing for different 3CX API versions
  */
 
-import { logger, LogCategory } from "../../sophia-bot/utils/logger.ts";
-import { ThreeCXClient } from "./client.ts";
-import { ThreeCXCallLogEntry, CallAuditResult } from "./types.ts";
+import { LogCategory, logger } from "../../sophia-bot/utils/logger.ts";
 import { AUDIT_CONFIG } from "../config.ts";
+import type { ThreeCXClient } from "./client.ts";
+import type { CallAuditResult, ThreeCXCallLogEntry } from "./types.ts";
 
 /**
  * Extract today's call logs from 3CX system
@@ -24,7 +24,9 @@ import { AUDIT_CONFIG } from "../config.ts";
  * @param client Authenticated 3CX client
  * @returns Raw call log entries from 3CX API
  */
-export async function extractTodayCalls(client: ThreeCXClient): Promise<ThreeCXCallLogEntry[]> {
+export async function extractTodayCalls(
+  client: ThreeCXClient
+): Promise<ThreeCXCallLogEntry[]> {
   logger.info("[Call Log Extractor] Starting call log extraction", {
     category: LogCategory.GENERAL,
     targetNumber: AUDIT_CONFIG.TARGET_NUMBER,
@@ -33,9 +35,9 @@ export async function extractTodayCalls(client: ThreeCXClient): Promise<ThreeCXC
 
   // Calculate today's date range in Cyprus timezone
   const cyprusNow = new Date().toLocaleString("en-CA", {
-    timeZone: AUDIT_CONFIG.TIMEZONE
+    timeZone: AUDIT_CONFIG.TIMEZONE,
   });
-  const todayDate = cyprusNow.split(',')[0]; // Extract YYYY-MM-DD part
+  const todayDate = cyprusNow.split(",")[0]; // Extract YYYY-MM-DD part
 
   // Create start of day (00:00:00) and end of day (23:59:59) in Cyprus time
   const startOfDayLocal = new Date(`${todayDate}T00:00:00`);
@@ -47,8 +49,12 @@ export async function extractTodayCalls(client: ThreeCXClient): Promise<ThreeCXC
   const isDST = now.getMonth() >= 2 && now.getMonth() <= 9; // Rough DST check
   const actualOffset = isDST ? -3 : -2;
 
-  const startOfDay = new Date(startOfDayLocal.getTime() - (actualOffset * 60 * 60 * 1000)).toISOString();
-  const endOfDay = new Date(endOfDayLocal.getTime() - (actualOffset * 60 * 60 * 1000)).toISOString();
+  const startOfDay = new Date(
+    startOfDayLocal.getTime() - actualOffset * 60 * 60 * 1000
+  ).toISOString();
+  const endOfDay = new Date(
+    endOfDayLocal.getTime() - actualOffset * 60 * 60 * 1000
+  ).toISOString();
 
   logger.info("[Call Log Extractor] Date range calculated", {
     category: LogCategory.GENERAL,
@@ -78,7 +84,7 @@ export async function extractTodayCalls(client: ThreeCXClient): Promise<ThreeCXC
       name: "Web Client API",
       method: "GET",
       path: `/webclient/api/CallLog/GetCallHistory?from=${encodeURIComponent(startOfDay)}&to=${encodeURIComponent(endOfDay)}`,
-    }
+    },
   ];
 
   let lastError: Error | null = null;
@@ -106,27 +112,38 @@ export async function extractTodayCalls(client: ThreeCXClient): Promise<ThreeCXC
       let data: any;
 
       try {
-        response = await client.makeAuthenticatedRequest(endpoint.path, requestOptions);
+        response = await client.makeAuthenticatedRequest(
+          endpoint.path,
+          requestOptions
+        );
 
         if (!response.ok) {
           if (response.status === 404) {
-            logger.debug(`[Call Log Extractor] ${endpoint.name} not available (404)`, {
-              category: LogCategory.GENERAL,
-            });
+            logger.debug(
+              `[Call Log Extractor] ${endpoint.name} not available (404)`,
+              {
+                category: LogCategory.GENERAL,
+              }
+            );
             continue;
           }
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
         responseText = await response.text();
-        logger.debug(`[Call Log Extractor] Raw response from ${endpoint.name}`, {
-          category: LogCategory.GENERAL,
-          responseLength: responseText.length,
-          responseSample: responseText.substring(0, 200),
-        });
-
+        logger.debug(
+          `[Call Log Extractor] Raw response from ${endpoint.name}`,
+          {
+            category: LogCategory.GENERAL,
+            responseLength: responseText.length,
+            responseSample: responseText.substring(0, 200),
+          }
+        );
       } catch (networkError) {
-        lastError = networkError instanceof Error ? networkError : new Error(String(networkError));
+        lastError =
+          networkError instanceof Error
+            ? networkError
+            : new Error(String(networkError));
         logger.warn(`[Call Log Extractor] ${endpoint.name} network error`, {
           category: LogCategory.GENERAL,
           error: lastError.message,
@@ -138,20 +155,33 @@ export async function extractTodayCalls(client: ThreeCXClient): Promise<ThreeCXC
       try {
         // Check Content-Type before parsing
         const contentType = response.headers.get("content-type") || "";
-        if (!contentType.includes("application/json") && !contentType.includes("text/json")) {
-          if (responseText.includes("<html") || responseText.includes("login")) {
-            throw new Error(`${endpoint.name} returned HTML login page - session expired`);
+        if (
+          !contentType.includes("application/json") &&
+          !contentType.includes("text/json")
+        ) {
+          if (
+            responseText.includes("<html") ||
+            responseText.includes("login")
+          ) {
+            throw new Error(
+              `${endpoint.name} returned HTML login page - session expired`
+            );
           }
-          logger.warn(`[Call Log Extractor] Unexpected content type from ${endpoint.name}`, {
-            category: LogCategory.GENERAL,
-            contentType,
-            responseSample: responseText.substring(0, 100),
-          });
+          logger.warn(
+            `[Call Log Extractor] Unexpected content type from ${endpoint.name}`,
+            {
+              category: LogCategory.GENERAL,
+              contentType,
+              responseSample: responseText.substring(0, 100),
+            }
+          );
         }
 
         data = JSON.parse(responseText);
       } catch (parseError) {
-        const error = new Error(`Invalid JSON response from ${endpoint.name}: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+        const error = new Error(
+          `Invalid JSON response from ${endpoint.name}: ${parseError instanceof Error ? parseError.message : String(parseError)}`
+        );
         lastError = error;
         logger.warn(`[Call Log Extractor] ${endpoint.name} JSON parse failed`, {
           category: LogCategory.GENERAL,
@@ -167,46 +197,61 @@ export async function extractTodayCalls(client: ThreeCXClient): Promise<ThreeCXC
       try {
         entries = parseCallLogResponse(data, endpoint.name);
       } catch (parseError) {
-        const error = new Error(`Failed to parse call log format from ${endpoint.name}: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+        const error = new Error(
+          `Failed to parse call log format from ${endpoint.name}: ${parseError instanceof Error ? parseError.message : String(parseError)}`
+        );
         lastError = error;
-        logger.warn(`[Call Log Extractor] ${endpoint.name} response format parsing failed`, {
-          category: LogCategory.GENERAL,
-          error: error.message,
-          dataKeys: Object.keys(data || {}),
-          dataType: typeof data,
-          endpoint: endpoint.name,
-        });
+        logger.warn(
+          `[Call Log Extractor] ${endpoint.name} response format parsing failed`,
+          {
+            category: LogCategory.GENERAL,
+            error: error.message,
+            dataKeys: Object.keys(data || {}),
+            dataType: typeof data,
+            endpoint: endpoint.name,
+          }
+        );
         continue;
       }
 
       // Success case
       if (entries.length === 0) {
-        logger.info(`[Call Log Extractor] ${endpoint.name} succeeded but no calls found`, {
-          category: LogCategory.GENERAL,
-          endpoint: endpoint.name,
-        });
+        logger.info(
+          `[Call Log Extractor] ${endpoint.name} succeeded but no calls found`,
+          {
+            category: LogCategory.GENERAL,
+            endpoint: endpoint.name,
+          }
+        );
       } else {
-        logger.info(`[Call Log Extractor] Successfully extracted calls via ${endpoint.name}`, {
-          category: LogCategory.GENERAL,
-          totalCalls: entries.length,
-          endpoint: endpoint.name,
-        });
+        logger.info(
+          `[Call Log Extractor] Successfully extracted calls via ${endpoint.name}`,
+          {
+            category: LogCategory.GENERAL,
+            totalCalls: entries.length,
+            endpoint: endpoint.name,
+          }
+        );
       }
 
       return entries;
     } catch (endpointError) {
-      lastError = endpointError instanceof Error ? endpointError : new Error(String(endpointError));
+      lastError =
+        endpointError instanceof Error
+          ? endpointError
+          : new Error(String(endpointError));
       logger.warn(`[Call Log Extractor] ${endpoint.name} failed`, {
         category: LogCategory.GENERAL,
         error: lastError.message,
       });
-      continue;
     }
   }
 
   // All endpoints failed
-  const availableEndpoints = endpoints.map(e => e.name).join(", ");
-  throw new Error(`All call log API endpoints failed (${availableEndpoints}). Last error: ${lastError?.message || "Unknown error"}`);
+  const availableEndpoints = endpoints.map((e) => e.name).join(", ");
+  throw new Error(
+    `All call log API endpoints failed (${availableEndpoints}). Last error: ${lastError?.message || "Unknown error"}`
+  );
 }
 
 /**
@@ -216,7 +261,10 @@ export async function extractTodayCalls(client: ThreeCXClient): Promise<ThreeCXC
  * @param endpointName Name of the endpoint (for logging)
  * @returns Parsed call log entries
  */
-function parseCallLogResponse(data: any, endpointName: string): ThreeCXCallLogEntry[] {
+function parseCallLogResponse(
+  data: any,
+  endpointName: string
+): ThreeCXCallLogEntry[] {
   const entries: ThreeCXCallLogEntry[] = [];
 
   // Handle different response formats
@@ -255,12 +303,15 @@ function parseCallLogResponse(data: any, endpointName: string): ThreeCXCallLogEn
         entries.push(parsedEntry);
       } else {
         // Log when entry is skipped due to missing required fields
-        logger.debug("[Call Log Extractor] Skipped call entry (missing required fields)", {
-          category: LogCategory.GENERAL,
-          index,
-          entryKeys: Object.keys(entry || {}),
-          endpoint: endpointName,
-        });
+        logger.debug(
+          "[Call Log Extractor] Skipped call entry (missing required fields)",
+          {
+            category: LogCategory.GENERAL,
+            index,
+            entryKeys: Object.keys(entry || {}),
+            endpoint: endpointName,
+          }
+        );
       }
     } catch (error) {
       logger.warn("[Call Log Extractor] Failed to parse call entry", {
@@ -284,39 +335,80 @@ function parseCallLogResponse(data: any, endpointName: string): ThreeCXCallLogEn
  * @returns Parsed call entry or null if invalid
  */
 function parseCallEntry(entry: any): ThreeCXCallLogEntry | null {
-  if (!entry || typeof entry !== 'object') {
+  if (!entry || typeof entry !== "object") {
     return null;
   }
 
   // Try different field name variations (3CX APIs vary)
   const getId = () =>
-    entry.id || entry.Id || entry.CallId || entry.call_id || entry.rowId || Date.now() + Math.random();
+    entry.id ||
+    entry.Id ||
+    entry.CallId ||
+    entry.call_id ||
+    entry.rowId ||
+    Date.now() + Math.random();
 
   const getCallTime = () =>
-    entry.callTime || entry.CallTime || entry.Time || entry.StartTime ||
-    entry.start_time || entry.timestamp || entry.DateTime || new Date().toISOString();
+    entry.callTime ||
+    entry.CallTime ||
+    entry.Time ||
+    entry.StartTime ||
+    entry.start_time ||
+    entry.timestamp ||
+    entry.DateTime ||
+    new Date().toISOString();
 
   const getCallerNumber = () =>
-    entry.callerNumber || entry.CallerNumber || entry.Caller || entry.from ||
-    entry.From || entry.caller || entry.source || entry.Source;
+    entry.callerNumber ||
+    entry.CallerNumber ||
+    entry.Caller ||
+    entry.from ||
+    entry.From ||
+    entry.caller ||
+    entry.source ||
+    entry.Source;
 
   const getCalledNumber = () =>
-    entry.calledNumber || entry.CalledNumber || entry.Called || entry.to ||
-    entry.To || entry.called || entry.destination || entry.Destination;
+    entry.calledNumber ||
+    entry.CalledNumber ||
+    entry.Called ||
+    entry.to ||
+    entry.To ||
+    entry.called ||
+    entry.destination ||
+    entry.Destination;
 
   const getDuration = () =>
-    entry.duration || entry.Duration || entry.CallDuration || entry.call_duration || 0;
+    entry.duration ||
+    entry.Duration ||
+    entry.CallDuration ||
+    entry.call_duration ||
+    0;
 
   const getStatus = () =>
-    entry.status || entry.Status || entry.CallStatus || entry.call_status || "Unknown";
+    entry.status ||
+    entry.Status ||
+    entry.CallStatus ||
+    entry.call_status ||
+    "Unknown";
 
   const getDirection = () =>
-    entry.direction || entry.Direction || entry.CallDirection || entry.call_direction ||
-    entry.Type || entry.type || "Unknown";
+    entry.direction ||
+    entry.Direction ||
+    entry.CallDirection ||
+    entry.call_direction ||
+    entry.Type ||
+    entry.type ||
+    "Unknown";
 
   const getAgentExtension = () =>
-    entry.agentExtension || entry.AgentExtension || entry.Extension || entry.extension ||
-    entry.AgentId || entry.agent_id || undefined;
+    entry.agentExtension ||
+    entry.AgentExtension ||
+    entry.Extension ||
+    entry.extension ||
+    entry.AgentId ||
+    entry.agent_id ||
+    undefined;
 
   const callerNumber = getCallerNumber();
   const calledNumber = getCalledNumber();
@@ -330,17 +422,20 @@ function parseCallEntry(entry: any): ThreeCXCallLogEntry | null {
   // Handle malformed date strings with fallback
   let parsedCallTime: string;
   try {
-    if (callTime && typeof callTime === 'string') {
+    if (callTime && typeof callTime === "string") {
       // Try to parse and re-format the date
       const parsedDate = new Date(callTime);
       if (isNaN(parsedDate.getTime())) {
         // Try Date.parse fallback
         const fallbackParsed = new Date(Date.parse(callTime));
         if (isNaN(fallbackParsed.getTime())) {
-          logger.warn("[Call Log Extractor] Malformed date string, using current time", {
-            category: LogCategory.GENERAL,
-            originalDate: callTime,
-          });
+          logger.warn(
+            "[Call Log Extractor] Malformed date string, using current time",
+            {
+              category: LogCategory.GENERAL,
+              originalDate: callTime,
+            }
+          );
           parsedCallTime = new Date().toISOString();
         } else {
           parsedCallTime = fallbackParsed.toISOString();
@@ -368,7 +463,9 @@ function parseCallEntry(entry: any): ThreeCXCallLogEntry | null {
     duration: Number(getDuration()) || 0,
     status: String(getStatus()),
     direction: String(getDirection()),
-    agentExtension: getAgentExtension() ? String(getAgentExtension()) : undefined,
+    agentExtension: getAgentExtension()
+      ? String(getAgentExtension())
+      : undefined,
     callType: entry.callType || entry.CallType || undefined,
   };
 }
@@ -379,10 +476,14 @@ function parseCallEntry(entry: any): ThreeCXCallLogEntry | null {
  * @param entries Raw call log entries
  * @returns Processed audit result with external caller list
  */
-export function filterExternalCallers(entries: ThreeCXCallLogEntry[]): CallAuditResult {
-  const today = new Date().toLocaleString("en-CA", {
-    timeZone: AUDIT_CONFIG.TIMEZONE
-  }).split(',')[0];
+export function filterExternalCallers(
+  entries: ThreeCXCallLogEntry[]
+): CallAuditResult {
+  const today = new Date()
+    .toLocaleString("en-CA", {
+      timeZone: AUDIT_CONFIG.TIMEZONE,
+    })
+    .split(",")[0];
 
   logger.info("[Call Log Extractor] Starting call filtering", {
     category: LogCategory.GENERAL,
@@ -399,7 +500,8 @@ export function filterExternalCallers(entries: ThreeCXCallLogEntry[]): CallAudit
   for (const entry of entries) {
     try {
       // Check if this is a call to our target number
-      const isTargetCall = entry.calledNumber.includes(AUDIT_CONFIG.TARGET_NUMBER) ||
+      const isTargetCall =
+        entry.calledNumber.includes(AUDIT_CONFIG.TARGET_NUMBER) ||
         entry.calledNumber === AUDIT_CONFIG.TARGET_NUMBER;
 
       if (!isTargetCall) {
@@ -407,17 +509,23 @@ export function filterExternalCallers(entries: ThreeCXCallLogEntry[]): CallAudit
       }
 
       // Check if this is an inbound call
-      const isInbound = entry.direction.toLowerCase().includes('inbound') ||
-        entry.direction.toLowerCase() === 'in' ||
-        entry.direction === '1'; // Some 3CX versions use numeric codes
+      const isInbound =
+        entry.direction.toLowerCase().includes("inbound") ||
+        entry.direction.toLowerCase() === "in" ||
+        entry.direction === "1"; // Some 3CX versions use numeric codes
 
       if (!isInbound) {
         continue; // Only track incoming calls
       }
 
       // Check if caller is an internal extension
-      const isInternal = (AUDIT_CONFIG.INTERNAL_EXTENSIONS as readonly string[]).includes(entry.callerNumber) ||
-        AUDIT_CONFIG.INTERNAL_EXTENSIONS.some(ext => entry.callerNumber.endsWith(ext));
+      const isInternal =
+        (AUDIT_CONFIG.INTERNAL_EXTENSIONS as readonly string[]).includes(
+          entry.callerNumber
+        ) ||
+        AUDIT_CONFIG.INTERNAL_EXTENSIONS.some((ext) =>
+          entry.callerNumber.endsWith(ext)
+        );
 
       if (isInternal) {
         internalFiltered++;
@@ -442,7 +550,6 @@ export function filterExternalCallers(entries: ThreeCXCallLogEntry[]): CallAudit
           entryId: entry.id,
         });
       }
-
     } catch (error) {
       const errorMsg = `Failed to process entry ${entry.id}: ${error instanceof Error ? error.message : String(error)}`;
       errors.push(errorMsg);
@@ -481,18 +588,18 @@ export function filterExternalCallers(entries: ThreeCXCallLogEntry[]): CallAudit
  * @returns Normalized phone number with country code, or null if invalid
  */
 export function normalizePhoneNumber(phone: string): string | null {
-  if (!phone || typeof phone !== 'string') {
+  if (!phone || typeof phone !== "string") {
     return null;
   }
 
   // Strip whitespace, dashes, parentheses, dots
-  let cleaned = phone.replace(/[\s\-\(\)\.\+]/g, '');
+  let cleaned = phone.replace(/[\s\-().+]/g, "");
 
   // Remove any remaining non-numeric characters except leading +
-  if (phone.startsWith('+')) {
-    cleaned = '+' + cleaned.replace(/[^0-9]/g, '');
+  if (phone.startsWith("+")) {
+    cleaned = "+" + cleaned.replace(/[^0-9]/g, "");
   } else {
-    cleaned = cleaned.replace(/[^0-9]/g, '');
+    cleaned = cleaned.replace(/[^0-9]/g, "");
   }
 
   if (cleaned.length < 7) {
@@ -505,34 +612,37 @@ export function normalizePhoneNumber(phone: string): string | null {
   }
 
   // Handle different formats
-  if (cleaned.startsWith('+357')) {
+  if (cleaned.startsWith("+357")) {
     // Already has Cyprus country code
     return cleaned;
   }
 
-  if (cleaned.startsWith('357') && cleaned.length >= 11) {
+  if (cleaned.startsWith("357") && cleaned.length >= 11) {
     // Cyprus number without + prefix
-    return '+' + cleaned;
+    return "+" + cleaned;
   }
 
-  if (cleaned.startsWith('0') && cleaned.length === 9) {
+  if (cleaned.startsWith("0") && cleaned.length === 9) {
     // Cyprus local format with leading zero: "022032770"
-    return '+357' + cleaned.substring(1);
+    return "+357" + cleaned.substring(1);
   }
 
-  if (cleaned.length === 8 && (cleaned.startsWith('2') || cleaned.startsWith('9'))) {
+  if (
+    cleaned.length === 8 &&
+    (cleaned.startsWith("2") || cleaned.startsWith("9"))
+  ) {
     // Cyprus local format without leading zero: "22032770" or "99123456"
-    return '+357' + cleaned;
+    return "+357" + cleaned;
   }
 
-  if (cleaned.startsWith('+')) {
+  if (cleaned.startsWith("+")) {
     // International number with country code
     return cleaned;
   }
 
-  if (cleaned.length >= 10 && !cleaned.startsWith('357')) {
+  if (cleaned.length >= 10 && !cleaned.startsWith("357")) {
     // Assume international number without + prefix
-    return '+' + cleaned;
+    return "+" + cleaned;
   }
 
   // If we can't determine the format, log warning and skip

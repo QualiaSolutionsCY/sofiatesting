@@ -3,9 +3,9 @@
  * Enforces regional boundaries for property uploads
  */
 
-import { Agent } from "../agents/identifier.ts";
-import { logger, LogCategory } from "../utils/logger.ts";
+import type { Agent } from "../agents/identifier.ts";
 import { REGION_LOCATIONS } from "../config/business-rules.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
 
 export interface ValidationResult {
   allowed: boolean;
@@ -26,27 +26,45 @@ export function determineRegion(location: string): string | null {
 
   for (const [region, locations] of Object.entries(REGION_LOCATIONS)) {
     for (const loc of locations) {
-      if (normalizedLocation.includes(loc) || loc.includes(normalizedLocation)) {
+      if (
+        normalizedLocation.includes(loc) ||
+        loc.includes(normalizedLocation)
+      ) {
         return region;
       }
     }
   }
 
   // If no match, try to infer from partial matches
-  if (normalizedLocation.includes('paphos') || normalizedLocation.includes('pafos')) {
-    return 'paphos';
+  if (
+    normalizedLocation.includes("paphos") ||
+    normalizedLocation.includes("pafos")
+  ) {
+    return "paphos";
   }
-  if (normalizedLocation.includes('limassol') || normalizedLocation.includes('lemesos')) {
-    return 'limassol';
+  if (
+    normalizedLocation.includes("limassol") ||
+    normalizedLocation.includes("lemesos")
+  ) {
+    return "limassol";
   }
-  if (normalizedLocation.includes('larnaca') || normalizedLocation.includes('larnaka')) {
-    return 'larnaca';
+  if (
+    normalizedLocation.includes("larnaca") ||
+    normalizedLocation.includes("larnaka")
+  ) {
+    return "larnaca";
   }
-  if (normalizedLocation.includes('nicosia') || normalizedLocation.includes('lefkosia')) {
-    return 'nicosia';
+  if (
+    normalizedLocation.includes("nicosia") ||
+    normalizedLocation.includes("lefkosia")
+  ) {
+    return "nicosia";
   }
-  if (normalizedLocation.includes('famagusta') || normalizedLocation.includes('ammochostos')) {
-    return 'famagusta';
+  if (
+    normalizedLocation.includes("famagusta") ||
+    normalizedLocation.includes("ammochostos")
+  ) {
+    return "famagusta";
   }
 
   return null;
@@ -60,11 +78,11 @@ export function validateRegionalAccess(
   propertyLocation: string
 ): ValidationResult {
   // Management can upload anywhere
-  if (agent.region === 'all') {
+  if (agent.region === "all") {
     const propertyRegion = determineRegion(propertyLocation);
     return {
       allowed: true,
-      propertyRegion: propertyRegion || 'unknown'
+      propertyRegion: propertyRegion || "unknown",
     };
   }
 
@@ -73,10 +91,13 @@ export function validateRegionalAccess(
 
   // If we can't determine the region, trust the agent (they know their region)
   if (!propertyRegion) {
-    logger.debug(`[RegionValidator] Could not determine region for: ${propertyLocation}, trusting agent`, { category: LogCategory.GENERAL });
+    logger.debug(
+      `[RegionValidator] Could not determine region for: ${propertyLocation}, trusting agent`,
+      { category: LogCategory.GENERAL }
+    );
     return {
       allowed: true,
-      propertyRegion: agent.region
+      propertyRegion: agent.region,
     };
   }
 
@@ -85,13 +106,14 @@ export function validateRegionalAccess(
     return {
       allowed: false,
       propertyRegion,
-      message: "Unfortunately, you are not allowed to market a property outside your region. Please contact the relevant regional manager for assistance."
+      message:
+        "Unfortunately, you are not allowed to market a property outside your region. Please contact the relevant regional manager for assistance.",
     };
   }
 
   return {
     allowed: true,
-    propertyRegion
+    propertyRegion,
   };
 }
 
@@ -103,7 +125,7 @@ export function validateAssignment(
   assigneeRegion: string
 ): ValidationResult {
   // If assignee can work anywhere (management), allow
-  if (assigneeRegion === 'all') {
+  if (assigneeRegion === "all") {
     return { allowed: true };
   }
 
@@ -111,7 +133,7 @@ export function validateAssignment(
   if (assigneeRegion !== propertyRegion) {
     return {
       allowed: false,
-      message: `I'm not able to assign this ${propertyRegion} property to an agent in ${assigneeRegion}. Would you like me to assign it to a ${propertyRegion}-based agent instead?`
+      message: `I'm not able to assign this ${propertyRegion} property to an agent in ${assigneeRegion}. Would you like me to assign it to a ${propertyRegion}-based agent instead?`,
     };
   }
 
@@ -123,13 +145,12 @@ export function validateAssignment(
  */
 export function getRegionalOfficeEmail(region: string): string {
   const officeEmails: Record<string, string> = {
-    paphos: 'requestpaphos@zyprus.com',
-    limassol: 'requestlimassol@zyprus.com',
-    larnaca: 'requestlarnaca@zyprus.com',
-    nicosia: 'requestnicosia@zyprus.com',
-    famagusta: 'requestfamagusta@zyprus.com'
+    paphos: "requestpaphos@zyprus.com",
+    limassol: "requestlimassol@zyprus.com",
+    larnaca: "requestlarnaca@zyprus.com",
+    nicosia: "requestnicosia@zyprus.com",
+    famagusta: "requestfamagusta@zyprus.com",
   };
 
-  return officeEmails[region] || 'listings@zyprus.com';
+  return officeEmails[region] || "listings@zyprus.com";
 }
-

@@ -3,7 +3,8 @@
  * Simulates a WaSend image-only webhook (like from phone gallery)
  */
 
-const WEBHOOK_URL = "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot";
+const WEBHOOK_URL =
+  "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot";
 
 // Test phone number (must be a registered agent)
 const TEST_PHONE = "+35799206651"; // Michelle Longridge - Limassol agent
@@ -41,7 +42,10 @@ async function testImageWebhook() {
 
   console.log("Sending webhook request with imageMessage...");
   console.log("Phone:", TEST_PHONE);
-  console.log("Payload:", JSON.stringify(webhookPayload, null, 2).substring(0, 500) + "...\n");
+  console.log(
+    "Payload:",
+    JSON.stringify(webhookPayload, null, 2).substring(0, 500) + "...\n"
+  );
 
   try {
     const response = await fetch(WEBHOOK_URL, {
@@ -63,7 +67,6 @@ async function testImageWebhook() {
     } else {
       console.log("\nWebhook failed:", response.status);
     }
-
   } catch (error) {
     console.error("Error:", error);
   }
@@ -97,8 +100,13 @@ async function testImageVariant() {
     },
   };
 
-  console.log("Sending variant payload with imageMessage at different location...");
-  console.log("Payload:", JSON.stringify(webhookPayload2, null, 2).substring(0, 400) + "...\n");
+  console.log(
+    "Sending variant payload with imageMessage at different location..."
+  );
+  console.log(
+    "Payload:",
+    JSON.stringify(webhookPayload2, null, 2).substring(0, 400) + "...\n"
+  );
 
   try {
     const response = await fetch(WEBHOOK_URL, {
@@ -112,7 +120,6 @@ async function testImageVariant() {
     const responseText = await response.text();
     console.log("Response status:", response.status);
     console.log("Response body:", responseText.substring(0, 300));
-
   } catch (error) {
     console.error("Error:", error);
   }
@@ -124,9 +131,11 @@ async function main() {
   await testImageVariant();
 
   console.log("\n\n=== Check debug logs after 5 seconds ===");
-  await new Promise(resolve => setTimeout(resolve, 5000));
+  await new Promise((resolve) => setTimeout(resolve, 5000));
   console.log("\nRun this SQL to see captured payloads:");
-  console.log("SELECT * FROM webhook_debug_logs ORDER BY created_at DESC LIMIT 10;");
+  console.log(
+    "SELECT * FROM webhook_debug_logs ORDER BY created_at DESC LIMIT 10;"
+  );
 }
 
 main();

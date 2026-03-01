@@ -232,7 +232,7 @@ export async function handleTelegramMessage(
               },
             });
           },
-          { name: "Telegram-AI", timeout: 30000 }
+          { name: "Telegram-AI", timeout: 30_000 }
         );
 
         result = await aiBreaker.fire();
@@ -824,10 +824,14 @@ async function handleFileUpload(message: TelegramMessage): Promise<void> {
         // Try to parse the title deed if it's an image
         if (fileData.mimeType?.startsWith("image/")) {
           // TODO: Add OCR parsing for image-based deeds
-          log.debug("Image title deed received - OCR parsing not implemented yet");
+          log.debug(
+            "Image title deed received - OCR parsing not implemented yet"
+          );
         }
       } else {
-        log.error("Failed to upload title deed", undefined, { error: uploadResult.error });
+        log.error("Failed to upload title deed", undefined, {
+          error: uploadResult.error,
+        });
       }
     }
 

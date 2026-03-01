@@ -6,16 +6,18 @@
  * 2. Checks response for any SOPHIA AI references
  */
 import { config } from "dotenv";
+
 config({ path: ".env.local" });
 
-const EDGE_FUNCTION_URL = "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot";
+const EDGE_FUNCTION_URL =
+  "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot";
 
 // Use a known agent phone number
 const TEST_AGENT_PHONE = "35799581359";
 
 async function testSimpleMessage() {
   console.log("🧪 TESTING DEPLOYED SOPHIA-BOT FUNCTION\n");
-  console.log("=" .repeat(60));
+  console.log("=".repeat(60));
 
   // Test 1: Simple greeting to verify function is responding
   console.log("\n📝 TEST 1: Simple greeting message");
@@ -70,8 +72,12 @@ async function testCodeVerification() {
   const fs = await import("fs");
   const path = await import("path");
 
-  const myNotesPath = path.resolve("supabase/functions/sophia-bot/services/my-notes-generator.ts");
-  const executorPath = path.resolve("supabase/functions/sophia-bot/tools/executor.ts");
+  const myNotesPath = path.resolve(
+    "supabase/functions/sophia-bot/services/my-notes-generator.ts"
+  );
+  const executorPath = path.resolve(
+    "supabase/functions/sophia-bot/tools/executor.ts"
+  );
 
   const myNotesContent = fs.readFileSync(myNotesPath, "utf-8");
   const executorContent = fs.readFileSync(executorPath, "utf-8");
@@ -138,7 +144,7 @@ async function main() {
 
   // Give the async processing a moment
   console.log("\n⏳ Waiting 3 seconds for async processing...");
-  await new Promise(resolve => setTimeout(resolve, 3000));
+  await new Promise((resolve) => setTimeout(resolve, 3000));
 
   const codeOk = await testCodeVerification();
 
@@ -150,12 +156,18 @@ async function main() {
     console.log("\n✅ CODE VERIFICATION PASSED!");
     console.log("   - my-notes-generator.ts: No 'SOPHIA AI' in output");
     console.log("   - executor.ts: Correctly passes reviewer info");
-    console.log("\n🎉 The deployed function should NOT include 'SOPHIA AI' in My Notes");
+    console.log(
+      "\n🎉 The deployed function should NOT include 'SOPHIA AI' in My Notes"
+    );
     console.log("\n📝 Next Steps:");
     console.log("   1. Do a real property upload via WhatsApp");
     console.log("   2. Check the listing on draft dashboard");
-    console.log("   3. Verify My Notes field shows actual reviewer emails, not 'SOPHIA AI'");
-    console.log("\n   Dashboard: https://dev9.zyprus.com/draft-dashboard?ai_state=draft");
+    console.log(
+      "   3. Verify My Notes field shows actual reviewer emails, not 'SOPHIA AI'"
+    );
+    console.log(
+      "\n   Dashboard: https://dev9.zyprus.com/draft-dashboard?ai_state=draft"
+    );
   } else {
     console.log("\n❌ CODE VERIFICATION FAILED!");
     console.log("   The code still contains 'SOPHIA AI' references");

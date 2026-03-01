@@ -18,8 +18,7 @@
  * ```
  */
 
-import { logger } from "./logger.ts";
-import { LogCategory } from "./logger.ts";
+import { LogCategory, logger } from "./logger.ts";
 
 export interface RetryConfig {
   /** Maximum number of retry attempts (default: 3) */
@@ -37,7 +36,7 @@ export interface RetryConfig {
 const DEFAULT_CONFIG: Required<RetryConfig> = {
   maxRetries: 3,
   baseDelayMs: 1000,
-  maxDelayMs: 10000,
+  maxDelayMs: 10_000,
   jitterMs: 500,
   retryableStatuses: [408, 429, 500, 502, 503, 504],
 };
@@ -98,7 +97,7 @@ function calculateDelay(
   jitterMs: number
 ): number {
   // Exponential backoff: baseDelay * 2^attempt
-  const exponentialDelay = baseDelayMs * Math.pow(2, attempt);
+  const exponentialDelay = baseDelayMs * 2 ** attempt;
 
   // Cap at maxDelayMs
   const cappedDelay = Math.min(exponentialDelay, maxDelayMs);
@@ -124,13 +123,8 @@ export async function withRetry<T>(
   operationName = "operation"
 ): Promise<T> {
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
-  const {
-    maxRetries,
-    baseDelayMs,
-    maxDelayMs,
-    jitterMs,
-    retryableStatuses,
-  } = finalConfig;
+  const { maxRetries, baseDelayMs, maxDelayMs, jitterMs, retryableStatuses } =
+    finalConfig;
 
   let lastError: unknown;
 
@@ -168,8 +162,7 @@ export async function withRetry<T>(
         attempt: attempt + 1,
         maxRetries,
         delayMs: Math.round(delayMs),
-        errorMessage:
-          error instanceof Error ? error.message : String(error),
+        errorMessage: error instanceof Error ? error.message : String(error),
       });
 
       // Wait before retrying

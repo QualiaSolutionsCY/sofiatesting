@@ -14,22 +14,37 @@ export function extractAreaFromGoogleMapsUrl(url: string): string | null {
 
   // Greek → English district name mapping
   const greekToEnglish: Record<string, string> = {
-    "lemesos": "Limassol",
-    "lefkosia": "Nicosia",
-    "larnaka": "Larnaca",
-    "pafos": "Paphos",
-    "ammochostos": "Famagusta",
+    lemesos: "Limassol",
+    lefkosia: "Nicosia",
+    larnaka: "Larnaca",
+    pafos: "Paphos",
+    ammochostos: "Famagusta",
   };
 
   // Street indicators — if a place name contains these, it's a street, not an area
-  const streetIndicators = /\b(ave|avenue|street|str|road|rd|drive|dr|boulevard|blvd|lane|ln|way|place|crescent|court|terrace|highway|hwy)\b/i;
+  const streetIndicators =
+    /\b(ave|avenue|street|str|road|rd|drive|dr|boulevard|blvd|lane|ln|way|place|crescent|court|terrace|highway|hwy)\b/i;
 
   // Cyprus district names for validation (English + Greek)
-  const cyprusDistricts = ["paphos", "limassol", "larnaca", "nicosia", "famagusta", "lemesos", "lefkosia", "larnaka", "pafos", "ammochostos"];
+  const cyprusDistricts = [
+    "paphos",
+    "limassol",
+    "larnaca",
+    "nicosia",
+    "famagusta",
+    "lemesos",
+    "lefkosia",
+    "larnaka",
+    "pafos",
+    "ammochostos",
+  ];
 
   /** Normalize Greek district names to English */
   function normalizeDistrict(text: string): string {
-    const lower = text.toLowerCase().replace(/\s*\d+\s*$/, "").trim(); // Remove trailing postcodes
+    const lower = text
+      .toLowerCase()
+      .replace(/\s*\d+\s*$/, "")
+      .trim(); // Remove trailing postcodes
     return greekToEnglish[lower] || text.replace(/\s*\d+\s*$/, "").trim();
   }
 
@@ -52,16 +67,21 @@ export function extractAreaFromGoogleMapsUrl(url: string): string | null {
         if (/^\d+\s/.test(placeName)) continue; // Starts with house number
 
         // Check if this contains a Cyprus district
-        const parts = placeName.split(",").map(p => p.trim());
-        const hasDistrict = parts.some(p =>
-          cyprusDistricts.some(d => p.toLowerCase().replace(/\s*\d+\s*$/, "").includes(d))
+        const parts = placeName.split(",").map((p) => p.trim());
+        const hasDistrict = parts.some((p) =>
+          cyprusDistricts.some((d) =>
+            p
+              .toLowerCase()
+              .replace(/\s*\d+\s*$/, "")
+              .includes(d)
+          )
         );
 
         if (hasDistrict && parts.length >= 2) {
           // Remove "Cyprus" and normalize district names
           const filtered = parts
-            .filter(p => p.toLowerCase() !== "cyprus")
-            .map(p => normalizeDistrict(p));
+            .filter((p) => p.toLowerCase() !== "cyprus")
+            .map((p) => normalizeDistrict(p));
           if (filtered.length >= 2) {
             return filtered.join(", ");
           }
@@ -72,14 +92,17 @@ export function extractAreaFromGoogleMapsUrl(url: string): string | null {
     // Strategy 2: Parse the /place/ segment from the URL path
     // e.g., /place/Michali+Sougioul+21,+Lemesos+3046,+Cyprus/
     // This often contains the street address, but we can extract the district
-    const placeSegmentMatch = decoded.match(/\/place\/([^\/]+)/);
+    const placeSegmentMatch = decoded.match(/\/place\/([^/]+)/);
     if (placeSegmentMatch) {
       const placeText = placeSegmentMatch[1].replace(/\+/g, " ").trim();
-      const parts = placeText.split(",").map(p => p.trim());
+      const parts = placeText.split(",").map((p) => p.trim());
 
       // Find the district part (skip street name and "Cyprus")
       for (const part of parts) {
-        const cleaned = part.toLowerCase().replace(/\s*\d+\s*$/, "").trim(); // Remove postcodes
+        const cleaned = part
+          .toLowerCase()
+          .replace(/\s*\d+\s*$/, "")
+          .trim(); // Remove postcodes
         if (cleaned === "cyprus") continue;
         if (cyprusDistricts.includes(cleaned)) {
           // Found a district — but we only have the district, not the area
@@ -100,16 +123,40 @@ export function extractAreaFromGoogleMapsUrl(url: string): string | null {
  * "Limassol" or "Paphos" alone is too vague — the agent must specify the neighborhood.
  */
 export function isCityOnlyLocation(location: string): boolean {
-  const normalized = location.toLowerCase().replace(/[,\s]+/g, " ").trim();
+  const normalized = location
+    .toLowerCase()
+    .replace(/[,\s]+/g, " ")
+    .trim();
   const cityNames = [
-    "paphos", "limassol", "larnaca", "nicosia", "famagusta",
-    "lemesos", "lefkosia", "larnaka", "pafos", "ammochostos",
+    "paphos",
+    "limassol",
+    "larnaca",
+    "nicosia",
+    "famagusta",
+    "lemesos",
+    "lefkosia",
+    "larnaka",
+    "pafos",
+    "ammochostos",
     // With district suffix duplicated (e.g., "Limassol, Limassol")
-    "paphos paphos", "limassol limassol", "larnaca larnaca", "nicosia nicosia", "famagusta famagusta",
+    "paphos paphos",
+    "limassol limassol",
+    "larnaca larnaca",
+    "nicosia nicosia",
+    "famagusta famagusta",
     // Common vague locations
-    "limassol city centre", "paphos city centre", "larnaca city centre", "nicosia city centre",
-    "limassol city center", "paphos city center", "larnaca city center", "nicosia city center",
-    "paphos town", "limassol town", "larnaca town", "nicosia town",
+    "limassol city centre",
+    "paphos city centre",
+    "larnaca city centre",
+    "nicosia city centre",
+    "limassol city center",
+    "paphos city center",
+    "larnaca city center",
+    "nicosia city center",
+    "paphos town",
+    "limassol town",
+    "larnaca town",
+    "nicosia town",
   ];
   return cityNames.includes(normalized);
 }
@@ -120,7 +167,8 @@ export function isCityOnlyLocation(location: string): boolean {
  */
 export function isStreetAddress(location: string): boolean {
   // Street type indicators (English + Greek transliterated)
-  const streetIndicators = /\b(ave|avenue|street|str|road|rd|drive|dr|boulevard|blvd|lane|ln|way|crescent|court|terrace|highway|hwy|leoforos|odos)\b/i;
+  const streetIndicators =
+    /\b(ave|avenue|street|str|road|rd|drive|dr|boulevard|blvd|lane|ln|way|crescent|court|terrace|highway|hwy|leoforos|odos)\b/i;
 
   if (streetIndicators.test(location)) return true;
 
@@ -129,17 +177,26 @@ export function isStreetAddress(location: string): boolean {
   // House numbers are typically 1-3 digits at the end or start
   const houseNumberAtEnd = /\s\d{1,3}$/; // "Pavlou Ave 46"
   const houseNumberAtStart = /^\d{1,3}\s/; // "46 Pavlou Ave"
-  if (houseNumberAtEnd.test(location.trim()) || houseNumberAtStart.test(location.trim())) {
+  if (
+    houseNumberAtEnd.test(location.trim()) ||
+    houseNumberAtStart.test(location.trim())
+  ) {
     // Only flag as street if there are enough words (area names like "Paphos 3" shouldn't trigger)
-    const words = location.split(/[\s,]+/).filter(w => w.length > 1);
+    const words = location.split(/[\s,]+/).filter((w) => w.length > 1);
     if (words.length >= 3) return true;
   }
 
   // Known street names — checked before heuristic suffix detection
   const knownStreets = [
-    "apostolou pavlou", "michali sougioul", "georgiou griva",
-    "archbishop makarios", "spyrou kyprianou", "makarios iii",
-    "grivas digenis", "evagora pallikaridi", "nikodimou mylona",
+    "apostolou pavlou",
+    "michali sougioul",
+    "georgiou griva",
+    "archbishop makarios",
+    "spyrou kyprianou",
+    "makarios iii",
+    "grivas digenis",
+    "evagora pallikaridi",
+    "nikodimou mylona",
   ];
 
   // CRITICAL: Detect Greek street name patterns extracted from Google Maps URLs
@@ -147,12 +204,12 @@ export function isStreetAddress(location: string): boolean {
   // Common pattern: Two-word name + district (e.g., "Michali Sougioul, Limassol")
   // These are often personal names (street named after a person) rather than area names
   // Area names in Cyprus are typically: single word (Tala, Chloraka) or geographic (Kato Paphos, Mesa Geitonia)
-  const parts = location.split(",").map(p => p.trim());
+  const parts = location.split(",").map((p) => p.trim());
   if (parts.length >= 2) {
     const firstPart = parts[0].toLowerCase();
 
     // Check known streets blocklist first
-    if (knownStreets.some(street => firstPart.includes(street))) {
+    if (knownStreets.some((street) => firstPart.includes(street))) {
       return true;
     }
 
@@ -163,19 +220,44 @@ export function isStreetAddress(location: string): boolean {
     if (firstWords.length === 2) {
       // If both words look like Greek names (common suffixes), likely a street
       const looksLikeGreekName = (word: string) => {
-        const endings = ['ou', 'os', 'is', 'as', 'es', 'i', 'oul', 'ios', 'ias', 'eas', 'akis'];
-        return endings.some(e => word.toLowerCase().endsWith(e));
+        const endings = [
+          "ou",
+          "os",
+          "is",
+          "as",
+          "es",
+          "i",
+          "oul",
+          "ios",
+          "ias",
+          "eas",
+          "akis",
+        ];
+        return endings.some((e) => word.toLowerCase().endsWith(e));
       };
 
-      if (looksLikeGreekName(firstWords[0]) && looksLikeGreekName(firstWords[1])) {
+      if (
+        looksLikeGreekName(firstWords[0]) &&
+        looksLikeGreekName(firstWords[1])
+      ) {
         // Exception: Known area names that happen to have Greek suffixes
         const knownAreas = [
-          "agios tychonas", "agios athanasios", "agios nikolaos", "agios ioannis",
-          "agia fyla", "agia napa", "agia zoni", "ayia napa",
-          "potamos germasogeias", "mesa geitonia", "kato polemidia",
-          "kato paphos", "pano paphos", "mesa chorio"
+          "agios tychonas",
+          "agios athanasios",
+          "agios nikolaos",
+          "agios ioannis",
+          "agia fyla",
+          "agia napa",
+          "agia zoni",
+          "ayia napa",
+          "potamos germasogeias",
+          "mesa geitonia",
+          "kato polemidia",
+          "kato paphos",
+          "pano paphos",
+          "mesa chorio",
         ];
-        if (!knownAreas.some(area => firstPart.includes(area))) {
+        if (!knownAreas.some((area) => firstPart.includes(area))) {
           return true; // Likely a street name
         }
       }
@@ -190,16 +272,21 @@ export function isStreetAddress(location: string): boolean {
  * If the /place/ path in the URL contains the AI's location name followed by a house number,
  * it's a street name (e.g., AI passed "Michali Sougioul, Limassol" and URL has "Michali+Sougioul+21,+Lemesos").
  */
-export function isLocationAStreetInUrl(location: string, googleMapsUrl: string): boolean {
+export function isLocationAStreetInUrl(
+  location: string,
+  googleMapsUrl: string
+): boolean {
   try {
     const decoded = decodeURIComponent(googleMapsUrl).replace(/\+/g, " ");
-    const placeMatch = decoded.match(/\/place\/([^\/]+)/);
+    const placeMatch = decoded.match(/\/place\/([^/]+)/);
     if (!placeMatch) return false;
 
     const placePath = placeMatch[1].toLowerCase();
 
     // Extract the location name part (before the district/comma)
-    const locationParts = location.split(",").map(p => p.trim().toLowerCase());
+    const locationParts = location
+      .split(",")
+      .map((p) => p.trim().toLowerCase());
     const locationName = locationParts[0]; // e.g., "michali sougioul"
 
     if (!locationName || locationName.length < 3) return false;
@@ -211,7 +298,9 @@ export function isLocationAStreetInUrl(location: string, googleMapsUrl: string):
 
     // Find the position of the name in the path and check what follows
     const nameIndex = placePath.indexOf(locationName);
-    const afterName = placePath.substring(nameIndex + locationName.length).trim();
+    const afterName = placePath
+      .substring(nameIndex + locationName.length)
+      .trim();
 
     // If what follows the name starts with a number (1-4 digits), it's a house number → street
     if (/^\s*\d{1,4}[,\s]/.test(afterName) || /^\s*\d{1,4}$/.test(afterName)) {
@@ -232,15 +321,26 @@ export function isDocumentUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     const pathname = parsed.pathname.toLowerCase();
-    const docExtensions = ['.docx', '.pdf', '.doc', '.xlsx', '.xls', '.pptx', '.ppt'];
+    const docExtensions = [
+      ".docx",
+      ".pdf",
+      ".doc",
+      ".xlsx",
+      ".xls",
+      ".pptx",
+      ".ppt",
+    ];
 
     // Check pathname (ignoring query string)
-    if (docExtensions.some(ext => pathname.endsWith(ext))) {
+    if (docExtensions.some((ext) => pathname.endsWith(ext))) {
       return true;
     }
 
     // Check for document patterns in path
-    if (pathname.includes('/documents/') || pathname.includes('wordprocessingml')) {
+    if (
+      pathname.includes("/documents/") ||
+      pathname.includes("wordprocessingml")
+    ) {
       return true;
     }
 

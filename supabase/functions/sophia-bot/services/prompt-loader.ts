@@ -8,8 +8,8 @@
  * - Fallback to hardcoded prompts if DB fails
  */
 
-import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
-import { logger, LogCategory } from "../utils/logger.ts";
+import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
+import { LogCategory, logger } from "../utils/logger.ts";
 
 /**
  * Cache TTL: 5 minutes
@@ -27,14 +27,18 @@ import { logger, LogCategory } from "../utils/logger.ts";
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 // Cache miss reason tracking
-type CacheMissReason = "first_load" | "expired" | "version_mismatch" | "manual_invalidation";
+type CacheMissReason =
+  | "first_load"
+  | "expired"
+  | "version_mismatch"
+  | "manual_invalidation";
 
 // In-memory cache
 let cachedPromptSections: Map<string, string> | null = null;
-let cacheTimestamp: number = 0;
+let cacheTimestamp = 0;
 let cacheVersion: string | null = null; // Stores MAX(updated_at) from last load
 let lastInvalidationReason: string | null = null;
-let lastVersionCheckTime: number = 0;
+let lastVersionCheckTime = 0;
 
 // Version check interval: Only check DB version every 30 seconds (not every request)
 // This reduces DB queries from ~50-100ms per request to once per 30s
@@ -44,12 +48,12 @@ const VERSION_CHECK_INTERVAL_MS = 30_000;
 // When multiple requests arrive simultaneously, they share the same loading promise
 let loadingPromise: Promise<Map<string, string>> | null = null;
 
-// Fallback prompts imported from modular files (used if DB fails)
-import { IDENTITY } from "../prompts/core/identity.ts";
-import { SAFETY_RULES } from "../prompts/core/safety-rules.ts";
 import { DOCUMENT_ROUTING } from "../prompts/behaviors/document-routing.ts";
 import { PROPERTY_UPLOAD } from "../prompts/behaviors/property-upload.ts";
 import { RESPONSE_FORMAT } from "../prompts/behaviors/response-format.ts";
+// Fallback prompts imported from modular files (used if DB fails)
+import { IDENTITY } from "../prompts/core/identity.ts";
+import { SAFETY_RULES } from "../prompts/core/safety-rules.ts";
 import { CALCULATOR_CAPABILITIES } from "../prompts/knowledge/calculators.ts";
 import { CYPRUS_KNOWLEDGE } from "../prompts/knowledge/cyprus-real-estate.ts";
 import { TEMPLATES } from "../prompts/templates/content.ts";
@@ -120,11 +124,10 @@ async function loadPromptSectionsFromDB(
       .order("priority", { ascending: true });
 
     if (error) {
-      logger.error(
-        "DB error loading prompts",
-        new Error(error.message),
-        { category: LogCategory.CACHE, errorMessage: error.message }
-      );
+      logger.error("DB error loading prompts", new Error(error.message), {
+        category: LogCategory.CACHE,
+        errorMessage: error.message,
+      });
       return null;
     }
 
@@ -173,7 +176,8 @@ async function getPromptSections(
   } else {
     // Cache exists and within TTL
     // Only check version periodically (every 30s) to avoid DB query on every request
-    const shouldCheckVersion = now - lastVersionCheckTime >= VERSION_CHECK_INTERVAL_MS;
+    const shouldCheckVersion =
+      now - lastVersionCheckTime >= VERSION_CHECK_INTERVAL_MS;
 
     if (shouldCheckVersion) {
       lastVersionCheckTime = now;
@@ -232,11 +236,12 @@ async function getPromptSections(
         for (const [key, value] of dbPrompts) {
           mergedPrompts.set(key, value);
         }
-        const fallbackCount = Object.keys(FALLBACK_PROMPTS).length - dbPrompts.size;
+        const fallbackCount =
+          Object.keys(FALLBACK_PROMPTS).length - dbPrompts.size;
         logger.debug("Merged DB prompts with fallbacks", {
           category: LogCategory.CACHE,
           dbCount: dbPrompts.size,
-          fallbackCount: fallbackCount,
+          fallbackCount,
         });
       } else {
         logger.warn("Using fallback hardcoded prompts (DB unavailable)", {
@@ -246,7 +251,7 @@ async function getPromptSections(
 
       // Store the version - reuse from version check if available, otherwise fetch
       // This avoids a duplicate DB call when we already fetched the version during mismatch detection
-      cacheVersion = detectedDbVersion ?? await getDatabaseVersion(supabase);
+      cacheVersion = detectedDbVersion ?? (await getDatabaseVersion(supabase));
 
       // Update cache
       cachedPromptSections = mergedPrompts;
@@ -305,7 +310,7 @@ export async function loadSystemPrompt(
   const orderedKeys = [
     "identity",
     "safety_rules",
-    "reservation_loan_vat_required",  // MUST load before document_routing
+    "reservation_loan_vat_required", // MUST load before document_routing
     "document_routing",
     "property_upload",
     "response_format",
@@ -354,7 +359,7 @@ export async function getPromptSection(
 /**
  * Force refresh the cache (useful after Dashboard edits)
  */
-export function invalidateCache(reason: string = "manual"): void {
+export function invalidateCache(reason = "manual"): void {
   cachedPromptSections = null;
   cacheTimestamp = 0;
   cacheVersion = null;
@@ -403,7 +408,14 @@ export function getCacheStatus(): {
 export async function getPromptVersionHistory(
   supabase: SupabaseClient,
   key: string
-): Promise<Array<{version: number, created_at: string, replaced_at: string | null, is_current: boolean}>> {
+): Promise<
+  Array<{
+    version: number;
+    created_at: string;
+    replaced_at: string | null;
+    is_current: boolean;
+  }>
+> {
   const { data, error } = await supabase
     .from("sophia_prompts")
     .select("version, created_at, replaced_at, is_current")
@@ -411,10 +423,14 @@ export async function getPromptVersionHistory(
     .order("version", { ascending: false });
 
   if (error || !data) {
-    logger.error("Failed to get version history", new Error(error?.message || "Unknown"), {
-      category: LogCategory.CACHE,
-      promptKey: key,
-    });
+    logger.error(
+      "Failed to get version history",
+      new Error(error?.message || "Unknown"),
+      {
+        category: LogCategory.CACHE,
+        promptKey: key,
+      }
+    );
     return [];
   }
   return data;

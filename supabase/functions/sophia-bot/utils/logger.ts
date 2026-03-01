@@ -122,7 +122,8 @@ class Logger {
   ): string {
     // Get correlation ID from context or request context
     const requestContext = getContext();
-    const correlationId = context?.correlationId || requestContext.correlationId;
+    const correlationId =
+      context?.correlationId || requestContext.correlationId;
 
     const entry: LogEntry = {
       level,
@@ -132,7 +133,10 @@ class Logger {
     };
 
     if (context) {
-      const redactedContext = this.redactPII(context) as Record<string, unknown>;
+      const redactedContext = this.redactPII(context) as Record<
+        string,
+        unknown
+      >;
       Object.assign(entry, redactedContext);
     }
 
@@ -239,7 +243,7 @@ class Logger {
 // Export singleton instance with INFO level by default
 // Can be configured via environment variable in production
 const logLevelStr = Deno.env.get("LOG_LEVEL") || "INFO";
-const logLevel = LogLevel[logLevelStr as keyof typeof LogLevel] ?? LogLevel.INFO;
+const logLevel =
+  LogLevel[logLevelStr as keyof typeof LogLevel] ?? LogLevel.INFO;
 
 export const logger = new Logger(logLevel);
-

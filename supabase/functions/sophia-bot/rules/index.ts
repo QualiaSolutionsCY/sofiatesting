@@ -7,32 +7,30 @@
 
 // Bank detection exports
 export {
-  BANK_URL_PATTERNS,
-  VALID_BANK_NAMES,
   BANK_DETECTION_PROMPT,
+  BANK_URL_PATTERNS,
+  type BankName,
   detectBankFromUrl,
+  getSupportedBanks,
   isBankPropertyUrl,
   isValidBankName,
-  getSupportedBanks,
-  type BankName,
+  VALID_BANK_NAMES,
 } from "./bank-detection.ts";
-
-// Phone masking exports
-export {
-  PHONE_MASKING_PROMPT,
-  PHONE_MASKING_PROMPT_SHORT,
-  maskPhoneNumber,
-  maskPhoneNumberWithPrefix,
-  shouldMaskPhone,
-  maskEmailForLogging,
-} from "./phone-masking.ts";
-
 // Email format exports
 export {
   EMAIL_FORMAT_PROMPT,
   EMAIL_FORMAT_PROMPT_SHORT,
+  type EmailParts,
+  isEmailTemplate,
   parseEmailParts,
   splitEmailIntoMessages,
-  isEmailTemplate,
-  type EmailParts,
 } from "./email-format.ts";
+// Phone masking exports
+export {
+  maskEmailForLogging,
+  maskPhoneNumber,
+  maskPhoneNumberWithPrefix,
+  PHONE_MASKING_PROMPT,
+  PHONE_MASKING_PROMPT_SHORT,
+  shouldMaskPhone,
+} from "./phone-masking.ts";
