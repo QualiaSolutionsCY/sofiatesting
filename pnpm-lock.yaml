@@ -327,6 +327,9 @@ importers:
       eslint-config-next:
         specifier: ^15.5.12
         version: 15.5.12(eslint@9.39.3(jiti@2.6.1))(typescript@5.8.2)
+      globals:
+        specifier: ^17.4.0
+        version: 17.4.0
       tailwindcss:
         specifier: ^4.1.17
         version: 4.1.17
@@ -337,7 +340,7 @@ importers:
         specifier: ^4.19.1
         version: 4.19.3
       typescript:
-        specifier: ^5.6.3
+        specifier: ^5.8.2
         version: 5.8.2
       typescript-eslint:
         specifier: ^8.56.1
@@ -4439,6 +4442,10 @@ packages:
 
   globals@14.0.0:
     resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}
+    engines: {node: '>=18'}
+
+  globals@17.4.0:
+    resolution: {integrity: sha512-hjrNztw/VajQwOLsMNT1cbJiH2muO3OROCHnbehc8eY5JyD2gqz4AcMHPqgaOR59DjgUjYAYLeH699g/eWi2jw==}
     engines: {node: '>=18'}
 
   globalthis@1.0.4:
@@ -10643,6 +10650,8 @@ snapshots:
       path-scurry: 1.11.1
 
   globals@14.0.0: {}
+
+  globals@17.4.0: {}
 
   globalthis@1.0.4:
     dependencies:
