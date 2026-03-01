@@ -13,7 +13,7 @@ Milestone: v1.4 Security & Performance Hardening — ARCHIVED
 Phase: 20 of 20 — all phases complete
 Plan: All plans complete
 Status: Milestone archived, ready for next milestone
-Last activity: 2026-03-01 — Completed quick task 16: Repaired migration history (116 remote migrations reverted, 11 local renamed), documented Drizzle schema cleanup roadmap (9 phantom tables, 60-70 files affected)
+Last activity: 2026-03-01 — Completed quick task 17: Created 4 missing database tables (PropertyListing, LandListing, ListingUploadAttempt, DocumentSend) with 248-line SQL migration, 24 indexes, 13 RLS policies - aligned production DB to Drizzle schema
 
 Progress: [████████████████████] 100% (20/20 phases, 58 plans completed)
 
@@ -45,7 +45,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - **CRITICAL:** Rotate production webhook secret (hardcoded secret exposed in repo - see quick-10 SUMMARY)
 - **CRITICAL:** Rotate Supabase service_role key (hardcoded JWT was in git history - see quick-11 SUMMARY)
 - Migrate `zyprusAgent` → `supabaseAgent` refs across codebase (ZyprusAgent table doesn't exist, agents does) — 6-plan phase roadmap documented in quick-16 FINDINGS.md
-- Reconcile PropertyListing/LandListing/ListingUploadAttempt (in Drizzle+code but not in DB) — 6-plan phase roadmap documented in quick-16 FINDINGS.md, Option A recommended (create tables)
+- ~~Reconcile PropertyListing/LandListing/ListingUploadAttempt (in Drizzle+code but not in DB)~~ — **RESOLVED in quick-17** (tables created via migration 20260301120000)
 - Database maintenance: Investigate unused PKs, drop duplicate indexes, VACUUM high-bloat tables (see quick-9 SUMMARY)
 - Index optimization: Analyze high seq scan tables (upload_locks: 17k, sophia_user_profiles: 12k)
 
@@ -57,6 +57,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 17 | Create 4 missing database tables with RLS policies: 1) Created 248-line SQL migration (PropertyListing 60+ cols, LandListing 37 cols, ListingUploadAttempt 9 cols, DocumentSend 14 cols), 2) Applied migration to production (confirmed in migration history), 3) Created 24 indexes (10 per listing table, 2-4 per tracking table), 4) Applied 13 RLS policies (auth.uid() scoping), 5) Verified TypeScript compiles (exit code 0). Resolved PropertyListing/LandListing/ListingUploadAttempt phantom table issue from quick-16. Web app property listing features now unblocked. | 2026-03-01 | 97400f7 | [17-create-5-missing-database-tables-and-rls](./quick/17-create-5-missing-database-tables-and-rls/) |
 | 16 | Repair Supabase migration history + document Drizzle schema cleanup roadmap: 1) Marked 116 remote-only migrations as reverted, 2) Renamed 11 local migrations to proper timestamps, 3) Verified `supabase db push --dry-run` succeeds, 4) Identified 9 phantom tables (PropertyListing/LandListing/ListingUploadAttempt/etc affecting 60-70 files), 5) Created 596-line FINDINGS.md with 6-plan Phase 21 roadmap. Recommended Option A: Create missing tables (align DB to schema). Migration operations now unblocked. | 2026-03-01 | 9745ad8 | [16-repair-supabase-migration-history-and-re](./quick/16-repair-supabase-migration-history-and-re/) |
 | 15 | Fix dev environment issues: 1) Fresh node_modules reinstall (1086 packages, TypeScript 0 errors, ESLint works), 2) Clean console.log from lib/ (replaced with logger in circuit-breakers.ts JSDoc examples, migration scripts unchanged), 3) Fix 4 ESLint/Biome issues in admin pages (import organization, type annotations, ternary formatting). Dev environment now A-grade audit status. | 2026-03-01 | 04e1755 | [15-fix-corrupted-node-modules-and-dev-envir](./quick/15-fix-corrupted-node-modules-and-dev-envir/) |
 | 14 | Fix 3 audit findings: 1) Add Zod validation to admin prompts PUT endpoint (structured error handling), 2) Add retry logic for WaSender API calls (4 fetch calls wrapped with withRetry, 2 retries on 5xx/network errors), 3) Delete dead code (2 template-manager files, 0 imports) + fix .mcp.json (add Supabase server) + fix CLAUDE.md (correct paths). Net -211 lines. | 2026-03-01 | a3d09cd | [14-fix-top-3-audit-findings-zod-validation-](./quick/14-fix-top-3-audit-findings-zod-validation-/) |
@@ -69,10 +70,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Quick task 16 complete
-Resume file: .planning/quick/16-repair-supabase-migration-history-and-re/16-SUMMARY.md
-Next step: 1) Rotate both secrets (CRITICAL), 2) Review quick-16 FINDINGS.md, 3) Create Phase 21: Drizzle Schema Migration (6 plans documented)
+Stopped at: Quick task 17 complete
+Resume file: .planning/quick/17-create-5-missing-database-tables-and-rls/17-SUMMARY.md
+Next step: 1) Rotate both secrets (CRITICAL), 2) Test property listing creation via web app (now unblocked), 3) Review Phase 21 roadmap for remaining phantom tables (ZyprusAgent, AgentChatSession, etc.)
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-03-01 after quick task 16 complete*
+*Last updated: 2026-03-01 after quick task 17 complete*
