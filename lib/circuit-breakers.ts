@@ -65,7 +65,9 @@ export function createCircuitBreaker<
 
   // Log circuit breaker state changes
   breaker.on("open", () => {
-    log.warn("Circuit OPENED - service unhealthy, failing fast", { name: opts.name });
+    log.warn("Circuit OPENED - service unhealthy, failing fast", {
+      name: opts.name,
+    });
   });
 
   breaker.on("halfOpen", () => {

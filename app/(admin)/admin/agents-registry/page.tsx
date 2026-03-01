@@ -3,10 +3,11 @@ import "server-only";
 import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
+
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AgentsRegistryClient } from "./page-client";
 import { getAdminSupabase } from "@/lib/supabase/admin";
+import { AgentsRegistryClient } from "./page-client";
 
 type PageProps = {
   searchParams: Promise<{
@@ -75,7 +76,9 @@ async function getAgentsData(searchParams: SearchParams) {
   const { data: agents, count, error } = await query;
 
   if (error) {
-    throw new Error(`Supabase query error: ${error.message} (code: ${error.code})`);
+    throw new Error(
+      `Supabase query error: ${error.message} (code: ${error.code})`
+    );
   }
 
   // Transform to match expected format
@@ -85,7 +88,9 @@ async function getAgentsData(searchParams: SearchParams) {
     fullName: a.full_name,
     email: a.communication_email || "",
     phoneNumber: a.mobile,
-    region: a.region ? a.region.charAt(0).toUpperCase() + a.region.slice(1) : "Unknown",
+    region: a.region
+      ? a.region.charAt(0).toUpperCase() + a.region.slice(1)
+      : "Unknown",
     role: a.role || "agent",
     isActive: a.is_active ?? true,
     canReceiveLeads: a.can_receive_leads ?? true,
@@ -131,7 +136,7 @@ async function getAgentsData(searchParams: SearchParams) {
 export default async function AgentsRegistryPage({ searchParams }: PageProps) {
   const params = await searchParams;
 
-  let data;
+  let data: Awaited<ReturnType<typeof getAgentsData>>;
   try {
     data = await getAgentsData(params);
   } catch {

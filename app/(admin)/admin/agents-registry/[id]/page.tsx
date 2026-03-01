@@ -81,7 +81,9 @@ async function getAgentDetails(id: string) {
     fullName: a.full_name,
     email: a.communication_email || "",
     phoneNumber: a.mobile,
-    region: a.region ? a.region.charAt(0).toUpperCase() + a.region.slice(1) : "Unknown",
+    region: a.region
+      ? a.region.charAt(0).toUpperCase() + a.region.slice(1)
+      : "Unknown",
     role: a.role || "agent",
     isActive: a.is_active ?? true,
     telegramUserId: a.telegram_user_id?.toString() || null,
