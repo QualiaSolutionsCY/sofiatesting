@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { readFile, utils } from "xlsx";
+import { readFile, utils } from "xlsx-js-style";
 import { db } from "../lib/db/client";
 import { zyprusAgent } from "../lib/db/schema";
 

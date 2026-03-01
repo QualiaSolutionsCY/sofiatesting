@@ -111,7 +111,7 @@
     "use-stick-to-bottom": "^1.1.1",
     "usehooks-ts": "^3.1.0",
     "wasenderapi": "^0.1.5",
-    "xlsx": "^0.18.5",
+    "xlsx-js-style": "^1.2.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
