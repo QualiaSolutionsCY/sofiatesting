@@ -7,13 +7,15 @@ import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Use the correct service role key for vceeheaxcrhmpqueudqx
-const correctServiceKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjZWVoZWF4Y3JobXBxdWV1ZHF4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTc1NDcyMywiZXhwIjoyMDgxMzMwNzIzfQ.7G_wKzGYcxfLZgQzN4eiWHFDbN8S6j_kkk-k5nJcgqE";
+if (!supabaseUrl || !supabaseKey) {
+  console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local");
+  process.exit(1);
+}
 
-const supabase = createClient(supabaseUrl, correctServiceKey);
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function main() {
   console.log("🔍 Checking chat history for recent property uploads...\n");
