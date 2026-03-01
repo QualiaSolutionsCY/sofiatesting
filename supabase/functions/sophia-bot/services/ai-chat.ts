@@ -29,6 +29,9 @@ const OPENROUTER_CIRCUIT = {
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+const PRIMARY_MODEL = "google/gemini-3.1-pro-preview-customtools";
+const FALLBACK_MODEL = "google/gemini-2.0-flash";
+
 interface AIResponse {
   response: string;
   success: boolean;
@@ -282,7 +285,8 @@ async function callOpenRouter(
     tool_call_id?: string;
   }>,
   tools: any[],
-  toolChoice: "auto" | "required" = "auto"
+  toolChoice: "auto" | "required" = "auto",
+  model: string = PRIMARY_MODEL
 ): Promise<{ message: any; error?: string }> {
   // Circuit breaker: fail fast if OpenRouter has been consistently failing
   if (!canRequest(OPENROUTER_CIRCUIT)) {
@@ -315,7 +319,7 @@ async function callOpenRouter(
             "X-Title": "SOPHIA WhatsApp Bot",
           },
           body: JSON.stringify({
-            model: "google/gemini-3.1-pro-preview-customtools",
+            model,
             messages,
             temperature: 0.1,
             max_tokens: 8192,
@@ -486,18 +490,40 @@ export async function chat(
       };
     }
 
-    const { message, error } = await callOpenRouter(
+    const toolChoiceForCall =
+      isPropertyUploadIntent && toolCallCount === 0 ? "required" : "auto";
+
+    let { message, error } = await callOpenRouter(
       currentMessages,
       tools,
-      isPropertyUploadIntent && toolCallCount === 0 ? "required" : "auto"
+      toolChoiceForCall
     );
 
+    // Fallback: if primary model fails, try the stable fallback model
     if (error || !message) {
-      return {
-        response:
-          "I'm experiencing technical difficulties right now. Please try again in a few moments.",
-        success: false,
-      };
+      logger.warn(
+        `[Fallback] Primary model failed (${error}), trying ${FALLBACK_MODEL}`,
+        { category: LogCategory.GENERAL }
+      );
+      const fallback = await callOpenRouter(
+        currentMessages,
+        tools,
+        toolChoiceForCall,
+        FALLBACK_MODEL
+      );
+      message = fallback.message;
+      error = fallback.error;
+
+      if (error || !message) {
+        return {
+          response:
+            "I'm experiencing technical difficulties right now. Please try again in a few moments.",
+          success: false,
+        };
+      }
+      logger.info("[Fallback] Fallback model succeeded", {
+        category: LogCategory.GENERAL,
+      });
     }
 
     // SAFETY NET: Detect tool calls output as text (Gemini preview models sometimes do this)
