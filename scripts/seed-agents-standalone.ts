@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { config } from "dotenv";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { read, utils } from "xlsx";
+import { read, utils } from "xlsx-js-style";
 import { zyprusAgent } from "../lib/db/schema";
 
 // Load environment variables

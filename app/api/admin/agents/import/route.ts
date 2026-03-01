@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { read, utils } from "xlsx";
+import { read, utils } from "xlsx-js-style";
 import { createLogger } from "@/lib/logger";
 import { getAdminSupabase } from "@/lib/supabase/admin";
 import { checkAdminAuth, hasMinimumRole } from "@/lib/auth/admin";

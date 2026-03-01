@@ -12,7 +12,7 @@ import {
 import Papa from "papaparse";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { read as xlsxRead, utils as xlsxUtils } from "xlsx";
+import { read as xlsxRead, utils as xlsxUtils } from "xlsx-js-style";
 
 // Top-level regex for email validation (performance optimization)
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

@@ -10,13 +10,17 @@
  *
  * WARNING: Webhook tests hit real OpenRouter AI = real costs (~$0.001/msg)
  * Use --health-only flag to skip webhook tests
+ * NOTE: Requires WASEND_WEBHOOK_SECRET env var (not hardcoded for security)
  */
 
 const EDGE_FUNCTION_URL = "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot";
 const HEALTH_URL = `${EDGE_FUNCTION_URL}/health`;
 
 // Webhook secret from Supabase Edge Function secrets
-const WEBHOOK_SECRET = process.env.WASEND_WEBHOOK_SECRET || "6cdb014dc4124e23095525f05fc3acfa";
+const WEBHOOK_SECRET = process.env.WASEND_WEBHOOK_SECRET;
+if (!WEBHOOK_SECRET) {
+  throw new Error("WASEND_WEBHOOK_SECRET environment variable is required for webhook tests");
+}
 
 // Configuration
 const HEALTH_CONCURRENT = 20;        // Parallel health checks
