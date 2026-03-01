@@ -1,3 +1,5 @@
+import "server-only";
+
 import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";

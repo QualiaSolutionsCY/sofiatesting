@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createLogger } from "@/lib/logger";
 import { PromptList } from "@/components/admin/prompts/prompt-list";
 import { getAdminSupabase } from "@/lib/supabase/admin";

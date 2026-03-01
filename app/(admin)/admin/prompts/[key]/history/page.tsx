@@ -1,3 +1,5 @@
+import "server-only";
+
 import { notFound } from "next/navigation";
 import { VersionTimeline } from "@/components/admin/prompts/version-timeline";
 import { getAdminSupabase } from "@/lib/supabase/admin";

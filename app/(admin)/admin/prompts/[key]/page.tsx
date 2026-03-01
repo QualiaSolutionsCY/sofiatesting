@@ -1,3 +1,5 @@
+import "server-only";
+
 import { notFound } from "next/navigation";
 import { PromptEditor } from "@/components/admin/prompts/prompt-editor";
 import { getAdminSupabase } from "@/lib/supabase/admin";

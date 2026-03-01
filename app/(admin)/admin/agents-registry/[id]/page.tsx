@@ -1,3 +1,5 @@
+import "server-only";
+
 // Prevent static generation - this page needs real-time data
 export const dynamic = "force-dynamic";
 
