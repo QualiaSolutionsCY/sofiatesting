@@ -1,7 +1,7 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { agentChatSession, zyprusAgent } from "@/lib/db/schema";
+import { supabaseAgent } from "@/lib/db/schema";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("agents");
@@ -10,22 +10,27 @@ const log = createLogger("agents");
  * Agent Identification Utilities
  *
  * These functions identify Zyprus agents across different platforms
- * (web, Telegram, WhatsApp) and track their chat sessions.
+ * (web, Telegram, WhatsApp).
+ *
+ * NOTE: AgentChatSession tracking was removed in quick-18. The phantom
+ * agentChatSession table never existed in production. Session tracking
+ * happens via the web app's chat table.
  */
 
 export type IdentifiedAgent = {
   id: string;
-  userId: string | null;
   fullName: string;
-  email: string;
-  phoneNumber: string | null;
-  region: string;
-  role: string;
-  isActive: boolean;
-  telegramUserId: string | null; // Stored as varchar(64) for Telegram user IDs
-  whatsappPhoneNumber: string | null;
-  lastActiveAt: Date | null;
-  registeredAt: Date | null;
+  mobile: string | null;
+  communicationEmail: string | null;
+  listingOwnerEmail: string | null;
+  region: string | null;
+  role: string | null;
+  isActive: boolean | null;
+  telegramUserId: number | null; // bigint53 mode = JavaScript number
+  canReceiveLeads: boolean | null;
+  canUpload: boolean | null;
+  zyprusUserId: string | null;
+  createdAt: Date | null;
 };
 
 /**
@@ -34,19 +39,19 @@ export type IdentifiedAgent = {
 export async function identifyAgentByTelegram(
   telegramUserId: string | number
 ): Promise<IdentifiedAgent | null> {
-  // Convert number to string if needed (Telegram sends numbers)
-  const userIdStr =
-    typeof telegramUserId === "number"
-      ? String(telegramUserId)
+  // Convert to number (bigint53 mode uses JavaScript numbers)
+  const telegramIdNumber =
+    typeof telegramUserId === "string"
+      ? Number(telegramUserId)
       : telegramUserId;
   try {
     const [agent] = await db
       .select()
-      .from(zyprusAgent)
+      .from(supabaseAgent)
       .where(
         and(
-          eq(zyprusAgent.telegramUserId, userIdStr),
-          eq(zyprusAgent.isActive, true)
+          eq(supabaseAgent.telegramUserId, telegramIdNumber),
+          eq(supabaseAgent.isActive, true)
         )
       )
       .limit(1);
@@ -54,12 +59,6 @@ export async function identifyAgentByTelegram(
     if (!agent) {
       return null;
     }
-
-    // Update last active timestamp
-    await db
-      .update(zyprusAgent)
-      .set({ lastActiveAt: new Date() })
-      .where(eq(zyprusAgent.id, agent.id));
 
     return agent;
   } catch (error) {
@@ -70,36 +69,18 @@ export async function identifyAgentByTelegram(
 
 /**
  * Identify agent by WhatsApp phone number
+ * NOTE: The agents table doesn't have a whatsappPhoneNumber field.
+ * This is a placeholder for when that field is added.
  */
 export async function identifyAgentByWhatsApp(
   phoneNumber: string
 ): Promise<IdentifiedAgent | null> {
   try {
-    // Normalize phone number (remove spaces, ensure +357 prefix)
-    const normalized = phoneNumber.trim();
-
-    const [agent] = await db
-      .select()
-      .from(zyprusAgent)
-      .where(
-        and(
-          eq(zyprusAgent.whatsappPhoneNumber, normalized),
-          eq(zyprusAgent.isActive, true)
-        )
-      )
-      .limit(1);
-
-    if (!agent) {
-      return null;
-    }
-
-    // Update last active timestamp
-    await db
-      .update(zyprusAgent)
-      .set({ lastActiveAt: new Date() })
-      .where(eq(zyprusAgent.id, agent.id));
-
-    return agent;
+    log.warn(
+      "identifyAgentByWhatsApp called but agents table has no whatsappPhoneNumber field",
+      { phoneNumber }
+    );
+    return null;
   } catch (error) {
     log.error("Error identifying agent by WhatsApp", error, { phoneNumber });
     return null;
@@ -115,11 +96,11 @@ export async function identifyAgentByEmail(
   try {
     const [agent] = await db
       .select()
-      .from(zyprusAgent)
+      .from(supabaseAgent)
       .where(
         and(
-          eq(zyprusAgent.email, email.toLowerCase()),
-          eq(zyprusAgent.isActive, true)
+          eq(supabaseAgent.communicationEmail, email.toLowerCase()),
+          eq(supabaseAgent.isActive, true)
         )
       )
       .limit(1);
@@ -127,12 +108,6 @@ export async function identifyAgentByEmail(
     if (!agent) {
       return null;
     }
-
-    // Update last active timestamp
-    await db
-      .update(zyprusAgent)
-      .set({ lastActiveAt: new Date() })
-      .where(eq(zyprusAgent.id, agent.id));
 
     return agent;
   } catch (error) {
@@ -142,166 +117,17 @@ export async function identifyAgentByEmail(
 }
 
 /**
- * Identify agent by user ID (for registered agents)
- */
-export async function identifyAgentByUserId(
-  userId: string
-): Promise<IdentifiedAgent | null> {
-  try {
-    const [agent] = await db
-      .select()
-      .from(zyprusAgent)
-      .where(
-        and(eq(zyprusAgent.userId, userId), eq(zyprusAgent.isActive, true))
-      )
-      .limit(1);
-
-    if (!agent) {
-      return null;
-    }
-
-    // Update last active timestamp
-    await db
-      .update(zyprusAgent)
-      .set({ lastActiveAt: new Date() })
-      .where(eq(zyprusAgent.id, agent.id));
-
-    return agent;
-  } catch (error) {
-    log.error("Error identifying agent by user ID", error, { userId });
-    return null;
-  }
-}
-
-/**
- * Track agent chat session (creates or updates session)
- */
-export async function trackAgentSession(params: {
-  agentId: string;
-  chatId: string;
-  platform: "web" | "telegram" | "whatsapp";
-  platformUserId: string;
-}): Promise<string> {
-  try {
-    const { agentId, chatId, platform, platformUserId } = params;
-
-    // Check if session exists for this agent + chat
-    const [existingSession] = await db
-      .select()
-      .from(agentChatSession)
-      .where(
-        and(
-          eq(agentChatSession.agentId, agentId),
-          eq(agentChatSession.chatId, chatId)
-        )
-      )
-      .limit(1);
-
-    if (existingSession) {
-      // Update existing session
-      await db
-        .update(agentChatSession)
-        .set({
-          endedAt: null, // Session is ongoing
-        })
-        .where(eq(agentChatSession.id, existingSession.id));
-
-      return existingSession.id;
-    }
-
-    // Create new session
-    const [session] = await db
-      .insert(agentChatSession)
-      .values({
-        agentId,
-        chatId,
-        platform,
-        platformUserId,
-        startedAt: new Date(),
-        messageCount: 0,
-        documentCount: 0,
-        calculatorCount: 0,
-        listingCount: 0,
-        totalTokensUsed: 0,
-        totalCostUsd: "0",
-      })
-      .returning();
-
-    return session.id;
-  } catch (error) {
-    log.error("Error tracking agent session", error);
-    throw error;
-  }
-}
-
-/**
- * Update agent session statistics
- */
-export async function updateAgentSessionStats(
-  sessionId: string,
-  updates: {
-    messageCount?: number;
-    documentCount?: number;
-    calculatorCount?: number;
-    listingCount?: number;
-    tokensUsed?: number;
-    costUsd?: string;
-  }
-): Promise<void> {
-  try {
-    const updateData: any = {};
-
-    if (updates.messageCount !== undefined) {
-      updateData.messageCount = updates.messageCount;
-    }
-    if (updates.documentCount !== undefined) {
-      updateData.documentCount = updates.documentCount;
-    }
-    if (updates.calculatorCount !== undefined) {
-      updateData.calculatorCount = updates.calculatorCount;
-    }
-    if (updates.listingCount !== undefined) {
-      updateData.listingCount = updates.listingCount;
-    }
-    if (updates.tokensUsed !== undefined) {
-      updateData.totalTokensUsed = updates.tokensUsed;
-    }
-    if (updates.costUsd !== undefined) {
-      updateData.totalCostUsd = updates.costUsd;
-    }
-
-    await db
-      .update(agentChatSession)
-      .set(updateData)
-      .where(eq(agentChatSession.id, sessionId));
-  } catch (error) {
-    log.error("Error updating agent session stats", error, { sessionId });
-    // Don't throw - stats updates shouldn't break the flow
-  }
-}
-
-/**
- * End agent session
- */
-export async function endAgentSession(sessionId: string): Promise<void> {
-  try {
-    await db
-      .update(agentChatSession)
-      .set({ endedAt: new Date() })
-      .where(eq(agentChatSession.id, sessionId));
-  } catch (error) {
-    log.error("Error ending agent session", error, { sessionId });
-    // Don't throw - session end shouldn't break the flow
-  }
-}
-
-/**
  * Check if user is a Zyprus agent
+ * NOTE: The agents table doesn't have a userId field yet. This function
+ * is a placeholder for when agent registration is implemented.
  */
 export async function isZyprusAgent(userId: string): Promise<boolean> {
   try {
-    const agent = await identifyAgentByUserId(userId);
-    return agent !== null;
+    // TODO: Add userId field to agents table when agent registration is implemented
+    log.warn("isZyprusAgent called but agents table has no userId field", {
+      userId,
+    });
+    return false;
   } catch (error) {
     log.error("Error checking agent status", error, { userId });
     return false;
@@ -310,6 +136,8 @@ export async function isZyprusAgent(userId: string): Promise<boolean> {
 
 /**
  * Get agent's current entitlements
+ * NOTE: This function is a placeholder until agent registration is implemented
+ * with userId field in agents table.
  */
 export type AgentEntitlements = {
   isAgent: boolean;
@@ -322,24 +150,12 @@ export type AgentEntitlements = {
 export async function getAgentEntitlements(
   userId: string
 ): Promise<AgentEntitlements> {
-  const agent = await identifyAgentByUserId(userId);
-
-  if (!agent) {
-    return {
-      isAgent: false,
-      maxMessagesPerDay: 10_000, // Regular user limit
-      availableModels: ["chat-model", "chat-model-sonnet", "chat-model-gpt4o"],
-      hasPriorityQueue: false,
-      hasInternalTools: false,
-    };
-  }
-
-  // Zyprus agents get unlimited access
+  // TODO: Implement when agents table has userId field
   return {
-    isAgent: true,
-    maxMessagesPerDay: 100_000, // Effectively unlimited
+    isAgent: false,
+    maxMessagesPerDay: 10_000, // Regular user limit
     availableModels: ["chat-model", "chat-model-sonnet", "chat-model-gpt4o"],
-    hasPriorityQueue: true,
-    hasInternalTools: true,
+    hasPriorityQueue: false,
+    hasInternalTools: false,
   };
 }

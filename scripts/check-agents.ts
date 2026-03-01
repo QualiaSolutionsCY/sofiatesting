@@ -9,25 +9,21 @@ import {
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
-const zyprusAgent = pgTable("ZyprusAgent", {
+// Inline table definition for agents table (production schema uses snake_case)
+const agents = pgTable("agents", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("userId"),
-  fullName: text("fullName").notNull(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
-  phoneNumber: varchar("phoneNumber", { length: 20 }),
-  region: varchar("region", { length: 50 }).notNull(),
-  role: varchar("role", { length: 50 }).notNull(),
-  isActive: boolean("isActive").notNull().default(true),
-  canReceiveLeads: boolean("canReceiveLeads").notNull().default(true),
-  telegramUserId: varchar("telegramUserId", { length: 64 }),
-  whatsappPhoneNumber: varchar("whatsappPhoneNumber", { length: 20 }),
-  lastActiveAt: timestamp("lastActiveAt"),
-  registeredAt: timestamp("registeredAt"),
-  inviteSentAt: timestamp("inviteSentAt"),
-  inviteToken: varchar("inviteToken", { length: 64 }),
-  notes: text("notes"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  fullName: text("full_name").notNull(),
+  mobile: text("mobile"),
+  communicationEmail: text("communication_email"),
+  listingOwnerEmail: text("listing_owner_email"),
+  region: text("region"),
+  role: text("role"),
+  canUpload: boolean("can_upload").default(true),
+  telegramUserId: varchar("telegram_user_id", { length: 64 }),
+  isActive: boolean("is_active").default(true),
+  canReceiveLeads: boolean("can_receive_leads").default(true),
+  zyprusUserId: uuid("zyprus_user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 async function main() {
@@ -40,20 +36,22 @@ async function main() {
   const client = postgres(connectionString);
   const db = drizzle(client);
 
-  const agents = await db.select().from(zyprusAgent);
+  const agentsList = await db.select().from(agents);
   console.log("=== REGISTERED AGENTS ===");
-  console.log("Total:", agents.length);
+  console.log("Total:", agentsList.length);
   console.log("");
-  for (const agent of agents) {
+  for (const agent of agentsList) {
     console.log("Name:", agent.fullName);
-    console.log("  Email:", agent.email);
-    console.log("  Phone:", agent.phoneNumber || "Not set");
+    console.log("  Communication Email:", agent.communicationEmail || "Not set");
+    console.log("  Listing Owner Email:", agent.listingOwnerEmail || "Not set");
+    console.log("  Mobile:", agent.mobile || "Not set");
     console.log("  Region:", agent.region || "Not set");
     console.log("  Role:", agent.role || "Not set");
     console.log("  Telegram ID:", agent.telegramUserId || "Not set");
-    console.log("  WhatsApp:", agent.whatsappPhoneNumber || "Not set");
+    console.log("  Zyprus User ID:", agent.zyprusUserId || "Not set");
     console.log("  Active:", agent.isActive);
     console.log("  Can Receive Leads:", agent.canReceiveLeads);
+    console.log("  Can Upload:", agent.canUpload);
     console.log("");
   }
 

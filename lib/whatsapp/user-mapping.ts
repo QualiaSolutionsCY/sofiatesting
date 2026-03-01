@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { chat, user, zyprusAgent } from "@/lib/db/schema";
+import { chat, user, supabaseAgent } from "@/lib/db/schema";
 import { generateUUID } from "@/lib/utils";
 
 /**
@@ -19,54 +19,29 @@ export async function getOrCreateWhatsAppUser(phoneNumber: string): Promise<{
   // Normalize phone number (remove spaces, ensure + prefix)
   const normalizedPhone = phoneNumber.replace(/\s+/g, "");
 
-  // Check if this phone belongs to a registered Zyprus agent
+  // TODO: WhatsApp agent identification - agents table doesn't have whatsappPhoneNumber field
+  // For now, treat all WhatsApp users as guests
+  // When agents.whatsapp_phone_number is added, uncomment this block:
+  /*
   const [agent] = await db
     .select()
-    .from(zyprusAgent)
+    .from(supabaseAgent)
     .where(
       and(
-        eq(zyprusAgent.whatsappPhoneNumber, normalizedPhone),
-        eq(zyprusAgent.isActive, true)
+        eq(supabaseAgent.whatsappPhoneNumber, normalizedPhone),
+        eq(supabaseAgent.isActive, true)
       )
     )
     .limit(1);
 
   if (agent) {
-    // Agent found - check if they have a linked user account
-    if (agent.userId) {
-      const [linkedUser] = await db
-        .select()
-        .from(user)
-        .where(eq(user.id, agent.userId))
-        .limit(1);
-
-      if (linkedUser) {
-        return {
-          id: linkedUser.id,
-          email: linkedUser.email,
-          name: agent.fullName, // Use agent's name since user table doesn't have name field
-          type: "regular",
-          isAgent: true,
-          agentId: agent.id,
-        };
-      }
-    }
-
-    // Agent exists but no linked user - create one
-    const email =
-      agent.email || `whatsapp_${normalizedPhone}@sofia.zyprus.local`;
+    const email = agent.communicationEmail || `whatsapp_${normalizedPhone}@sofia.zyprus.local`;
     const newUserId = generateUUID();
 
     await db.insert(user).values({
       id: newUserId,
       email,
     });
-
-    // Link user to agent
-    await db
-      .update(zyprusAgent)
-      .set({ userId: newUserId, lastActiveAt: new Date() })
-      .where(eq(zyprusAgent.id, agent.id));
 
     return {
       id: newUserId,
@@ -77,6 +52,7 @@ export async function getOrCreateWhatsAppUser(phoneNumber: string): Promise<{
       agentId: agent.id,
     };
   }
+  */
 
   // Not a registered agent - create/find guest user
   const guestEmail = `whatsapp_${normalizedPhone}@sofia.guest.local`;
@@ -168,30 +144,18 @@ export async function getOrCreateWhatsAppChat(
 /**
  * Check if a WhatsApp phone number is a registered Zyprus agent.
  * Used to determine permissions and capabilities.
+ * NOTE: agents table doesn't have whatsappPhoneNumber field yet.
  */
 export async function isRegisteredAgent(phoneNumber: string): Promise<boolean> {
-  const normalizedPhone = phoneNumber.replace(/\s+/g, "");
-
-  const [agent] = await db
-    .select({ id: zyprusAgent.id })
-    .from(zyprusAgent)
-    .where(
-      and(
-        eq(zyprusAgent.whatsappPhoneNumber, normalizedPhone),
-        eq(zyprusAgent.isActive, true)
-      )
-    )
-    .limit(1);
-
-  return !!agent;
+  // TODO: Implement when agents.whatsapp_phone_number is added
+  return false;
 }
 
 /**
  * Update last active timestamp for a WhatsApp user's agent record.
+ * NOTE: agents table doesn't have lastActiveAt field. Function is a no-op.
  */
 export async function updateAgentLastActive(agentId: string): Promise<void> {
-  await db
-    .update(zyprusAgent)
-    .set({ lastActiveAt: new Date() })
-    .where(eq(zyprusAgent.id, agentId));
+  // TODO: Add last_active_at to agents table if needed
+  // No-op for now
 }

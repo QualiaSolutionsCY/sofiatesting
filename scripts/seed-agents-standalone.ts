@@ -3,7 +3,7 @@ import { config } from "dotenv";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { read, utils } from "xlsx-js-style";
-import { zyprusAgent } from "../lib/db/schema";
+import { supabaseAgent } from "../lib/db/schema";
 
 // Load environment variables
 config({ path: ".env.local" });
@@ -130,9 +130,9 @@ async function seedAgents(sourceExcelPath: string) {
 
     // Insert agents
     const inserted = await db
-      .insert(zyprusAgent)
+      .insert(supabaseAgent)
       .values(agents)
-      .returning({ id: zyprusAgent.id, email: zyprusAgent.email });
+      .returning({ id: supabaseAgent.id, email: supabaseAgent.email });
 
     console.log(`\n✅ Successfully inserted ${inserted.length} agents!`);
 

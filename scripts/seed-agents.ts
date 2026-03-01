@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { readFile, utils } from "xlsx-js-style";
 import { db } from "../lib/db/client";
-import { zyprusAgent } from "../lib/db/schema";
+import { supabaseAgent } from "../lib/db/schema";
 
 /**
  * Seed Script: Import Zyprus Agents from Excel Spreadsheet
@@ -125,9 +125,9 @@ async function seedAgents(sourceExcelPath: string) {
 
     // Insert agents
     const inserted = await db
-      .insert(zyprusAgent)
+      .insert(supabaseAgent)
       .values(agents)
-      .returning({ id: zyprusAgent.id, email: zyprusAgent.email });
+      .returning({ id: supabaseAgent.id, email: supabaseAgent.email });
 
     console.log(`\n✅ Successfully inserted ${inserted.length} agents!`);
 
