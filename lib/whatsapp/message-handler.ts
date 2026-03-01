@@ -12,7 +12,7 @@ import { type RequestHints, systemPrompt } from "@/lib/ai/prompts";
 import { myProvider } from "@/lib/ai/providers";
 import { getToolConfig } from "@/lib/ai/tools/registry";
 import { createCircuitBreaker } from "@/lib/circuit-breakers";
-import { isProductionEnvironment } from "@/lib/constants";
+import { isProductionEnvironment, isTestEnvironment } from "@/lib/constants";
 import { db } from "@/lib/db/client";
 import { getMessagesByChatIdWithHistory, saveMessages } from "@/lib/db/queries";
 import { agentExecutionLog } from "@/lib/db/schema";
@@ -68,41 +68,43 @@ export async function handleWhatsAppMessage(
   let hasDbChat = false;
 
   try {
-    // Try to get or create user from DB
-    try {
-      const dbUser = await getOrCreateWhatsAppUser(phoneNumber);
-      const dbChat = await getOrCreateWhatsAppChat(dbUser.id, phoneNumber);
+    // Try to get or create user from DB (skip in test mode — no Supabase)
+    if (!isTestEnvironment) {
+      try {
+        const dbUser = await getOrCreateWhatsAppUser(phoneNumber);
+        const dbChat = await getOrCreateWhatsAppChat(dbUser.id, phoneNumber);
 
-      sessionChatId = dbChat.id;
-      hasDbChat = true;
+        sessionChatId = dbChat.id;
+        hasDbChat = true;
 
-      userContext = {
-        id: dbUser.id,
-        email: dbUser.email,
-        name: dbUser.name || phoneNumber,
-        type: dbUser.type,
-      };
+        userContext = {
+          id: dbUser.id,
+          email: dbUser.email,
+          name: dbUser.name || phoneNumber,
+          type: dbUser.type,
+        };
 
-      if (dbUser.agentId) {
-        await updateAgentLastActive(dbUser.agentId);
+        if (dbUser.agentId) {
+          await updateAgentLastActive(dbUser.agentId);
+        }
+
+        await db.insert(agentExecutionLog).values({
+          agentType: "whatsapp",
+          action: "message_received",
+          modelUsed: "user",
+          success: true,
+          metadata: {
+            from: phoneNumber,
+            message: userMessage,
+            isGroup: messageData.isGroup,
+            userId: dbUser.id,
+            chatId: dbChat.id,
+            isAgent: dbUser.isAgent,
+          },
+        });
+      } catch (dbError) {
+        log.warn("DB operations failed, using fallback context", { error: String(dbError) });
       }
-
-      await db.insert(agentExecutionLog).values({
-        agentType: "whatsapp",
-        action: "message_received",
-        modelUsed: "user",
-        success: true,
-        metadata: {
-          from: phoneNumber,
-          message: userMessage,
-          isGroup: messageData.isGroup,
-          userId: dbUser.id,
-          chatId: dbChat.id,
-          isAgent: dbUser.isAgent,
-        },
-      });
-    } catch (dbError) {
-      log.warn("DB operations failed, using fallback context", { error: String(dbError) });
     }
 
     // Get message history - last 30 days for context
