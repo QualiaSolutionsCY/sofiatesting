@@ -14,6 +14,17 @@ import { executeTool } from "../tools/executor.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
 import { clearPendingImages, getPendingImages } from "./pending-images.ts";
 import { loadSystemPrompt } from "./prompt-loader.ts";
+import {
+  canRequest,
+  recordFailure,
+  recordSuccess,
+} from "../utils/circuit-breaker.ts";
+
+const OPENROUTER_CIRCUIT = {
+  name: "openrouter",
+  failureThreshold: 5,
+  resetTimeoutMs: 60_000, // 60s cooldown
+} as const;
 
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -273,6 +284,17 @@ async function callOpenRouter(
   tools: any[],
   toolChoice: "auto" | "required" = "auto"
 ): Promise<{ message: any; error?: string }> {
+  // Circuit breaker: fail fast if OpenRouter has been consistently failing
+  if (!canRequest(OPENROUTER_CIRCUIT)) {
+    logger.warn("OpenRouter circuit breaker OPEN — failing fast", {
+      category: LogCategory.GENERAL,
+    });
+    return {
+      message: null,
+      error: "AI service temporarily unavailable (circuit open)",
+    };
+  }
+
   let retries = 0;
   const maxRetries = 3;
   const baseDelay = 2000;
@@ -306,6 +328,7 @@ async function callOpenRouter(
         clearTimeout(timeoutId);
 
         if (aiRes.ok) {
+          recordSuccess(OPENROUTER_CIRCUIT);
           const aiData = await aiRes.json();
           return { message: aiData.choices?.[0]?.message };
         }
@@ -334,6 +357,7 @@ async function callOpenRouter(
           category: LogCategory.GENERAL,
         });
 
+        recordFailure(OPENROUTER_CIRCUIT);
         return { message: null, error: "OpenRouter API error" };
       } catch (error) {
         clearTimeout(timeoutId);
@@ -345,14 +369,17 @@ async function callOpenRouter(
       }
     }
 
+    recordFailure(OPENROUTER_CIRCUIT);
     return { message: null, error: "Max retries exceeded" };
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       logger.error("OpenRouter request timeout (30s)", error, {
         category: LogCategory.GENERAL,
       });
+      recordFailure(OPENROUTER_CIRCUIT);
       return { message: null, error: "OpenRouter request timeout (30s)" };
     }
+    recordFailure(OPENROUTER_CIRCUIT);
     throw error;
   }
 }

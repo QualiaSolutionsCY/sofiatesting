@@ -41,8 +41,8 @@ const openrouter = createOpenAI({
 
 export const myProvider = isTestEnvironment
   ? (() => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { chatModel, claudeModel, mistralSmallModel } =
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require("./models.mock");
       return customProvider({
         languageModels: {
