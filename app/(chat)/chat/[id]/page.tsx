@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import { auth } from "@/app/(auth)/auth";
@@ -39,42 +38,12 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
 
   const uiMessages = convertToUIMessages(messagesFromDb);
 
-  const cookieStore = await cookies();
-  const chatModelFromCookie = cookieStore.get("chat-model");
-
-  // Map old model names to current Gemini models
-  const modelMapping: Record<string, string> = {
-    "chat-model-small": "chat-model-flash-lite",
-    "chat-model-medium": "chat-model",
-    "chat-model-large": "chat-model-pro",
-    "chat-model-code": "chat-model",
-    "chat-model-reasoning": "chat-model-pro",
-    "chat-model-flagship": "chat-model-pro",
-    // Legacy Claude/GPT model names
-    "chat-model-gpt4o-mini": "chat-model-flash-lite",
-    "chat-model-gpt4o": "chat-model",
-    "chat-model-sonnet": "chat-model-pro",
-  };
-
-  let selectedModel = DEFAULT_CHAT_MODEL;
-
-  if (chatModelFromCookie) {
-    // Check if it's an old model name and map it
-    selectedModel =
-      modelMapping[chatModelFromCookie.value] || chatModelFromCookie.value;
-
-    // If the model was mapped, update the cookie with the new value
-    if (modelMapping[chatModelFromCookie.value]) {
-      cookieStore.set("chat-model", selectedModel);
-    }
-  }
-
   return (
     <>
       <Chat
         autoResume={true}
         id={chat.id}
-        initialChatModel={selectedModel}
+        initialChatModel={DEFAULT_CHAT_MODEL}
         initialLastContext={chat.lastContext ?? undefined}
         initialMessages={uiMessages}
         initialVisibilityType={chat.visibility}

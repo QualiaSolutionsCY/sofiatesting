@@ -20,7 +20,6 @@ type MessagesProps = {
   regenerate: UseChatHelpers<ChatMessage>["regenerate"];
   isReadonly: boolean;
   isArtifactVisible: boolean;
-  selectedModelId: string;
 };
 
 // Helper to determine if we should show the thinking indicator
@@ -156,9 +155,6 @@ export const Messages = memo(PureMessages, (prevProps, nextProps) => {
   }
 
   if (prevProps.status !== nextProps.status) {
-    return false;
-  }
-  if (prevProps.selectedModelId !== nextProps.selectedModelId) {
     return false;
   }
   if (prevProps.messages.length !== nextProps.messages.length) {

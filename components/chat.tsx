@@ -4,7 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import type { DataUIPart } from "ai";
 import { DefaultChatTransport } from "ai";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { unstable_serialize } from "swr/infinite";
 import { ChatHeader } from "@/components/chat-header";
@@ -62,12 +62,6 @@ export function Chat({
   const [input, setInput] = useState<string>("");
   const [usage, setUsage] = useState<AppUsage | undefined>(initialLastContext);
   const [showCreditCardAlert, setShowCreditCardAlert] = useState(false);
-  const [currentModelId, setCurrentModelId] = useState(initialChatModel);
-  const currentModelIdRef = useRef(currentModelId);
-
-  useEffect(() => {
-    currentModelIdRef.current = currentModelId;
-  }, [currentModelId]);
 
   const {
     messages,
@@ -90,7 +84,7 @@ export function Chat({
           body: {
             id: request.id,
             message: request.messages.at(-1),
-            selectedChatModel: currentModelIdRef.current,
+            selectedChatModel: initialChatModel,
             selectedVisibilityType: visibilityType,
             ...request.body,
           },
@@ -183,7 +177,6 @@ export function Chat({
                 isReadonly={isReadonly}
                 messages={messages}
                 regenerate={regenerate}
-                selectedModelId={initialChatModel}
                 setMessages={setMessages}
                 status={status}
                 votes={votes}
@@ -200,8 +193,6 @@ export function Chat({
                   className="border-none bg-transparent shadow-none focus-within:ring-0"
                   input={input}
                   messages={messages}
-                  onModelChange={setCurrentModelId}
-                  selectedModelId={currentModelId}
                   selectedVisibilityType={visibilityType}
                   sendMessage={sendMessage}
                   setAttachments={setAttachments}
@@ -224,7 +215,6 @@ export function Chat({
         isReadonly={isReadonly}
         messages={messages}
         regenerate={regenerate}
-        selectedModelId={currentModelId}
         selectedVisibilityType={visibilityType}
         sendMessage={sendMessage}
         setAttachments={setAttachments}

@@ -49,8 +49,6 @@ export const myProvider = isTestEnvironment
           "chat-model": chatModel,
           "title-model": mistralSmallModel,
           "artifact-model": claudeModel,
-          "chat-model-pro": chatModel,
-          "chat-model-flash-lite": chatModel,
         },
       });
     })()
@@ -73,26 +71,17 @@ export const myProvider = isTestEnvironment
             "chat-model": errorModel,
             "title-model": errorModel,
             "artifact-model": errorModel,
-            "chat-model-pro": errorModel,
-            "chat-model-gemini3": errorModel,
-            "chat-model-flash-lite": errorModel,
-            "chat-model-flash": errorModel,
           },
         });
       }
 
-      // OpenRouter with Gemini 3 Flash Preview
-      const defaultModel = openrouter("google/gemini-3-flash-preview");
+      const model = openrouter("google/gemini-3-flash-preview");
 
       return customProvider({
         languageModels: {
-          "chat-model": defaultModel,
-          "title-model": defaultModel,
-          "artifact-model": defaultModel,
-          "chat-model-pro": defaultModel,
-          "chat-model-gemini3": defaultModel,
-          "chat-model-flash-lite": defaultModel,
-          "chat-model-flash": defaultModel,
+          "chat-model": model,
+          "title-model": model,
+          "artifact-model": model,
         },
       });
     })();

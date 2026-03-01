@@ -1,7 +1,6 @@
 "use server";
 
 import { generateText, type UIMessage } from "ai";
-import { cookies } from "next/headers";
 import { z } from "zod";
 import { auth } from "@/app/(auth)/auth";
 import type { VisibilityType } from "@/components/visibility-selector";
@@ -17,10 +16,6 @@ import { createLogger } from "@/lib/logger";
 const logger = createLogger("chat:actions");
 
 // Zod schemas for server action input validation
-const chatModelSchema = z.object({
-  model: z.string().min(1, "Model name is required"),
-});
-
 const titleMessageSchema = z.object({
   message: z.custom<UIMessage>((val) => {
     // UIMessage is already typed by AI SDK, just validate it exists
@@ -36,19 +31,6 @@ const chatVisibilitySchema = z.object({
   chatId: z.string().uuid("Invalid chat ID format"),
   visibility: z.enum(["public", "private"] as const),
 });
-
-export async function saveChatModelAsCookie(model: string) {
-  const { model: validatedModel } = chatModelSchema.parse({ model });
-
-  const session = await auth();
-
-  if (!session?.user?.id) {
-    throw new Error("Unauthorized: Please sign in to change chat model");
-  }
-
-  const cookieStore = await cookies();
-  cookieStore.set("chat-model", validatedModel);
-}
 
 export async function generateTitleFromUserMessage({
   message,

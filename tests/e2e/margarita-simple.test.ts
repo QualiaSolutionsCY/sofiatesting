@@ -20,7 +20,7 @@ test.describe("SOFIA Direct API Test", () => {
               },
             ],
           },
-          selectedChatModel: "chat-model-gpt4o-mini",
+          selectedChatModel: "chat-model",
           selectedVisibilityType: "private",
         },
         headers: {
@@ -79,7 +79,7 @@ test.describe("SOFIA Direct API Test", () => {
               },
             ],
           },
-          selectedChatModel: "chat-model-gpt4o-mini",
+          selectedChatModel: "chat-model",
           selectedVisibilityType: "private",
         },
         headers: {

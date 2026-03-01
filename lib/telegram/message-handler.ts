@@ -131,8 +131,7 @@ export async function handleTelegramMessage(
   }
 
   // Get the model once for use in both streaming and error logging
-  // Using Flash-Lite for Telegram - cheapest and fastest model
-  const chatModel = myProvider.languageModel("chat-model-flash-lite");
+  const chatModel = myProvider.languageModel("chat-model");
 
   try {
     // Show typing indicator
@@ -206,9 +205,9 @@ export async function handleTelegramMessage(
         const aiBreaker = createCircuitBreaker(
           async () => {
             return await streamText({
-              model: chatModel, // Gemini 2.5 Flash-Lite - cheapest & fastest
+              model: chatModel,
               system: await systemPrompt({
-                selectedChatModel: "chat-model-flash-lite",
+                selectedChatModel: "chat-model",
                 requestHints: {
                   latitude: undefined,
                   longitude: undefined,

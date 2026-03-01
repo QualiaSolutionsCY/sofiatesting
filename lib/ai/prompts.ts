@@ -772,27 +772,6 @@ PARALLEL TOOL EXECUTION:
 - Call BOTH tools in the same turn for faster response
 - Output both results in sequence`;
 
-  // Add model-specific enforcement based on model type
-  let modelSpecificEnforcement = "";
-
-  if (
-    selectedChatModel.includes("claude") ||
-    selectedChatModel.includes("haiku") ||
-    selectedChatModel.includes("sonnet")
-  ) {
-    modelSpecificEnforcement = `
-MODEL-SPECIFIC INSTRUCTION FOR CLAUDE:
-- Use EXACTLY "Please provide:" format for fields
-- NO conversational openers ever
-- Direct document output only`;
-  } else if (selectedChatModel.includes("gpt")) {
-    modelSpecificEnforcement = `
-MODEL-SPECIFIC INSTRUCTION FOR GPT:
-- Start with "Please provide:" ALWAYS
-- Zero explanatory text permitted
-- No "Here is" or "I've created" phrases`;
-  }
-
   // Artifacts completely disabled - SOFIA only responds in chat
   return `${basePrompt}
 
@@ -801,8 +780,6 @@ ${hallucinationPrevention}
 ${toolOutputEnforcement}
 
 ${generalKnowledgeInstruction}
-
-${modelSpecificEnforcement}
 
 ${dynamicPrompt}`;
 };

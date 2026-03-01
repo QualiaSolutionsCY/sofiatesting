@@ -29,7 +29,7 @@ const OPENROUTER_CIRCUIT = {
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-const PRIMARY_MODEL = "google/gemini-3.1-pro-preview-customtools";
+const PRIMARY_MODEL = "google/gemini-3-flash-preview";
 const FALLBACK_MODEL = "google/gemini-2.0-flash";
 
 interface AIResponse {

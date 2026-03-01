@@ -7,33 +7,13 @@ type Entitlements = {
 };
 
 export const entitlementsByUserType: Record<UserType, Entitlements> = {
-  /*
-   * For users without an account
-   */
   guest: {
     maxMessagesPerDay: 100,
-    availableChatModelIds: [
-      "chat-model", // Gemini 3 Pro Preview (default)
-      "chat-model-flash", // Gemini 2.5 Flash (fast)
-      "chat-model-pro", // Gemini 2.5 Pro
-      "chat-model-flash-lite", // Gemini 2.5 Flash-Lite
-    ],
+    availableChatModelIds: ["chat-model"],
   },
 
-  /*
-   * For users with an account
-   */
   regular: {
     maxMessagesPerDay: 10_000,
-    availableChatModelIds: [
-      "chat-model", // Gemini 3 Pro Preview (default)
-      "chat-model-flash", // Gemini 2.5 Flash (fast)
-      "chat-model-pro", // Gemini 2.5 Pro
-      "chat-model-flash-lite", // Gemini 2.5 Flash-Lite
-    ],
+    availableChatModelIds: ["chat-model"],
   },
-
-  /*
-   * TODO: For users with an account and a paid membership
-   */
 };

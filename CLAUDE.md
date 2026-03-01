@@ -62,7 +62,8 @@ supabase secrets set SOPHIA_TELEGRAM_ENABLED=false --project-ref vceeheaxcrhmpqu
 | **WhatsApp (sophia-bot)** | OpenRouter -> Gemini | `supabase/functions/sophia-bot/` calls OpenRouter directly |
 | **Web App (Next.js)** | Vercel AI SDK | `app/(chat)/api/chat/route.ts` uses AI SDK with OpenRouter |
 
-**Models** (via OpenRouter): `google/gemini-2.0-flash` (default), `google/gemini-pro` (fallback)
+**Model** (via OpenRouter): `google/gemini-3-flash-preview` (both channels), fallback: `google/gemini-2.0-flash` (WhatsApp only)
+**No model selector** — single model across all channels.
 
 ---
 
