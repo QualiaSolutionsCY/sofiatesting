@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { checkAdminAuth } from "@/lib/auth/admin";
 import { createLogger } from "@/lib/logger";
 import { getAdminSupabase } from "@/lib/supabase/admin";
@@ -84,6 +85,11 @@ export async function GET(
   }
 }
 
+const updatePromptSchema = z.object({
+  content: z.string().min(1, "Content is required"),
+  updatedBy: z.string().optional(),
+});
+
 /**
  * PUT /api/admin/prompts/[key]
  * Update a prompt's content (creates new version)
@@ -103,14 +109,20 @@ export async function PUT(
   try {
     const { key } = await context.params;
     const body = await request.json();
-    const { content, updatedBy } = body;
 
-    if (!content || typeof content !== "string") {
+    // Validate request body with Zod
+    const parseResult = updatePromptSchema.safeParse(body);
+    if (!parseResult.success) {
       return NextResponse.json(
-        { error: "Content is required" },
+        {
+          error: "Validation failed",
+          details: parseResult.error.format()
+        },
         { status: 400 }
       );
     }
+
+    const { content, updatedBy } = parseResult.data;
 
     // SEC-06: Reject oversized prompt content (50KB limit)
     const MAX_PROMPT_SIZE = 50 * 1024; // 50KB
