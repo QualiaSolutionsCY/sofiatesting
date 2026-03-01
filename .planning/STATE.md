@@ -13,7 +13,7 @@ Milestone: v1.4 Security & Performance Hardening — ARCHIVED
 Phase: 20 of 20 — all phases complete
 Plan: All plans complete
 Status: Milestone archived, ready for next milestone
-Last activity: 2026-03-01 — Quick task 9 complete (production readiness fixes)
+Last activity: 2026-03-01 — Completed quick task 9: Fix 4 production readiness issues from audit
 
 Progress: [████████████████████] 100% (20/20 phases, 58 plans completed)
 
@@ -51,6 +51,12 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 - Schema/DB mismatch: 8 phantom tables in Drizzle schema
 - Migration history: `supabase db push` won't work until reconciled
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 9 | Fix 4 production readiness issues from audit: 1) getHistory() missing .catch() in webhook.ts:176, 2) executeTool() missing try-catch in ai-chat.ts:486, 3) image download timeout missing in zyprus/client.ts:580, 4) add server-only imports to admin integration components. Also check Supabase advisors for any warnings. | 2026-03-01 | 855c577 | [9-fix-4-production-readiness-issues-from-a](./quick/9-fix-4-production-readiness-issues-from-a/) |
 
 ## Session Continuity
 
