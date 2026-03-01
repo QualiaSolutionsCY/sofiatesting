@@ -11,6 +11,7 @@ import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 import { type RequestHints, systemPrompt } from "@/lib/ai/prompts";
 import { myProvider } from "@/lib/ai/providers";
 import { getToolConfig } from "@/lib/ai/tools/registry";
+import { createCircuitBreaker } from "@/lib/circuit-breakers";
 import { isProductionEnvironment } from "@/lib/constants";
 import { db } from "@/lib/db/client";
 import { getMessagesByChatIdWithHistory, saveMessages } from "@/lib/db/queries";
@@ -219,21 +220,35 @@ export async function handleWhatsAppMessage(
           dataStream: mockDataStream,
         });
 
-        result = await runWithUserContext(aiUserContext, async () => {
-          return await streamText({
-            model: myProvider.languageModel(DEFAULT_CHAT_MODEL),
-            system: systemPromptValue,
-            messages: convertToModelMessages(uiMessages),
-            temperature: 0,
-            stopWhen: stepCountIs(5),
-            experimental_activeTools: activeTools,
-            tools,
-            experimental_telemetry: {
-              isEnabled: isProductionEnvironment,
-              functionId: "whatsapp-stream-text",
-            },
-          });
-        });
+        // Wrap AI call in circuit breaker for resilience
+        const aiBreaker = createCircuitBreaker(
+          async () => {
+            return await runWithUserContext(aiUserContext, async () => {
+              return await streamText({
+                model: myProvider.languageModel(DEFAULT_CHAT_MODEL),
+                system: systemPromptValue,
+                messages: convertToModelMessages(uiMessages),
+                temperature: 0,
+                stopWhen: stepCountIs(5),
+                experimental_activeTools: activeTools,
+                tools,
+                experimental_telemetry: {
+                  isEnabled: isProductionEnvironment,
+                  functionId: "whatsapp-stream-text",
+                },
+                // Provider-specific options for token limiting (OpenRouter/Gemini)
+                providerOptions: {
+                  openai: {
+                    max_tokens: 4096, // Prevent runaway token costs
+                  },
+                },
+              });
+            });
+          },
+          { name: "WhatsApp-AI", timeout: 30000 }
+        );
+
+        result = await aiBreaker.fire();
         break;
       } catch (err) {
         retryCount++;

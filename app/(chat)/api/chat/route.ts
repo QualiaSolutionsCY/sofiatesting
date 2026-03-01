@@ -253,6 +253,12 @@ export async function POST(request: Request) {
             isEnabled: isProductionEnvironment,
             functionId: "stream-text",
           },
+          // Provider-specific options for token limiting (OpenRouter/Gemini)
+          providerOptions: {
+            openai: {
+              max_tokens: 4096, // Prevent runaway token costs
+            },
+          },
           onFinish: async ({ usage }) => {
             try {
               const providers = await getTokenlensCatalog();

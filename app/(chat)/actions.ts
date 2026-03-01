@@ -2,10 +2,13 @@
 
 import { generateText, type UIMessage } from "ai";
 import { cookies } from "next/headers";
+import { z } from "zod";
 import type { VisibilityType } from "@/components/visibility-selector";
+import { auth } from "@/app/(auth)/auth";
 import { myProvider } from "@/lib/ai/providers";
 import {
   deleteMessagesByChatIdAfterTimestamp,
+  getChatByIdForUser,
   getMessageById,
   updateChatVisiblityById,
 } from "@/lib/db/queries";
@@ -13,9 +16,38 @@ import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("chat:actions");
 
+// Zod schemas for server action input validation
+const chatModelSchema = z.object({
+  model: z.string().min(1, "Model name is required"),
+});
+
+const titleMessageSchema = z.object({
+  message: z.custom<UIMessage>((val) => {
+    // UIMessage is already typed by AI SDK, just validate it exists
+    return val !== null && val !== undefined && typeof val === "object";
+  }, "Invalid message format"),
+});
+
+const messageIdSchema = z.object({
+  id: z.string().uuid("Invalid message ID format"),
+});
+
+const chatVisibilitySchema = z.object({
+  chatId: z.string().uuid("Invalid chat ID format"),
+  visibility: z.enum(["public", "private"] as const),
+});
+
 export async function saveChatModelAsCookie(model: string) {
+  const { model: validatedModel } = chatModelSchema.parse({ model });
+
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized: Please sign in to change chat model");
+  }
+
   const cookieStore = await cookies();
-  cookieStore.set("chat-model", model);
+  cookieStore.set("chat-model", validatedModel);
 }
 
 export async function generateTitleFromUserMessage({
@@ -23,6 +55,14 @@ export async function generateTitleFromUserMessage({
 }: {
   message: UIMessage;
 }) {
+  const { message: validatedMessage } = titleMessageSchema.parse({ message });
+
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized: Please sign in to generate title");
+  }
+
   const { text: title } = await generateText({
     model: myProvider.languageModel("title-model"),
     system: `\n
@@ -30,18 +70,40 @@ export async function generateTitleFromUserMessage({
     - ensure it is not more than 80 characters long
     - the title should be a summary of the user's message
     - do not use quotes or colons`,
-    prompt: JSON.stringify(message),
+    prompt: JSON.stringify(validatedMessage),
   });
 
   return title;
 }
 
 export async function deleteTrailingMessages({ id }: { id: string }) {
-  const [message] = await getMessageById({ id });
+  const { id: validatedId } = messageIdSchema.parse({ id });
+
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized: Please sign in to delete messages");
+  }
+
+  const [message] = await getMessageById({ id: validatedId });
 
   if (!message) {
-    logger.warn("deleteTrailingMessages - Message not found", { messageId: id });
+    logger.warn("deleteTrailingMessages - Message not found", {
+      messageId: validatedId,
+    });
     return;
+  }
+
+  // Verify user owns the chat this message belongs to
+  const [ownedChat] = await getChatByIdForUser({
+    chatId: message.chatId,
+    userId: session.user.id,
+  });
+
+  if (!ownedChat) {
+    throw new Error(
+      "Forbidden: You don't have permission to delete these messages"
+    );
   }
 
   await deleteMessagesByChatIdAfterTimestamp({
@@ -57,5 +119,27 @@ export async function updateChatVisibility({
   chatId: string;
   visibility: VisibilityType;
 }) {
-  await updateChatVisiblityById({ chatId, visibility });
+  const { chatId: validatedChatId, visibility: validatedVisibility } =
+    chatVisibilitySchema.parse({ chatId, visibility });
+
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized: Please sign in to update chat visibility");
+  }
+
+  // Verify user owns this chat
+  const [ownedChat] = await getChatByIdForUser({
+    chatId: validatedChatId,
+    userId: session.user.id,
+  });
+
+  if (!ownedChat) {
+    throw new Error("Forbidden: You don't have permission to modify this chat");
+  }
+
+  await updateChatVisiblityById({
+    chatId: validatedChatId,
+    visibility: validatedVisibility,
+  });
 }

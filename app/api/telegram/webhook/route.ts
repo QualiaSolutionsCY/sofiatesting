@@ -1,3 +1,4 @@
+import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
 import { createLogger } from "@/lib/logger";
 import { handleTelegramMessage } from "@/lib/telegram/message-handler";
@@ -10,6 +11,99 @@ export const maxDuration = 60;
 
 // Get the webhook secret from environment
 const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
+
+// Deduplication configuration
+const DEDUP_PREFIX = "telegram:dedup:";
+const DEDUP_TTL_SECONDS = 300; // 5 minutes - matches WhatsApp for consistency
+
+// In-memory fallback cache (used if Redis unavailable)
+const memoryDedup = new Map<string, number>();
+let lastMemoryCleanup = Date.now();
+const MEMORY_CLEANUP_INTERVAL = 10_000; // Clean every 10 seconds
+
+// Redis client (lazy initialization)
+let redisClient: Redis | null = null;
+
+/**
+ * Get Redis client with lazy initialization
+ */
+const getRedis = (): Redis | null => {
+  if (redisClient) {
+    return redisClient;
+  }
+
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    return null;
+  }
+
+  try {
+    const parsedRedisUrl = new URL(redisUrl);
+    const redisToken = parsedRedisUrl.password;
+
+    if (!redisToken) {
+      return null;
+    }
+
+    redisClient = new Redis({
+      url: redisUrl,
+      token: redisToken,
+    });
+
+    return redisClient;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Check if message was already processed (Redis with in-memory fallback)
+ * Returns true if duplicate, false if new message
+ */
+const isMessageProcessed = async (messageKey: string): Promise<boolean> => {
+  const redis = getRedis();
+
+  if (redis) {
+    try {
+      const key = `${DEDUP_PREFIX}${messageKey}`;
+      const exists = await redis.get(key);
+
+      if (exists) {
+        return true; // Already processed
+      }
+
+      // Mark as processed with TTL (Redis handles expiration automatically)
+      await redis.set(key, 1, { ex: DEDUP_TTL_SECONDS });
+      return false;
+    } catch (error) {
+      logger.error("Redis dedup failed", error);
+      // Fall through to memory cache
+    }
+  }
+
+  // Fallback to in-memory deduplication with periodic cleanup
+  const now = Date.now();
+
+  // Only cleanup every 10 seconds (not on every call - O(1) amortized)
+  if (now - lastMemoryCleanup > MEMORY_CLEANUP_INTERVAL) {
+    const ttlMs = DEDUP_TTL_SECONDS * 1000;
+    for (const [id, timestamp] of memoryDedup.entries()) {
+      if (now - timestamp > ttlMs) {
+        memoryDedup.delete(id);
+      }
+    }
+    lastMemoryCleanup = now;
+  }
+
+  // Check if message was already processed
+  if (memoryDedup.has(messageKey)) {
+    return true;
+  }
+
+  // Mark as processed
+  memoryDedup.set(messageKey, now);
+  return false;
+};
 
 /**
  * Telegram Bot Webhook Handler
@@ -53,6 +147,13 @@ export async function POST(request: Request) {
 
     // Handle new message - ASYNC (no await)
     if (body.message) {
+      // Deduplication check - prevent reprocessing if Telegram retries webhook delivery
+      const messageKey = `${body.update_id}-${body.message.chat.id}`;
+      if (await isMessageProcessed(messageKey)) {
+        logger.debug("Duplicate message, skipping", { messageKey });
+        return NextResponse.json({ ok: true });
+      }
+
       // Process message asynchronously - don't await
       // The serverless function will stay alive until completion
       const startTime = Date.now();

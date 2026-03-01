@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createLogger } from "@/lib/logger";
 import { getAdminSupabase } from "@/lib/supabase/admin";
 import { checkAdminAuth, hasMinimumRole } from "@/lib/auth/admin";
@@ -101,6 +102,19 @@ export async function GET(
  * PUT /api/admin/agents/[id]
  * Update agent details
  */
+const updateAgentSchema = z.object({
+  fullName: z.string().min(1).max(255).optional(),
+  email: z.string().email("Invalid email format").toLowerCase().optional(),
+  phoneNumber: z.string().optional(),
+  region: z.enum(["paphos", "limassol", "larnaca", "nicosia", "famagusta", "all"]).optional(),
+  role: z.string().min(1).optional(),
+  isActive: z.boolean().optional(),
+  canReceiveLeads: z.boolean().optional(),
+  canUpload: z.boolean().optional(),
+  listingOwnerEmail: z.string().email().optional(),
+  landline: z.string().optional(),
+}).strict();
+
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -126,6 +140,19 @@ export async function PUT(
     const { id } = await context.params;
     const body = await request.json();
 
+    // Validate request body with Zod schema
+    const parseResult = updateAgentSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: parseResult.error.format()
+        },
+        { status: 400 }
+      );
+    }
+    const validatedData = parseResult.data;
+
     // Check if agent exists
     const { data: existing, error: findError } = await getAdminSupabase()
       .from("agents")
@@ -138,11 +165,11 @@ export async function PUT(
     }
 
     // If email is being changed, check for conflicts
-    if (body.email && body.email !== existing.communication_email) {
+    if (validatedData.email && validatedData.email !== existing.communication_email) {
       const { data: conflict } = await getAdminSupabase()
         .from("agents")
         .select("id")
-        .eq("communication_email", body.email.toLowerCase())
+        .eq("communication_email", validatedData.email)
         .neq("id", id)
         .limit(1);
 
@@ -156,20 +183,20 @@ export async function PUT(
 
     // Map camelCase body fields to snake_case DB columns
     const updateData: Record<string, unknown> = {};
-    if (body.fullName !== undefined) updateData.full_name = body.fullName;
-    if (body.email !== undefined)
-      updateData.communication_email = body.email.toLowerCase();
-    if (body.phoneNumber !== undefined) updateData.mobile = body.phoneNumber;
-    if (body.region !== undefined)
-      updateData.region = body.region.toLowerCase();
-    if (body.role !== undefined) updateData.role = body.role;
-    if (body.isActive !== undefined) updateData.is_active = body.isActive;
-    if (body.canReceiveLeads !== undefined)
-      updateData.can_receive_leads = body.canReceiveLeads;
-    if (body.canUpload !== undefined) updateData.can_upload = body.canUpload;
-    if (body.listingOwnerEmail !== undefined)
-      updateData.listing_owner_email = body.listingOwnerEmail;
-    if (body.landline !== undefined) updateData.landline = body.landline;
+    if (validatedData.fullName !== undefined) updateData.full_name = validatedData.fullName;
+    if (validatedData.email !== undefined)
+      updateData.communication_email = validatedData.email;
+    if (validatedData.phoneNumber !== undefined) updateData.mobile = validatedData.phoneNumber;
+    if (validatedData.region !== undefined)
+      updateData.region = validatedData.region.toLowerCase();
+    if (validatedData.role !== undefined) updateData.role = validatedData.role;
+    if (validatedData.isActive !== undefined) updateData.is_active = validatedData.isActive;
+    if (validatedData.canReceiveLeads !== undefined)
+      updateData.can_receive_leads = validatedData.canReceiveLeads;
+    if (validatedData.canUpload !== undefined) updateData.can_upload = validatedData.canUpload;
+    if (validatedData.listingOwnerEmail !== undefined)
+      updateData.listing_owner_email = validatedData.listingOwnerEmail;
+    if (validatedData.landline !== undefined) updateData.landline = validatedData.landline;
 
     const { data: updated, error } = await getAdminSupabase()
       .from("agents")

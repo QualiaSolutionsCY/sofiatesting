@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { checkAdminAuth, hasMinimumRole } from "@/lib/auth/admin";
 import { createLogger } from "@/lib/logger";
 import { getAdminSupabase } from "@/lib/supabase/admin";
@@ -148,6 +149,18 @@ export async function GET(request: NextRequest) {
  *   notes?: string
  * }
  */
+const createAgentSchema = z.object({
+  fullName: z.string().min(1, "Full name is required").max(255),
+  email: z.string().email("Invalid email format").toLowerCase(),
+  phoneNumber: z.string().optional(),
+  region: z.enum(["paphos", "limassol", "larnaca", "nicosia", "famagusta", "all"], {
+    errorMap: () => ({ message: "Invalid region" })
+  }),
+  role: z.string().min(1, "Role is required"),
+  isActive: z.boolean().optional().default(true),
+  notes: z.string().optional(),
+});
+
 export async function POST(request: NextRequest) {
   // Check admin authentication - require admin role for creating agents
   const adminCheck = await checkAdminAuth();
@@ -169,15 +182,20 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    // Validate required fields
-    if (!body.fullName || !body.email || !body.region || !body.role) {
+    // Validate request body with Zod schema
+    const parseResult = createAgentSchema.safeParse(body);
+    if (!parseResult.success) {
       return NextResponse.json(
-        { error: "Missing required fields: fullName, email, region, role" },
+        {
+          error: "Validation failed",
+          details: parseResult.error.format()
+        },
         { status: 400 }
       );
     }
+    const validatedData = parseResult.data;
 
-    const email = body.email.toLowerCase();
+    const email = validatedData.email;
 
     // Check if email already exists
     const { data: existing } = await getAdminSupabase()
@@ -197,13 +215,13 @@ export async function POST(request: NextRequest) {
     const { data: agent, error } = await getAdminSupabase()
       .from("agents")
       .insert({
-        full_name: body.fullName,
-        communication_email: email,
-        listing_owner_email: email,
-        mobile: body.phoneNumber || "",
-        region: body.region.toLowerCase(),
-        role: body.role,
-        is_active: body.isActive ?? true,
+        full_name: validatedData.fullName,
+        communication_email: validatedData.email,
+        listing_owner_email: validatedData.email,
+        mobile: validatedData.phoneNumber || "",
+        region: validatedData.region,
+        role: validatedData.role,
+        is_active: validatedData.isActive,
       })
       .select()
       .single();

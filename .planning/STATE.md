@@ -2,27 +2,27 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-28)
+See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Agents can trust SOPHIA to do the right thing every time
-**Current focus:** v1.4 Security & Performance Hardening — Phase 18 (Database Security)
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Milestone: v1.4 Security & Performance Hardening
-Phase: 18 of 20 (Database Security - RLS)
-Plan: Ready to plan
-Status: Roadmap created, ready for phase planning
-Last activity: 2026-03-01 — v1.4 roadmap created
+Milestone: v1.4 Security & Performance Hardening — ARCHIVED
+Phase: 20 of 20 — all phases complete
+Plan: All plans complete
+Status: Milestone archived, ready for next milestone
+Last activity: 2026-03-01 — v1.4 milestone archived
 
-Progress: [████████████████░░░░] 85% (17/20 phases, 48 plans completed)
+Progress: [████████████████████] 100% (20/20 phases, 58 plans completed)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 48
-- Total phases shipped: 17
-- Milestones completed: 4
+- Total plans completed: 58
+- Total phases shipped: 20
+- Milestones completed: 5
 
 **By Milestone:**
 
@@ -32,39 +32,31 @@ Progress: [████████████████░░░░] 85% (17
 | v1.1 Reliability | 6-9 | 16 plans | Shipped 2026-01-29 |
 | v1.2 Call Audit | 10-14 | 14 plans | Shipped 2026-02-26 |
 | v1.3 Audit Fixes | 15-17 | 8 plans | Shipped 2026-02-28 |
-| v1.4 Hardening | 18-20 | TBD | In Progress |
+| v1.4 Hardening | 18-20 | 10 plans | Shipped 2026-03-01 |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- v1.3: Cowork audit → Claude Code pipeline for external review + automated fixes
-- All milestones: Backwards compatible changes only (no breaking changes)
-- Supabase Edge Functions deployment only (no Vercel for backend)
 
 ### Pending Todos
 
-None yet.
+- Sync Drizzle schema with production DB (8 tables defined but not migrated)
+- Repair supabase migration history (local/remote mismatch)
 
 ### Blockers/Concerns
 
-None yet — roadmap ready for planning.
+- Schema/DB mismatch: 8 phantom tables in Drizzle schema
+- Migration history: `supabase db push` won't work until reconciled
 
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: v1.4 roadmap created with 3 phases (18-20)
-Next step: `/gsd:plan-phase 18` to create Database Security (RLS) plan
-
-**v1.4 Roadmap Summary:**
-- Phase 18: Database Security (RLS) — 17 requirements, 5 success criteria
-- Phase 19: Authentication Hardening — 5 requirements, 4 success criteria
-- Phase 20: Code Quality & Validation — 6 requirements, 5 success criteria
-- Total: 28 requirements, 100% coverage
+Stopped at: v1.4 milestone archived
+Resume file: .planning/ROADMAP.md
+Next step: `/gsd:new-milestone` to plan next milestone
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-03-01 after v1.4 roadmap created*
+*Last updated: 2026-03-01 after v1.4 milestone archived*

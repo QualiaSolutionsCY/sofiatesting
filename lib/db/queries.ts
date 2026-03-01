@@ -236,6 +236,28 @@ export async function getChatById({ id }: { id: string }) {
   }
 }
 
+export async function getChatByIdForUser({
+  chatId,
+  userId,
+}: {
+  chatId: string;
+  userId: string;
+}) {
+  try {
+    return await db
+      .select()
+      .from(chat)
+      .where(and(eq(chat.id, chatId), eq(chat.userId, userId)))
+      .limit(1);
+  } catch (error) {
+    log.error("Failed to get chat by id for user", error, { chatId, userId });
+    throw new ChatSDKError(
+      "bad_request:database",
+      "Failed to verify chat ownership"
+    );
+  }
+}
+
 export async function saveMessages({ messages }: { messages: DBMessage[] }) {
   try {
     return await db.insert(message).values(messages);

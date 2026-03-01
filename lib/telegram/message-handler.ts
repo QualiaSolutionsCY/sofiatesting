@@ -3,6 +3,7 @@ import { convertToModelMessages, streamText } from "ai";
 import { systemPrompt } from "../ai/prompts";
 import { myProvider } from "../ai/providers";
 import { getTelegramToolConfig } from "../ai/tools/registry";
+import { createCircuitBreaker } from "../circuit-breakers";
 import { isProductionEnvironment } from "../constants";
 import {
   getChatById,
@@ -201,26 +202,40 @@ export async function handleTelegramMessage(
 
     while (retryCount <= MAX_RETRIES) {
       try {
-        result = await streamText({
-          model: chatModel, // Gemini 2.5 Flash-Lite - cheapest & fastest
-          system: await systemPrompt({
-            selectedChatModel: "chat-model-flash-lite",
-            requestHints: {
-              latitude: undefined,
-              longitude: undefined,
-              city: undefined,
-              country: "Cyprus", // Default to Cyprus for SOFIA
-            },
-            userMessage: message.text,
-          }),
-          messages: convertToModelMessages(allMessages),
-          experimental_activeTools: activeTools,
-          tools,
-          experimental_telemetry: {
-            isEnabled: isProductionEnvironment,
-            functionId: "telegram-stream-text",
+        // Wrap AI call in circuit breaker for resilience
+        const aiBreaker = createCircuitBreaker(
+          async () => {
+            return await streamText({
+              model: chatModel, // Gemini 2.5 Flash-Lite - cheapest & fastest
+              system: await systemPrompt({
+                selectedChatModel: "chat-model-flash-lite",
+                requestHints: {
+                  latitude: undefined,
+                  longitude: undefined,
+                  city: undefined,
+                  country: "Cyprus", // Default to Cyprus for SOFIA
+                },
+                userMessage: message.text,
+              }),
+              messages: convertToModelMessages(allMessages),
+              experimental_activeTools: activeTools,
+              tools,
+              experimental_telemetry: {
+                isEnabled: isProductionEnvironment,
+                functionId: "telegram-stream-text",
+              },
+              // Provider-specific options for token limiting (OpenRouter/Gemini)
+              providerOptions: {
+                openai: {
+                  max_tokens: 4096, // Prevent runaway token costs
+                },
+              },
+            });
           },
-        });
+          { name: "Telegram-AI", timeout: 30000 }
+        );
+
+        result = await aiBreaker.fire();
         break; // Success - exit retry loop
       } catch (streamError) {
         retryCount++;

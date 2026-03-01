@@ -1,0 +1,18 @@
+-- Row Level Security for Admin Tables
+-- Phase 18, Plan 03
+-- Created: 2026-03-01
+--
+-- ACTUAL STATE:
+-- - admin_users: Already has deny-all policies for both anon and authenticated roles.
+--   Service_role (Edge Functions) bypasses RLS. Phase 19 will add JWT-based admin access.
+-- - AdminAuditLog: Does NOT exist in production database (defined in Drizzle schema only).
+-- - AgentExecutionLog: Does NOT exist in production database (defined in Drizzle schema only).
+--
+-- admin_users existing policies:
+--   "Deny anon access to admin_users"          ALL  PERMISSIVE  qual=false  roles={anon}
+--   "Deny authenticated access to admin_users"  ALL  PERMISSIVE  qual=false  roles={authenticated}
+--
+-- No additional policies applied. admin_users is already locked down.
+-- AdminAuditLog and AgentExecutionLog policies should be applied when tables are created.
+--
+-- This file is kept for documentation. No SQL executed.

@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { auth, signOut } from "@/app/(auth)/auth";
 import { db } from "@/lib/db/client";
 import {
@@ -15,6 +16,14 @@ import {
 import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("api:user:delete");
+
+const confirmationSchema = z.object({
+  confirmDelete: z.literal(true, {
+    errorMap: () => ({
+      message: "To delete your account, you must send { confirmDelete: true }",
+    }),
+  }),
+});
 
 /**
  * DELETE /api/user/delete - Delete user and all associated data (GDPR Right to Erasure)
@@ -41,14 +50,23 @@ export async function DELETE(request: Request) {
 
     const userId = session.user.id;
 
-    // Optional: Require confirmation in request body
-    const body = await request.json().catch(() => ({}));
-    if (body.confirmDelete !== true) {
+    // Require confirmation in request body
+    const bodyParseResult = await request.json().catch(() => null);
+    if (!bodyParseResult) {
+      return NextResponse.json(
+        { error: "Request body required" },
+        { status: 400 }
+      );
+    }
+
+    const parseResult = confirmationSchema.safeParse(bodyParseResult);
+    if (!parseResult.success) {
       return NextResponse.json(
         {
           error: "Confirmation required",
           message:
             "To delete your account, send { confirmDelete: true } in the request body",
+          details: parseResult.error.format(),
         },
         { status: 400 }
       );

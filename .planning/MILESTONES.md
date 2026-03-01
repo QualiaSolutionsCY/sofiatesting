@@ -1,5 +1,32 @@
 # Project Milestones: SOPHIA Production Hardening
 
+## v1.4 Security & Performance Hardening (Shipped: 2026-03-01)
+
+**Delivered:** Complete security hardening — Row Level Security on all 38 database tables, server-only service role key protection, authentication on all server actions, and Zod input validation across all API endpoints.
+
+**Phases completed:** 18-20 (10 plans total)
+
+**Key accomplishments:**
+
+- RLS enabled on all 38 database tables with 49 policies — users can only access their own data
+- Server-only imports prevent service role key exposure in client bundles (build-time enforcement)
+- All 4 server actions verify authentication and chat ownership before operations
+- Zod validation on all API routes and server actions — type-safe input handling
+- Console.log cleanup — zero debug statements in production Next.js code
+
+**Stats:**
+
+- 38 files changed, +4,537 / -86 lines
+- 102,088 lines of TypeScript
+- 3 phases, 10 plans
+- 2 days (2026-02-28 → 2026-03-01)
+
+**Git range:** `37ae6a6` → `f03f0f9`
+
+**What's next:** TBD — `/gsd:new-milestone` for next milestone planning
+
+---
+
 ## v1.3 Production Audit Fixes (Shipped: 2026-02-28)
 
 **Delivered:** Fixed all 10 critical and high-severity security/reliability issues from Cowork code review audit — password hash, race conditions, injection prevention, rate limiting, query optimization.

@@ -9,11 +9,14 @@ import type {
 } from "@/lib/whatsapp/types";
 import { verifyWebhookSignature } from "@/lib/whatsapp/webhook-utils";
 
+// Prevent Vercel timeout on long AI responses
+export const maxDuration = 60;
+
 const logger = createLogger("whatsapp:webhook");
 
 // Deduplication configuration
 const DEDUP_PREFIX = "whatsapp:dedup:";
-const DEDUP_TTL_SECONDS = 60; // 60 seconds
+const DEDUP_TTL_SECONDS = 300; // 5 minutes - handles WaSenderAPI's aggressive retries
 
 // In-memory fallback cache (used if Redis unavailable)
 const memoryDedup = new Map<string, number>();

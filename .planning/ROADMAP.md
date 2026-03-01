@@ -6,7 +6,7 @@
 - ✅ **v1.1 Reliability & Hardening** - Phases 6-9 (shipped 2026-01-29)
 - ✅ **v1.2 3CX Call Log Audit** - Phases 10-14 (shipped 2026-02-26)
 - ✅ **v1.3 Production Audit Fixes** - Phases 15-17 (shipped 2026-02-28)
-- 🚧 **v1.4 Security & Performance Hardening** - Phases 18-20 (in progress)
+- ✅ **v1.4 Security & Performance Hardening** - Phases 18-20 (shipped 2026-03-01)
 
 ## Phases
 
@@ -124,59 +124,16 @@ See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
 
 </details>
 
-### 🚧 v1.4 Security & Performance Hardening (In Progress)
+<details>
+<summary>✅ v1.4 Security & Performance Hardening (Phases 18-20) - SHIPPED 2026-03-01</summary>
 
-**Milestone Goal:** Fix all medium-severity audit findings — RLS policies, service role protection, auth hardening, and code quality improvements.
+See: `.planning/milestones/v1.4-ROADMAP.md` for full details.
 
-#### Phase 18: Database Security (RLS)
-**Goal**: All core tables protected with Row Level Security policies
-**Depends on**: Nothing (independent security work)
-**Requirements**: RLS-01, RLS-02, RLS-03, RLS-04, RLS-05, RLS-06, RLS-07, RLS-08, RLS-09, RLS-10, RLS-11, RLS-12, RLS-13, RLS-14, RLS-15, RLS-16, RLS-17
-**Success Criteria** (what must be TRUE):
-  1. All 17 core tables have RLS enabled and functional policies
-  2. Users can only access their own data (Chat, User, Message, Vote, Suggestion, Document)
-  3. Agents can only access their own sessions and listings (ZyprusAgent, AgentChatSession, PropertyListing, LandListing, WhatsAppConversation, ListingUploadAttempt)
-  4. Admin tables require admin role (AdminAuditLog, AdminUserRole, AgentExecutionLog)
-  5. Orphaned tables (telegram_group_messages, audit_alerts) have appropriate policies created
-**Plans**: 5 plans in 2 waves
+- [x] Phase 18: Database Security - RLS (5/5 plans)
+- [x] Phase 19: Authentication Hardening (2/2 plans)
+- [x] Phase 20: Code Quality & Validation (3/3 plans)
 
-Plans:
-- [ ] 18-01-PLAN.md — RLS policies for web app user tables (Chat, User, Message, Vote, Suggestion, Document)
-- [ ] 18-02-PLAN.md — RLS policies for agent tables (ZyprusAgent, AgentChatSession, PropertyListing, LandListing, ListingUploadAttempt, WhatsAppConversation)
-- [ ] 18-03-PLAN.md — RLS policies for admin tables (AdminAuditLog, admin_users, AgentExecutionLog)
-- [ ] 18-04-PLAN.md — RLS policies for orphaned tables (telegram_group_messages, audit_alerts)
-- [ ] 18-05-PLAN.md — Apply migrations and verify RLS enforcement
-
-#### Phase 19: Authentication Hardening
-**Goal**: Service role key protected and all server actions have auth checks
-**Depends on**: Phase 18 (RLS must exist before server actions can rely on it)
-**Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05
-**Success Criteria** (what must be TRUE):
-  1. Service role key never accessible from client-side code (server-only import added)
-  2. All server actions reject unauthenticated requests with 401
-  3. Server actions derive user ID from auth.uid(), never trust client input
-  4. No auth bypasses exist in cookie, title generation, message deletion, or visibility endpoints
-**Plans**: TBD
-
-Plans:
-- [ ] 19-01: TBD during planning
-- [ ] 19-02: TBD during planning
-
-#### Phase 20: Code Quality & Validation
-**Goal**: All endpoints validated with Zod, debug statements cleaned up
-**Depends on**: Phase 19 (auth must be in place before validation makes sense)
-**Requirements**: CODE-01, CODE-02, CODE-03, CODE-04, CODE-05, CODE-06
-**Success Criteria** (what must be TRUE):
-  1. All 42 console.log statements replaced with structured logging or removed
-  2. All admin agent endpoints validate inputs with Zod schemas
-  3. User deletion requires validated confirmation payload
-  4. Server actions in actions.ts have Zod schema validation
-  5. No debug statements remain in insert_templates.ts
-**Plans**: TBD
-
-Plans:
-- [ ] 20-01: TBD during planning
-- [ ] 20-02: TBD during planning
+</details>
 
 ## Progress
 
@@ -186,10 +143,10 @@ Plans:
 | v1.1 Reliability | 6-9 | 16 | Complete | 2026-01-29 |
 | v1.2 Call Audit | 10-14 | 14 | Complete | 2026-02-26 |
 | v1.3 Audit Fixes | 15-17 | 8 | Complete | 2026-02-28 |
-| v1.4 Security Hardening | 18-20 | TBD | Not started | - |
+| v1.4 Security Hardening | 18-20 | 10 | Complete | 2026-03-01 |
 
-**Total: 17 phases shipped, 3 phases in v1.4**
+**Total: 20 phases shipped across 5 milestones**
 
 ---
 *Roadmap created: 2026-01-27*
-*Last updated: 2026-03-01 — v1.4 roadmap created with Phases 18-20*
+*Last updated: 2026-03-01 — v1.4 milestone complete (all phases shipped)*

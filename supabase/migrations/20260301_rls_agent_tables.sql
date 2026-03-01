@@ -1,0 +1,20 @@
+-- Row Level Security for Agent Tables
+-- Phase 18, Plan 02
+-- Created: 2026-03-01
+--
+-- NOT APPLIED: The following tables are defined in Drizzle schema (lib/db/schema.ts)
+-- but do NOT exist in the production database:
+--   - ZyprusAgent (schema.ts line 581)
+--   - AgentChatSession (schema.ts line 631)
+--   - PropertyListing (schema.ts line 165)
+--   - LandListing (schema.ts line 297)
+--   - ListingUploadAttempt (schema.ts line 268)
+--   - WhatsAppConversation (migration 0013 only, not in schema.ts)
+--
+-- The actual agent table in production is "agents" (mapped via supabaseAgent in schema.ts)
+-- which already has RLS enabled with a "Service role full access" policy.
+--
+-- These policies should be applied when the corresponding tables are created
+-- via Drizzle migration (drizzle-kit push or generate).
+--
+-- This file is kept for documentation. No SQL executed.
