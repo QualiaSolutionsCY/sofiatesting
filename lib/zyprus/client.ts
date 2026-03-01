@@ -390,7 +390,9 @@ async function uploadToZyprusAPIInternal(listing: ZyprusListingInput): Promise<{
 
       try {
         // Fetch image from URL (supports both external URLs and Vercel Blob URLs)
-        const imageResponse = await fetch(directUrl);
+        const imageResponse = await fetch(directUrl, {
+          signal: AbortSignal.timeout(30000) // 30 second timeout
+        });
         if (!imageResponse.ok) {
           throw new Error(
             `Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`
@@ -919,7 +921,9 @@ async function uploadLandToZyprusAPIInternal(
       });
 
       try {
-        const imageResponse = await fetch(directUrl);
+        const imageResponse = await fetch(directUrl, {
+          signal: AbortSignal.timeout(30000) // 30 second timeout
+        });
         if (!imageResponse.ok) {
           throw new Error(
             `Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`

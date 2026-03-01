@@ -482,14 +482,23 @@ export async function chat(
 
         toolsUsed.push(toolName);
 
-        // Execute the tool
-        const toolResult = await executeTool(
-          { name: toolName, arguments: toolArgs },
-          identifiedAgent,
-          supabaseUrl,
-          supabaseKey,
-          phoneNumber
-        );
+        // Execute the tool with error handling
+        let toolResult;
+        try {
+          toolResult = await executeTool(
+            { name: toolName, arguments: toolArgs },
+            identifiedAgent,
+            supabaseUrl,
+            supabaseKey,
+            phoneNumber
+          );
+        } catch (error) {
+          logger.error(`Tool execution failed: ${toolName}`, { error, category: LogCategory.ERROR });
+          toolResult = {
+            success: false,
+            message: `Error executing ${toolName}: ${error instanceof Error ? error.message : String(error)}`
+          };
+        }
 
         logger.info(`Tool: Result: ${JSON.stringify(toolResult).substring(0, 200)}`, { category: LogCategory.TOOL });
 
@@ -604,13 +613,22 @@ export async function chat(
           logger.info(`[FORCE TOOL] Executing: ${toolName}`, { category: LogCategory.GENERAL });
           toolsUsed.push(toolName);
 
-          const toolResult = await executeTool(
-            { name: toolName, arguments: toolArgs },
-            identifiedAgent,
-            supabaseUrl,
-            supabaseKey,
-            phoneNumber
-          );
+          let toolResult;
+          try {
+            toolResult = await executeTool(
+              { name: toolName, arguments: toolArgs },
+              identifiedAgent,
+              supabaseUrl,
+              supabaseKey,
+              phoneNumber
+            );
+          } catch (error) {
+            logger.error(`[FORCE TOOL] Tool execution failed: ${toolName}`, { error, category: LogCategory.ERROR });
+            toolResult = {
+              success: false,
+              message: `Error executing ${toolName}: ${error instanceof Error ? error.message : String(error)}`
+            };
+          }
 
           if (toolResult.success && toolResult.message) {
             // Clear pending images after successful upload

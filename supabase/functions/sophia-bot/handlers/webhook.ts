@@ -173,7 +173,7 @@ async function processRequest(
       lastDocumentResult,
     ] = await Promise.all([
       buildUserContext(phoneNumber, userMessage).catch(() => null),
-      getHistory(userId),
+      getHistory(userId).catch(() => []),
       identifyAgentByPhone(phoneNumber, supabaseUrl, supabaseKey).catch(() => null),
       getLastDocument(userId).catch(() => null),
     ]);
