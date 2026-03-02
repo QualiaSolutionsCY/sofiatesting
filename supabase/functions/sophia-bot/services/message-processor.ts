@@ -17,6 +17,12 @@ import {
 } from "./media-decryptor.ts";
 import { addPendingDocument } from "./pending-documents.ts";
 import { addPendingImages } from "./pending-images.ts";
+import type {
+  WaSendDocumentMessage,
+  WaSendImageMessage,
+  WaSendMessage,
+  WaSendWebhookPayload,
+} from "../types/wasend.ts";
 
 /**
  * Extracts message content from WaSend webhook payload
@@ -25,8 +31,8 @@ import { addPendingImages } from "./pending-images.ts";
  * IMPORTANT: Use key.cleanedSenderPn for phone number (remoteJid can be LID format)
  * IMPORTANT: WhatsApp images are encrypted - we decrypt them via WaSend API
  */
-export async function extractMessage(payload: any): Promise<{
-  message: any;
+export async function extractMessage(payload: WaSendWebhookPayload): Promise<{
+  message: WaSendMessage;
   remoteJid: string | null;
   userMessage: string;
   imageUrls: string[];
@@ -43,7 +49,7 @@ export async function extractMessage(payload: any): Promise<{
     { category: LogCategory.GENERAL }
   );
 
-  let message = null;
+  let message: WaSendMessage | null = null;
   let remoteJid: string | null = null;
   let userMessage = "";
   const imageUrls: string[] = [];
@@ -223,7 +229,10 @@ export async function extractMessage(payload: any): Promise<{
   // Check MULTIPLE locations for imageMessage (WaSend payload variations)
 
   // Helper to process an imageMessage object
-  const processImageMessage = async (imgMsg: any, source: string) => {
+  const processImageMessage = async (
+    imgMsg: WaSendImageMessage,
+    source: string
+  ) => {
     const rawUrl = imgMsg.url;
     logger.info(
       `Image: Found in ${source}, URL: ${rawUrl?.substring(0, 80) || "none"}`,
@@ -557,7 +566,7 @@ export async function extractMessage(payload: any): Promise<{
 /**
  * Generates a unique message key for deduplication
  */
-export function generateMessageKey(message: any): string | null {
+export function generateMessageKey(message: WaSendMessage): string | null {
   // Try to extract a unique identifier from the message
   // Priority: message ID > key ID > timestamp + content hash
 
