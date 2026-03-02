@@ -33,7 +33,7 @@ Progress: [████████████████████] 80% (20
 | v1.2 Call Audit | 10-14 | 14 plans | Shipped 2026-02-26 |
 | v1.3 Audit Fixes | 15-17 | 8 plans | Shipped 2026-02-28 |
 | v1.4 Hardening | 18-20 | 10 plans | Shipped 2026-03-01 |
-| v1.5 Audit Excellence | 21-25 | 1 plan | In progress |
+| v1.5 Audit Excellence | 21-25 | 2 plans | In progress |
 
 ## Accumulated Context
 
@@ -43,6 +43,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting v1.5:
 - Cowork audit → Claude Code pipeline (External review identifies issues, Claude Code fixes them)
 - Audit tier structure (Tier 1 quick wins → Tier 2 observability → Tier 3 refactoring)
+- 30-second timeout threshold for all external API calls (balances user experience with system protection)
+- Circuit breakers positioned BEFORE retry logic to fail fast when services are persistently degraded
+- Consistent 3-failure threshold and 60s reset timeout across all circuit breakers (matches OpenRouter pattern)
 
 ### Pending Todos
 
@@ -70,10 +73,10 @@ Recent decisions affecting v1.5:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed plan 21-01 (security secrets and identity protection)
-Resume file: .planning/phases/21-security-quick-wins/21-01-SUMMARY.md
-Next step: Execute plan 21-02 (verification and deployment)
+Stopped at: Completed plan 22-01 (timeouts and circuit breakers)
+Resume file: .planning/phases/22-resilience-infrastructure/22-01-SUMMARY.md
+Next step: Execute plan 22-02 (retry and degraded mode)
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-03-02 — plan 21-01 completed*
+*Last updated: 2026-03-02 — plan 22-01 completed*
