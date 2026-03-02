@@ -181,10 +181,9 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 23-01-PLAN.md — Create WaSend webhook types and eliminate any from message-processor.ts (TYPE-01)
-- [ ] 23-02-PLAN.md — Create OpenRouter types and eliminate any from ai-chat.ts and zyprus/client.ts (TYPE-02, TYPE-03)
+- [x] 23-01-PLAN.md — Create WaSend webhook types and eliminate any from message-processor.ts (TYPE-01)
+- [x] 23-02-PLAN.md — Create OpenRouter types and eliminate any from ai-chat.ts and zyprus/client.ts (TYPE-02, TYPE-03)
 
-#### Phase 24: Observability & Documentation
 #### Phase 24: Observability & Documentation
 **Goal**: Production observability and developer onboarding enabled
 **Depends on**: Phase 23
@@ -224,12 +223,12 @@ Plans:
 | v1.2 Call Audit | 10-14 | 14 | Complete | 2026-02-26 |
 | v1.3 Audit Fixes | 15-17 | 8 | Complete | 2026-02-28 |
 | v1.4 Security Hardening | 18-20 | 10 | Complete | 2026-03-01 |
-| v1.5 Audit Excellence | 21-25 | 5 | In progress | - |
+| v1.5 Audit Excellence | 21-25 | 7 | In progress | - |
 
-**Total: 63 plans across 21 phases (5 milestones shipped), 5 plans in progress**
+**Total: 65 plans across 25 phases (5 milestones shipped), 7 plans in v1.5**
 
 **Current milestone: v1.5 (5 phases planned)**
 
 ---
 *Roadmap created: 2026-01-27*
-*Last updated: 2026-03-02 — Plan 21-01 completed*
+*Last updated: 2026-03-02 — Phase 23 completed (Type Safety Foundation)*
