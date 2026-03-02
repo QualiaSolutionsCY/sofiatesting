@@ -11,16 +11,16 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 
 Milestone: v1.5 Audit Excellence
 Phase: 22 of 25 (Resilience Infrastructure)
-Plan: 1 of 2 complete
-Status: In progress
-Last activity: 2026-03-02 - Completed plan 22-01: Timeouts and Circuit Breakers
+Plan: 2 of 2 complete
+Status: Phase complete
+Last activity: 2026-03-02 - Completed plan 22-02: WaSend retry verification and catch logging
 
 Progress: [████████████████████] 80% (20 of 25 phases complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 60
+- Total plans completed: 62
 - Total phases shipped: 20
 - Milestones completed: 5
 
@@ -33,7 +33,7 @@ Progress: [████████████████████] 80% (20
 | v1.2 Call Audit | 10-14 | 14 plans | Shipped 2026-02-26 |
 | v1.3 Audit Fixes | 15-17 | 8 plans | Shipped 2026-02-28 |
 | v1.4 Hardening | 18-20 | 10 plans | Shipped 2026-03-01 |
-| v1.5 Audit Excellence | 21-25 | 2 plans | In progress |
+| v1.5 Audit Excellence | 21-25 | 4 plans | In progress |
 
 ## Accumulated Context
 
@@ -46,6 +46,8 @@ Recent decisions affecting v1.5:
 - 30-second timeout threshold for all external API calls (balances user experience with system protection)
 - Circuit breakers positioned BEFORE retry logic to fail fast when services are persistently degraded
 - Consistent 3-failure threshold and 60s reset timeout across all circuit breakers (matches OpenRouter pattern)
+- Silent catch blocks must log operation context before suppressing errors (use logger.warn for non-critical, logger.error for critical)
+- All catch block logs include operation name, userId/phoneNumber, and error message for debugging
 
 ### Pending Todos
 
@@ -73,10 +75,10 @@ Recent decisions affecting v1.5:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed plan 22-01 (timeouts and circuit breakers)
-Resume file: .planning/phases/22-resilience-infrastructure/22-01-SUMMARY.md
-Next step: Execute plan 22-02 (retry and degraded mode)
+Stopped at: Completed Phase 22 (resilience infrastructure)
+Resume file: .planning/phases/22-resilience-infrastructure/22-02-SUMMARY.md
+Next step: Begin Phase 23 (model unification) or continue with v1.5 Audit Excellence phases
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-03-02 — plan 22-01 completed*
+*Last updated: 2026-03-02 — Phase 22 completed (22-02 WaSend retry verification and catch logging)*
