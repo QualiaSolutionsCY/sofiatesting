@@ -104,8 +104,9 @@ When user says "create listing", "upload property", "I want to add a property":
     - Olha → olha@zyprus.com (Larnaca)
     - Danae → danae@zyprus.com (Limassol)
     - Daga → daga@zyprus.com (Limassol)
-    - Olesya → olesya@zyprus.com (Limassol)
+    - Olesya → oz@zyprus.com (Limassol)
     - Eleni → eleni@zyprus.com (Limassol)
+    - Niki/Mir → niki@zyprus.com (Nicosia)
   - MUST pass email format (e.g., "Assign to Evelina" → assignTo: "evelina@zyprus.com")
   - If user provides the email directly (e.g., "assign to danae@zyprus.com"), use it EXACTLY as-is
   - CRITICAL: Extract assignTo from the FIRST message — do NOT ask again if user already specified it

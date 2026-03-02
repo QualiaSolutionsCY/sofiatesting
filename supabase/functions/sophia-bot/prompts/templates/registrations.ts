@@ -19,8 +19,7 @@ export const REGISTRATIONS = `
 
 Subject: Registration - [BUYER_NAMES]
 
-*CRITICAL*: COPY-PASTE the property details EXACTLY as the user typed them. Do NOT add commas, do NOT reorder words. Preserve the user's exact spacing, commas, and word order.
-NEVER add commas the user did not type. Just copy-paste exactly.
+*Property Descriptions:* Apply the copy-paste rule from Response Format — preserve user's exact wording.
 
 *EXACT EMAIL FORMAT (COPY CHARACTER BY CHARACTER):*
 
@@ -48,8 +47,7 @@ Looking forward to your prompt confirmation.
 
 Subject: Registration - [BUYER_NAMES]
 
-*CRITICAL*: COPY-PASTE the property details EXACTLY as the user typed them. Do NOT add commas, do NOT reorder words. Preserve the user's exact spacing, commas, and word order.
-NEVER add commas the user did not type. Just copy-paste exactly.
+*Property Descriptions:* Apply the copy-paste rule from Response Format — preserve user's exact wording.
 
 *EXACT EMAIL FORMAT (COPY CHARACTER BY CHARACTER):*
 
@@ -91,7 +89,7 @@ This email is to provide you with a registration.
 
 *Property Introduced:* [PROPERTY_DESCRIPTION]
 
-*CRITICAL*: COPY-PASTE the property details EXACTLY as the user typed them. Do NOT add commas, do NOT reorder. Just copy-paste exactly.
+*Property Descriptions:* Apply the copy-paste rule from Response Format — preserve user's exact wording.
 
 *Viewing Arranged for:* [VIEWING_DATETIME]
 
@@ -127,7 +125,7 @@ This email is to provide you with the full registration of our below client, und
 
 *Property Introduced:* [PROPERTY_DESCRIPTION]
 
-*CRITICAL*: COPY-PASTE the property details EXACTLY as the user typed them. Do NOT add commas, do NOT reorder. Just copy-paste exactly.
+*Property Descriptions:* Apply the copy-paste rule from Response Format — preserve user's exact wording.
 
 *Our Agency Fees:* [AGENCY_FEE]%+ VAT based on the final agreed sold price. If sold to the above-mentioned purchaser introduced to you by CSC Zyprus Property Group LTD.
 
@@ -143,7 +141,7 @@ Looking forward to your prompt reply.
 
 ---
 
-### Bank Registration Pre-Question (Templates 05 & 06)
+### Bank Registration Pre-Question (Bank Property & Bank Land)
 
 Before collecting any other details, ALWAYS ask ONLY: "Land or Property?" (nothing else). After they answer, then ask for the remaining fields.
 
@@ -159,24 +157,7 @@ Before collecting any other details, ALWAYS ask ONLY: "Land or Property?" (nothi
 
 Agent Mobile: AUTO-DETECTED from sender's WhatsApp number - DO NOT ASK! Use the phone number the message came from.
 
-*Phone Masking Rule (CRITICAL):*
-
-MASKED PHONE FORMAT: +357 XX**YYYY
-
-Where:
-- XX = first 2 digits (keep as-is)
-- ** = TWO ASTERISK CHARACTERS (the * symbol, typed twice)
-- YYYY = last 4 digits (keep as-is)
-
-CONSTRUCTION: Take 99123456, split into: 99 | 12 | 3456, output: 99 + * + * + 3456 = 99**3456
-
-EXAMPLES:
-- +357 99123456 → +357 99**3456 (nine nine STAR STAR three four five six)
-- +357 99111668 → +357 99**1668 (nine nine STAR STAR one six six eight)
-- +357 96555444 → +357 96**5444 (nine six STAR STAR five four four four)
-
-COMMON MISTAKE: Writing 99*123456 (9 characters) instead of 99**3456 (8 characters)
-The middle two digits DISAPPEAR and are REPLACED by two * symbols.
+*Phone Masking:* Apply the phone masking rule from Response Format (XX**YYYY format).
 
 *Bank Detection from Link:*
 - remuproperties.com → REMU
@@ -204,8 +185,6 @@ Please register the following client under CSC Zyprus Property Group LTD and sen
 
 Looking forward to your prompt reply.
 
-*END OF TEMPLATE 05*
-
 ---
 
 ### Bank Land Registration
@@ -214,29 +193,13 @@ Looking forward to your prompt reply.
 - Bank Name (detect from property link OR ask: e.g., REMU, Altamira, Gordian, Bank of Cyprus, Hellenic Bank)
 - Client Name (e.g., Elena Petrou)
 - Client Phone - full format (e.g., +357 96 111222)
-- Property Link (MANDATORY - e.g., https://www.gogordian.com/listing/12345)
+- Property Link (OPTIONAL - include if provided, e.g., https://www.gogordian.com/listing/12345. Land registrations often have no link.)
 
 Agent Mobile: AUTO-DETECTED from sender's WhatsApp number - DO NOT ASK! Use the phone number the message came from.
 
-*Phone Masking Rule (CRITICAL):*
+*Phone Masking:* Apply the phone masking rule from Response Format (XX**YYYY format).
 
-MASKED PHONE FORMAT: +357 XX**YYYY
-
-Where:
-- XX = first 2 digits (keep as-is)
-- ** = TWO ASTERISK CHARACTERS (the * symbol, typed twice)
-- YYYY = last 4 digits (keep as-is)
-
-CONSTRUCTION: Take 96111222, split into: 96 | - | 1222, output: 96 + * + * + 1222 = 96**1222
-
-EXAMPLES:
-- +357 96111222 → +357 96**1222 (nine six STAR STAR one two two two)
-- +357 99123456 → +357 99**3456 (nine nine STAR STAR three four five six)
-
-COMMON MISTAKE: Writing 96*111222 (9 characters) instead of 96**1222 (8 characters)
-The middle two digits DISAPPEAR and are REPLACED by two * symbols.
-
-*CRITICAL DIFFERENCE FROM TEMPLATE 05:*
+*CRITICAL DIFFERENCE FROM BANK PROPERTY REGISTRATION:*
 - Bank Land is for LAND only
 - Includes "Please find attached the viewing form for the below Land." line
 - Says "(please call me for any further information)" NOT "(please call me to arrange a viewing)"
@@ -266,14 +229,12 @@ Looking forward to your prompt reply.
 
 *REMINDER:* Don't forget to attach the viewing form when sending this registration email to the bank! (Banks don't attend viewings WHEN IT IS A LAND, so they require the viewing form as proof of viewing.)
 
-*END OF TEMPLATE 06*
-
 ---
 
 ### Bank Registration Rules - Non-Negotiable
 
 1. NEVER generate bank registration without property link - ask for it if missing
-2. PHONE MASKING: ONLY mask CLIENT phone (under Registration Details), NEVER mask agent phone (My Mobile). Replace digits 3-4 with TWO asterisks → 99111668 becomes 99**1668
+2. PHONE MASKING: Apply the phone masking rule from Response Format — ONLY mask CLIENT phone (under Registration Details), NEVER mask agent phone (My Mobile)
 3. ALWAYS bold the field labels: *My Mobile:*, *Registration Details:*, *Property:*
 4. ALWAYS use "Dear [BANK_NAME] Team," greeting
 5. Bank Property (Property): "(please call me to arrange a viewing)"

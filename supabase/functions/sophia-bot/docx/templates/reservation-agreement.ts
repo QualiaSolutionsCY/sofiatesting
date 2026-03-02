@@ -675,7 +675,8 @@ export function parseReservationAgreementData(response: string): ReservationAgre
           if (!segment || /^[\[\]\.…_\s]+$/.test(segment)) continue;
 
           // Try to match: "Name Country Passport: ID" or "Name Cyprus ID: ID"
-          const idTypeMatch = segment.match(/^(.+?)\s+((?:\w+\s+)?(?:Passport|Cyprus\s+ID|ID))[:\s]+([A-Z0-9]+)/i);
+          // Use alternation (|) to prevent optional prefix from eating the surname
+          const idTypeMatch = segment.match(/^(.+?)\s+((?:[A-Za-z]+\s+)?(?:Passport|ID)|Cyprus\s+ID|UK\s+Passport)[:\s]+([A-Z0-9]+)/i);
           if (idTypeMatch) {
             const buyer = {
               fullName: idTypeMatch[1].trim(),
@@ -708,7 +709,8 @@ export function parseReservationAgreementData(response: string): ReservationAgre
       if (vendorLineMatch) {
         const vendorText = vendorLineMatch[1].trim();
         if (vendorText && !/^[\[\]\.…_\s:]+$/.test(vendorText)) {
-          const vendorIdMatch = vendorText.match(/^(.+?)\s+((?:\w+\s+)?(?:Passport|Cyprus\s+ID|ID))[:\s]+([A-Z0-9]+)/i);
+          // Use alternation (|) to prevent optional prefix from eating the surname
+          const vendorIdMatch = vendorText.match(/^(.+?)\s+((?:[A-Za-z]+\s+)?(?:Passport|ID)|Cyprus\s+ID|UK\s+Passport)[:\s]+([A-Z0-9]+)/i);
           if (vendorIdMatch) {
             blankData.vendor.name = vendorIdMatch[1].trim();
             blankData.vendor.idType = vendorIdMatch[2].trim();
@@ -736,7 +738,7 @@ export function parseReservationAgreementData(response: string): ReservationAgre
       if (dateMatch) {
         const dateText = dateMatch[1].trim();
         if (dateText && !/^[\[\]\.…_\s]+$/.test(dateText) && dateText.length > 3) {
-          blankData.date = dateText;
+          blankData.dateReceived = dateText;
         }
       }
 
@@ -861,7 +863,7 @@ export function parseReservationAgreementData(response: string): ReservationAgre
     // VENDORS: Parse multiple vendors separated by "and" (same logic as buyers)
     const vendors: VendorInfo[] = [];
 
-    const vendorLineMatch = cleanResponse.match(/Vendor[:\s]*([^\n]+)/i);
+    const vendorLineMatch = cleanResponse.match(/(?:^|\n)Vendor[:\s]*([^\n]+)/im);
     if (vendorLineMatch) {
       const vendorLine = vendorLineMatch[1].trim();
       logger.debug("[ReservationAgreement] Vendor line:", { vendorLine });
@@ -1014,15 +1016,27 @@ export function parseReservationAgreementData(response: string): ReservationAgre
       purchasePriceWords: numberToWords(purchasePrice) + " euro",
     };
 
+    // Extract dateReceived from "Date Reservation Fee Received: ..." line
+    let dateReceived: string | undefined;
+    const dateReceivedMatch = cleanResponse.match(/Date\s+Reservation\s+Fee\s+Received[:\s]*([^\n]+)/i);
+    if (dateReceivedMatch) {
+      const dateText = dateReceivedMatch[1].trim();
+      if (dateText && !/^[\[\]\.…_\s]+$/.test(dateText) && dateText.length > 3) {
+        dateReceived = dateText;
+      }
+    }
+
     logger.debug("[ReservationAgreement] PARSE SUCCESS:", {
       buyers: buyers.map(b => `${b.fullName} ${b.idType}: ${b.idNumber}`),
       vendors: vendors.map(v => `${v.name} ${v.idType}: ${v.idNumber}`),
       property: formattedDescription.substring(0, 80),
+      dateReceived,
       loan: hasLoanClause,
       vat: hasVatClause,
     });
 
     return {
+      dateReceived,
       buyers,
       vendor,
       vendors,

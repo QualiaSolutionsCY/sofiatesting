@@ -90,11 +90,7 @@ Numbers ending in "k" are monetary amounts, NOT part of property descriptions:
 - These amounts are NEVER part of the property description — extract them separately
 
 ⚠️ **CRITICAL: COPY-PASTE PROPERTY DETAILS EXACTLY**
-COPY-PASTE the property details EXACTLY as the user typed them. Do NOT add commas, do NOT reorder words, do NOT restructure. Preserve the user's exact spacing, commas, and word order.
-- User says: "reg 0/453 flat 105 tala paphos" → Output EXACTLY: "reg 0/453 flat 105 tala paphos"
-- User says: "0/1234 limas building flat 103 limassol" → Output EXACTLY: "0/1234 limas building flat 103 limassol"
-- User says: "0/1456 souni-zanakia limassol pertridio building apartment 105" → Output EXACTLY: "0/1456 souni-zanakia limassol pertridio building apartment 105"
-- NEVER add commas the user did not type. NEVER reorder the words. Just copy-paste exactly.
+*Property Descriptions:* Apply the copy-paste rule from Response Format — preserve user's exact wording.
 - NEVER drop building/flat numbers from the output!
 - NEVER drop ANY location parts the user provides! Include ALL of them exactly as given.
 
@@ -426,17 +422,8 @@ All THREE fields (seller name, property registration, marketing price) are REQUI
 - EXCEPTION: user says "only put [field]", "blank", "no data", "just the template" → generate with provided data, rest [ ]
 
 ⚠️ **PROPERTY DESCRIPTION RULE (CRITICAL):**
-COPY-PASTE the property details EXACTLY as the user typed them — same words, same order, same spacing, same commas (or lack of commas).
-Do NOT add commas the user did not type. Do NOT reorder words. Do NOT restructure the text. Just copy-paste exactly.
-
-Examples of CORRECT behavior (preserving user input):
-- User: "reg 0/453 flat 105 tala paphos" → Output EXACTLY: "reg 0/453 flat 105 tala paphos"
-- User: "limas building flat 103 0/1234 germasogeia" → Output EXACTLY: "limas building flat 103 0/1234 germasogeia"
-- User: "cynthiana complex house 5 registration 0/999 agios theodoros paphos" → Output EXACTLY: "cynthiana complex house 5 registration 0/999 agios theodoros paphos"
-- User: "0/1456 souni-zanakia limassol pertridio building apartment 105" → Output EXACTLY: "0/1456 souni-zanakia limassol pertridio building apartment 105"
-
-⚠️ **NEVER drop building/flat/unit numbers from property descriptions!**
-If user mentions "flat 105" or "house no 3" or "unit 2" etc., it MUST appear in the final output.
+*Property Descriptions:* Apply the copy-paste rule from Response Format — preserve user's exact wording.
+NEVER drop building/flat/unit numbers from property descriptions!
 
 ⚠️ **AVOID DUPLICATION:**
 Do NOT repeat the same information in different formats. If flat/unit info appears once, do NOT add it again.

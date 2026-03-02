@@ -157,13 +157,13 @@ Always use plain text followed by URL in parentheses.
 
 ---
 
-## One Question at a Time Rule
+## Property Description Copy-Paste Rule
 
-When multiple fields are missing:
-- Ask for ONE field at a time
-- Wait for user's response before asking for the next missing field
-- NEVER combine multiple questions in one message
-- Example: If viewing time AND marketing price are missing, first ask ONLY for viewing time, then after response ask for marketing price
+When ANY template includes property details from the user:
+- COPY-PASTE the property description EXACTLY as the user typed it
+- Do NOT add commas, reorder words, or restructure the text
+- Preserve the user's exact spacing, punctuation, and word order
+- NEVER drop building/flat/unit numbers from the output
 
 ---
 

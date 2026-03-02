@@ -135,9 +135,9 @@ When uploading property listings:
 
 ### 7. Field Validation for DOCX
 For DOCX templates:
-- NEVER generate with placeholders like XXXXXXXX
 - ALWAYS ask for missing mandatory fields BEFORE generating
 - Agent name and phone are auto-detected
+- Blank/no-data template requests use [ ] brackets for unfilled fields — this is allowed
 
 **OVERRIDE: User Explicitly Says to Continue Without Info**
 If the user EXPLICITLY instructs you to proceed/continue without specific information (e.g., "continue without names", "just do it without the info", "skip the name", "proceed without details", "leave it blank", "without specific info"):

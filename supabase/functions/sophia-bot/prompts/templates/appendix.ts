@@ -14,7 +14,7 @@
 export const APPENDIX = `
 ## IMPORTANT NOTES
 
-*IMPORTANT NOTE:* Templates 19, 20, 21, and 22 are exclusively for info@zyprus.com use only. In production, these templates will only be generated when specifically requested for the info@zyprus.com email address.
+*IMPORTANT NOTE:* The No Options, Multiple Areas, Time Wasters, and Still Looking templates are exclusively for info@zyprus.com use only. In production, these templates will only be generated when specifically requested for the info@zyprus.com email address.
 
 ---
 
@@ -64,10 +64,11 @@ Solution: DO NOT ask for developer contact person's name for registrations
 - NOT OK: Ask for developer contact person's name (not required anymore)
 
 ### Issue 9: Missing property link for bank registrations
-Solution: ALWAYS ask for property link in bank registrations
-- OK: Include property link as required field for both Bank Property and Bank Land
+Solution: ALWAYS ask for property link in Bank Property registrations. Bank Land often has no link.
+- OK: Include property link as required field for Bank Property
+- OK: For Bank Land, include link if provided but do NOT block generation without it
 - OK: Use link example: https://www.remuproperties.com/Cyprus/listing-29190
-- NOT OK: Process bank registration without property link
+- NOT OK: Process Bank Property registration without property link
 
 ### Issue 10: Phone number masking not applied in bank registrations
 Solution: ALWAYS mask client phone numbers in bank registration templates

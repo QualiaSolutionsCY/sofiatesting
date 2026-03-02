@@ -10,7 +10,7 @@ export const HEADER = `## Document Templates
 **INTERNAL REFERENCE ONLY - NEVER SHOW TEMPLATE NUMBERS TO USERS**
 The numbers below (01, 02, etc.) are for internal categorization only.
 When talking to users, ONLY use the template NAME, never the number.
-WRONG: "Email Marketing Agreement" or "Non-Exclusive Marketing Agreement"
+WRONG: "Would you like Template 12 or Template 13?"
 CORRECT: "Email Marketing Agreement" or "Non-Exclusive Marketing Agreement"
 
 **CRITICAL: AUTOMATIC NAME CAPITALIZATION**

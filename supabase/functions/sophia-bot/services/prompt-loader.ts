@@ -50,6 +50,7 @@ let loadingPromise: Promise<Map<string, string>> | null = null;
 
 import { DOCUMENT_ROUTING } from "../prompts/behaviors/document-routing.ts";
 import { PROPERTY_UPLOAD } from "../prompts/behaviors/property-upload.ts";
+import { RESERVATION_LOAN_VAT_REQUIRED } from "../prompts/behaviors/reservation-loan-vat.ts";
 import { RESPONSE_FORMAT } from "../prompts/behaviors/response-format.ts";
 // Fallback prompts imported from modular files (used if DB fails)
 import { IDENTITY } from "../prompts/core/identity.ts";
@@ -62,6 +63,7 @@ import { TEMPLATES } from "../prompts/templates/content.ts";
 const FALLBACK_PROMPTS: Record<string, string> = {
   identity: IDENTITY,
   safety_rules: SAFETY_RULES,
+  reservation_loan_vat_required: RESERVATION_LOAN_VAT_REQUIRED,
   document_routing: DOCUMENT_ROUTING,
   property_upload: PROPERTY_UPLOAD,
   response_format: RESPONSE_FORMAT,
@@ -231,14 +233,9 @@ async function getPromptSections(
       // Try loading from DB and merge (DB takes precedence)
       const dbPrompts = await loadPromptSectionsFromDB(supabase);
 
-      // Keys where the FILE version is authoritative (not DB)
-      // These are actively maintained in code and should not be overridden by stale DB entries
-      const fileAuthoritative = new Set(["document_routing"]);
-
       if (dbPrompts && dbPrompts.size > 0) {
-        // Override fallback with DB values where available (except file-authoritative keys)
+        // Override fallback with DB values where available (DB is single source of truth)
         for (const [key, value] of dbPrompts) {
-          if (fileAuthoritative.has(key)) continue;
           mergedPrompts.set(key, value);
         }
         const fallbackCount =

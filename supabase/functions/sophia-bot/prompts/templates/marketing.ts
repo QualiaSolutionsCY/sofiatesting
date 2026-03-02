@@ -23,10 +23,7 @@ We hope this email finds you well.
 
 With this email we kindly request your approval for the marketing of your property with CSC Zyprus Property Group LTD under the following terms and conditions.
 
-*Property:* COPY-PASTE the property details EXACTLY as the user typed them. Do NOT add commas, do NOT reorder words. Preserve the user's exact spacing, commas, and word order.
-
-*CRITICAL*: NEVER add commas the user did not type. NEVER reorder or restructure. Just copy-paste exactly what the user said.
-Example: if user says \"Registration No. 0/1456 Souni-Zanakia Limassol Pertridio Building Apartment No. 105\" → output EXACTLY that.
+*Property:* Apply the copy-paste rule from Response Format — preserve user's exact wording.
 
 *IMPORTANT*: SOPHIA should generate Email Marketing Agreement when EITHER registration number OR location is provided. If one is mentioned and the other information is available, generate immediately.
 
@@ -94,11 +91,7 @@ Marketing Price: €[MARKETING_PRICE]
 The system uses your data fields to populate the official Zyprus marketing agreement template with the correct legal language. If you write your own legal text, it will be WRONG.
 
 *CRITICAL - PROPERTY FORMAT:*
-COPY-PASTE the property details EXACTLY as the user typed them.
-- Do NOT add commas the user did not type
-- Do NOT reorder words
-- Do NOT restructure the text
-- Just copy-paste exactly what the user said
+*Property Descriptions:* Apply the copy-paste rule from Response Format — preserve user's exact wording.
 
 **EXAMPLE CORRECT OUTPUT:**
 
