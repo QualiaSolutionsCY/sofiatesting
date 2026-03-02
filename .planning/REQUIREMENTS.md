@@ -65,30 +65,37 @@ Deferred to future release.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | — | Pending |
-| SEC-02 | — | Pending |
-| SEC-03 | — | Pending |
-| SEC-04 | — | Pending |
-| RES-01 | — | Pending |
-| RES-02 | — | Pending |
-| RES-03 | — | Pending |
-| RES-04 | — | Pending |
-| OBS-01 | — | Pending |
-| OBS-02 | — | Pending |
-| OBS-03 | — | Pending |
-| TYPE-01 | — | Pending |
-| TYPE-02 | — | Pending |
-| TYPE-03 | — | Pending |
-| CODE-01 | — | Pending |
-| CODE-02 | — | Pending |
-| CODE-03 | — | Pending |
-| CODE-04 | — | Pending |
+| SEC-01 | Phase 21 | Pending |
+| SEC-02 | Phase 21 | Pending |
+| SEC-03 | Phase 21 | Pending |
+| SEC-04 | Phase 21 | Pending |
+| RES-01 | Phase 22 | Pending |
+| RES-02 | Phase 22 | Pending |
+| RES-03 | Phase 22 | Pending |
+| RES-04 | Phase 22 | Pending |
+| TYPE-01 | Phase 23 | Pending |
+| TYPE-02 | Phase 23 | Pending |
+| TYPE-03 | Phase 23 | Pending |
+| OBS-01 | Phase 24 | Pending |
+| OBS-02 | Phase 24 | Pending |
+| OBS-03 | Phase 24 | Pending |
+| CODE-01 | Phase 25 | Pending |
+| CODE-02 | Phase 25 | Pending |
+| CODE-03 | Phase 25 | Pending |
+| CODE-04 | Phase 25 | Pending |
 
 **Coverage:**
 - v1.5 requirements: 17 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 17
+- Mapped to phases: 17/17 (100%)
+- Unmapped: 0
+
+**Phase Breakdown:**
+- Phase 21 (Security Quick Wins): 4 requirements
+- Phase 22 (Resilience Infrastructure): 4 requirements
+- Phase 23 (Type Safety Foundation): 3 requirements
+- Phase 24 (Observability & Documentation): 3 requirements
+- Phase 25 (Code Quality Refactoring): 3 requirements
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-02 after audit-derived definition*
+*Last updated: 2026-03-02 — v1.5 traceability complete (100% coverage)*
