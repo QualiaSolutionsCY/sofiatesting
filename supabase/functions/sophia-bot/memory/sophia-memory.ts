@@ -141,6 +141,7 @@ export async function generateEmbedding(
           },
           outputDimensionality: 768, // Match existing vector(768) columns
         }),
+        signal: AbortSignal.timeout(30_000),
       }
     );
 

@@ -160,6 +160,7 @@ export async function getAccessToken(config: ZyprusConfig): Promise<string> {
           client_id: config.clientId,
           client_secret: config.clientSecret,
         }),
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (!res.ok && [500, 502, 503, 504].includes(res.status)) {
@@ -595,7 +596,9 @@ async function uploadSingleImage(
     const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
     // Download image
-    const imageResponse = await fetch(url);
+    const imageResponse = await fetch(url, {
+      signal: AbortSignal.timeout(30_000),
+    });
     if (!imageResponse.ok) {
       logger.error("Failed to download image for Zyprus upload", undefined, {
         category: LogCategory.ZYPRUS,
@@ -662,6 +665,7 @@ async function uploadSingleImage(
               "User-Agent": "SophiaAI",
             },
             body: imageBuffer,
+            signal: AbortSignal.timeout(30_000),
           }
         );
 
@@ -756,7 +760,9 @@ async function uploadFloorPlans(
     floorPlanUrls.map(async (url, index) => {
       try {
         // Download the floor plan image
-        const imageResponse = await fetch(url);
+        const imageResponse = await fetch(url, {
+          signal: AbortSignal.timeout(30_000),
+        });
         if (!imageResponse.ok) {
           logger.warn("Failed to download floor plan", {
             category: LogCategory.ZYPRUS,
@@ -788,6 +794,7 @@ async function uploadFloorPlans(
                   "User-Agent": "SophiaAI",
                 },
                 body: imageBuffer,
+                signal: AbortSignal.timeout(30_000),
               }
             );
             if (!res.ok && res.status >= 500) {
@@ -823,6 +830,7 @@ async function uploadFloorPlans(
                 "User-Agent": "SophiaAI",
               },
               body: imageBuffer,
+              signal: AbortSignal.timeout(30_000),
             }
           );
           if (fallbackRes.ok) {
@@ -873,7 +881,9 @@ async function uploadTitleDeedFiles(
   const results = await Promise.all(
     fileUrls.map(async (url, index) => {
       try {
-        const fileResponse = await fetch(url);
+        const fileResponse = await fetch(url, {
+          signal: AbortSignal.timeout(30_000),
+        });
         if (!fileResponse.ok) {
           logger.warn("Failed to download title deed file", {
             category: LogCategory.ZYPRUS,
@@ -928,6 +938,7 @@ async function uploadTitleDeedFiles(
                   "User-Agent": "SophiaAI",
                 },
                 body: fileBuffer,
+                signal: AbortSignal.timeout(30_000),
               }
             );
             if (!res.ok && res.status >= 500) {
@@ -1100,6 +1111,7 @@ export async function createDraftListing(
           "User-Agent": "SophiaAI",
         },
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(30_000),
       });
 
       // Only retry on server errors, not client errors (4xx)
@@ -1182,6 +1194,7 @@ export async function createDraftListing(
             "User-Agent": "SophiaAI",
           },
           body: JSON.stringify(patchPayload),
+          signal: AbortSignal.timeout(30_000),
         }
       );
       if (patchRes.ok) {
@@ -1252,6 +1265,7 @@ export async function searchProperties(
       Accept: "application/vnd.api+json",
       "User-Agent": "SophiaAI",
     },
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) {
@@ -1472,7 +1486,9 @@ async function uploadLandImages(
         }
 
         const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
-        const imageResponse = await fetch(url);
+        const imageResponse = await fetch(url, {
+          signal: AbortSignal.timeout(30_000),
+        });
         if (!imageResponse.ok) {
           logger.error("Failed to download image for land upload", undefined, {
             category: LogCategory.ZYPRUS,
@@ -1535,6 +1551,7 @@ async function uploadLandImages(
                   "User-Agent": "SophiaAI",
                 },
                 body: imageBuffer,
+                signal: AbortSignal.timeout(30_000),
               }
             );
             if (!res.ok && res.status >= 500) {
@@ -1702,6 +1719,7 @@ export async function createDraftLandListing(
           "User-Agent": "SophiaAI",
         },
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (!res.ok && res.status >= 500) {
@@ -1780,6 +1798,7 @@ export async function createDraftLandListing(
             "User-Agent": "SophiaAI",
           },
           body: JSON.stringify(patchPayload),
+          signal: AbortSignal.timeout(30_000),
         }
       );
       if (patchRes.ok) {

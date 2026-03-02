@@ -196,6 +196,7 @@ async function fetchTaxonomy(
   // Fetch first page to get total count
   const firstResponse = await fetch(`${baseUrl}?page[limit]=${PAGE_SIZE}`, {
     headers,
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!firstResponse.ok) {
@@ -227,7 +228,7 @@ async function fetchTaxonomy(
     const pagePromises = Array.from({ length: remainingPages }, (_, i) =>
       fetch(
         `${baseUrl}?page[limit]=${PAGE_SIZE}&page[offset]=${(i + 1) * PAGE_SIZE}`,
-        { headers }
+        { headers, signal: AbortSignal.timeout(30_000) }
       )
         .then((res) => (res.ok ? res.json() : null))
         .catch(() => null)
@@ -288,6 +289,7 @@ async function fetchLocations(
   // Fetch first page to get total count
   const firstResponse = await fetch(`${baseUrl}?page[limit]=${PAGE_SIZE}`, {
     headers,
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!firstResponse.ok) {
@@ -319,7 +321,10 @@ async function fetchLocations(
   let pageCount = 1;
 
   while (nextUrl) {
-    const response = await fetch(nextUrl, { headers });
+    const response = await fetch(nextUrl, {
+      headers,
+      signal: AbortSignal.timeout(30_000),
+    });
     if (!response.ok) break;
 
     const data = await response.json();
@@ -384,7 +389,7 @@ async function fetchUsers(token: string, apiUrl: string): Promise<UserItem[]> {
   // Fetch first page to get total count
   const firstResponse = await fetch(
     `${baseUrl}?filter[status]=1&page[limit]=${PAGE_SIZE}`,
-    { headers }
+    { headers, signal: AbortSignal.timeout(30_000) }
   );
 
   if (!firstResponse.ok) {
@@ -414,7 +419,10 @@ async function fetchUsers(token: string, apiUrl: string): Promise<UserItem[]> {
   let pageCount = 1;
 
   while (nextUrl) {
-    const response = await fetch(nextUrl, { headers });
+    const response = await fetch(nextUrl, {
+      headers,
+      signal: AbortSignal.timeout(30_000),
+    });
     if (!response.ok) break;
 
     const data = await response.json();

@@ -120,6 +120,7 @@ async function searchByPhone(
           Accept: "application/vnd.api+json",
           "User-Agent": "SophiaAI",
         },
+        signal: AbortSignal.timeout(30_000),
       }
     );
 
@@ -180,6 +181,7 @@ async function searchByNameAndLocation(
           Accept: "application/vnd.api+json",
           "User-Agent": "SophiaAI",
         },
+        signal: AbortSignal.timeout(30_000),
       }
     );
 

@@ -283,6 +283,7 @@ export async function sendEmail(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(emailPayload),
+      signal: AbortSignal.timeout(30_000),
     });
 
     const responseData = await response.json();

@@ -147,7 +147,9 @@ export async function handleSendEmail(
         operation: "sendEmail",
         attachmentName: attachmentName || "attachment.docx",
       });
-      const attachmentResponse = await fetch(attachmentUrl);
+      const attachmentResponse = await fetch(attachmentUrl, {
+        signal: AbortSignal.timeout(30_000),
+      });
       if (!attachmentResponse.ok) {
         logger.error("Failed to fetch email attachment", undefined, {
           category: LogCategory.TOOL,
@@ -200,6 +202,7 @@ export async function handleSendEmail(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(emailPayload),
+      signal: AbortSignal.timeout(30_000),
     });
 
     const responseText = await response.text();
