@@ -22,10 +22,10 @@ For detailed reference (commands, schema, troubleshooting, etc.), see `docs/CLAU
 | **Telegram Bot** | Supabase Edge Function `sophia-bot` | **DISABLED** |
 | **Listing Notifier** | Supabase Edge Function `listing-notifier` | LIVE (pg_cron every 15 min) |
 | **Draft Cleanup** | Supabase Edge Function `draft-cleanup` | LIVE |
-| **Web App (Next.js)** | Vercel | **DEPRECATED — IGNORE** |
+| **Web App (Next.js)** | Vercel | ADMIN PANEL ONLY — `/` redirects to `/admin` |
 | **Database** | Supabase PostgreSQL | LIVE |
 
-### Vercel Project (DEPRECATED — DO NOT MODIFY)
+### Vercel Project (ADMIN PANEL ONLY)
 | Key | Value |
 |-----|-------|
 | **Project Name** | `sofiatesting` |
@@ -62,7 +62,7 @@ supabase secrets set SOPHIA_TELEGRAM_ENABLED=false --project-ref vceeheaxcrhmpqu
 **Primary Model** (via OpenRouter): `google/gemini-3.1-flash-preview`, fallback: `google/gemini-2.0-flash`
 
 
-> **⚠️ IGNORE `app/(chat)/`, `app/(auth)/`, and `app/properties/` directories.** The chat frontend is deprecated and unused. The **admin panel** (`app/(admin)/`) is still LIVE. All active development is on the WhatsApp bot in `supabase/functions/sophia-bot/`. Do NOT read, modify, or reference chat-related files.
+> **⚠️ IGNORE `app/(chat)/` directory.** The chat frontend is deprecated and unused. The **admin panel** (`app/(admin)/`) is LIVE, and `app/(auth)/` handles NextAuth. Root `/` redirects to `/admin`. All active development is on the WhatsApp bot in `supabase/functions/sophia-bot/`. Do NOT read, modify, or reference chat-related files.
 
 ---
 

@@ -12,7 +12,7 @@ export async function getOrCreateWhatsAppUser(phoneNumber: string): Promise<{
   id: string;
   email: string;
   name: string | null;
-  type: "guest" | "regular";
+  type: "regular";
   isAgent: boolean;
   agentId?: string;
 }> {
@@ -68,7 +68,7 @@ export async function getOrCreateWhatsAppUser(phoneNumber: string): Promise<{
       id: existingUser.id,
       email: existingUser.email,
       name: `WhatsApp User ${normalizedPhone.slice(-4)}`, // Display name for UI
-      type: "guest",
+      type: "regular",
       isAgent: false,
     };
   }
@@ -86,7 +86,7 @@ export async function getOrCreateWhatsAppUser(phoneNumber: string): Promise<{
     id: newUserId,
     email: guestEmail,
     name: displayName, // Display name for UI purposes, not stored in user table
-    type: "guest",
+    type: "regular",
     isAgent: false,
   };
 }

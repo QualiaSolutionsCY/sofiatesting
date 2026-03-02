@@ -54,12 +54,12 @@ export async function handleWhatsAppMessage(
     id: string;
     email: string;
     name: string;
-    type: "guest" | "regular";
+    type: "regular";
   } = {
     id: `whatsapp-${phoneNumber}`,
     email: `${phoneNumber}@whatsapp.local`,
     name: messageData.sender?.name || phoneNumber,
-    type: "guest",
+    type: "regular",
   };
 
   let sessionChatId = generateUUID();

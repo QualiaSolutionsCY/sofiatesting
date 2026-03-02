@@ -6,6 +6,4 @@ export const isTestEnvironment = Boolean(
     process.env.CI_PLAYWRIGHT
 );
 
-export const guestRegex = /^guest-\d+$/;
-
 // DUMMY_PASSWORD moved to lib/auth/dummy-password.ts to avoid pulling bcrypt-ts into Edge Runtime

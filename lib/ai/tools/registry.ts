@@ -9,7 +9,6 @@ import { createLandListingTool } from "./create-land-listing";
 import { createListingTool } from "./create-listing";
 import { getZyprusDataTool } from "./get-zyprus-data";
 import { listListingsTool } from "./list-listings";
-import { requestSuggestions } from "./request-suggestions";
 import { sendDocument } from "./send-document";
 import { uploadLandListingTool } from "./upload-land-listing";
 import { uploadListingTool } from "./upload-listing";
@@ -35,7 +34,6 @@ export function getToolConfig({
 
   // Initialize dynamic tools if session/stream provided
   if (session && dataStream) {
-    tools.requestSuggestions = requestSuggestions({ session, dataStream });
     tools.sendDocument = sendDocument({ session, dataStream });
   }
 

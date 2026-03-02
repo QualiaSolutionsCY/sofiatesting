@@ -3,8 +3,7 @@ import type { NextAuthConfig } from "next-auth";
 export const authConfig = {
   trustHost: true, // Required for Vercel deployment
   pages: {
-    signIn: "/login",
-    newUser: "/",
+    signIn: "/api/auth/signin",
   },
   providers: [
     // added later in auth.ts since it requires bcrypt which is only compatible with Node.js

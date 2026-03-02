@@ -10,7 +10,6 @@ import {
   Building2,
   CheckCircle2,
   FileEdit,
-  MessageSquare,
   UserCheck,
   UserPlus,
   Users,
@@ -148,7 +147,7 @@ export default async function AdminDashboardPage() {
   const session = await auth();
 
   if (!session || !session.user) {
-    redirect("/login");
+    redirect("/api/auth/signin");
   }
 
   const stats = await getDashboardStats();
@@ -298,29 +297,6 @@ export default async function AdminDashboardPage() {
           </Card>
         </Link>
 
-        <Link href="/chat">
-          <Card className="h-full cursor-pointer transition-all hover:border-primary hover:shadow-md">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-orange-100 p-2 dark:bg-orange-900">
-                  <MessageSquare className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                </div>
-                <div>
-                  <CardTitle className="text-base">Chat with SOPHIA</CardTitle>
-                  <CardDescription className="text-xs">
-                    Test AI assistant
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="flex items-center justify-between text-muted-foreground text-sm">
-                <span>Web interface</span>
-                <ArrowRight className="h-4 w-4" />
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
       </div>
 
       {/* Charts Section */}

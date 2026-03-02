@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Building2,
-  Home,
-  LayoutDashboard,
-  LayoutGrid,
-  MessageSquare,
-} from "lucide-react";
+import { Home, LayoutDashboard, LayoutGrid } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,9 +13,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function UniversalNavigation() {
-  // Don't show on the portal page itself if you want, but "Universal" implies everywhere.
-  // It's useful even on the home page to see what's available or jump around.
-
   return (
     <div className="fixed top-4 right-4 z-[100]">
       <DropdownMenu>
@@ -42,14 +33,7 @@ export function UniversalNavigation() {
           <DropdownMenuItem asChild>
             <Link className="flex cursor-pointer items-center" href="/">
               <Home className="mr-2 h-4 w-4" />
-              <span>Portal Home</span>
-            </Link>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem asChild>
-            <Link className="flex cursor-pointer items-center" href="/chat">
-              <MessageSquare className="mr-2 h-4 w-4" />
-              <span>Chat with SOPHIA</span>
+              <span>Home</span>
             </Link>
           </DropdownMenuItem>
 
@@ -57,16 +41,6 @@ export function UniversalNavigation() {
             <Link className="flex cursor-pointer items-center" href="/admin">
               <LayoutDashboard className="mr-2 h-4 w-4" />
               <span>Admin Dashboard</span>
-            </Link>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem asChild>
-            <Link
-              className="flex cursor-pointer items-center"
-              href="/properties"
-            >
-              <Building2 className="mr-2 h-4 w-4" />
-              <span>Properties</span>
             </Link>
           </DropdownMenuItem>
         </DropdownMenuContent>
