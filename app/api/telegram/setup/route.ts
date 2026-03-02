@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { createLogger } from "@/lib/logger";
 import { getTelegramClient } from "@/lib/telegram/client";
 
+// Prevent static analysis during build (import chain requires env vars)
+export const dynamic = "force-dynamic";
+
 const logger = createLogger("api:telegram:setup");
 
 /**
