@@ -11,7 +11,11 @@ import {
 } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
 import { withRetry } from "../sophia-bot/utils/retry.ts";
-import type { ChatMessage } from "./adapters/types.ts";
+/** A single chat message in Gemini's expected format */
+export interface ChatMessage {
+  role: "user" | "model";
+  parts: Array<{ text: string }>;
+}
 
 // Singleton client
 let _client: SupabaseClient | null = null;
