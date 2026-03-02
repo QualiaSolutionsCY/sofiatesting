@@ -13,7 +13,7 @@ Milestone: v1.5 Audit Excellence
 Phase: 21 of 25 (Security Quick Wins)
 Plan: —
 Status: Ready to plan
-Last activity: 2026-03-02 — v1.5 roadmap created (5 phases defined)
+Last activity: 2026-03-02 - Completed quick task 20: fix empty bracket placeholders
 
 Progress: [████████████████████] 80% (20 of 25 phases complete)
 
@@ -61,11 +61,11 @@ Recent decisions affecting v1.5:
 
 | # | Description | Date | Commit |
 |---|-------------|------|--------|
+| 20 | Fix empty bracket placeholders with descriptive field names in templates | 2026-03-02 | 11d536f |
 | 19 | Add 3 missing fields to agents table + database maintenance | 2026-03-01 | 899cfa9 |
 | 18 | Remove 5 phantom PascalCase duplicate tables + migrate to snake_case | 2026-03-01 | c8015ee |
 | 17 | Create 4 missing database tables with RLS policies | 2026-03-01 | 97400f7 |
 | 16 | Repair Supabase migration history + document Drizzle schema cleanup | 2026-03-01 | 9745ad8 |
-| 15 | Fix dev environment issues (node_modules, console.log cleanup) | 2026-03-01 | 04e1755 |
 
 ## Session Continuity
 
@@ -76,4 +76,4 @@ Next step: /gsd:plan-phase 21
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-03-02 — v1.5 roadmap created*
+*Last updated: 2026-03-02 — quick task 20 completed*
