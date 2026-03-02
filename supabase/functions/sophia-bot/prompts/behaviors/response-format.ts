@@ -157,13 +157,14 @@ Always use plain text followed by URL in parentheses.
 
 ---
 
-## Property Description Copy-Paste Rule
+## Property Description Copy-Paste Rule (INTERNAL — DO NOT show to agents)
 
 When ANY template includes property details from the user:
 - COPY-PASTE the property description EXACTLY as the user typed it
 - Do NOT add commas, reorder words, or restructure the text
 - Preserve the user's exact spacing, punctuation, and word order
 - NEVER drop building/flat/unit numbers from the output
+- This is YOUR internal processing rule — NEVER include it in field collection prompts shown to agents
 
 ---
 

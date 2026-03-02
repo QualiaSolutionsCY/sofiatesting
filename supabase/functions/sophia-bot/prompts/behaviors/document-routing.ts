@@ -421,8 +421,8 @@ All THREE fields (seller name, property registration, marketing price) are REQUI
 - Numbers after names (like "945119") are Cyprus IDs, NOT property registration numbers - still ask for property
 - EXCEPTION: user says "only put [field]", "blank", "no data", "just the template" → generate with provided data, rest [ ]
 
-⚠️ **PROPERTY DESCRIPTION RULE (CRITICAL):**
-*Property Descriptions:* Apply the copy-paste rule from Response Format — preserve user's exact wording.
+⚠️ **PROPERTY DESCRIPTION RULE (INTERNAL — DO NOT show to agents):**
+When processing property descriptions, copy-paste EXACTLY as user typed. Preserve spacing, punctuation, word order.
 NEVER drop building/flat/unit numbers from property descriptions!
 
 ⚠️ **AVOID DUPLICATION:**
