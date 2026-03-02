@@ -112,6 +112,13 @@ export async function handleAdminRequest(
     return handleTemplateMigration(supabase);
   }
 
+  if (
+    url.pathname === "/sophia-bot/admin/prompts/sync" &&
+    req.method === "POST"
+  ) {
+    return handlePromptSync(req, supabase);
+  }
+
   // Generate property description endpoint (for Zyprus CMS)
   if (
     url.pathname === "/sophia-bot/admin/generate-description" &&
@@ -127,6 +134,7 @@ export async function handleAdminRequest(
       availableEndpoints: [
         "POST /sophia-bot/admin/prompts/invalidate",
         "POST /sophia-bot/admin/prompts/rollback",
+        "POST /sophia-bot/admin/prompts/sync",
         "GET /sophia-bot/admin/prompts/history?key=X",
         "GET /sophia-bot/admin/cache/status",
         "POST /sophia-bot/admin/migrate-templates",
@@ -295,6 +303,142 @@ async function handlePromptHistory(
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+/**
+ * POST /admin/prompts/sync
+ * Sync file-based prompt content to DB as new versions
+ * Body: { "keys": ["document_routing", "response_format"] } or { "keys": "all" }
+ */
+async function handlePromptSync(
+  req: Request,
+  supabase: ReturnType<typeof createClient>
+): Promise<Response> {
+  try {
+    const body = await req.json();
+
+    // Import all fallback prompts
+    const { DOCUMENT_ROUTING } = await import("../prompts/behaviors/document-routing.ts");
+    const { PROPERTY_UPLOAD } = await import("../prompts/behaviors/property-upload.ts");
+    const { RESERVATION_LOAN_VAT_REQUIRED } = await import("../prompts/behaviors/reservation-loan-vat.ts");
+    const { RESPONSE_FORMAT } = await import("../prompts/behaviors/response-format.ts");
+    const { IDENTITY } = await import("../prompts/core/identity.ts");
+    const { SAFETY_RULES } = await import("../prompts/core/safety-rules.ts");
+    const { CALCULATOR_CAPABILITIES } = await import("../prompts/knowledge/calculators.ts");
+    const { CYPRUS_KNOWLEDGE } = await import("../prompts/knowledge/cyprus-real-estate.ts");
+    const { TEMPLATES } = await import("../prompts/templates/content.ts");
+
+    const filePrompts: Record<string, string> = {
+      identity: IDENTITY,
+      safety_rules: SAFETY_RULES,
+      reservation_loan_vat_required: RESERVATION_LOAN_VAT_REQUIRED,
+      document_routing: DOCUMENT_ROUTING,
+      property_upload: PROPERTY_UPLOAD,
+      response_format: RESPONSE_FORMAT,
+      calculators: CALCULATOR_CAPABILITIES,
+      cyprus_knowledge: CYPRUS_KNOWLEDGE,
+      templates: TEMPLATES,
+    };
+
+    // Determine which keys to sync
+    let keysToSync: string[];
+    if (body.keys === "all") {
+      keysToSync = Object.keys(filePrompts);
+    } else if (Array.isArray(body.keys)) {
+      keysToSync = body.keys.filter((k: string) => k in filePrompts);
+    } else {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Body must have "keys": ["key1", "key2"] or "keys": "all"' }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (keysToSync.length === 0) {
+      return new Response(
+        JSON.stringify({ success: false, error: "No valid keys to sync", validKeys: Object.keys(filePrompts) }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    const results: Array<{ key: string; status: string; newVersion?: number }> = [];
+
+    for (const key of keysToSync) {
+      const content = filePrompts[key];
+
+      // Get current version
+      const { data: current } = await supabase
+        .from("sophia_prompts")
+        .select("version, priority, category, description, content")
+        .eq("key", key)
+        .eq("is_current", true)
+        .maybeSingle();
+
+      // Skip if content is identical
+      if (current && current.content === content) {
+        results.push({ key, status: "unchanged" });
+        continue;
+      }
+
+      if (current) {
+        // Mark old version as not current
+        await supabase
+          .from("sophia_prompts")
+          .update({ is_current: false, replaced_at: new Date().toISOString() })
+          .eq("key", key)
+          .eq("version", current.version);
+
+        // Insert new version
+        const newVersion = current.version + 1;
+        const { error: insertError } = await supabase
+          .from("sophia_prompts")
+          .insert({
+            key,
+            content,
+            category: current.category,
+            description: current.description,
+            priority: current.priority,
+            is_active: true,
+            is_current: true,
+            version: newVersion,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            updated_by: "file-sync",
+          });
+
+        if (insertError) {
+          // Restore old version
+          await supabase
+            .from("sophia_prompts")
+            .update({ is_current: true, replaced_at: null })
+            .eq("key", key)
+            .eq("version", current.version);
+          results.push({ key, status: `error: ${insertError.message}` });
+        } else {
+          results.push({ key, status: "synced", newVersion });
+        }
+      } else {
+        results.push({ key, status: "not_in_db (skipped)" });
+      }
+    }
+
+    // Invalidate cache
+    invalidateCache("file-sync");
+
+    logger.info("Admin: Prompt sync completed", {
+      category: LogCategory.CACHE,
+      results,
+    });
+
+    return new Response(
+      JSON.stringify({ success: true, results, cacheInvalidated: true }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ success: false, error: String(err) }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
 }
 
 /**
