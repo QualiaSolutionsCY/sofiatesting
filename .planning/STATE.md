@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Agents can trust SOPHIA to do the right thing every time
-**Current focus:** v1.5 Audit Excellence — Phase 23
+**Current focus:** v1.5 Audit Excellence — Phase 25 Complete
 
 ## Current Position
 
 Milestone: v1.5 Audit Excellence
-Phase: 24 of 25 (Observability & Documentation)
-Plan: 1 of 4 complete (24-02)
-Status: In progress
-Last activity: 2026-03-02 - Completed 24-02-PLAN.md (Per-Agent AI Cost Tracking)
+Phase: 25 of 25 (Code Quality Refactoring)
+Plan: 4 of 4 complete
+Status: Phase complete — deployed to production
+Last activity: 2026-03-02 - Completed Phase 25: Code Quality Refactoring
 
-Progress: [██████████████████████] 84% (21 of 25 phases complete)
+Progress: [█████████████████████████] 100% (25 of 25 phases complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 65
-- Total phases shipped: 21
-- Milestones completed: 5
+- Total plans completed: 69
+- Total phases shipped: 25
+- Milestones completed: 5 (v1.5 in progress — all phases complete, pending milestone close)
 
 **By Milestone:**
 
@@ -33,7 +33,7 @@ Progress: [██████████████████████] 8
 | v1.2 Call Audit | 10-14 | 14 plans | Shipped 2026-02-26 |
 | v1.3 Audit Fixes | 15-17 | 8 plans | Shipped 2026-02-28 |
 | v1.4 Hardening | 18-20 | 10 plans | Shipped 2026-03-01 |
-| v1.5 Audit Excellence | 21-25 | 7 plans | In progress (1/4 Phase 24 complete) |
+| v1.5 Audit Excellence | 21-25 | 11 plans | All phases complete — pending milestone close |
 
 ## Accumulated Context
 
@@ -54,10 +54,14 @@ Recent decisions affecting v1.5 and Phase 23:
 - Replaced all any types in ai-chat.ts and zyprus/client.ts error handling with precise interfaces (23-02)
 - Accumulate tokens across all OpenRouter calls (primary, fallback, retries) for accurate per-message cost tracking (24-02)
 - Edge Function deployments batched at Wave 1 completion to minimize production disruptions (24-02)
-
 - Environment variables organized by category (AI, Database, Auth, Integrations) not alphabetically for better developer comprehension (24-03)
 - Descriptive placeholders (your_*_here) used instead of empty values to prevent accidental deployment with defaults (24-03)
 - Provider dashboard links included inline with environment variables to reduce context switching during setup (24-03)
+- Taxonomy cache split into property-types.ts, amenities.ts, locations.ts modules (25-01)
+- Zyprus client split into oauth.ts, property-api.ts, land-api.ts modules (25-02)
+- Property listing handler split into field-validation.ts, image-processor.ts, notes-generator.ts (25-03)
+- All Supabase client instances consolidated to getSupabaseAdmin() singleton from _shared/db.ts (25-04)
+- Removed redundant supabaseUrl/supabaseKey pass-through parameters across call chain (25-04)
 ### Pending Todos
 
 - **CRITICAL:** Rotate production webhook secret (hardcoded secret exposed in repo - see quick-10 SUMMARY)
@@ -84,10 +88,10 @@ Recent decisions affecting v1.5 and Phase 23:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 24-02-PLAN.md (Per-Agent AI Cost Tracking) — token tracking implemented, deployment deferred to Wave 1 completion
-Resume file: .planning/phases/24-observability-documentation/24-02-SUMMARY.md
-Next step: Execute remaining Phase 24 Wave 1 plans (24-01a, 24-01b, 24-03) → Deploy sophia-bot
+Stopped at: Phase 25 complete — all 4 plans executed, deployed to production (sophia-bot, listing-notifier, draft-cleanup, Vercel)
+Resume file: .planning/phases/25-code-quality-refactoring/
+Next step: Close v1.5 milestone with /gsd:complete-milestone or /gsd:audit-milestone
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-03-02 — Phase 24 Plan 02 completed (Per-Agent AI Cost Tracking)*
+*Last updated: 2026-03-02 — Phase 25 completed (Code Quality Refactoring) — deployed to production*
