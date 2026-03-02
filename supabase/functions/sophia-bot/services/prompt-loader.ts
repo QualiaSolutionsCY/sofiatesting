@@ -72,6 +72,16 @@ const FALLBACK_PROMPTS: Record<string, string> = {
   templates: TEMPLATES,
 };
 
+// Keys where file content MUST override DB (updated in code, DB not yet synced)
+// TODO: Remove entries after running /admin/prompts/sync to push to DB
+const FILE_OVERRIDE_KEYS = [
+  "document_routing",
+  "response_format",
+  "safety_rules",
+  "property_upload",
+  "templates",
+];
+
 interface PromptRow {
   key: string;
   content: string;
@@ -238,12 +248,22 @@ async function getPromptSections(
         for (const [key, value] of dbPrompts) {
           mergedPrompts.set(key, value);
         }
+
+        // File overrides: these keys were updated in code and MUST use file versions
+        // until DB is synced via /admin/prompts/sync. Remove entries here after DB sync.
+        for (const key of FILE_OVERRIDE_KEYS) {
+          if (FALLBACK_PROMPTS[key]) {
+            mergedPrompts.set(key, FALLBACK_PROMPTS[key]);
+          }
+        }
+
         const fallbackCount =
           Object.keys(FALLBACK_PROMPTS).length - dbPrompts.size;
         logger.debug("Merged DB prompts with fallbacks", {
           category: LogCategory.CACHE,
           dbCount: dbPrompts.size,
           fallbackCount,
+          fileOverrides: FILE_OVERRIDE_KEYS.length,
         });
       } else {
         logger.warn("Using fallback hardcoded prompts (DB unavailable)", {
