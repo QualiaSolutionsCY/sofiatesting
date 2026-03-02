@@ -1162,7 +1162,9 @@ export async function createDraftListing(
       const errorJson = JSON.parse(errorText);
       if (errorJson.errors) {
         errorDetail = errorJson.errors
-          .map((e: any) => e.detail || e.title || JSON.stringify(e))
+          .map((e: { detail?: string; title?: string }) =>
+            e.detail || e.title || JSON.stringify(e)
+          )
           .join("; ");
       }
     } catch {
@@ -1768,7 +1770,9 @@ export async function createDraftLandListing(
       const errorJson = JSON.parse(errorText);
       if (errorJson.errors) {
         errorDetail = errorJson.errors
-          .map((e: any) => e.detail || e.title || JSON.stringify(e))
+          .map((e: { detail?: string; title?: string }) =>
+            e.detail || e.title || JSON.stringify(e)
+          )
           .join("; ");
       }
     } catch {
