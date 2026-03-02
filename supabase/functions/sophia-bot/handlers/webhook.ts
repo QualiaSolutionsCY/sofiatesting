@@ -17,6 +17,7 @@ import {
   getLastDocument,
   saveLastDocument,
 } from "../../_shared/db.ts";
+import { addBreadcrumb, captureError } from "../../_shared/sentry.ts";
 import { identifyAgentByPhone } from "../agents/identifier.ts";
 import { SOPHIA_LOGO_BASE64 } from "../assets/sophia-logo.ts";
 import { VIEWING_FORM_LOGO_BASE64 } from "../assets/viewing-form-logo.ts";
@@ -71,6 +72,7 @@ import {
   hasAllRequiredFields,
   isCollectingInformation,
 } from "../utils/field-validator.ts";
+import { getContext } from "../utils/context.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
 import { checkRateLimit } from "../utils/rate-limiter.ts";
 import {
@@ -288,6 +290,11 @@ async function processRequest(
       identifiedAgent
     );
 
+    // Add breadcrumb before AI call
+    addBreadcrumb("Calling OpenRouter", "ai", {
+      model: "google/gemini-3-flash-preview",
+    });
+
     // Call AI
     const aiResult = await chat(
       history,
@@ -299,6 +306,14 @@ async function processRequest(
       supabaseKey,
       phoneNumber
     );
+
+    // Add breadcrumb for tool execution if tools were used
+    if (aiResult.toolsUsed && aiResult.toolsUsed.length > 0) {
+      addBreadcrumb("Tools executed", "tool", {
+        toolNames: aiResult.toolsUsed.join(", "),
+        toolCount: aiResult.toolsUsed.length,
+      });
+    }
 
     if (!aiResult.success || !aiResult.response) {
       await sendTextMessage(
@@ -591,6 +606,12 @@ async function processRequest(
 
     return tokenCount;
   } catch (error) {
+    const { correlationId } = getContext();
+    captureError(error as Error, {
+      phoneNumber,
+      correlationId,
+      channel: "whatsapp",
+    });
     logger.error("Error in processRequest: " + String(error), undefined, {
       category: LogCategory.GENERAL,
     });
@@ -713,6 +734,10 @@ export async function handleWebhook(
     return new Response("OK", { status: 200 });
   }
 
+  // Add Sentry breadcrumb for request tracking
+  const { correlationId } = getContext();
+  addBreadcrumb("WhatsApp webhook received", "http", { correlationId });
+
   // Check rate limit
   const withinRateLimit = await checkRateLimit(supabase, remoteJid);
   if (!withinRateLimit) {
@@ -789,6 +814,11 @@ export async function handleWebhook(
     // Track successful response with token usage
     trackMessageSent(phoneNumber, requestTimer.end(), tokenCount);
   } catch (err) {
+    captureError(err as Error, {
+      phoneNumber,
+      correlationId,
+      channel: "whatsapp",
+    });
     logger.error("processRequest failed: " + String(err), undefined, {
       category: LogCategory.GENERAL,
     });
