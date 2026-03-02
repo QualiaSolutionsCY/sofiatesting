@@ -102,9 +102,7 @@ export async function handleGetRegionalAgents(
   const region = args.region as string;
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const agents = await getAgentsByRegion(region, supabaseUrl, supabaseKey);
+    const agents = await getAgentsByRegion(region);
 
     if (agents.length === 0) {
       return {

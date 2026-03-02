@@ -3,8 +3,8 @@
  * Provides atomic locking mechanism to prevent duplicate uploads
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { UPLOAD_LOCK_DURATION_MS } from "../../config/business-rules.ts";
+import { getSupabaseAdmin } from "../../../_shared/db.ts";
 
 /**
  * Atomically acquire a DB-based upload lock for a property.
@@ -15,10 +15,7 @@ export async function acquireUploadLock(
   lockKey: string,
   agentPhone: string
 ): Promise<{ acquired: boolean; remainingSeconds?: number }> {
-  const sb = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
+  const sb = getSupabaseAdmin();
 
   // First clean up expired locks (older than UPLOAD_LOCK_DURATION_MS)
   const expiryTime = new Date(

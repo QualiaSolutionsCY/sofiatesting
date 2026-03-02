@@ -1,0 +1,379 @@
+/**
+ * Field Validation Module
+ * Handles steps 1-6: agent identification, duplicate checking, required field validation,
+ * location correction, regional access validation, special cases, reviewer assignment
+ */
+
+import { type Agent, getAgentByEmail } from "../../agents/identifier.ts";
+import {
+  REGIONAL_EMAILS,
+} from "../../config/business-rules.ts";
+import {
+  determineRegion,
+  validateRegionalAccess,
+} from "../../rules/region-validator.ts";
+import {
+  assignReviewers,
+  needsAssignmentInput,
+} from "../../rules/reviewer-assignment.ts";
+import {
+  getMissingFieldsMessage,
+  handleSpecialCases,
+  handleUnknownSender,
+  validateRequiredFields,
+} from "../../rules/special-cases.ts";
+import { LogCategory, logger } from "../../utils/logger.ts";
+import {
+  extractAreaFromGoogleMapsUrl,
+  isCityOnlyLocation,
+  isLocationAStreetInUrl,
+  isStreetAddress,
+} from "../validators/location.ts";
+import { acquireUploadLock } from "../validators/upload-lock.ts";
+import { getSupabaseAdmin } from "../../../_shared/db.ts";
+
+export interface ToolResult {
+  success?: boolean;
+  error?: string;
+  needsInput?: boolean;
+  question?: string;
+  message?: string;
+  data?: unknown;
+  retryable?: boolean;
+}
+
+export interface ValidatedFields {
+  location: string;
+  listingType: "sale" | "rent";
+  locationUrl: string;
+  streetName: string;
+  reviewers: { reviewer1Uuid: string; reviewer2Uuid: string | null };
+  listingOwnerName: string;
+  potentialDuplicateNote: string;
+  args: Record<string, unknown>;
+}
+
+export async function validateAndPrepareFields(
+  args: Record<string, unknown>,
+  agent: Agent | null,
+  supabaseUrl: string,
+  supabaseKey: string
+): Promise<ToolResult | ValidatedFields> {
+  logger.info("Field validation started", {
+    category: LogCategory.TOOL,
+    operation: "validateAndPrepareFields",
+    argsPreview: JSON.stringify(args).substring(0, 500),
+  });
+
+  // 1. Check if agent is identified
+  if (!agent) {
+    logger.warn("Listing creation blocked - no agent identified", {
+      category: LogCategory.TOOL,
+      operation: "validateAndPrepareFields",
+    });
+    return handleUnknownSender();
+  }
+
+  logger.info("Agent identified for listing creation", {
+    category: LogCategory.TOOL,
+    operation: "validateAndPrepareFields",
+    agentName: agent.fullName,
+    agentRegion: agent.region,
+  });
+
+  // 1.5 CRITICAL: Acquire DB-based upload lock to prevent duplicate uploads
+  // Uses property fingerprint (agent+location+price+owner) so different properties can upload in parallel
+  // DB lock is atomic — only ONE concurrent Edge Function invocation wins
+  const agentPhone = agent.mobile?.replace(/\D/g, "") || "";
+  // Per-property lock — agent+location+price+owner fingerprint so different properties can upload in parallel
+  const propertyLockKey = `upload:${agentPhone}:${((args.location as string) || "").toLowerCase()}:${args.price}:${((args.ownerPhone as string) || "").slice(-6)}`;
+  const lockResult = await acquireUploadLock(propertyLockKey, agentPhone);
+  if (!lockResult.acquired) {
+    logger.warn("Upload blocked by DB lock - duplicate upload in progress", {
+      category: LogCategory.TOOL,
+      operation: "validateAndPrepareFields",
+      agentName: agent.fullName,
+      remainingSeconds: lockResult.remainingSeconds,
+    });
+    return {
+      needsInput: true,
+      question: `I'm already processing an upload for this property. Please wait ${lockResult.remainingSeconds} seconds before trying again.`,
+    };
+  }
+
+  // 1.6 Check listing_uploads for recent duplicates — BLOCKS upload if match found within 24 hours
+  let potentialDuplicateNote = "";
+
+  const sb = getSupabaseAdmin();
+
+  {
+    const twentyFourHoursAgo = new Date(
+      Date.now() - 24 * 60 * 60 * 1000
+    ).toISOString();
+    const { data: recentUploads } = await sb
+      .from("listing_uploads")
+      .select("id, property_title, created_at, zyprus_listing_id")
+      .eq("agent_phone", agentPhone)
+      .gte("created_at", twentyFourHoursAgo)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (recentUploads && recentUploads.length > 0) {
+      const locationLower = ((args.location as string) || "").toLowerCase();
+      const match = recentUploads.find(
+        (p: Record<string, unknown>) =>
+          locationLower &&
+          ((p.property_title as string) || "")
+            .toLowerCase()
+            .includes(locationLower)
+      );
+      if (match) {
+        const minutesAgo = Math.round(
+          (Date.now() - new Date(match.created_at as string).getTime()) / 60_000
+        );
+        potentialDuplicateNote = `POTENTIAL DUPLICATE - similar listing exists: ${match.property_title} (${match.zyprus_listing_id})`;
+        logger.warn("Duplicate detected - blocking upload", {
+          category: LogCategory.TOOL,
+          operation: "validateAndPrepareFields",
+          existingId: match.zyprus_listing_id,
+          existingTitle: match.property_title,
+          minutesAgo,
+          agentPhone,
+        });
+        return {
+          needsInput: true,
+          question: `This property was already uploaded ${minutesAgo < 60 ? `${minutesAgo} minutes` : `${Math.round(minutesAgo / 60)} hours`} ago: "${match.property_title}" (${match.zyprus_listing_id}). If you want to upload it again, please confirm by saying "upload anyway".`,
+        };
+      }
+    }
+  }
+
+  // 2. Validate required fields
+  const validation = validateRequiredFields(args);
+  if (!validation.valid) {
+    // Mark as retryable so ai-chat.ts feeds this back to the AI loop
+    // instead of showing the generic "I still need..." message to the user.
+    // The AI already has the data in conversation context — it just failed to extract it.
+    logger.warn("Validation failed — missing fields in tool call args", {
+      category: LogCategory.TOOL,
+      operation: "validateAndPrepareFields",
+      missingFields: validation.missing,
+      providedFields: Object.keys(args).filter(
+        (k) => args[k] !== undefined && args[k] !== null
+      ),
+    });
+    return {
+      needsInput: true,
+      retryable: true,
+      question: getMissingFieldsMessage(validation.missing),
+    };
+  }
+
+  let location = args.location as string;
+  const listingType = args.listingType as "sale" | "rent";
+  const locationUrl = args.locationUrl as string | undefined;
+
+  // 2.5 CRITICAL: Correct street addresses to area names
+  // AI sometimes passes street names (e.g., "Apostolou Pavlou Ave, Paphos" or "Michali Sougioul, Limassol")
+  // instead of area names (e.g., "Kato Paphos, Paphos"). Detect this and fix using the Google Maps URL.
+  const streetDetected =
+    isStreetAddress(location) ||
+    // Cross-reference with Google Maps URL: if the /place/ path contains the AI's location
+    // name alongside a house number, it's a street name (e.g., "Michali Sougioul 21, Lemesos")
+    (locationUrl ? isLocationAStreetInUrl(location, locationUrl) : false);
+
+  if (streetDetected && locationUrl) {
+    const areaFromUrl = extractAreaFromGoogleMapsUrl(locationUrl);
+    if (areaFromUrl) {
+      logger.warn(
+        "Location corrected: AI passed street address, extracted area from Google Maps URL",
+        {
+          category: LogCategory.TOOL,
+          operation: "validateAndPrepareFields",
+          originalLocation: location,
+          correctedLocation: areaFromUrl,
+          googleMapsUrl: locationUrl.substring(0, 100),
+        }
+      );
+      location = areaFromUrl;
+    } else {
+      // Could not extract a specific area — ask the agent
+      logger.warn(
+        "Location appears to be a street address, asking agent for area name",
+        {
+          category: LogCategory.TOOL,
+          operation: "validateAndPrepareFields",
+          location,
+          googleMapsUrl: locationUrl.substring(0, 100),
+        }
+      );
+      return {
+        needsInput: true,
+        question: `I've captured the pin location from the Google Maps link, but "${location}" appears to be a street name. What is the area/neighborhood? (e.g., Agios Athanasios, Kato Paphos, Germasogeia, Mesa Geitonia)`,
+      };
+    }
+  } else if (streetDetected && !locationUrl) {
+    // Street name without a Google Maps URL — ask for proper area
+    logger.warn(
+      "Location appears to be a street address with no Google Maps URL to extract area from",
+      {
+        category: LogCategory.TOOL,
+        operation: "validateAndPrepareFields",
+        location,
+      }
+    );
+    return {
+      needsInput: true,
+      question: `"${location}" appears to be a street address. I need the area/neighborhood name for the listing (e.g., Agios Athanasios, Kato Paphos, Germasogeia). What area is this property in?`,
+    };
+  }
+
+  // 2.6 CRITICAL: Block city-only locations (e.g., "Limassol, Limassol" or "Paphos")
+  // These are too vague — Sophia must ask for the specific area/neighborhood
+  if (isCityOnlyLocation(location)) {
+    logger.warn("Location rejected: city-only location without specific area", {
+      category: LogCategory.TOOL,
+      operation: "validateAndPrepareFields",
+      location,
+    });
+    return {
+      needsInput: true,
+      question: `"${location}" is too general — I need the specific area or neighborhood name (e.g., Agios Athanasios, Kato Paphos, Germasogeia, Mesa Geitonia). What is the exact area/neighborhood for this property?`,
+    };
+  }
+
+  // 3. Validate regional access
+  const regionResult = validateRegionalAccess(agent, location);
+  if (!regionResult.allowed) {
+    return { error: regionResult.message };
+  }
+
+  const propertyRegion =
+    regionResult.propertyRegion || determineRegion(location) || agent.region;
+
+  // 4. Handle special cases
+  const specialCase = await handleSpecialCases(
+    agent,
+    {
+      listingType,
+      location,
+      assignTo: args.assignTo as string | undefined,
+    },
+    propertyRegion
+  );
+
+  if (specialCase.rejected) {
+    return { error: specialCase.message };
+  }
+
+  if (specialCase.needsInput) {
+    return { needsInput: true, question: specialCase.question };
+  }
+
+  // 5. Check if management needs to specify assignment
+  if (needsAssignmentInput(agent, listingType) && !args.assignTo) {
+    return {
+      needsInput: true,
+      question:
+        "To whom would you like me to assign this property as the listing owner?",
+    };
+  }
+
+  // 5.1 SECURITY: Only management agents can use assignTo — strip it for regular agents
+  // This prevents the AI from hallucinating assignments (e.g., "lysandros@zyprus.com" for a Paphos property)
+  if (args.assignTo && agent.role !== "management") {
+    logger.warn(
+      "Stripped assignTo from non-management agent — only management can assign",
+      {
+        category: LogCategory.TOOL,
+        operation: "validateAndPrepareFields",
+        agentRole: agent.role,
+        agentEmail: agent.communicationEmail,
+        attemptedAssignTo: args.assignTo,
+      }
+    );
+    args.assignTo = undefined;
+  }
+
+  // 5.2 SECURITY: Validate assignTo is a @zyprus.com email (exact domain match to prevent subdomain bypass)
+  if (args.assignTo) {
+    const assignToEmail = (args.assignTo as string).toLowerCase().trim();
+    const emailParts = assignToEmail.split("@");
+    // Must have exactly one @ and domain must be exactly zyprus.com (not a subdomain)
+    if (emailParts.length !== 2 || emailParts[1] !== "zyprus.com") {
+      return {
+        error: "Assignments must be to a @zyprus.com email address.",
+      };
+    }
+    // Verify the email exists as an agent in the database OR is a known regional office email
+    const isRegionalOffice =
+      Object.values(REGIONAL_EMAILS).includes(assignToEmail);
+    if (isRegionalOffice) {
+      logger.info(
+        "assignTo is a regional office email — skipping agent DB check",
+        {
+          category: LogCategory.TOOL,
+          operation: "validateAndPrepareFields",
+          assignToEmail,
+        }
+      );
+    } else {
+      const assigneeAgent = await getAgentByEmail(
+        assignToEmail
+      );
+      if (!assigneeAgent) {
+        logger.warn("assignTo email not found in agents database — stripping", {
+          category: LogCategory.TOOL,
+          operation: "validateAndPrepareFields",
+          assignToEmail,
+        });
+        args.assignTo = undefined;
+      }
+    }
+  }
+
+  // 6. Get reviewer assignments
+  const reviewers = assignReviewers(
+    agent,
+    listingType,
+    propertyRegion,
+    args.assignTo as string | undefined
+  );
+
+  // 6b. Resolve listing owner name for Reference ID
+  // When assignTo is provided (management assigns to specific agent), look up that agent's name
+  let listingOwnerName = agent.fullName;
+  if (args.assignTo && reviewers.listingOwner !== agent.communicationEmail) {
+    try {
+      const assignedAgent = await getAgentByEmail(
+        reviewers.listingOwner
+      );
+      if (assignedAgent) {
+        listingOwnerName = assignedAgent.fullName;
+        logger.info("Resolved listing owner name from assignTo", {
+          category: LogCategory.TOOL,
+          operation: "validateAndPrepareFields",
+          listingOwnerName,
+          listingOwnerEmail: reviewers.listingOwner,
+        });
+      }
+    } catch {
+      // Non-critical — fall back to requesting agent name
+    }
+  }
+
+  // Success — return validated fields
+  return {
+    location,
+    listingType,
+    locationUrl: locationUrl || "",
+    streetName: location, // streetName is used for My Notes — same as location
+    reviewers: {
+      reviewer1Uuid: reviewers.reviewer1,
+      reviewer2Uuid: reviewers.reviewer2,
+    },
+    listingOwnerName,
+    potentialDuplicateNote,
+    args,
+  };
+}

@@ -5,12 +5,10 @@
  * Documents auto-expire after 1 hour and are cleared after successful upload.
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { LogCategory, logger } from "../utils/logger.ts";
+import { getSupabaseAdmin } from "../../_shared/db.ts";
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = getSupabaseAdmin();
 
 export interface PendingDocument {
   document_url: string;

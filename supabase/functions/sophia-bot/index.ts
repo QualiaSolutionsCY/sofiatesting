@@ -18,11 +18,11 @@
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { initSentry } from "../_shared/sentry.ts";
 import { handleAdminRequest } from "./handlers/admin.ts";
 import { handleHealthCheck } from "./handlers/health.ts";
 import { handleWebhook } from "./handlers/webhook.ts";
+import { getSupabaseAdmin } from "../_shared/db.ts";
 import { withContext } from "./utils/context.ts";
 import { ErrorCategory, LogCategory, logger } from "./utils/logger.ts";
 
@@ -33,11 +33,9 @@ initSentry();
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const WASEND_API_KEY = Deno.env.get("WASEND_API_KEY");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// Initialize Supabase client
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Initialize Supabase client (singleton)
+const supabase = getSupabaseAdmin();
 
 // Validate critical environment variables at startup
 if (!OPENROUTER_API_KEY) {
@@ -122,7 +120,7 @@ serve(async (req) => {
     },
     async () => {
       try {
-        return await handleWebhook(req, supabase, supabaseUrl, supabaseKey);
+        return await handleWebhook(req, supabase);
       } catch (error) {
         logger.error("Worker error", error as Error, {
           category: LogCategory.WEBHOOK,

@@ -3,8 +3,8 @@
  * Matches WhatsApp phone numbers to agents in the database
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { LogCategory, logger } from "../utils/logger.ts";
+import { getSupabaseAdmin } from "../../_shared/db.ts";
 
 export interface Agent {
   id: string;
@@ -44,11 +44,9 @@ export function normalizePhone(phone: string): string {
  * Uses normalized phone matching to handle various formats
  */
 export async function identifyAgentByPhone(
-  phone: string,
-  supabaseUrl: string,
-  supabaseKey: string
+  phone: string
 ): Promise<Agent | null> {
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = getSupabaseAdmin();
   const normalized = normalizePhone(phone);
 
   // Validate normalized phone contains only digits (defense in depth)
@@ -119,11 +117,9 @@ function sanitizeEmailForFilter(email: string): string {
  * Uses separate queries to avoid filter injection vulnerabilities
  */
 export async function getAgentByEmail(
-  email: string,
-  supabaseUrl: string,
-  supabaseKey: string
+  email: string
 ): Promise<Agent | null> {
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = getSupabaseAdmin();
 
   // Sanitize email to prevent filter injection
   const sanitizedEmail = sanitizeEmailForFilter(email);
@@ -183,11 +179,9 @@ function mapAgentData(data: Record<string, unknown>): Agent {
  * Get all agents in a specific region
  */
 export async function getAgentsByRegion(
-  region: string,
-  supabaseUrl: string,
-  supabaseKey: string
+  region: string
 ): Promise<Agent[]> {
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = getSupabaseAdmin();
 
   const { data, error } = await supabase
     .from("agents")

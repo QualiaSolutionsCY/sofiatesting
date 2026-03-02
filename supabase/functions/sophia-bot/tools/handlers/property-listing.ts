@@ -3,8 +3,8 @@
  * Handles the createPropertyListing tool
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { trackListingUpload } from "../../../_shared/db.ts";
+import { getSupabaseAdmin } from "../../../_shared/db.ts";
 import { type Agent, getAgentByEmail } from "../../agents/identifier.ts";
 import {
   DEFAULT_COORDINATES,
@@ -81,9 +81,7 @@ export interface ToolResult {
  */
 export async function handleCreatePropertyListing(
   args: Record<string, unknown>,
-  agent: Agent | null,
-  supabaseUrl: string,
-  supabaseKey: string
+  agent: Agent | null
 ): Promise<ToolResult> {
   logger.info("Create property listing started", {
     category: LogCategory.TOOL,
@@ -130,7 +128,7 @@ export async function handleCreatePropertyListing(
   // 1.6 Check listing_uploads for recent duplicates — BLOCKS upload if match found within 24 hours
   let potentialDuplicateNote = "";
 
-  const sb = createClient(supabaseUrl, supabaseKey);
+  const sb = getSupabaseAdmin();
 
   {
     const twentyFourHoursAgo = new Date(
@@ -285,9 +283,7 @@ export async function handleCreatePropertyListing(
       location,
       assignTo: args.assignTo as string | undefined,
     },
-    propertyRegion,
-    supabaseUrl,
-    supabaseKey
+    propertyRegion
   );
 
   if (specialCase.rejected) {
@@ -347,9 +343,7 @@ export async function handleCreatePropertyListing(
       );
     } else {
       const assigneeAgent = await getAgentByEmail(
-        assignToEmail,
-        supabaseUrl,
-        supabaseKey
+        assignToEmail
       );
       if (!assigneeAgent) {
         logger.warn("assignTo email not found in agents database — stripping", {
@@ -376,9 +370,7 @@ export async function handleCreatePropertyListing(
   if (args.assignTo && reviewers.listingOwner !== agent.communicationEmail) {
     try {
       const assignedAgent = await getAgentByEmail(
-        reviewers.listingOwner,
-        supabaseUrl,
-        supabaseKey
+        reviewers.listingOwner
       );
       if (assignedAgent) {
         listingOwnerName = assignedAgent.fullName;

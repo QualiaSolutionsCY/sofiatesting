@@ -25,11 +25,9 @@ export interface SpecialCaseResult {
  * Get the region for an agent by their email (from database)
  */
 export async function getAgentRegion(
-  email: string,
-  supabaseUrl: string,
-  supabaseKey: string
+  email: string
 ): Promise<string | null> {
-  const agent = await getAgentByEmail(email, supabaseUrl, supabaseKey);
+  const agent = await getAgentByEmail(email);
   return agent?.region || null;
 }
 
@@ -39,9 +37,7 @@ export async function getAgentRegion(
 export async function handleSpecialCases(
   agent: Agent,
   request: UploadRequest,
-  propertyRegion: string,
-  supabaseUrl: string,
-  supabaseKey: string
+  propertyRegion: string
 ): Promise<SpecialCaseResult> {
   // 1. Check if agent can upload (canUpload flag from database)
   if (!agent.canUpload) {
@@ -100,9 +96,7 @@ export async function handleSpecialCases(
     } else {
       // Regular agent — validate from database
       const assigneeRegion = await getAgentRegion(
-        request.assignTo,
-        supabaseUrl,
-        supabaseKey
+        request.assignTo
       );
 
       if (
