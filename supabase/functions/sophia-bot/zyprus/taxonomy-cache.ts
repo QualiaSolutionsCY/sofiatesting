@@ -231,7 +231,16 @@ async function fetchTaxonomy(
         { headers, signal: AbortSignal.timeout(30_000) }
       )
         .then((res) => (res.ok ? res.json() : null))
-        .catch(() => null)
+        .catch((error) => {
+          logger.warn("Taxonomy page fetch failed (non-critical)", {
+            category: LogCategory.CACHE,
+            operation: "fetchTaxonomy-pagination",
+            vocabularyName,
+            page: i + 1,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return null;
+        })
     );
 
     const pageResults = await Promise.all(pagePromises);
@@ -551,7 +560,13 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
         category: LogCategory.CACHE,
       });
       // Fire-and-forget background refresh
-      refreshTaxonomyInBackground().catch(() => {});
+      refreshTaxonomyInBackground().catch((error) => {
+        logger.warn("Background taxonomy refresh failed (non-critical)", {
+          category: LogCategory.CACHE,
+          operation: "refreshTaxonomyInBackground",
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
       return cache;
     }
   }

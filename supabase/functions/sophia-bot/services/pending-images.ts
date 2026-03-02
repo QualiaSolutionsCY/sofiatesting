@@ -115,7 +115,13 @@ export async function getPendingImages(phoneNumber: string): Promise<string[]> {
   const ctx = getContext();
 
   // Periodic cleanup (non-blocking, fire and forget)
-  cleanupExpiredImages().catch(() => {});
+  cleanupExpiredImages().catch((error) => {
+    logger.warn("Periodic image cleanup failed (non-critical)", {
+      category: LogCategory.IMAGE,
+      operation: "cleanupExpiredImages",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
 
   // Get all pending images for this user
   // Order by id (auto-increment) for reliable insertion-order preservation

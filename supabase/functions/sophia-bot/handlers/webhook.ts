@@ -208,12 +208,44 @@ async function processRequest(
       identifiedAgentResult,
       lastDocumentResult,
     ] = await Promise.all([
-      buildUserContext(phoneNumber, userMessage).catch(() => null),
-      getHistory(userId).catch(() => []),
+      buildUserContext(phoneNumber, userMessage).catch((error) => {
+        logger.warn("Failed to build user context (non-critical)", {
+          category: LogCategory.GENERAL,
+          operation: "buildUserContext",
+          phoneNumber,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      }),
+      getHistory(userId).catch((error) => {
+        logger.warn("Failed to get chat history (non-critical)", {
+          category: LogCategory.GENERAL,
+          operation: "getHistory",
+          userId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return [];
+      }),
       identifyAgentByPhone(phoneNumber, supabaseUrl, supabaseKey).catch(
-        () => null
+        (error) => {
+          logger.warn("Failed to identify agent by phone (non-critical)", {
+            category: LogCategory.GENERAL,
+            operation: "identifyAgentByPhone",
+            phoneNumber,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return null;
+        }
       ),
-      getLastDocument(userId).catch(() => null),
+      getLastDocument(userId).catch((error) => {
+        logger.warn("Failed to get last document (non-critical)", {
+          category: LogCategory.GENERAL,
+          operation: "getLastDocument",
+          userId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      }),
     ]);
 
     const userContext = userContextResult;
@@ -225,7 +257,14 @@ async function processRequest(
       storeMemory(userContext.profile.id, "user", userMessage, {
         importance,
         topics,
-      }).catch(() => {});
+      }).catch((error) => {
+        logger.warn("Failed to store user message memory (non-critical)", {
+          category: LogCategory.GENERAL,
+          operation: "storeMemory-user",
+          userId: userContext.profile.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
     }
 
     const identifiedAgent = identifiedAgentResult;
@@ -281,7 +320,14 @@ async function processRequest(
       storeMemory(userContext.profile.id, "assistant", aiResponse, {
         importance: 0.5,
         topics: responseTopics,
-      }).catch(() => {});
+      }).catch((error) => {
+        logger.warn("Failed to store AI response memory (non-critical)", {
+          category: LogCategory.GENERAL,
+          operation: "storeMemory-assistant",
+          userId: userContext.profile.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
     }
 
     // Build updated history once (reused for both email detection and DOCX routing)
