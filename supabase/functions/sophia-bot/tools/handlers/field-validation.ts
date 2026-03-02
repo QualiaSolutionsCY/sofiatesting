@@ -55,9 +55,7 @@ export interface ValidatedFields {
 
 export async function validateAndPrepareFields(
   args: Record<string, unknown>,
-  agent: Agent | null,
-  supabaseUrl: string,
-  supabaseKey: string
+  agent: Agent | null
 ): Promise<ToolResult | ValidatedFields> {
   logger.info("Field validation started", {
     category: LogCategory.TOOL,
@@ -318,9 +316,7 @@ export async function validateAndPrepareFields(
         }
       );
     } else {
-      const assigneeAgent = await getAgentByEmail(
-        assignToEmail
-      );
+      const assigneeAgent = await getAgentByEmail(assignToEmail);
       if (!assigneeAgent) {
         logger.warn("assignTo email not found in agents database — stripping", {
           category: LogCategory.TOOL,
@@ -345,9 +341,7 @@ export async function validateAndPrepareFields(
   let listingOwnerName = agent.fullName;
   if (args.assignTo && reviewers.listingOwner !== agent.communicationEmail) {
     try {
-      const assignedAgent = await getAgentByEmail(
-        reviewers.listingOwner
-      );
+      const assignedAgent = await getAgentByEmail(reviewers.listingOwner);
       if (assignedAgent) {
         listingOwnerName = assignedAgent.fullName;
         logger.info("Resolved listing owner name from assignTo", {

@@ -52,8 +52,6 @@ export interface ToolCall {
 export async function executeTool(
   tool: ToolCall,
   agent: Agent | null,
-  supabaseUrl: string,
-  supabaseKey: string,
   phoneNumber?: string
 ): Promise<ToolResult> {
   const timer = createTimer();
@@ -89,9 +87,7 @@ export async function executeTool(
       case "createPropertyListing":
         result = await handleCreatePropertyListing(
           validArgs,
-          agent,
-          supabaseUrl,
-          supabaseKey
+          agent
         );
         // Track successful property upload
         if (result.success && phoneNumber) {
@@ -105,9 +101,7 @@ export async function executeTool(
       case "createLandListing":
         result = await handleCreateLandListing(
           validArgs,
-          agent,
-          supabaseUrl,
-          supabaseKey
+          agent
         );
         // Track successful land upload
         if (result.success && phoneNumber) {

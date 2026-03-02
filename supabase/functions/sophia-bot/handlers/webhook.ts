@@ -178,8 +178,6 @@ function isLogoRequest(message: string): boolean {
  */
 async function processRequest(
   supabase: SupabaseClient,
-  supabaseUrl: string,
-  supabaseKey: string,
   userId: string,
   userMessage: string,
   phoneNumber: string,
@@ -229,7 +227,7 @@ async function processRequest(
         });
         return [];
       }),
-      identifyAgentByPhone(phoneNumber, supabaseUrl, supabaseKey).catch(
+      identifyAgentByPhone(phoneNumber).catch(
         (error) => {
           logger.warn("Failed to identify agent by phone (non-critical)", {
             category: LogCategory.GENERAL,
@@ -302,8 +300,6 @@ async function processRequest(
       userMessage,
       imageUrls,
       identifiedAgent,
-      supabaseUrl,
-      supabaseKey,
       phoneNumber
     );
 
@@ -625,9 +621,7 @@ async function processRequest(
  */
 export async function handleWebhook(
   req: Request,
-  supabase: SupabaseClient,
-  supabaseUrl: string,
-  supabaseKey: string
+  supabase: SupabaseClient
 ): Promise<Response> {
   // Handle GET requests (webhook verification)
   if (req.method === "GET") {
@@ -804,8 +798,6 @@ export async function handleWebhook(
   try {
     const tokenCount = await processRequest(
       supabase,
-      supabaseUrl,
-      supabaseKey,
       remoteJid,
       sanitizedMessage,
       phoneNumber,

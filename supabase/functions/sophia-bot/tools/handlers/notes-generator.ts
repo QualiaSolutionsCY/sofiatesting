@@ -4,10 +4,12 @@
  * My Notes generation, AI Notes generation
  */
 
+import { type Agent } from "../../agents/identifier.ts";
 import { generateDescription } from "../../services/description-generator.ts";
 import {
   createDuplicateNote,
   generateDuplicateWarning,
+  type DuplicateMatch,
 } from "../../services/duplicate-checker.ts";
 import {
   generateAIAssistantNotes,
@@ -23,7 +25,7 @@ export interface ListingContent {
 
 export async function generateListingContent(
   args: Record<string, unknown>,
-  agent: { fullName: string; email: string },
+  agent: Agent,
   listingType: "sale" | "rent",
   location: string,
   locationUrl: string,
@@ -40,7 +42,7 @@ export async function generateListingContent(
   titleDeedImageUrls: string[],
   floorPlanUrls: string[],
   documentUrls: string[],
-  duplicates: { isDuplicate: boolean; potentialMatches: unknown[] },
+  duplicates: { isDuplicate: boolean; potentialMatches: DuplicateMatch[] },
   locationResult: { matchedName?: string; uuid: string },
   resolvedCoordinates: { lat: number; lon: number } | undefined,
   effectiveFeatures: string[],

@@ -428,8 +428,6 @@ export async function chat(
   userMessage: string,
   imageUrls: string[],
   identifiedAgent: Agent | null,
-  supabaseUrl: string,
-  supabaseKey: string,
   phoneNumber: string
 ): Promise<AIResponse> {
   if (!OPENROUTER_API_KEY) {
@@ -685,8 +683,6 @@ export async function chat(
           toolResult = await executeTool(
             { name: toolName, arguments: toolArgs },
             identifiedAgent,
-            supabaseUrl,
-            supabaseKey,
             phoneNumber
           );
         } catch (error) {
