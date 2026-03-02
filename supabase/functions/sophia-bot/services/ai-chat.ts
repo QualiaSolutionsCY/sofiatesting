@@ -40,6 +40,7 @@ interface AIResponse {
   response: string;
   success: boolean;
   toolsUsed?: string[];
+  tokenCount?: number;
 }
 
 interface ChatContext {
@@ -280,13 +281,22 @@ ${accumulatedImages.map((url, i) => `${i + 1}. ${url}`).join("\n")}
 
 /**
  * Calls OpenRouter API with retry logic for rate limiting
+ * @returns message, error, and usage (token counts from OpenRouter)
  */
 async function callOpenRouter(
   messages: OpenRouterMessage[],
   tools: OpenRouterTool[],
   toolChoice: "auto" | "required" = "auto",
   model: string = PRIMARY_MODEL
-): Promise<{ message: OpenRouterMessage | null; error?: string }> {
+): Promise<{
+  message: OpenRouterMessage | null;
+  usage: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  } | null;
+  error?: string;
+}> {
   // Circuit breaker: fail fast if OpenRouter has been consistently failing
   if (!canRequest(OPENROUTER_CIRCUIT)) {
     logger.warn("OpenRouter circuit breaker OPEN — failing fast", {
@@ -294,6 +304,7 @@ async function callOpenRouter(
     });
     return {
       message: null,
+      usage: null,
       error: "AI service temporarily unavailable (circuit open)",
     };
   }
@@ -333,7 +344,24 @@ async function callOpenRouter(
         if (aiRes.ok) {
           recordSuccess(OPENROUTER_CIRCUIT);
           const aiData = await aiRes.json();
-          return { message: aiData.choices?.[0]?.message };
+
+          // Extract usage data from OpenRouter response
+          const usage = aiData.usage
+            ? {
+                promptTokens: aiData.usage.prompt_tokens || 0,
+                completionTokens: aiData.usage.completion_tokens || 0,
+                totalTokens: aiData.usage.total_tokens || 0,
+              }
+            : null;
+
+          if (!usage) {
+            logger.warn(
+              "[OpenRouter] No usage data in response - token tracking unavailable for this request",
+              { category: LogCategory.GENERAL }
+            );
+          }
+
+          return { message: aiData.choices?.[0]?.message, usage };
         }
 
         const errorData = await aiRes.json().catch(() => ({
@@ -361,7 +389,7 @@ async function callOpenRouter(
         });
 
         recordFailure(OPENROUTER_CIRCUIT);
-        return { message: null, error: "OpenRouter API error" };
+        return { message: null, usage: null, error: "OpenRouter API error" };
       } catch (error) {
         clearTimeout(timeoutId);
         // Re-throw to outer catch if it's an abort error
@@ -373,14 +401,18 @@ async function callOpenRouter(
     }
 
     recordFailure(OPENROUTER_CIRCUIT);
-    return { message: null, error: "Max retries exceeded" };
+    return { message: null, usage: null, error: "Max retries exceeded" };
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       logger.error("OpenRouter request timeout (30s)", error, {
         category: LogCategory.GENERAL,
       });
       recordFailure(OPENROUTER_CIRCUIT);
-      return { message: null, error: "OpenRouter request timeout (30s)" };
+      return {
+        message: null,
+        usage: null,
+        error: "OpenRouter request timeout (30s)",
+      };
     }
     recordFailure(OPENROUTER_CIRCUIT);
     throw error;
@@ -470,6 +502,7 @@ export async function chat(
   const MAX_RETRYABLE = 2;
   const currentMessages = [...openrouterMessages];
   const toolsUsed: string[] = [];
+  let totalTokens = 0; // Accumulate tokens from all OpenRouter calls
 
   // Edge Function timeout is 120s - use 90s budget with 30s buffer for response generation
   const TIME_BUDGET_MS = 90_000;
@@ -488,17 +521,23 @@ export async function chat(
           "I'm taking longer than expected to complete this task. Please try again, and I'll work more efficiently.",
         success: true, // Graceful degradation, not a failure
         toolsUsed,
+        tokenCount: totalTokens > 0 ? totalTokens : undefined,
       };
     }
 
     const toolChoiceForCall =
       isPropertyUploadIntent && toolCallCount === 0 ? "required" : "auto";
 
-    let { message, error } = await callOpenRouter(
+    let { message, usage, error } = await callOpenRouter(
       currentMessages,
       tools,
       toolChoiceForCall
     );
+
+    // Accumulate token usage
+    if (usage?.totalTokens) {
+      totalTokens += usage.totalTokens;
+    }
 
     // Fallback: if primary model fails, try the stable fallback model
     if (error || !message) {
@@ -514,6 +553,11 @@ export async function chat(
       );
       message = fallback.message;
       error = fallback.error;
+
+      // Accumulate fallback token usage
+      if (fallback.usage?.totalTokens) {
+        totalTokens += fallback.usage.totalTokens;
+      }
 
       if (error || !message) {
         return {
@@ -690,6 +734,7 @@ export async function chat(
             response: toolResult.question,
             success: true,
             toolsUsed,
+            tokenCount: totalTokens > 0 ? totalTokens : undefined,
           };
         }
 
@@ -718,6 +763,7 @@ export async function chat(
             response: toolResult.message,
             success: true,
             toolsUsed,
+            tokenCount: totalTokens > 0 ? totalTokens : undefined,
           };
         }
 
@@ -735,6 +781,7 @@ export async function chat(
               response: `I encountered an error while creating the listing: ${toolResult.error}`,
               success: false,
               toolsUsed,
+              tokenCount: totalTokens > 0 ? totalTokens : undefined,
             };
           }
         }
@@ -757,7 +804,12 @@ export async function chat(
           { category: LogCategory.GENERAL }
         );
         // Return current response without retry
-        return { response: aiResponse, success: true, toolsUsed };
+        return {
+          response: aiResponse,
+          success: true,
+          toolsUsed,
+          tokenCount: totalTokens > 0 ? totalTokens : undefined,
+        };
       }
 
       logger.info(
@@ -765,11 +817,15 @@ export async function chat(
         { category: LogCategory.GENERAL }
       );
 
-      const { message: retryMessage } = await callOpenRouter(
-        currentMessages,
-        tools,
-        "required"
-      );
+      const {
+        message: retryMessage,
+        usage: retryUsage,
+      } = await callOpenRouter(currentMessages, tools, "required");
+
+      // Accumulate retry token usage
+      if (retryUsage?.totalTokens) {
+        totalTokens += retryUsage.totalTokens;
+      }
 
       if (retryMessage?.tool_calls && retryMessage.tool_calls.length > 0) {
         logger.info("[FORCE TOOL] Retry successful - got tool calls", {
@@ -840,6 +896,7 @@ export async function chat(
               response: toolResult.message,
               success: true,
               toolsUsed,
+              tokenCount: totalTokens > 0 ? totalTokens : undefined,
             };
           }
           if (toolResult.needsInput && toolResult.question) {
@@ -847,6 +904,7 @@ export async function chat(
               response: toolResult.question,
               success: true,
               toolsUsed,
+              tokenCount: totalTokens > 0 ? totalTokens : undefined,
             };
           }
           if (toolResult.error) {
@@ -854,6 +912,7 @@ export async function chat(
               response: `I encountered an issue: ${toolResult.error}`,
               success: false,
               toolsUsed,
+              tokenCount: totalTokens > 0 ? totalTokens : undefined,
             };
           }
         }
@@ -886,5 +945,6 @@ export async function chat(
     response: aiResponse,
     success: true,
     toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
+    tokenCount: totalTokens > 0 ? totalTokens : undefined,
   };
 }

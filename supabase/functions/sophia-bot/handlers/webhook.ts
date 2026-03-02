@@ -172,6 +172,7 @@ function isLogoRequest(message: string): boolean {
 
 /**
  * Main request processor
+ * @returns tokenCount from AI response (undefined if not available)
  */
 async function processRequest(
   supabase: SupabaseClient,
@@ -181,7 +182,7 @@ async function processRequest(
   userMessage: string,
   phoneNumber: string,
   imageUrls: string[] = []
-): Promise<void> {
+): Promise<number | undefined> {
   try {
     // Check for logo request first
     if (isLogoRequest(userMessage)) {
@@ -195,7 +196,7 @@ async function processRequest(
         "assistant",
         "Here's the Zyprus Property Group logo!"
       );
-      return;
+      return undefined;
     }
 
     // Add user message to database
@@ -305,11 +306,12 @@ async function processRequest(
         aiResult.response ||
           "I couldn't process your request. Please try again."
       );
-      return;
+      return undefined;
     }
 
     // Sanitize AI output before sending to WhatsApp (strip untrusted URLs, injection markers)
     const aiResponse = sanitizeAiOutput(aiResult.response);
+    const tokenCount = aiResult.tokenCount;
 
     // Add AI response to database
     await addMessage(userId, "model", aiResponse);
@@ -353,7 +355,7 @@ async function processRequest(
         if (!emailResult.success) {
           const failureNote = `\n\n(Note: There was an issue sending the email: ${emailResult.error}. Please try again or send it manually.)`;
           await sendTextMessage(phoneNumber, aiResponse + failureNote);
-          return;
+          return tokenCount;
         }
       }
     }
@@ -365,7 +367,7 @@ async function processRequest(
         { category: LogCategory.GENERAL }
       );
       await sendTextMessage(phoneNumber, aiResponse);
-      return;
+      return tokenCount;
     }
 
     // Determine DOCX vs text routing
@@ -379,7 +381,7 @@ async function processRequest(
       for (const msg of messages) {
         await sendTextMessage(phoneNumber, msg);
       }
-      return;
+      return tokenCount;
     }
 
     // Reuse the already-constructed history (avoids redundant DB call)
@@ -586,11 +588,14 @@ async function processRequest(
         }
       }
     }
+
+    return tokenCount;
   } catch (error) {
     logger.error("Error in processRequest: " + String(error), undefined, {
       category: LogCategory.GENERAL,
     });
     trackError(phoneNumber, "PROCESS_REQUEST_ERROR", String(error));
+    return undefined;
   }
 }
 
@@ -772,7 +777,7 @@ export async function handleWebhook(
 
   // Process the request
   try {
-    await processRequest(
+    const tokenCount = await processRequest(
       supabase,
       supabaseUrl,
       supabaseKey,
@@ -781,8 +786,8 @@ export async function handleWebhook(
       phoneNumber,
       imageUrls
     );
-    // Track successful response
-    trackMessageSent(phoneNumber, requestTimer.end());
+    // Track successful response with token usage
+    trackMessageSent(phoneNumber, requestTimer.end(), tokenCount);
   } catch (err) {
     logger.error("processRequest failed: " + String(err), undefined, {
       category: LogCategory.GENERAL,
