@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Milestone: v1.5 Audit Excellence
-Phase: 23 of 25 (Type Safety Foundation)
-Plan: 2 of 2 complete
-Status: Phase complete
-Last activity: 2026-03-02 - Completed Phase 23: Type Safety Foundation
+Phase: 24 of 25 (Observability & Documentation)
+Plan: 1 of 3 in progress (24-01a complete)
+Status: In progress
+Last activity: 2026-03-02 - Completed 24-01a-PLAN.md (Sentry error tracking integration)
 
-Progress: [██████████████████████] 84% (21 of 25 phases complete)
+Progress: [██████████████████████░░] 88% (22 of 25 phases complete)
 
 ## Performance Metrics
 
@@ -52,6 +52,11 @@ Recent decisions affecting v1.5 and Phase 23:
 - WaSend interfaces include alternative field locations to support all fallback extraction patterns (23-01)
 - Created types/openrouter.ts as single source of truth for OpenRouter API schema (23-02)
 - Replaced all any types in ai-chat.ts and zyprus/client.ts error handling with precise interfaces (23-02)
+- Use @sentry/deno via esm.sh CDN (not @sentry/nextjs) for Deno runtime compatibility (24-01a)
+- Initialize Sentry at module load (top-level) to capture all errors from function startup (24-01a)
+- 10% traces sampling to balance observability with performance/cost (24-01a)
+- Auto-detect production via DENO_DEPLOYMENT_ID instead of NODE_ENV for Edge Functions (24-01a)
+- Phone number as Sentry user ID (hashed by Sentry) for grouping errors by user (24-01a)
 
 ### Pending Todos
 
@@ -79,10 +84,10 @@ Recent decisions affecting v1.5 and Phase 23:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed Phase 22 (Resilience Infrastructure) — all 2 plans executed, verification passed
-Resume file: .planning/phases/22-resilience-infrastructure/22-VERIFICATION.md
-Next step: Continue Phase 24 execution (Observability & Documentation)
+Stopped at: Completed 24-01a (Sentry error tracking integration) — code complete, awaiting deployment
+Resume file: .planning/phases/24-observability-documentation/24-01a-SUMMARY.md
+Next step: Execute 24-01b (Sentry deployment) or continue Phase 24 execution
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-03-02 — Phase 22 completed (Resilience Infrastructure)*
+*Last updated: 2026-03-02 — Completed 24-01a (Sentry error tracking integration)*
