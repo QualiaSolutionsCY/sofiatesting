@@ -199,11 +199,12 @@ Plans:
   1. Sentry captures Edge Function errors with stack traces, user context, and breadcrumbs
   2. Token usage tracked per agent with daily/monthly cost rollups visible in analytics table
   3. New developer can configure local environment by following .env.example (no missing variables)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 24-01: TBD
-- [ ] 24-02: TBD
+- [ ] 24-01-PLAN.md — Sentry integration for Edge Functions (OBS-01)
+- [ ] 24-02-PLAN.md — Token usage cost tracking (OBS-02)
+- [ ] 24-03-PLAN.md — .env.example documentation (OBS-03)
 
 #### Phase 25: Code Quality Refactoring
 **Goal**: Large monolithic files split into maintainable modules
