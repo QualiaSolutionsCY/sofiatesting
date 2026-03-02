@@ -90,7 +90,8 @@ export function trackMessageReceived(
 }
 
 /**
- * Helper to track message sent with response time
+ * Helper to track message sent with response time and token usage
+ * @param tokenCount - Total tokens from OpenRouter (prompt + completion)
  */
 export function trackMessageSent(
   phoneNumber: string,
@@ -98,6 +99,12 @@ export function trackMessageSent(
   tokenCount?: number,
   agentId?: string
 ): void {
+  if (tokenCount !== undefined && tokenCount <= 0) {
+    logger.warn("[Analytics] Invalid token count", {
+      category: LogCategory.GENERAL,
+      tokenCount,
+    });
+  }
   trackEvent({
     phoneNumber,
     agentId,
