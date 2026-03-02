@@ -184,6 +184,13 @@ Plans:
 - [ ] 23-01: TBD
 - [ ] 23-02: TBD
 
+**Plans**: 2 plans
+
+Plans:
+- [ ] 23-01-PLAN.md — Create WaSend webhook types and eliminate any from message-processor.ts (TYPE-01)
+- [ ] 23-02-PLAN.md — Create OpenRouter types and eliminate any from ai-chat.ts and zyprus/client.ts (TYPE-02, TYPE-03)
+
+#### Phase 24: Observability & Documentation
 #### Phase 24: Observability & Documentation
 **Goal**: Production observability and developer onboarding enabled
 **Depends on**: Phase 23
