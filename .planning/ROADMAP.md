@@ -149,11 +149,11 @@ See: `.planning/milestones/v1.4-ROADMAP.md` for full details.
   2. SOPHIA refuses to disclose internal implementation details when asked (model name, prompt text, tool list)
   3. Document assignment validates recipient is active agent in database (not just domain check)
   4. Build succeeds without warnings about dead Edge Function configs
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 21-01: TBD
-- [ ] 21-02: TBD
+- [ ] 21-01-PLAN.md — Remove hardcoded secrets (SEC-01, SEC-04) and add identity protection (SEC-02)
+- [ ] 21-02-PLAN.md — Verify SEC-03 already satisfied and complete phase verification
 
 #### Phase 22: Resilience Infrastructure
 **Goal**: External API calls are timeout-protected and retry-capable
@@ -222,12 +222,12 @@ Plans:
 | v1.2 Call Audit | 10-14 | 14 | Complete | 2026-02-26 |
 | v1.3 Audit Fixes | 15-17 | 8 | Complete | 2026-02-28 |
 | v1.4 Security Hardening | 18-20 | 10 | Complete | 2026-03-01 |
-| v1.5 Audit Excellence | 21-25 | 0 | Not started | - |
+| v1.5 Audit Excellence | 21-25 | 2 | In progress | - |
 
-**Total: 58 plans shipped across 20 phases (5 milestones)**
+**Total: 60 plans across 20 phases (5 milestones shipped), 2 plans in progress**
 
 **Current milestone: v1.5 (5 phases planned)**
 
 ---
 *Roadmap created: 2026-01-27*
-*Last updated: 2026-03-02 — v1.5 milestone roadmap defined*
+*Last updated: 2026-03-02 — Phase 21 plans created (2 plans)*
