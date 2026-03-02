@@ -53,6 +53,9 @@ Recent decisions affecting v1.5 and Phase 23:
 - Created types/openrouter.ts as single source of truth for OpenRouter API schema (23-02)
 - Replaced all any types in ai-chat.ts and zyprus/client.ts error handling with precise interfaces (23-02)
 
+- Environment variables organized by category (AI, Database, Auth, Integrations) not alphabetically for better developer comprehension (24-03)
+- Descriptive placeholders (your_*_here) used instead of empty values to prevent accidental deployment with defaults (24-03)
+- Provider dashboard links included inline with environment variables to reduce context switching during setup (24-03)
 ### Pending Todos
 
 - **CRITICAL:** Rotate production webhook secret (hardcoded secret exposed in repo - see quick-10 SUMMARY)
@@ -77,12 +80,15 @@ Recent decisions affecting v1.5 and Phase 23:
 | 16 | Repair Supabase migration history + document Drizzle schema cleanup | 2026-03-01 | 9745ad8 |
 
 ## Session Continuity
+*STATE.md initialized: 2026-02-26*
+*Last updated: 2026-03-02 — Phase 24 Plan 03 completed (Environment Variable Documentation)*
+## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed Phase 22 (Resilience Infrastructure) — all 2 plans executed, verification passed
-Resume file: .planning/phases/22-resilience-infrastructure/22-VERIFICATION.md
-Next step: Continue Phase 24 execution (Observability & Documentation)
+Stopped at: Completed Phase 24 Plan 03 (Environment Variable Documentation) — all 4 tasks executed, verification passed
+Resume file: .planning/phases/24-observability-documentation/24-03-SUMMARY.md
+Next step: Continue Phase 24 with remaining plans (24-01a, 24-01b, 24-02)
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-03-02 — Phase 22 completed (Resilience Infrastructure)*
+*Last updated: 2026-03-02 — Phase 24 Plan 03 completed (Environment Variable Documentation)*
