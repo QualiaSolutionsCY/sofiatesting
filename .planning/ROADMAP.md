@@ -178,12 +178,6 @@ Plans:
   1. WaSend webhook payloads parsed with TypeScript interfaces (message, media, sender fields strongly typed)
   2. OpenRouter request/response bodies use TypeScript interfaces (no runtime type errors from API changes)
   3. TypeScript strict mode passes with zero `any` types in message-processor.ts, ai-chat.ts, and zyprus/client.ts
-**Plans**: TBD
-
-Plans:
-- [ ] 23-01: TBD
-- [ ] 23-02: TBD
-
 **Plans**: 2 plans
 
 Plans:
