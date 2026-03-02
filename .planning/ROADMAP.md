@@ -164,11 +164,11 @@ Plans:
   2. Circuit breakers trip after 3 consecutive failures to Zyprus API, email service, or WhatsApp API
   3. WhatsApp message sends retry up to 3 times with exponential backoff on network failures
   4. Silent catch blocks log error context (operation, timestamp, correlation ID) before suppressing
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 22-01: TBD
-- [ ] 22-02: TBD
+- [ ] 22-01-PLAN.md — Add timeouts and circuit breakers to external APIs (RES-01, RES-02)
+- [ ] 22-02-PLAN.md — Verify WaSend retry and add catch logging (RES-03, RES-04)
 
 #### Phase 23: Type Safety Foundation
 **Goal**: All external API interactions are type-safe with zero `any` types
@@ -222,12 +222,12 @@ Plans:
 | v1.2 Call Audit | 10-14 | 14 | Complete | 2026-02-26 |
 | v1.3 Audit Fixes | 15-17 | 8 | Complete | 2026-02-28 |
 | v1.4 Security Hardening | 18-20 | 10 | Complete | 2026-03-01 |
-| v1.5 Audit Excellence | 21-25 | 2 | In progress | - |
+| v1.5 Audit Excellence | 21-25 | 4 | In progress | - |
 
-**Total: 60 plans across 20 phases (5 milestones shipped), 2 plans in progress**
+**Total: 62 plans across 21 phases (5 milestones shipped), 4 plans in progress**
 
 **Current milestone: v1.5 (5 phases planned)**
 
 ---
 *Roadmap created: 2026-01-27*
-*Last updated: 2026-03-02 — Phase 21 plans created (2 plans)*
+*Last updated: 2026-03-02 — Phase 22 plans created (2 plans)*
