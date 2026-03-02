@@ -94,6 +94,27 @@ import {
 
 const WASEND_WEBHOOK_SECRET = Deno.env.get("WASEND_WEBHOOK_SECRET");
 
+// In-memory dedup: prevents duplicate processing when DB constraint race occurs
+// Belt-and-suspenders alongside the DB unique constraint in processed_webhooks
+const processingKeys = new Map<string, number>();
+const DEDUP_TTL_MS = 60_000; // 1 minute
+const DEDUP_CLEANUP_INTERVAL = 30_000;
+let lastDedupCleanup = Date.now();
+
+function isAlreadyProcessing(key: string): boolean {
+  const now = Date.now();
+  // Periodic cleanup of stale entries
+  if (now - lastDedupCleanup > DEDUP_CLEANUP_INTERVAL) {
+    for (const [k, ts] of processingKeys) {
+      if (now - ts > DEDUP_TTL_MS) processingKeys.delete(k);
+    }
+    lastDedupCleanup = now;
+  }
+  if (processingKeys.has(key)) return true;
+  processingKeys.set(key, now);
+  return false;
+}
+
 // Use centralized function for confirmation messages
 const isConfirmationMessage = centralizedIsConfirmation;
 
@@ -751,13 +772,23 @@ export async function handleWebhook(
     return new Response("OK", { status: 200 });
   }
 
-  // Deduplication
+  // Deduplication (two layers: in-memory + database)
   const messageKey = generateMessageKey(message);
   if (messageKey) {
+    // Layer 1: In-memory check (catches rapid duplicates before DB round-trip)
+    if (isAlreadyProcessing(messageKey)) {
+      logger.info("Duplicate webhook caught by in-memory dedup", {
+        operation: "deduplication",
+        messageKey,
+      });
+      return new Response("OK", { status: 200 });
+    }
+    // Layer 2: Database unique constraint (catches duplicates across Edge Function instances)
     const claimed = await claimMessageForProcessing(messageKey, remoteJid);
     if (!claimed) {
-      logger.info("Duplicate webhook detected, skipping", {
+      logger.info("Duplicate webhook caught by database dedup", {
         operation: "deduplication",
+        messageKey,
       });
       return new Response("OK", { status: 200 });
     }
