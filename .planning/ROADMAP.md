@@ -152,7 +152,7 @@ See: `.planning/milestones/v1.4-ROADMAP.md` for full details.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 21-01-PLAN.md — Remove hardcoded secrets (SEC-01, SEC-04) and add identity protection (SEC-02)
+- [x] 21-01-PLAN.md — Remove hardcoded secrets (SEC-01, SEC-04) and add identity protection (SEC-02)
 - [ ] 21-02-PLAN.md — Verify SEC-03 already satisfied and complete phase verification
 
 #### Phase 22: Resilience Infrastructure
@@ -222,12 +222,12 @@ Plans:
 | v1.2 Call Audit | 10-14 | 14 | Complete | 2026-02-26 |
 | v1.3 Audit Fixes | 15-17 | 8 | Complete | 2026-02-28 |
 | v1.4 Security Hardening | 18-20 | 10 | Complete | 2026-03-01 |
-| v1.5 Audit Excellence | 21-25 | 4 | In progress | - |
+| v1.5 Audit Excellence | 21-25 | 5 | In progress | - |
 
-**Total: 62 plans across 21 phases (5 milestones shipped), 4 plans in progress**
+**Total: 63 plans across 21 phases (5 milestones shipped), 5 plans in progress**
 
 **Current milestone: v1.5 (5 phases planned)**
 
 ---
 *Roadmap created: 2026-01-27*
-*Last updated: 2026-03-02 — Phase 22 plans created (2 plans)*
+*Last updated: 2026-03-02 — Plan 21-01 completed*
