@@ -41,14 +41,19 @@ const openrouter = createOpenAI({
 
 export const myProvider = isTestEnvironment
   ? (() => {
-      const { chatModel, claudeModel, mistralSmallModel } =
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require("./models.mock");
+      // Test environment: use stub error models (models.mock removed with deprecated chat)
+      const stubModel = {
+        specificationVersion: "v1",
+        provider: "test",
+        modelId: "test-model",
+        doGenerate: () => { throw new Error("Test environment - no AI provider"); },
+        doStream: () => { throw new Error("Test environment - no AI provider"); },
+      } as any;
       return customProvider({
         languageModels: {
-          "chat-model": chatModel,
-          "title-model": mistralSmallModel,
-          "artifact-model": claudeModel,
+          "chat-model": stubModel,
+          "title-model": stubModel,
+          "artifact-model": stubModel,
         },
       });
     })()
