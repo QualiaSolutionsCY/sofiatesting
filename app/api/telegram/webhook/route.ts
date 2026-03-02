@@ -6,6 +6,9 @@ import type { TelegramUpdate } from "@/lib/telegram/types";
 
 const logger = createLogger("telegram:webhook");
 
+// Prevent static analysis during build (import chain requires env vars)
+export const dynamic = "force-dynamic";
+
 // Extended duration to allow AI responses to complete (Telegram timeout is 60s)
 export const maxDuration = 60;
 
