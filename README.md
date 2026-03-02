@@ -48,41 +48,30 @@ All contributors and AI agents MUST reference `IMPLEMENTATION_PLAN.md` before st
 - Zyprus API OAuth credentials (for property uploads)
 - Telegram Bot Token (optional, for bot integration)
 
-## Environment Setup
+## Environment Configuration
 
+All required environment variables are documented in `.env.example`.
+
+**For local development:**
+1. Copy `.env.example` to `.env.local`:
+   ```bash
+   cp .env.example .env.local
+   ```
+2. Fill in real values in `.env.local` (never commit this file)
+3. Required minimum for local dev:
+   - `OPENROUTER_API_KEY` - AI model access
+   - `POSTGRES_URL` - Database connection
+   - `SUPABASE_URL` + `SUPABASE_ANON_KEY` - Supabase client
+   - `AUTH_SECRET` - Session signing (generate: `openssl rand -base64 32`)
+
+**For Edge Functions (production):**
+Set secrets via Supabase CLI:
 ```bash
-# Required AI Configuration (one of these)
-GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_api_key  # MANDATORY - no fallback
-GEMINI_API_KEY=your_gemini_api_key                # Alternative (Vercel convention)
-
-# Database (use Session Pooler for Vercel)
-POSTGRES_URL=postgresql://postgres.PROJECT_ID:PASSWORD@aws-1-eu-west-3.pooler.supabase.com:5432/postgres
-
-# Authentication
-AUTH_SECRET=your_nextauth_secret
-
-# Redis (Rate Limiting)
-REDIS_URL=redis://...
-UPSTASH_REDIS_REST_URL=https://...
-UPSTASH_REDIS_REST_TOKEN=...
-
-# Zyprus Integration
-ZYPRUS_CLIENT_ID=your_oauth_client_id
-ZYPRUS_CLIENT_SECRET=your_oauth_client_secret
-ZYPRUS_API_URL=https://dev9.zyprus.com
-ZYPRUS_SITE_URL=https://dev9.zyprus.com
-
-# Telegram Bot (Optional)
-TELEGRAM_BOT_TOKEN=your_bot_token
-TELEGRAM_SECRET_TOKEN=webhook_secret
-
-# Storage
-BLOB_READ_WRITE_TOKEN=vercel_blob_token
+supabase secrets set KEY=value --project-ref vceeheaxcrhmpqueudqx
 ```
 
-## Quick Start
+See `.env.example` for complete list and provider links.
 
-```bash
 # Install dependencies
 pnpm install
 
