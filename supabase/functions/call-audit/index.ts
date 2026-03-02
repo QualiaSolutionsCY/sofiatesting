@@ -14,9 +14,13 @@
  */
 
 import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
+import { addBreadcrumb, captureError, initSentry } from "../_shared/sentry.ts";
 import { ThreeCXClient } from "./3cx/client.ts";
 import { runDailyAudit } from "./audit-pipeline.ts";
 import { AUDIT_CONFIG, get3CXConfig } from "./config.ts";
+
+// Initialize Sentry for error tracking (OBS-01)
+initSentry();
 
 const responseHeaders = {
   "Content-Type": "application/json",
@@ -223,6 +227,12 @@ Deno.serve(async (req: Request) => {
       trigger: isCronInvocation ? "pg_cron" : "manual",
     });
 
+    addBreadcrumb("Call audit invoked", "http", {
+      trigger: isCronInvocation ? "pg_cron" : "manual",
+      isDryRun,
+      dateOverride,
+    });
+
     // Handle health check
     if (isHealthCheck) {
       const includeConnectivity =
@@ -279,6 +289,10 @@ Deno.serve(async (req: Request) => {
       );
       const executionMs = Math.round(performance.now() - startTime);
 
+      captureError(
+        configError instanceof Error ? configError : new Error(String(configError)),
+        { auditErrorCategory: errorCategory, channel: "call-audit" }
+      );
       logger.error(
         "[Call Audit] Configuration validation failed",
         configError instanceof Error
@@ -318,6 +332,10 @@ Deno.serve(async (req: Request) => {
       );
       const executionMs = Math.round(performance.now() - startTime);
 
+      captureError(
+        authError instanceof Error ? authError : new Error(String(authError)),
+        { auditErrorCategory: errorCategory, channel: "call-audit" }
+      );
       logger.error(
         "[Call Audit] 3CX authentication failed",
         authError instanceof Error ? authError : new Error(String(authError)),
@@ -372,6 +390,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Run the full audit pipeline
+    addBreadcrumb("Starting audit pipeline", "cron", { dateOverride });
     const result = await runDailyAudit(dateOverride || undefined);
     const executionMs = Math.round(performance.now() - startTime);
 
@@ -396,6 +415,10 @@ Deno.serve(async (req: Request) => {
     );
     const executionMs = Math.round(performance.now() - startTime);
 
+    captureError(
+      error instanceof Error ? error : new Error(String(error)),
+      { auditErrorCategory: errorCategory, channel: "call-audit", executionMs }
+    );
     logger.error(
       "[Call Audit] Fatal error",
       error instanceof Error ? error : new Error(String(error)),
