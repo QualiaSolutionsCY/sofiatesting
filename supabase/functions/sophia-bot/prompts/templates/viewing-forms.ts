@@ -17,7 +17,7 @@ export const VIEWING_FORMS = `
 *CRITICAL FORMAT RULE: THIS DOCUMENT MUST BE SENT AS DOC FORMAT WITH ZYPRUS LOGO ON TOP LEFT*
 
 *FIELD COLLECTION RULE - SMART DETECTION:*
-- If user provides ANY field value (name, date, property, ID, etc.) → IMMEDIATELY generate with that data, leave rest as [ ]
+- If user provides ANY field value (name, date, property, ID, etc.) → IMMEDIATELY generate with that data, keep original placeholders for the rest
 - If user says "only with [field]", "with only [field]", "just with [field]" → IMMEDIATELY generate with provided data
 - ONLY ask for all fields when user gives NO data at all (just says "viewing form" without any details)
 
@@ -36,7 +36,7 @@ All above PLUS for each additional person:
 
 *Field collection prompts are in document_routing - this section only defines output format.*
 
-*PARTIAL DATA HANDLING: Use [ ] for missing fields - NEVER use dots or XXXXXXXX!*
+*PARTIAL DATA HANDLING: Keep original placeholders for missing fields - NEVER use dots or XXXXXXXX!*
 *CRITICAL: In the declaration line, NEVER add a colon after "ID". The format is: "I [NAME] with ID [ID_NUMBER] Issued By: [COUNTRY]" - only "Issued By" has a colon!*
 
 *IMPORTANT - PROPERTY LINE FORMAT:*
@@ -66,11 +66,11 @@ Signature: _________________________
 
 **Viewing Form**
 
-Date: [ ]
+Date: [DATE]
 
-Herein, I [ ] with ID [ID NUMBER] Issued By: [ ] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to me with a viewing the property with the following Registry details:
+Herein, I [FULL NAME] with ID [ID NUMBER] Issued By: [COUNTRY] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to me with a viewing the property with the following Registry details:
 
-Property: [ ]
+Property: [PROPERTY DESCRIPTION]
 
 Name: _________________________
 
@@ -100,11 +100,11 @@ Signature: _________________________
 
 **Viewing Form**
 
-Date: [ ]
+Date: [DATE]
 
-Herein, I [ ] with ID [ID NUMBER] Issued By: [ ] and I [ ] with ID [ID NUMBER] Issued By: [ ] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to us with a viewing the property with the following Registry details:
+Herein, I [FULL NAME] with ID [ID NUMBER] Issued By: [COUNTRY] and I [FULL NAME] with ID [ID NUMBER] Issued By: [COUNTRY] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to us with a viewing the property with the following Registry details:
 
-Property: [ ]
+Property: [PROPERTY DESCRIPTION]
 
 Name: _________________________
 
@@ -121,7 +121,7 @@ Signature: _________________________
 *CRITICAL FORMAT RULE: THIS DOCUMENT MUST BE SENT AS DOC FORMAT WITH ZYPRUS LOGO ON TOP LEFT*
 
 *FIELD COLLECTION RULE - SAME SMART DETECTION AS STANDARD VIEWING FORM:*
-- If user provides ANY field value (name, date, property, ID, etc.) → IMMEDIATELY generate with that data, leave rest as [ ]
+- If user provides ANY field value (name, date, property, ID, etc.) → IMMEDIATELY generate with that data, keep original placeholders for the rest
 - If user says "only with [field]", "with only [field]", "just with [field]" → IMMEDIATELY generate with provided data
 - ONLY ask for all fields when user gives NO data at all
 
@@ -132,7 +132,7 @@ Same fields as Standard Viewing Form:
 4. Issued By (country that issued the ID)
 5. Property registration information (e.g., Reg No. 0/1789 Germasogeia Limassol OR Limas Building Flat No. 103 Tala Paphos)
 
-*PARTIAL DATA HANDLING: Use [ ] for missing fields - NEVER use dots or XXXXXXXX!*
+*PARTIAL DATA HANDLING: Keep original placeholders for missing fields - NEVER use dots or XXXXXXXX!*
 *If data is missing, use bracketed placeholders like [DATE], [FULL_NAME], [ID_NUMBER], [COUNTRY], [PROPERTY ADDRESS] - NEVER use dots!*
 *NEVER use XXXXXXXX or dots (……………………) as placeholders!*
 *CRITICAL: In the declaration line, NEVER add a colon after "ID". The format is: "I [NAME] with ID [ID_NUMBER], Issued By: [COUNTRY]" - only "Issued By" has a colon!*
@@ -177,11 +177,11 @@ Signature: _________________________
 
 **Viewing Form**
 
-Date: [ ]
+Date: [DATE]
 
-Herein, I [ ] with ID [ID NUMBER], Issued By: [ ] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to me with a viewing and/or digitally the property with the following Registry details:
+Herein, I [FULL NAME] with ID [ID NUMBER], Issued By: [COUNTRY] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to me with a viewing and/or digitally the property with the following Registry details:
 
-Property: [ ]
+Property: [PROPERTY DESCRIPTION]
 
 By signing the subject viewing form, you confirm that CSC Zyprus Property Group LTD (hereinafter referred to as Agent) is your exclusive representative responsible for the introduction of the subject property and any negotiations, inquiries, or communications with property owners and/or sellers and/or developers regarding the subject property should be directed through the Agent. Your liabilities are also that you need to provide honest replies to the Agent's questions and/or feedback. Failure to do so will automatically/by default consider you as liable for monetary compensation of the subject commission fee as agreed with the property owners and/or sellers and/or developers plus any other relevant expenses. The Agent is entitled to the agreed commission upon successful completion of the purchase of the property, regardless of the involvement of other parties in the final transaction. This term ensures that the conditions under which the agent earns their commission are clear, preventing potential disputes or any attempts or events of bypassing our agency and ensures that the agent is fairly compensated for their efforts in introducing you the subject property.
 
@@ -193,11 +193,11 @@ Signature: _________________________
 
 **Viewing Form**
 
-Date: [ ]
+Date: [DATE]
 
-Herein, I [ ] with ID [ID NUMBER], Issued By: [ ] and I [ ] with ID [ID NUMBER], Issued By: [ ] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to us with a viewing and/or digitally the property with the following Registry details:
+Herein, I [FULL NAME] with ID [ID NUMBER], Issued By: [COUNTRY] and I [FULL NAME] with ID [ID NUMBER], Issued By: [COUNTRY] confirm that CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E), has introduced to us with a viewing and/or digitally the property with the following Registry details:
 
-Property: [ ]
+Property: [PROPERTY DESCRIPTION]
 
 By signing the subject viewing form, you confirm that CSC Zyprus Property Group LTD (hereinafter referred to as Agent) is your exclusive representative responsible for the introduction of the subject property and any negotiations, inquiries, or communications with property owners and/or sellers and/or developers regarding the subject property should be directed through the Agent. Your liabilities are also that you need to provide honest replies to the Agent's questions and/or feedback. Failure to do so will automatically/by default consider you as liable for monetary compensation of the subject commission fee as agreed with the property owners and/or sellers and/or developers plus any other relevant expenses. The Agent is entitled to the agreed commission upon successful completion of the purchase of the property, regardless of the involvement of other parties in the final transaction. This term ensures that the conditions under which the agent earns their commission are clear, preventing potential disputes or any attempts or events of bypassing our agency and ensures that the agent is fairly compensated for their efforts in introducing you the subject property.
 

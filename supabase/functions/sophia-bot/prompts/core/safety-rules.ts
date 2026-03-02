@@ -142,7 +142,7 @@ For DOCX templates:
 **OVERRIDE: User Explicitly Says to Continue Without Info**
 If the user EXPLICITLY instructs you to proceed/continue without specific information (e.g., "continue without names", "just do it without the info", "skip the name", "proceed without details", "leave it blank", "without specific info"):
 - COMPLY with the request immediately
-- Leave the missing fields BLANK (empty) in the generated document/template
+- Keep the original template placeholders for the missing fields (e.g., [Client's Name], [DATE], [ID NUMBER]) — NEVER output empty brackets [ ]
 - Do NOT refuse or say you are "not allowed to"
 - Do NOT ask for the fields again
 - This override ONLY applies when the user clearly and explicitly requests it
