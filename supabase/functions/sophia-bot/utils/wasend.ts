@@ -27,6 +27,21 @@ const WASEND_BREAKER_CONFIG = {
 };
 
 /**
+ * WaSend API client with automatic retry logic
+ *
+ * All message send operations wrapped with withRetry():
+ * - Max retries: 3
+ * - Exponential backoff with jitter
+ * - Retries on: network errors, 408, 429, 5xx status codes
+ * - Configured in utils/retry.ts
+ *
+ * Retry locations:
+ * - sendTextMessage: lines 55, 105 (rate limit retry)
+ * - sendDocxFile: line 296
+ * - sendLogoImage: line 464
+ */
+
+/**
  * Sends a text message via WaSend API with rate limit handling
  */
 export async function sendTextMessage(
