@@ -8,6 +8,11 @@ import { LogCategory, logger } from "../utils/logger.ts";
 import { withRetry } from "../utils/retry.ts";
 import { validateImageUrl } from "../utils/url-validator.ts";
 import {
+  canRequest,
+  recordSuccess,
+  recordFailure,
+} from "../utils/circuit-breaker.ts";
+import {
   findIndoorFeatureUuids,
   findInfrastructureUuids,
   findLandTypeUuid,
@@ -117,6 +122,13 @@ export interface ZyprusConfig {
 // Token cache (in-memory for Edge Function)
 let cachedToken: TokenCache | null = null;
 
+// Circuit breaker configuration for Zyprus API
+const ZYPRUS_BREAKER_CONFIG = {
+  name: "zyprus-api",
+  failureThreshold: 3,
+  resetTimeoutMs: 60_000, // 1 minute
+};
+
 /**
  * Get Zyprus API configuration from environment
  */
@@ -142,12 +154,20 @@ export async function getAccessToken(config: ZyprusConfig): Promise<string> {
     return cachedToken.token;
   }
 
+  // Circuit breaker check - fail fast if Zyprus is down
+  if (!canRequest(ZYPRUS_BREAKER_CONFIG)) {
+    throw new Error(
+      "[Zyprus] Circuit breaker OPEN - failing fast to protect system stability"
+    );
+  }
+
   logger.info("Fetching new Zyprus access token", {
     category: LogCategory.ZYPRUS,
     operation: "getAccessToken",
   });
 
-  const response = await withRetry(
+  try {
+    const response = await withRetry(
     async () => {
       const res = await fetch(`${config.apiUrl}/oauth/token`, {
         method: "POST",
@@ -180,6 +200,8 @@ export async function getAccessToken(config: ZyprusConfig): Promise<string> {
       status: response.status,
       errorPreview: errorText.substring(0, 200),
     });
+    // Record failure in circuit breaker
+    recordFailure(ZYPRUS_BREAKER_CONFIG);
     // Generic error message - don't expose OAuth token flow details to users
     throw new Error(
       "Unable to connect to property system. Please try again later."
@@ -193,12 +215,20 @@ export async function getAccessToken(config: ZyprusConfig): Promise<string> {
     expiresAt: Date.now() + data.expires_in * 1000,
   };
 
+  // Record success in circuit breaker
+  recordSuccess(ZYPRUS_BREAKER_CONFIG);
+
   logger.info("Zyprus access token obtained successfully", {
     category: LogCategory.ZYPRUS,
     operation: "getAccessToken",
     expiresIn: data.expires_in,
   });
   return data.access_token;
+  } catch (error) {
+    // Record failure and re-throw
+    recordFailure(ZYPRUS_BREAKER_CONFIG);
+    throw error;
+  }
 }
 
 /**

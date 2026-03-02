@@ -10,9 +10,21 @@
 import type { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { LogCategory, logger } from "./logger.ts";
 import { withRetry } from "./retry.ts";
+import {
+  canRequest,
+  recordSuccess,
+  recordFailure,
+} from "./circuit-breaker.ts";
 
 const WASEND_API_KEY = Deno.env.get("WASEND_API_KEY");
 const WASEND_BASE_URL = "https://www.wasenderapi.com/api";
+
+// Circuit breaker configuration for WaSend API
+const WASEND_BREAKER_CONFIG = {
+  name: "wasend-api",
+  failureThreshold: 3,
+  resetTimeoutMs: 60_000, // 1 minute
+};
 
 /**
  * Sends a text message via WaSend API with rate limit handling
@@ -21,6 +33,17 @@ export async function sendTextMessage(
   phoneNumber: string,
   text: string
 ): Promise<Response> {
+  // Circuit breaker check - fail fast if WaSend is down
+  if (!canRequest(WASEND_BREAKER_CONFIG)) {
+    logger.error("WaSend circuit breaker OPEN - failing fast", undefined, {
+      category: LogCategory.GENERAL,
+    });
+    return new Response(
+      JSON.stringify({ error: "WhatsApp service temporarily unavailable" }),
+      { status: 503 }
+    );
+  }
+
   const sendUrl = `${WASEND_BASE_URL}/send-message`;
 
   logger.info("WASEND API CALL: sending text message", {
@@ -56,6 +79,11 @@ export async function sendTextMessage(
     logger.info("=== WASEND API CALL COMPLETE ===", {
       category: LogCategory.GENERAL,
     });
+
+    // Record success if response is OK
+    if (sendRes.ok) {
+      recordSuccess(WASEND_BREAKER_CONFIG);
+    }
 
     // Handle rate limiting (429 status)
     if (sendRes.status === 429) {
@@ -99,6 +127,13 @@ export async function sendTextMessage(
         category: LogCategory.GENERAL,
       });
 
+      // Record success/failure for retry
+      if (sendRes.ok) {
+        recordSuccess(WASEND_BREAKER_CONFIG);
+      } else {
+        recordFailure(WASEND_BREAKER_CONFIG);
+      }
+
       // Return a new Response since we consumed the body
       return new Response(retryResponseText, {
         status: sendRes.status,
@@ -115,6 +150,8 @@ export async function sendTextMessage(
     logger.error("Error sending text message via WaSend: " + String(error), {
       category: LogCategory.GENERAL,
     });
+    // Record failure in circuit breaker
+    recordFailure(WASEND_BREAKER_CONFIG);
     return new Response(JSON.stringify({ error: String(error) }), {
       status: 500,
     });
@@ -206,6 +243,17 @@ export async function sendDocxFile(
     type: string
   ) => Promise<void>
 ): Promise<Response> {
+  // Circuit breaker check - fail fast if WaSend is down
+  if (!canRequest(WASEND_BREAKER_CONFIG)) {
+    logger.error("WaSend circuit breaker OPEN - failing fast", undefined, {
+      category: LogCategory.GENERAL,
+    });
+    return new Response(
+      JSON.stringify({ error: "WhatsApp service temporarily unavailable" }),
+      { status: 503 }
+    );
+  }
+
   const sendUrl = `${WASEND_BASE_URL}/send-message`;
 
   // Step 1: Upload DOCX to Supabase Storage to get a public URL
@@ -273,6 +321,11 @@ export async function sendDocxFile(
       category: LogCategory.GENERAL,
     });
 
+    // Record success if response is OK
+    if (sendRes.ok) {
+      recordSuccess(WASEND_BREAKER_CONFIG);
+    }
+
     // Handle rate limiting (429 status)
     if (sendRes.status === 429 && retries > 0) {
       let retryAfter = 5000; // Default 5 seconds
@@ -310,6 +363,8 @@ export async function sendDocxFile(
     logger.error("Error sending DOCX file via WaSend: " + String(error), {
       category: LogCategory.GENERAL,
     });
+    // Record failure in circuit breaker
+    recordFailure(WASEND_BREAKER_CONFIG);
     return new Response(JSON.stringify({ error: String(error) }), {
       status: 500,
     });
@@ -376,6 +431,17 @@ export async function sendLogoImage(
   phoneNumber: string,
   logoBase64: string
 ): Promise<Response> {
+  // Circuit breaker check - fail fast if WaSend is down
+  if (!canRequest(WASEND_BREAKER_CONFIG)) {
+    logger.error("WaSend circuit breaker OPEN - failing fast", undefined, {
+      category: LogCategory.GENERAL,
+    });
+    return new Response(
+      JSON.stringify({ error: "WhatsApp service temporarily unavailable" }),
+      { status: 503 }
+    );
+  }
+
   const sendUrl = `${WASEND_BASE_URL}/send-message`;
 
   // Get or upload logo URL
@@ -422,6 +488,9 @@ export async function sendLogoImage(
       logger.error("WaSend image send failed: " + String(responseText), {
         category: LogCategory.GENERAL,
       });
+      recordFailure(WASEND_BREAKER_CONFIG);
+    } else {
+      recordSuccess(WASEND_BREAKER_CONFIG);
     }
 
     return new Response(responseText, {
@@ -432,6 +501,8 @@ export async function sendLogoImage(
     logger.error("Error sending logo via WaSend: " + String(error), {
       category: LogCategory.GENERAL,
     });
+    // Record failure in circuit breaker
+    recordFailure(WASEND_BREAKER_CONFIG);
     return new Response(JSON.stringify({ error: String(error) }), {
       status: 500,
     });

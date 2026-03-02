@@ -11,8 +11,20 @@ import { getLastDocument } from "../../_shared/db.ts";
 import { maskEmailForLogging } from "../rules/index.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
 import { safeFetch, validateExternalUrl } from "../utils/url-validator.ts";
+import {
+  canRequest,
+  recordSuccess,
+  recordFailure,
+} from "../utils/circuit-breaker.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+
+// Circuit breaker configuration for Resend API
+const RESEND_BREAKER_CONFIG = {
+  name: "resend-api",
+  failureThreshold: 3,
+  resetTimeoutMs: 60_000, // 1 minute
+};
 
 /**
  * Email intent detected from AI response
@@ -237,6 +249,17 @@ export async function sendEmail(
     return { success: false, error: "Email service not configured" };
   }
 
+  // Circuit breaker check - fail fast if Resend is down
+  if (!canRequest(RESEND_BREAKER_CONFIG)) {
+    logger.error("Email error: Resend circuit breaker OPEN", undefined, {
+      category: LogCategory.WEBHOOK,
+    });
+    return {
+      success: false,
+      error: "Email service temporarily unavailable - please try again later",
+    };
+  }
+
   // P1 SECURITY: Mask email address in logs to prevent PII exposure
   logger.info(
     `Email: Sending email to ${maskEmailForLogging(intent.recipientEmail)}`,
@@ -292,12 +315,17 @@ export async function sendEmail(
       logger.error("Email error: Resend API error: " + String(responseData), {
         category: LogCategory.WEBHOOK,
       });
+      // Record failure in circuit breaker
+      recordFailure(RESEND_BREAKER_CONFIG);
       return {
         success: false,
         error:
           responseData.message || `Failed to send email: ${response.status}`,
       };
     }
+
+    // Record success in circuit breaker
+    recordSuccess(RESEND_BREAKER_CONFIG);
 
     logger.info("Email: Email sent successfully", {
       category: LogCategory.WEBHOOK,
@@ -307,6 +335,8 @@ export async function sendEmail(
     logger.error("Email error: Error sending email: " + String(error), {
       category: LogCategory.WEBHOOK,
     });
+    // Record failure in circuit breaker
+    recordFailure(RESEND_BREAKER_CONFIG);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
