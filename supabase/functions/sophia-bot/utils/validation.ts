@@ -111,32 +111,6 @@ export function sanitizeUserInput(message: string, maxLength = 5000): string {
 export function sanitizeAiOutput(response: string): string {
   let sanitized = response;
 
-  // Strip URLs that aren't from trusted domains
-  // Trusted: zyprus.com, google.com (maps), whatsapp.com, supabase.co
-  const urlRegex = /https?:\/\/[^\s)>\]]+/gi;
-  sanitized = sanitized.replace(urlRegex, (url) => {
-    try {
-      const hostname = new URL(url).hostname.toLowerCase();
-      const trusted = [
-        "zyprus.com",
-        "www.zyprus.com",
-        "google.com",
-        "www.google.com",
-        "maps.google.com",
-        "goo.gl",
-        "whatsapp.com",
-        "wa.me",
-        "supabase.co",
-      ];
-      if (trusted.some((d) => hostname === d || hostname.endsWith("." + d))) {
-        return url; // Keep trusted URLs
-      }
-      return "[link removed]";
-    } catch {
-      return "[link removed]";
-    }
-  });
-
   // Strip any leaked system prompt markers
   sanitized = sanitized.replace(/---\s*system\s*prompt\s*---/gi, "");
   sanitized = sanitized.replace(/\[SYSTEM\]/gi, "");

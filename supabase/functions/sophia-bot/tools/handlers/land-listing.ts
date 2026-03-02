@@ -59,7 +59,7 @@ import {
   isLocationAStreetInUrl,
   isStreetAddress,
 } from "../validators/location.ts";
-import { acquireUploadLock } from "../validators/upload-lock.ts";
+import { acquireUploadLock, releaseUploadLock } from "../validators/upload-lock.ts";
 
 export interface ToolResult {
   success?: boolean;
@@ -780,11 +780,12 @@ export async function handleCreateLandListing(
       })
     );
 
-    // Clear pending images and documents
+    // Clear pending images and documents and release upload lock
     if (agentPhone) {
       await clearPendingImages(agentPhone);
       await clearPendingDocuments(agentPhone);
     }
+    await releaseUploadLock(propertyLockKey);
 
     logger.info("Land listing created successfully", {
       category: LogCategory.TOOL,
@@ -807,6 +808,7 @@ export async function handleCreateLandListing(
         "\nThey will review and publish it shortly.",
     };
   } catch (error) {
+    await releaseUploadLock(propertyLockKey);
     const err = error instanceof Error ? error : new Error(String(error));
     const errorType = classifyError(err);
     logger.error("Land listing creation failed", err, {

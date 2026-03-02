@@ -231,9 +231,14 @@ async function getPromptSections(
       // Try loading from DB and merge (DB takes precedence)
       const dbPrompts = await loadPromptSectionsFromDB(supabase);
 
+      // Keys where the FILE version is authoritative (not DB)
+      // These are actively maintained in code and should not be overridden by stale DB entries
+      const fileAuthoritative = new Set(["document_routing"]);
+
       if (dbPrompts && dbPrompts.size > 0) {
-        // Override fallback with DB values where available
+        // Override fallback with DB values where available (except file-authoritative keys)
         for (const [key, value] of dbPrompts) {
+          if (fileAuthoritative.has(key)) continue;
           mergedPrompts.set(key, value);
         }
         const fallbackCount =

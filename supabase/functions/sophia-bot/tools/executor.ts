@@ -71,9 +71,12 @@ export async function executeTool(
       error: validation.error,
       issues: validation.issues,
     });
+    const detail = validation.issues?.length
+      ? ` [${validation.issues.slice(0, 3).join("; ")}]`
+      : "";
     return {
-      error: `Invalid arguments for ${tool.name}: ${validation.error}`,
-      retryable: false,
+      error: `Invalid arguments for ${tool.name}: ${validation.error}${detail}`,
+      retryable: true,
     };
   }
 

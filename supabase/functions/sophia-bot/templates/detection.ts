@@ -10,7 +10,7 @@
  * All other files should import from here. Do NOT duplicate this logic.
  */
 
-import { LogCategory, logger } from "../utils/logger.ts";
+import { logger, LogCategory } from "../utils/logger.ts";
 import {
   DOCX_TEMPLATE_TITLES,
   extractTemplateTitle,
@@ -28,19 +28,16 @@ const MIN_DOCX_LENGTH = 400;
  */
 export function isCompletedReservationAgreement(content: string): boolean {
   // Remove markdown bold for pattern matching
-  const cleanContent = content.replace(/\*\*/g, "");
+  const cleanContent = content.replace(/\*\*/g, '');
   const cleanLower = cleanContent.toLowerCase();
 
   // Must have reservation agreement structure (multiple patterns)
-  const hasTitle =
-    cleanLower.includes("property reservation agreement") ||
-    cleanLower.includes("property reservation") ||
-    cleanLower.includes("reservation agreement");
+  const hasTitle = cleanLower.includes('property reservation agreement') ||
+                   cleanLower.includes('property reservation') ||
+                   cleanLower.includes('reservation agreement');
 
   if (!hasTitle) {
-    logger.debug("[Detection] Reservation: No title match", {
-      category: LogCategory.GENERAL,
-    });
+    logger.debug("[Detection] Reservation: No title match", { category: LogCategory.GENERAL });
     return false;
   }
 
@@ -53,10 +50,10 @@ export function isCompletedReservationAgreement(content: string): boolean {
 
   // ID patterns - very flexible to match various formats
   const hasIdPattern =
-    /(?:cyprus\s+)?id[:\s]+\d+/i.test(cleanContent) || // "Cyprus ID: 945119" or "ID: 945119"
-    /passport[:\s]+[A-Z0-9]+/i.test(cleanContent) || // "Passport: AB123456"
-    /[A-Z]+\s+passport[:\s]+[A-Z0-9]+/i.test(cleanContent) || // "UK Passport: 123456"
-    /id\s+(?:number|no\.?)[:\s]+\d+/i.test(cleanContent); // "ID Number: 945119"
+    /(?:cyprus\s+)?id[:\s]+\d+/i.test(cleanContent) ||  // "Cyprus ID: 945119" or "ID: 945119"
+    /passport[:\s]+[A-Z0-9]+/i.test(cleanContent) ||     // "Passport: AB123456"
+    /[A-Z]+\s+passport[:\s]+[A-Z0-9]+/i.test(cleanContent) ||  // "UK Passport: 123456"
+    /id\s+(?:number|no\.?)[:\s]+\d+/i.test(cleanContent);  // "ID Number: 945119"
 
   const hasBuyerInfo = hasBuyerKeyword && hasIdPattern;
 
@@ -64,7 +61,7 @@ export function isCompletedReservationAgreement(content: string): boolean {
     logger.debug("[Detection] Reservation: Missing buyer info", {
       category: LogCategory.GENERAL,
       hasBuyerKeyword,
-      hasIdPattern,
+      hasIdPattern
     });
   }
 
@@ -72,34 +69,27 @@ export function isCompletedReservationAgreement(content: string): boolean {
   const hasVendor = /vendor[:\s]+[A-Za-z]/i.test(cleanContent);
 
   if (!hasVendor) {
-    logger.debug("[Detection] Reservation: Missing vendor", {
-      category: LogCategory.GENERAL,
-    });
+    logger.debug("[Detection] Reservation: Missing vendor", { category: LogCategory.GENERAL });
   }
 
   // Property: either registration number OR property description
   const hasPropertyReg = /\d+\/\d+/i.test(cleanContent);
-  const hasPropertyDesc =
-    /property\s+(?:details|description)[:\s]/i.test(cleanLower) ||
-    /(?:apartment|villa|house|flat|building)/i.test(cleanContent);
+  const hasPropertyDesc = /property\s+(?:details|description)[:\s]/i.test(cleanLower) ||
+                          /(?:apartment|villa|house|flat|building)/i.test(cleanContent);
   const hasProperty = hasPropertyReg || hasPropertyDesc;
 
   if (!hasProperty) {
-    logger.debug("[Detection] Reservation: Missing property", {
-      category: LogCategory.GENERAL,
-    });
+    logger.debug("[Detection] Reservation: Missing property", { category: LogCategory.GENERAL });
   }
 
   // Must have financial terms (very flexible patterns)
-  const hasReservationFee =
-    /reservation\s+fee[:\s]+[€$]?\s*[\d,]+/i.test(cleanContent) ||
-    /reservation[:\s]+[€$]\s*[\d,]+/i.test(cleanContent) ||
-    /fee[:\s]+[€$]\s*[\d,]+/i.test(cleanContent);
+  const hasReservationFee = /reservation\s+fee[:\s]+[€$]?\s*[\d,]+/i.test(cleanContent) ||
+                            /reservation[:\s]+[€$]\s*[\d,]+/i.test(cleanContent) ||
+                            /fee[:\s]+[€$]\s*[\d,]+/i.test(cleanContent);
 
-  const hasPurchasePrice =
-    /purchase\s+price[:\s]+[€$]?\s*[\d,]+/i.test(cleanContent) ||
-    /price[:\s]+[€$]\s*[\d,]+/i.test(cleanContent) ||
-    /total[:\s]+[€$]\s*[\d,]+/i.test(cleanContent);
+  const hasPurchasePrice = /purchase\s+price[:\s]+[€$]?\s*[\d,]+/i.test(cleanContent) ||
+                           /price[:\s]+[€$]\s*[\d,]+/i.test(cleanContent) ||
+                           /total[:\s]+[€$]\s*[\d,]+/i.test(cleanContent);
 
   const hasFinancials = hasReservationFee && hasPurchasePrice;
 
@@ -107,34 +97,23 @@ export function isCompletedReservationAgreement(content: string): boolean {
     logger.debug("[Detection] Reservation: Missing financials", {
       category: LogCategory.GENERAL,
       hasReservationFee,
-      hasPurchasePrice,
+      hasPurchasePrice
     });
   }
 
   // Log successful detection
   if (hasBuyerInfo && hasVendor && hasProperty && hasFinancials) {
-    logger.debug(
-      "[Detection] Reservation agreement DETECTED - all criteria met",
-      { category: LogCategory.GENERAL }
-    );
+    logger.debug("[Detection] Reservation agreement DETECTED - all criteria met", { category: LogCategory.GENERAL });
     return true;
   }
 
   // Fallback: If has title + at least 3 of 4 criteria + length > 500, it's probably complete
-  const criteriaCount = [
-    hasBuyerInfo,
-    hasVendor,
-    hasProperty,
-    hasFinancials,
-  ].filter(Boolean).length;
+  const criteriaCount = [hasBuyerInfo, hasVendor, hasProperty, hasFinancials].filter(Boolean).length;
   if (criteriaCount >= 3 && content.length > 500) {
-    logger.debug(
-      "[Detection] Reservation agreement DETECTED - fallback (3/4 criteria + length)",
-      {
-        category: LogCategory.GENERAL,
-        criteriaCount,
-      }
-    );
+    logger.debug("[Detection] Reservation agreement DETECTED - fallback (3/4 criteria + length)", {
+      category: LogCategory.GENERAL,
+      criteriaCount
+    });
     return true;
   }
 
@@ -151,68 +130,57 @@ export function isCompletedReservationAgreement(content: string): boolean {
  */
 export function isCompletedViewingForm(content: string): boolean {
   // Strip markdown bold markers so regexes work regardless of AI formatting
-  content = content.replace(/\*\*/g, "");
+  content = content.replace(/\*\*/g, '');
   const lowerContent = content.toLowerCase();
 
   // Must have the "Herein, I" opening
-  if (!lowerContent.includes("herein, i")) {
+  if (!lowerContent.includes('herein, i')) {
     return false;
   }
 
   // Must have confirmation language
-  if (
-    !lowerContent.includes("confirm that") &&
-    !lowerContent.includes("have been shown")
-  ) {
+  if (!lowerContent.includes('confirm that') && !lowerContent.includes('have been shown')) {
     return false;
   }
 
   // Check for blank document patterns - if found with property content, it's a valid blank viewing form
   const hasBlankBrackets = /\[\s*\]/g.test(content);
-  const hasRepeatedDots = /[.…]{8,}/g.test(content);
+  const hasRepeatedDots = /[\.…]{8,}/g.test(content);
   const hasUnderscoreLines = /_{15,}/g.test(content);
 
   if (hasBlankBrackets || hasRepeatedDots || hasUnderscoreLines) {
     // If it has blank patterns AND document structure, it's a valid blank/partial viewing form
     const hasPropertyContent =
-      lowerContent.includes("property") ||
-      lowerContent.includes("registration") ||
-      lowerContent.includes("immovable") ||
-      lowerContent.includes("csc zyprus");
+      lowerContent.includes('property') ||
+      lowerContent.includes('registration') ||
+      lowerContent.includes('immovable') ||
+      lowerContent.includes('csc zyprus');
     if (hasPropertyContent) {
-      logger.debug(
-        "[Detection] Blank/partial viewing form detected (via blank patterns) -> DOCX",
-        { category: LogCategory.GENERAL }
-      );
+      logger.debug("[Detection] Blank/partial viewing form detected (via blank patterns) -> DOCX", { category: LogCategory.GENERAL });
       return true;
     }
   }
 
   // Check for ANY real data in the form (not just placeholders)
   // This handles "viewing form only with name" cases
-  const hasActualName =
-    /(?:herein,\s*i,?\s*)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/i.test(content);
+  const hasActualName = /(?:herein,\s*i,?\s*)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/i.test(content);
   const hasIdPattern =
     /with\s+id\s+[A-Z0-9]+/i.test(content) ||
     /passport\/id\s*(number)?:?\s*[A-Z0-9]+/i.test(content) ||
     /id\/passport:?\s*[A-Z0-9]+/i.test(content) ||
     /(id|passport)\s*(number)?:?\s*[A-Z0-9]{5,}/i.test(content);
-  const hasActualDate =
-    /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(content) ||
-    /\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(
-      content
-    );
+  const hasActualDate = /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(content) ||
+                       /\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(content);
   const hasPropertyReg = /\d+\/\d+/.test(content); // e.g., 0/1234
 
   // If ANY real data is present (name, ID, date, or property reg), it's a valid viewing form
-  const hasRealData =
-    hasActualName || hasIdPattern || hasActualDate || hasPropertyReg;
+  const hasRealData = hasActualName || hasIdPattern || hasActualDate || hasPropertyReg;
 
   // Should have property-related content
   const hasPropertyContent =
-    lowerContent.includes("property") ||
-    lowerContent.includes("registration") ||
-    lowerContent.includes("immovable");
+    lowerContent.includes('property') ||
+    lowerContent.includes('registration') ||
+    lowerContent.includes('immovable');
 
   const isValid = hasRealData && hasPropertyContent;
   if (isValid) {
@@ -221,7 +189,7 @@ export function isCompletedViewingForm(content: string): boolean {
       hasActualName,
       hasIdPattern,
       hasActualDate,
-      hasPropertyReg,
+      hasPropertyReg
     });
   }
 
@@ -233,43 +201,40 @@ export function isCompletedViewingForm(content: string): boolean {
  */
 export function isCompletedMarketingAgreement(content: string): boolean {
   // Strip markdown bold markers so regexes work regardless of AI formatting
-  content = content.replace(/\*\*/g, "");
+  content = content.replace(/\*\*/g, '');
   const lowerContent = content.toLowerCase();
 
   // STRUCTURED FORMAT (new): "Marketing Agreement" + "Seller:" + "Property:" lines
   const hasStructuredFormat =
-    lowerContent.includes("marketing agreement") &&
+    lowerContent.includes('marketing agreement') &&
     /^seller[:\s]/im.test(content) &&
     /^property[:\s]/im.test(content);
 
   if (hasStructuredFormat) {
-    logger.debug("[Detection] Marketing Agreement structured format detected", {
-      category: LogCategory.GENERAL,
-    });
+    logger.debug("[Detection] Marketing Agreement structured format detected", { category: LogCategory.GENERAL });
     return true;
   }
 
   // NEW FORMAT: Terms and Conditions for Property Listing
   const hasNewFormat =
-    lowerContent.includes("terms and conditions for property listing") &&
-    lowerContent.includes("representation") &&
-    lowerContent.includes("agency fees");
+    lowerContent.includes('terms and conditions for property listing') &&
+    lowerContent.includes('representation') &&
+    lowerContent.includes('agency fees');
 
   // OLD FORMAT: Marketing Agreement with "between" clause
   const hasOldFormat =
-    (lowerContent.includes("this agreement made on") ||
-      lowerContent.includes("marketing agreement")) &&
-    lowerContent.includes("between");
+    (lowerContent.includes('this agreement made on') ||
+     lowerContent.includes('marketing agreement')) &&
+    lowerContent.includes('between');
 
   if (!hasNewFormat && !hasOldFormat) {
     return false;
   }
 
   // Must have registration number pattern OR seller details
-  const hasRegNumber =
-    /reg\.?\s*no\.?\s*\d+\/\d+/i.test(content) ||
-    /registration:?\s*\d+\/\d+/i.test(content) ||
-    /property:\s*reg/i.test(content);
+  const hasRegNumber = /reg\.?\s*no\.?\s*\d+\/\d+/i.test(content) ||
+                       /registration:?\s*\d+\/\d+/i.test(content) ||
+                       /property:\s*reg/i.test(content);
 
   // Must have a real seller name (not placeholder)
   const hasSellerName = /seller:\s*[A-Z][a-z]+\s+[A-Z][a-z]+/i.test(content);
@@ -284,26 +249,17 @@ export function isCompletedMarketingAgreement(content: string): boolean {
 export function isClarificationQuestion(response: string): boolean {
   // FIRST: Check if this is a completed document - these should NOT be classified as clarifications
   if (isCompletedReservationAgreement(response)) {
-    logger.debug(
-      "[Detection] Detected completed reservation agreement, not a clarification",
-      { category: LogCategory.GENERAL }
-    );
+    logger.debug("[Detection] Detected completed reservation agreement, not a clarification", { category: LogCategory.GENERAL });
     return false;
   }
 
   if (isCompletedViewingForm(response)) {
-    logger.debug(
-      "[Detection] Detected completed viewing form, not a clarification",
-      { category: LogCategory.GENERAL }
-    );
+    logger.debug("[Detection] Detected completed viewing form, not a clarification", { category: LogCategory.GENERAL });
     return false;
   }
 
   if (isCompletedMarketingAgreement(response)) {
-    logger.debug(
-      "[Detection] Detected completed marketing agreement, not a clarification",
-      { category: LogCategory.GENERAL }
-    );
+    logger.debug("[Detection] Detected completed marketing agreement, not a clarification", { category: LogCategory.GENERAL });
     return false;
   }
 
@@ -353,33 +309,25 @@ export function isClarificationQuestion(response: string): boolean {
   if (response.length < 1000) {
     for (const pattern of clarificationPatterns) {
       if (lower.includes(pattern)) {
-        logger.debug(`[Detection] Clarification detected: "${pattern}"`, {
-          category: LogCategory.GENERAL,
-        });
+        logger.debug(`[Detection] Clarification detected: "${pattern}"`, { category: LogCategory.GENERAL });
         return true;
       }
     }
   }
 
   // Check for bullet points asking for info (common pattern)
-  const bulletCount = (response.match(/[•\-*]\s+/g) || []).length;
+  const bulletCount = (response.match(/[•\-\*]\s+/g) || []).length;
   const questionCount = (response.match(/\?/g) || []).length;
 
   // Multiple bullets + questions + short = definitely asking for info
   if (bulletCount >= 3 && questionCount >= 1 && response.length < 1000) {
-    logger.debug(
-      `[Detection] Clarification detected: ${bulletCount} bullets, ${questionCount} questions`,
-      { category: LogCategory.GENERAL }
-    );
+    logger.debug(`[Detection] Clarification detected: ${bulletCount} bullets, ${questionCount} questions`, { category: LogCategory.GENERAL });
     return true;
   }
 
   // Any question mark in a short response is likely a clarification
   if (questionCount >= 1 && response.length < 600) {
-    logger.debug(
-      `[Detection] Clarification detected: question mark in short response (${response.length} chars)`,
-      { category: LogCategory.GENERAL }
-    );
+    logger.debug(`[Detection] Clarification detected: question mark in short response (${response.length} chars)`, { category: LogCategory.GENERAL });
     return true;
   }
 
@@ -393,12 +341,10 @@ export function isConfirmationMessage(text: string): boolean {
   const lower = text.toLowerCase();
 
   // Property upload confirmations
-  if (
-    lower.includes("uploaded the property") ||
-    lower.includes("uploaded as a draft") ||
-    lower.includes("draft listing") ||
-    (lower.includes("uploaded") && lower.includes("property"))
-  ) {
+  if (lower.includes("uploaded the property") ||
+      lower.includes("uploaded as a draft") ||
+      lower.includes("draft listing") ||
+      (lower.includes("uploaded") && lower.includes("property"))) {
     return true;
   }
 
@@ -439,16 +385,16 @@ export function containsPlaceholders(content: string): boolean {
   const isDearPattern = /Dear\s+XXXXXXX+/i.test(content);
 
   if (hasXPattern && !isDearPattern) {
-    logger.debug("[Detection] Found XXXXXXXX placeholder", {
-      category: LogCategory.GENERAL,
-    });
+    logger.debug("[Detection] Found XXXXXXXX placeholder", { category: LogCategory.GENERAL });
     return true;
   }
 
   // Check for [FIELD_NAME] style placeholders
   const bracketPlaceholders = content.match(/\[[A-Z][A-Z_\s]+\]/g) || [];
-  const realPlaceholders = bracketPlaceholders.filter(
-    (p) => !p.includes("Reg.") && !p.includes("License") && p.length > 3
+  const realPlaceholders = bracketPlaceholders.filter(p =>
+    !p.includes('Reg.') &&
+    !p.includes('License') &&
+    p.length > 3
   );
 
   // Check for blank document patterns - if found with document structure, allow it (blank document)
@@ -457,66 +403,54 @@ export function containsPlaceholders(content: string): boolean {
   const hasEmptyBrackets = /\[\s*\]/g.test(content);
   // Pattern 2: Repeated dots/ellipses (………… or ………………) used for blank fields
   // The ellipsis character … is U+2026, matches 8+ consecutive dots or ellipsis
-  const hasRepeatedDots = /[.…]{8,}/g.test(content);
+  const hasRepeatedDots = /[\.…]{8,}/g.test(content);
   // Pattern 3: Underscore lines (____________________)
   const hasUnderscoreLines = /_{15,}/g.test(content);
 
   if (hasEmptyBrackets || hasRepeatedDots || hasUnderscoreLines) {
     const hasDocStructure =
-      lowerContent.includes("viewing form") ||
-      lowerContent.includes("property reservation agreement") ||
-      lowerContent.includes("marketing agreement") ||
-      lowerContent.includes("herein, i") ||
-      lowerContent.includes("csc zyprus property group");
+      lowerContent.includes('viewing form') ||
+      lowerContent.includes('property reservation agreement') ||
+      lowerContent.includes('marketing agreement') ||
+      lowerContent.includes('herein, i') ||
+      lowerContent.includes('csc zyprus property group');
     if (hasDocStructure) {
       // Empty brackets/dots/underscores with document structure = intentional blank document, not a placeholder
       // Return false immediately - no placeholders for blank documents
-      logger.debug(
-        "[Detection] Found blank document pattern ([ ], ……, or _____) with document structure - allowing blank document (returning false)",
-        { category: LogCategory.GENERAL }
-      );
+      logger.debug("[Detection] Found blank document pattern ([ ], ……, or _____) with document structure - allowing blank document (returning false)", { category: LogCategory.GENERAL });
       return false;
+    } else {
+      // Empty patterns without document structure = treat as placeholder
+      logger.debug("[Detection] Found blank pattern without document structure -> TEXT", { category: LogCategory.GENERAL });
+      return true;
     }
-    // Empty patterns without document structure = treat as placeholder
-    logger.debug(
-      "[Detection] Found blank pattern without document structure -> TEXT",
-      { category: LogCategory.GENERAL }
-    );
-    return true;
   }
 
   if (realPlaceholders.length > 0) {
-    logger.debug("[Detection] Found bracket placeholders:", {
-      placeholders: realPlaceholders,
-      category: LogCategory.GENERAL,
-    });
+    logger.debug("[Detection] Found bracket placeholders:", { placeholders: realPlaceholders, category: LogCategory.GENERAL });
     return true;
   }
 
   // Check for {{placeholder}} style
   if (/\{\{[\w\s_]+\}\}/g.test(content)) {
-    logger.debug("[Detection] Found mustache placeholder", {
-      category: LogCategory.GENERAL,
-    });
+    logger.debug("[Detection] Found mustache placeholder", { category: LogCategory.GENERAL });
     return true;
   }
 
   // Check for common placeholder words
   const placeholderWords = [
-    "placeholder",
-    "insert here",
-    "to be filled",
-    "to be provided",
-    "fill in the",
-    "[blank]",
-    "(blank)",
+    'placeholder',
+    'insert here',
+    'to be filled',
+    'to be provided',
+    'fill in the',
+    '[blank]',
+    '(blank)',
   ];
 
   for (const word of placeholderWords) {
     if (lowerContent.includes(word)) {
-      logger.debug(`[Detection] Found placeholder word: ${word}`, {
-        category: LogCategory.GENERAL,
-      });
+      logger.debug(`[Detection] Found placeholder word: ${word}`, { category: LogCategory.GENERAL });
       return true;
     }
   }
@@ -537,29 +471,23 @@ export function containsPlaceholders(content: string): boolean {
 export function shouldSendAsDocx(response: string): boolean {
   // Strip markdown bold markers so all regexes work regardless of AI formatting
   // e.g., "**Seller:** John" becomes "Seller: John"
-  response = response.replace(/\*\*/g, "");
+  response = response.replace(/\*\*/g, '');
 
   // Rule 0: If it's a clarification question, NEVER send as DOCX
   if (isClarificationQuestion(response)) {
-    logger.debug("[Detection] Clarification response -> TEXT", {
-      category: LogCategory.GENERAL,
-    });
+    logger.debug("[Detection] Clarification response -> TEXT", { category: LogCategory.GENERAL });
     return false;
   }
 
   // Rule 0.5: If it's a confirmation message, NEVER send as DOCX
   if (isConfirmationMessage(response)) {
-    logger.debug("[Detection] Confirmation message -> TEXT", {
-      category: LogCategory.GENERAL,
-    });
+    logger.debug("[Detection] Confirmation message -> TEXT", { category: LogCategory.GENERAL });
     return false;
   }
 
   // Rule 1: If it has a Subject: line, it's an email template -> TEXT
   if (response.includes("Subject:")) {
-    logger.debug("[Detection] Has Subject: line -> TEXT", {
-      category: LogCategory.GENERAL,
-    });
+    logger.debug("[Detection] Has Subject: line -> TEXT", { category: LogCategory.GENERAL });
     return false;
   }
 
@@ -567,10 +495,7 @@ export function shouldSendAsDocx(response: string): boolean {
   // This catches seller, bank, developer registrations that may contain
   // keywords like "csc zyprus", "agent", "seller" which falsely match marketing patterns
   if (/Dear\s+X{6,}/i.test(response)) {
-    logger.debug(
-      "[Detection] Contains 'Dear XXXXXXXX' registration pattern -> TEXT",
-      { category: LogCategory.GENERAL }
-    );
+    logger.debug("[Detection] Contains 'Dear XXXXXXXX' registration pattern -> TEXT", { category: LogCategory.GENERAL });
     return false;
   }
 
@@ -582,19 +507,13 @@ export function shouldSendAsDocx(response: string): boolean {
     /^seller[:\s]/im.test(response) &&
     /^property[:\s]/im.test(response)
   ) {
-    logger.debug(
-      "[Detection] Marketing Agreement structured format -> DOCX (bypassing length check)",
-      { category: LogCategory.GENERAL }
-    );
+    logger.debug("[Detection] Marketing Agreement structured format -> DOCX (bypassing length check)", { category: LogCategory.GENERAL });
     return true;
   }
 
   // Rule 2: Response must be long enough to be a real document
   if (response.length < MIN_DOCX_LENGTH) {
-    logger.debug(
-      `[Detection] Too short for DOCX: ${response.length} < ${MIN_DOCX_LENGTH} -> TEXT`,
-      { category: LogCategory.GENERAL }
-    );
+    logger.debug(`[Detection] Too short for DOCX: ${response.length} < ${MIN_DOCX_LENGTH} -> TEXT`, { category: LogCategory.GENERAL });
     return false;
   }
 
@@ -610,30 +529,22 @@ export function shouldSendAsDocx(response: string): boolean {
     (firstPart.includes("property reservation agreement") ||
       firstPart.includes("reservation agreement")) &&
     response.length > 800 &&
-    (response.toLowerCase().includes("prospective buyer") ||
-      response.toLowerCase().includes("buyer:"))
+    (response.toLowerCase().includes("prospective buyer") || response.toLowerCase().includes("buyer:"))
   ) {
-    logger.debug(
-      "[Detection] Reservation Agreement structure detected -> DOCX (bypassing placeholder check)",
-      { category: LogCategory.GENERAL }
-    );
+    logger.debug("[Detection] Reservation Agreement structure detected -> DOCX (bypassing placeholder check)", { category: LogCategory.GENERAL });
     return true;
   }
 
   // Rule 2.6: Check for placeholders (only for non-reservation templates)
   if (containsPlaceholders(response)) {
-    logger.debug("[Detection] Contains placeholders -> TEXT", {
-      category: LogCategory.GENERAL,
-    });
+    logger.debug("[Detection] Contains placeholders -> TEXT", { category: LogCategory.GENERAL });
     return false;
   }
 
   // Rule 3: Extract title and check against DOCX templates
   const title = extractTemplateTitle(response);
   if (title && isDocxTemplateTitle(title)) {
-    logger.debug(`[Detection] Title match: "${title}" -> DOCX`, {
-      category: LogCategory.GENERAL,
-    });
+    logger.debug(`[Detection] Title match: "${title}" -> DOCX`, { category: LogCategory.GENERAL });
     return true;
   }
 
@@ -647,23 +558,15 @@ export function shouldSendAsDocx(response: string): boolean {
   if (
     firstPart.includes("viewing form") &&
     (fullLower.includes("herein, i") || fullLower.includes("confirm that")) &&
-    (fullLower.includes("id number") ||
-      fullLower.includes("passport") ||
-      fullLower.includes("signature") ||
-      hasBlankBrackets)
+    (fullLower.includes("id number") || fullLower.includes("passport") || fullLower.includes("signature") || hasBlankBrackets)
   ) {
-    logger.debug("[Detection] Viewing Form content detected -> DOCX", {
-      category: LogCategory.GENERAL,
-    });
+    logger.debug("[Detection] Viewing Form content detected -> DOCX", { category: LogCategory.GENERAL });
     return true;
   }
 
   // Reservation Agreement detection - use the comprehensive detection function
   if (isCompletedReservationAgreement(response)) {
-    logger.debug(
-      "[Detection] Reservation Agreement detected (via isCompletedReservationAgreement) -> DOCX",
-      { category: LogCategory.GENERAL }
-    );
+    logger.debug("[Detection] Reservation Agreement detected (via isCompletedReservationAgreement) -> DOCX", { category: LogCategory.GENERAL });
     return true;
   }
 
@@ -672,14 +575,9 @@ export function shouldSendAsDocx(response: string): boolean {
     (firstPart.includes("property reservation agreement") ||
       firstPart.includes("property reservation") ||
       firstPart.includes("reservation agreement")) &&
-    (fullLower.includes("buyer") ||
-      fullLower.includes("vendor") ||
-      fullLower.includes("deposit"))
+    (fullLower.includes("buyer") || fullLower.includes("vendor") || fullLower.includes("deposit"))
   ) {
-    logger.debug(
-      "[Detection] Reservation Agreement content detected (fallback) -> DOCX",
-      { category: LogCategory.GENERAL }
-    );
+    logger.debug("[Detection] Reservation Agreement content detected (fallback) -> DOCX", { category: LogCategory.GENERAL });
     return true;
   }
 
@@ -689,22 +587,16 @@ export function shouldSendAsDocx(response: string): boolean {
     firstPart.includes("marketing agreement") &&
     fullLower.includes("non-exclusive") &&
     (fullLower.includes("between") || fullLower.includes("csc zyprus")) &&
-    (fullLower.includes("owner") ||
-      fullLower.includes("agent may advertise") ||
-      fullLower.includes("terms and conditions for property listing")) &&
+    (fullLower.includes("owner") || fullLower.includes("agent may advertise") || fullLower.includes("terms and conditions for property listing")) &&
     !fullLower.includes("subject:") &&
     !/dear\s+x{6,}/i.test(response)
   ) {
-    logger.debug("[Detection] Marketing Agreement content detected -> DOCX", {
-      category: LogCategory.GENERAL,
-    });
+    logger.debug("[Detection] Marketing Agreement content detected -> DOCX", { category: LogCategory.GENERAL });
     return true;
   }
 
   // Default: TEXT
-  logger.debug("[Detection] No DOCX match -> TEXT", {
-    category: LogCategory.GENERAL,
-  });
+  logger.debug("[Detection] No DOCX match -> TEXT", { category: LogCategory.GENERAL });
   return false;
 }
 
@@ -731,20 +623,15 @@ export function detectDocxTemplateType(response: string): DocxTemplateType {
   if (first500.includes("viewing form") || first500.includes("herein, i")) {
     // Check for advanced (has legal paragraph)
     // Advanced template supports both single and multiple people
-    if (
-      lower.includes("exclusive representative") ||
-      lower.includes("monetary compensation") ||
-      lower.includes("commission fee") ||
-      lower.includes("viewing and/or digitally")
-    ) {
+    if (lower.includes("exclusive representative") ||
+        lower.includes("monetary compensation") ||
+        lower.includes("commission fee") ||
+        lower.includes("viewing and/or digitally")) {
       return "viewing-form-advanced";
     }
 
     // Check for multiple people (standard)
-    if (
-      lower.includes("and i ") &&
-      (lower.match(/with id/gi) || []).length > 1
-    ) {
+    if (lower.includes("and i ") && (lower.match(/with id/gi) || []).length > 1) {
       return "viewing-form-multiple";
     }
 
@@ -752,20 +639,15 @@ export function detectDocxTemplateType(response: string): DocxTemplateType {
   }
 
   // Reservation Agreement
-  if (
-    first500.includes("reservation agreement") ||
-    first500.includes("property reservation agreement") ||
-    first500.includes("property reservation")
-  ) {
+  if (first500.includes("reservation agreement") ||
+      first500.includes("property reservation agreement") ||
+      first500.includes("property reservation")) {
     return "reservation-agreement";
   }
 
   // Marketing Agreement (Non-Exclusive)
-  if (
-    first500.includes("marketing agreement") ||
-    (first500.includes("non-exclusive") &&
-      lower.includes("agent may advertise"))
-  ) {
+  if (first500.includes("marketing agreement") ||
+      (first500.includes("non-exclusive") && lower.includes("agent may advertise"))) {
     return "marketing-non-exclusive";
   }
 
@@ -775,41 +657,23 @@ export function detectDocxTemplateType(response: string): DocxTemplateType {
 /**
  * Detect template type from user message
  */
-export function detectTemplateTypeFromMessage(
-  userMessage: string
-): string | null {
+export function detectTemplateTypeFromMessage(userMessage: string): string | null {
   const message = userMessage.toLowerCase();
 
-  if (
-    message.includes("viewing form") ||
-    message.includes("standard viewing")
-  ) {
+  if (message.includes("viewing form") || message.includes("standard viewing")) {
     return "Standard Viewing Form";
   }
-  if (
-    message.includes("advanced viewing") ||
-    message.includes("introduction form")
-  ) {
+  if (message.includes("advanced viewing") || message.includes("introduction form")) {
     return "Advanced Viewing/Introduction Form";
   }
-  if (
-    message.includes("reservation form") ||
-    message.includes("reservation agreement") ||
-    message.includes("property reservation")
-  ) {
+  if (message.includes("reservation form") || message.includes("reservation agreement") || message.includes("property reservation")) {
     return "Property Reservation Agreement";
   }
-  if (
-    message.includes("marketing agreement") ||
-    message.includes("non-exclusive") ||
-    message.includes("non exclusive")
-  ) {
-    if (
-      message.includes("email marketing") ||
-      message.includes("via email") ||
-      message.includes("by email") ||
-      message.includes("send marketing agreement to")
-    ) {
+  if (message.includes("marketing agreement") || message.includes("non-exclusive") || message.includes("non exclusive")) {
+    if (message.includes("email marketing") ||
+        message.includes("via email") ||
+        message.includes("by email") ||
+        message.includes("send marketing agreement to")) {
       return "Email Marketing Agreement";
     }
     return "Marketing Agreement DOCX";
@@ -835,22 +699,17 @@ export function hasDefaultedLoanVatFlags(response: string): boolean {
   const lower = response.toLowerCase();
 
   // Only check reservation agreements
-  if (
-    !lower.includes("reservation agreement") &&
-    !lower.includes("property reservation")
-  ) {
+  if (!lower.includes("reservation agreement") &&
+      !lower.includes("property reservation")) {
     return false;
   }
 
   // Log if we see the Loan/VAT comment (for debugging only — NOT blocking)
   const loanVatPattern = /<!--\s*Loan:\s*\w+,\s*VAT:\s*\w+\s*-->/i;
   if (loanVatPattern.test(response)) {
-    logger.info(
-      "[Detection] Reservation Agreement has Loan/VAT flags (user-confirmed, allowing DOCX)",
-      {
-        category: LogCategory.GENERAL,
-      }
-    );
+    logger.info("[Detection] Reservation Agreement has Loan/VAT flags (user-confirmed, allowing DOCX)", {
+      category: LogCategory.GENERAL,
+    });
   }
 
   // Always return false — never block DOCX based on Loan/VAT flags
@@ -862,14 +721,14 @@ export function hasDefaultedLoanVatFlags(response: string): boolean {
  * Check if a DOCX template was requested based on conversation history
  */
 export function wasDocxTemplateRequested(
-  conversationHistory?: Array<{ role: string; parts: Array<{ text: string }> }>
+  conversationHistory?: Array<{role: string, parts: Array<{text: string}>}>
 ): boolean {
   if (!conversationHistory || conversationHistory.length === 0) {
     return false;
   }
 
   const allMessages = conversationHistory
-    .map((msg) => msg.parts.map((p) => p.text).join(" "))
+    .map(msg => msg.parts.map(p => p.text).join(" "))
     .join(" ")
     .toLowerCase();
 
@@ -889,7 +748,7 @@ export function wasDocxTemplateRequested(
     "template 15",
   ];
 
-  return docxKeywords.some((keyword) => allMessages.includes(keyword));
+  return docxKeywords.some(keyword => allMessages.includes(keyword));
 }
 
 // Re-export DOCX_TEMPLATE_TITLES for backward compatibility

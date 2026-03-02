@@ -10,19 +10,20 @@
  */
 
 import {
-  AlignmentType,
-  BorderStyle,
   Document,
   Paragraph,
-  Table,
-  TableCell,
-  TableRow,
   TextRun,
+  AlignmentType,
   UnderlineType,
+  Table,
+  TableRow,
+  TableCell,
   WidthType,
+  BorderStyle,
 } from "https://esm.sh/docx@8.5.0";
-import { logger } from "../../utils/logger.ts";
+
 import { numberToWords } from "../../utils/number-to-words.ts";
+import { logger } from "../../utils/logger.ts";
 import { formatPropertyDescription } from "../../utils/property-formatter.ts";
 import { isPlaceholder } from "../styles.ts";
 
@@ -51,7 +52,7 @@ export interface VendorInfo {
  * Example: "Cynthiana Complex Flat No. 105, Agios Theodoros, Paphos (Registration No 0/1547)"
  */
 export interface PropertyInfo {
-  description: string; // Full formatted description including flat no and registration
+  description: string;        // Full formatted description including flat no and registration
 }
 
 /**
@@ -102,11 +103,7 @@ export const ZYPRUS_DEFAULTS = {
 /**
  * Get the EXACT refund clause from reference templates
  */
-function getRefundClause(
-  hasLoan: boolean,
-  hasVat: boolean,
-  _reservationFee: string
-): string {
+function getRefundClause(hasLoan: boolean, hasVat: boolean, _reservationFee: string): string {
   const base = `In the event that the purchase fails to materialize, due to the Vendor's fault, and/or the property does not have clean land registry search (i.e. mortgages etc.) and/or is not free of any encumbrances and/or legal charges whatsoever`;
 
   // NO LOAN, NO VAT
@@ -132,17 +129,16 @@ function getRefundClause(
  * Create EXACT replica of reference reservation agreement templates
  * NO LOGO - matches the reference documents exactly
  */
-export function createReservationAgreement(
-  data: ReservationAgreementData
-): Document {
+export function createReservationAgreement(data: ReservationAgreementData): Document {
   const { agent, bank } = ZYPRUS_DEFAULTS;
   const periodDays = data.reservationPeriodDays || 40;
   const contractDays = data.contractDeadlineDays || 40;
   const reservationFeeFormatted = `€${data.financial.reservationFee.toLocaleString()}`;
 
   // Resolve vendors array (use vendors[] if available, fall back to single vendor)
-  const allVendors =
-    data.vendors && data.vendors.length > 0 ? data.vendors : [data.vendor];
+  const allVendors = data.vendors && data.vendors.length > 0
+    ? data.vendors
+    : [data.vendor];
 
   // Build buyer string: "Name Cyprus ID: 123456 and Name2 Cyprus ID: 789012"
   const buyerStr = data.buyers
@@ -180,20 +176,8 @@ export function createReservationAgreement(
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: "Date Reservation Fee Received: ",
-          bold: true,
-          size: 22,
-          font: "Times New Roman",
-        }),
-        new TextRun({
-          text: data.dateReceived || "[Date Reservation Fee Received]",
-          bold: isPlaceholder(
-            data.dateReceived || "[Date Reservation Fee Received]"
-          ),
-          size: 22,
-          font: "Times New Roman",
-        }),
+        new TextRun({ text: "Date Reservation Fee Received: ", bold: true, size: 22, font: "Times New Roman" }),
+        new TextRun({ text: data.dateReceived || "[Date Reservation Fee Received]", bold: isPlaceholder(data.dateReceived || "[Date Reservation Fee Received]"), size: 22, font: "Times New Roman" }),
       ],
       spacing: { after: 200 },
     })
@@ -203,18 +187,8 @@ export function createReservationAgreement(
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: "Prospective Buyer: ",
-          bold: true,
-          size: 22,
-          font: "Times New Roman",
-        }),
-        new TextRun({
-          text: buyerStr,
-          bold: isPlaceholder(buyerStr),
-          size: 22,
-          font: "Times New Roman",
-        }),
+        new TextRun({ text: "Prospective Buyer: ", bold: true, size: 22, font: "Times New Roman" }),
+        new TextRun({ text: buyerStr, bold: isPlaceholder(buyerStr), size: 22, font: "Times New Roman" }),
       ],
       spacing: { after: 200 },
     })
@@ -224,18 +198,8 @@ export function createReservationAgreement(
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: "Vendor: ",
-          bold: true,
-          size: 22,
-          font: "Times New Roman",
-        }),
-        new TextRun({
-          text: vendorStr,
-          bold: isPlaceholder(vendorStr),
-          size: 22,
-          font: "Times New Roman",
-        }),
+        new TextRun({ text: "Vendor: ", bold: true, size: 22, font: "Times New Roman" }),
+        new TextRun({ text: vendorStr, bold: isPlaceholder(vendorStr), size: 22, font: "Times New Roman" }),
       ],
       spacing: { after: 200 },
     })
@@ -245,18 +209,8 @@ export function createReservationAgreement(
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: "Property: ",
-          bold: true,
-          size: 22,
-          font: "Times New Roman",
-        }),
-        new TextRun({
-          text: data.property.description,
-          bold: isPlaceholder(data.property.description),
-          size: 22,
-          font: "Times New Roman",
-        }),
+        new TextRun({ text: "Property: ", bold: true, size: 22, font: "Times New Roman" }),
+        new TextRun({ text: data.property.description, bold: isPlaceholder(data.property.description), size: 22, font: "Times New Roman" }),
       ],
       spacing: { after: 200 },
     })
@@ -266,17 +220,8 @@ export function createReservationAgreement(
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: "Reservation Fee: ",
-          bold: true,
-          size: 22,
-          font: "Times New Roman",
-        }),
-        new TextRun({
-          text: `${reservationFeeFormatted} (In words ${data.financial.reservationFeeWords} only)`,
-          size: 22,
-          font: "Times New Roman",
-        }),
+        new TextRun({ text: "Reservation Fee: ", bold: true, size: 22, font: "Times New Roman" }),
+        new TextRun({ text: `${reservationFeeFormatted} (In words ${data.financial.reservationFeeWords} only)`, size: 22, font: "Times New Roman" }),
       ],
       spacing: { after: 200 },
     })
@@ -286,17 +231,8 @@ export function createReservationAgreement(
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: "Purchase Price: ",
-          bold: true,
-          size: 22,
-          font: "Times New Roman",
-        }),
-        new TextRun({
-          text: `€${data.financial.purchasePrice.toLocaleString()} (In words ${data.financial.purchasePriceWords} only)`,
-          size: 22,
-          font: "Times New Roman",
-        }),
+        new TextRun({ text: "Purchase Price: ", bold: true, size: 22, font: "Times New Roman" }),
+        new TextRun({ text: `€${data.financial.purchasePrice.toLocaleString()} (In words ${data.financial.purchasePriceWords} only)`, size: 22, font: "Times New Roman" }),
       ],
       spacing: { after: 300 },
     })
@@ -321,11 +257,7 @@ export function createReservationAgreement(
     new Paragraph({
       children: [
         new TextRun({
-          text: getRefundClause(
-            data.hasLoanClause,
-            data.hasVatClause,
-            reservationFeeFormatted
-          ),
+          text: getRefundClause(data.hasLoanClause, data.hasVatClause, reservationFeeFormatted),
           size: 22,
           font: "Times New Roman",
         }),
@@ -367,7 +299,7 @@ export function createReservationAgreement(
     new Paragraph({
       children: [
         new TextRun({
-          text: "With regard to the subject reservation agreement, the estate agent is the mutually agreed party responsible for determining who is at fault if the transaction does not proceed.",
+          text: `With regard to the subject reservation agreement, the estate agent is the mutually agreed party responsible for determining who is at fault if the transaction does not proceed.`,
           size: 22,
           font: "Times New Roman",
         }),
@@ -380,47 +312,24 @@ export function createReservationAgreement(
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: "Details of the Estate Agent:",
-          bold: true,
-          size: 22,
-          font: "Times New Roman",
-        }),
+        new TextRun({ text: "Details of the Estate Agent:", bold: true, size: 22, font: "Times New Roman" }),
       ],
       spacing: { after: 100 },
     })
   );
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: `Name: ${agent.name}`,
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
+      children: [new TextRun({ text: `Name: ${agent.name}`, size: 22, font: "Times New Roman" })],
     })
   );
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: `On behalf of ${agent.company}`,
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
+      children: [new TextRun({ text: `On behalf of ${agent.company}`, size: 22, font: "Times New Roman" })],
     })
   );
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: `CREA Reg. No. ${agent.creaRegNo} & Lic. No. ${agent.licenseNo} (called the "Estate Agent")`,
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
+      children: [new TextRun({ text: `CREA Reg. No. ${agent.creaRegNo} & Lic. No. ${agent.licenseNo} (called the "Estate Agent")`, size: 22, font: "Times New Roman" })],
       spacing: { after: 300 },
     })
   );
@@ -429,71 +338,34 @@ export function createReservationAgreement(
   children.push(
     new Paragraph({
       children: [
-        new TextRun({
-          text: "Bank details of the Estate Agent, as escrow agent, where the Reservation Fee must be transferred/paid by the Prospective Buyer:",
-          bold: true,
-          size: 22,
-          font: "Times New Roman",
-        }),
+        new TextRun({ text: "Bank details of the Estate Agent, as escrow agent, where the Reservation Fee must be transferred/paid by the Prospective Buyer:", bold: true, size: 22, font: "Times New Roman" }),
       ],
       spacing: { after: 100 },
     })
   );
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: "Banking Details",
-          bold: true,
-          underline: { type: UnderlineType.SINGLE },
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
+      children: [new TextRun({ text: "Banking Details", bold: true, underline: { type: UnderlineType.SINGLE }, size: 22, font: "Times New Roman" })],
     })
   );
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: `Name: ${bank.name}`,
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
+      children: [new TextRun({ text: `Name: ${bank.name}`, size: 22, font: "Times New Roman" })],
     })
   );
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: `Account No: ${bank.accountNo}`,
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
+      children: [new TextRun({ text: `Account No: ${bank.accountNo}`, size: 22, font: "Times New Roman" })],
     })
   );
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: `IBAN: ${bank.iban}`,
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
+      children: [new TextRun({ text: `IBAN: ${bank.iban}`, size: 22, font: "Times New Roman" })],
     })
   );
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: `BIC: ${bank.bic}`,
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
+      children: [new TextRun({ text: `BIC: ${bank.bic}`, size: 22, font: "Times New Roman" })],
       spacing: { after: 300 },
     })
   );
@@ -503,7 +375,7 @@ export function createReservationAgreement(
     new Paragraph({
       children: [
         new TextRun({
-          text: "For the entire duration of the Reservation Period, the Vendor and the Estate Agent shall not, directly and/or indirectly, advertise, negotiate, solicit and/or accept any offers and/or otherwise from any third party in relation to the Property.",
+          text: `For the entire duration of the Reservation Period, the Vendor and the Estate Agent shall not, directly and/or indirectly, advertise, negotiate, solicit and/or accept any offers and/or otherwise from any third party in relation to the Property.`,
           size: 22,
           font: "Times New Roman",
         }),
@@ -515,13 +387,7 @@ export function createReservationAgreement(
   // Dated
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: `Dated on this ${dateStr}`,
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
+      children: [new TextRun({ text: `Dated on this ${dateStr}`, size: 22, font: "Times New Roman" })],
       spacing: { after: 400 },
     })
   );
@@ -548,32 +414,16 @@ export function createReservationAgreement(
         new TableCell({
           width: { size: 50, type: WidthType.PERCENTAGE },
           borders: noBorders,
-          children: [
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: `The Prospective Buyer${data.buyers.length > 1 ? "s" : ""}:`,
-                  size: 22,
-                  font: "Times New Roman",
-                }),
-              ],
-            }),
-          ],
+          children: [new Paragraph({
+            children: [new TextRun({ text: `The Prospective Buyer${data.buyers.length > 1 ? "s" : ""}:`, size: 22, font: "Times New Roman" })],
+          })],
         }),
         new TableCell({
           width: { size: 50, type: WidthType.PERCENTAGE },
           borders: noBorders,
-          children: [
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: `The Vendor${allVendors.length > 1 ? "s" : ""}:`,
-                  size: 22,
-                  font: "Times New Roman",
-                }),
-              ],
-            }),
-          ],
+          children: [new Paragraph({
+            children: [new TextRun({ text: `The Vendor${allVendors.length > 1 ? "s" : ""}:`, size: 22, font: "Times New Roman" })],
+          })],
         }),
       ],
     })
@@ -588,28 +438,16 @@ export function createReservationAgreement(
     signatureRows.push(
       new TableRow({
         children: [
-          new TableCell({
-            borders: noBorders,
-            children: [new Paragraph({ text: "" })],
-          }),
-          new TableCell({
-            borders: noBorders,
-            children: [new Paragraph({ text: "" })],
-          }),
+          new TableCell({ borders: noBorders, children: [new Paragraph({ text: "" })] }),
+          new TableCell({ borders: noBorders, children: [new Paragraph({ text: "" })] }),
         ],
       })
     );
     signatureRows.push(
       new TableRow({
         children: [
-          new TableCell({
-            borders: noBorders,
-            children: [new Paragraph({ text: "" })],
-          }),
-          new TableCell({
-            borders: noBorders,
-            children: [new Paragraph({ text: "" })],
-          }),
+          new TableCell({ borders: noBorders, children: [new Paragraph({ text: "" })] }),
+          new TableCell({ borders: noBorders, children: [new Paragraph({ text: "" })] }),
         ],
       })
     );
@@ -620,31 +458,15 @@ export function createReservationAgreement(
         children: [
           new TableCell({
             borders: noBorders,
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: buyer ? "_________________________" : "",
-                    size: 22,
-                    font: "Times New Roman",
-                  }),
-                ],
-              }),
-            ],
+            children: [new Paragraph({
+              children: [new TextRun({ text: buyer ? "_________________________" : "", size: 22, font: "Times New Roman" })],
+            })],
           }),
           new TableCell({
             borders: noBorders,
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: vendor ? "_________________________" : "",
-                    size: 22,
-                    font: "Times New Roman",
-                  }),
-                ],
-              }),
-            ],
+            children: [new Paragraph({
+              children: [new TextRun({ text: vendor ? "_________________________" : "", size: 22, font: "Times New Roman" })],
+            })],
           }),
         ],
       })
@@ -656,31 +478,15 @@ export function createReservationAgreement(
         children: [
           new TableCell({
             borders: noBorders,
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: buyer ? buyer.fullName : "",
-                    size: 22,
-                    font: "Times New Roman",
-                  }),
-                ],
-              }),
-            ],
+            children: [new Paragraph({
+              children: [new TextRun({ text: buyer ? buyer.fullName : "", size: 22, font: "Times New Roman" })],
+            })],
           }),
           new TableCell({
             borders: noBorders,
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: vendor ? vendor.name : "",
-                    size: 22,
-                    font: "Times New Roman",
-                  }),
-                ],
-              }),
-            ],
+            children: [new Paragraph({
+              children: [new TextRun({ text: vendor ? vendor.name : "", size: 22, font: "Times New Roman" })],
+            })],
           }),
         ],
       })
@@ -701,13 +507,7 @@ export function createReservationAgreement(
   // ===== THE ESTATE AGENT SECTION =====
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: "The Estate Agent:",
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
+      children: [new TextRun({ text: "The Estate Agent:", size: 22, font: "Times New Roman" })],
     })
   );
 
@@ -717,33 +517,19 @@ export function createReservationAgreement(
 
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: "_________________________",
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
+      children: [new TextRun({ text: "_________________________", size: 22, font: "Times New Roman" })],
     })
   );
 
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({ text: agent.name, size: 22, font: "Times New Roman" }),
-      ],
+      children: [new TextRun({ text: agent.name, size: 22, font: "Times New Roman" })],
     })
   );
 
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: `For and on behalf of ${agent.company}`,
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
+      children: [new TextRun({ text: `For and on behalf of ${agent.company}`, size: 22, font: "Times New Roman" })],
       spacing: { after: 400 },
     })
   );
@@ -753,15 +539,7 @@ export function createReservationAgreement(
   // ===== WITNESSES SECTION - Always exactly 2 =====
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: "WITNESSES",
-          bold: true,
-          underline: { type: UnderlineType.SINGLE },
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
+      children: [new TextRun({ text: "WITNESSES", bold: true, underline: { type: UnderlineType.SINGLE }, size: 22, font: "Times New Roman" })],
       spacing: { after: 200 },
     })
   );
@@ -770,24 +548,12 @@ export function createReservationAgreement(
   children.push(new Paragraph({ text: "" }));
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: "1. _________________________",
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
+      children: [new TextRun({ text: "1. _________________________", size: 22, font: "Times New Roman" })],
     })
   );
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: "   Name and I.D.:",
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
+      children: [new TextRun({ text: "   Name and I.D.:", size: 22, font: "Times New Roman" })],
       spacing: { after: 300 },
     })
   );
@@ -795,24 +561,12 @@ export function createReservationAgreement(
   // Witness 2
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: "2. _________________________",
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
+      children: [new TextRun({ text: "2. _________________________", size: 22, font: "Times New Roman" })],
     })
   );
   children.push(
     new Paragraph({
-      children: [
-        new TextRun({
-          text: "   Name and I.D.:",
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
+      children: [new TextRun({ text: "   Name and I.D.:", size: 22, font: "Times New Roman" })],
     })
   );
 
@@ -828,14 +582,7 @@ function formatDate(date: Date): string {
   const day = date.getDate();
   const month = date.toLocaleString("en-US", { month: "long" });
   const year = date.getFullYear();
-  const suffix =
-    day === 1 || day === 21 || day === 31
-      ? "st"
-      : day === 2 || day === 22
-        ? "nd"
-        : day === 3 || day === 23
-          ? "rd"
-          : "th";
+  const suffix = day === 1 || day === 21 || day === 31 ? "st" : day === 2 || day === 22 ? "nd" : day === 3 || day === 23 ? "rd" : "th";
   return `${day}${suffix} day of ${month}, ${year}`;
 }
 
@@ -847,25 +594,21 @@ function formatDate(date: Date): string {
  */
 export function createBlankReservationAgreementData(): ReservationAgreementData {
   return {
-    buyers: [
-      {
-        fullName: "[PROSPECTIVE BUYER]",
-        idType: "Cyprus ID",
-        idNumber: "[ID NUMBER]",
-      },
-    ],
+    buyers: [{
+      fullName: "[PROSPECTIVE BUYER]",
+      idType: "Cyprus ID",
+      idNumber: "[ID NUMBER]",
+    }],
     vendor: {
       name: "[VENDOR NAME]",
       idType: "Cyprus ID",
       idNumber: "[ID NUMBER]",
     },
-    vendors: [
-      {
-        name: "[VENDOR NAME]",
-        idType: "Cyprus ID",
-        idNumber: "[ID NUMBER]",
-      },
-    ],
+    vendors: [{
+      name: "[VENDOR NAME]",
+      idType: "Cyprus ID",
+      idNumber: "[ID NUMBER]",
+    }],
     property: {
       description: "[PROPERTY DETAILS]",
     },
@@ -892,48 +635,35 @@ export function createBlankReservationAgreementData(): ReservationAgreementData 
  * 6. LOAN yes/no
  * 7. VAT yes/no
  */
-export function parseReservationAgreementData(
-  response: string
-): ReservationAgreementData | null {
+export function parseReservationAgreementData(response: string): ReservationAgreementData | null {
   try {
-    logger.debug("[ReservationAgreement] Parsing response", {
-      length: response.length,
-    });
+    logger.debug("[ReservationAgreement] Parsing response", { length: response.length });
 
     // Clean response - remove markdown bold markers (MUST be before blank pattern check)
-    const cleanResponse = response.replace(/\*\*/g, "");
+    const cleanResponse = response.replace(/\*\*/g, '');
 
     // Check if this is a BLANK reservation agreement (has placeholders or ellipses)
-    const hasBlankPatterns =
-      /\[\s*\]/g.test(response) ||
-      /[.…]{8,}/g.test(response) ||
+    const hasBlankPatterns = /\[\s*\]/g.test(response) ||
+      /[\.…]{8,}/g.test(response) ||
       /_{15,}/g.test(response) ||
       /\.{15,}/g.test(response);
 
-    const isReservationAgreement = response
-      .toLowerCase()
-      .includes("reservation agreement");
+    const isReservationAgreement = response.toLowerCase().includes('reservation agreement');
 
     // If it's a blank/partial reservation agreement, extract whatever data IS available
     if (isReservationAgreement && hasBlankPatterns) {
-      logger.debug(
-        "[ReservationAgreement] Detected blank/partial reservation agreement - extracting available data"
-      );
+      logger.debug("[ReservationAgreement] Detected blank/partial reservation agreement - extracting available data");
       const blankData = createBlankReservationAgreementData();
 
       // Extract Loan/VAT flags from comment
-      const loanVatComment = cleanResponse.match(
-        /<!--[^>]*?loan[:\s]*(yes|no)[^>]*?vat[:\s]*(yes|no)[^>]*?-->/i
-      );
+      const loanVatComment = cleanResponse.match(/<!--[^>]*?loan[:\s]*(yes|no)[^>]*?vat[:\s]*(yes|no)[^>]*?-->/i);
       if (loanVatComment) {
         blankData.hasLoanClause = /yes/i.test(loanVatComment[1]);
         blankData.hasVatClause = /yes/i.test(loanVatComment[2]);
       }
 
       // Extract buyer info if available
-      const buyerLineMatch = cleanResponse.match(
-        /Prospective\s+Buyer[:\s]*([^\n]+)/i
-      );
+      const buyerLineMatch = cleanResponse.match(/Prospective\s+Buyer[:\s]*([^\n]+)/i);
       if (buyerLineMatch) {
         const buyerText = buyerLineMatch[1].trim();
 
@@ -942,12 +672,10 @@ export function parseReservationAgreementData(
 
         for (let i = 0; i < buyerSegments.length; i++) {
           const segment = buyerSegments[i].trim();
-          if (!segment || /^[[\].…_\s]+$/.test(segment)) continue;
+          if (!segment || /^[\[\]\.…_\s]+$/.test(segment)) continue;
 
           // Try to match: "Name Country Passport: ID" or "Name Cyprus ID: ID"
-          const idTypeMatch = segment.match(
-            /^(.+?)\s+((?:\w+\s+)?(?:Passport|Cyprus\s+ID|ID))[:\s]+([A-Z0-9]+)/i
-          );
+          const idTypeMatch = segment.match(/^(.+?)\s+((?:\w+\s+)?(?:Passport|Cyprus\s+ID|ID))[:\s]+([A-Z0-9]+)/i);
           if (idTypeMatch) {
             const buyer = {
               fullName: idTypeMatch[1].trim(),
@@ -961,20 +689,14 @@ export function parseReservationAgreementData(
             }
           } else {
             // Just a name without ID
-            const nameOnly = segment
-              .split(/\s+(?:Cyprus\s+ID|Passport|ID|UK|\[)/i)[0]
-              .trim();
+            const nameOnly = segment.split(/\s+(?:Cyprus\s+ID|Passport|ID|UK|\[)/i)[0].trim();
             // Skip bracket-only placeholders like "[ ]", "[]", etc. — keep the default "[PROSPECTIVE BUYER]"
             const isBracketPlaceholder = /^\[[\s]*\]$/.test(nameOnly);
             if (nameOnly && nameOnly.length > 1 && !isBracketPlaceholder) {
               if (i === 0) {
                 blankData.buyers[0].fullName = nameOnly;
               } else {
-                blankData.buyers.push({
-                  fullName: nameOnly,
-                  idType: "Cyprus ID",
-                  idNumber: "[ID NUMBER]",
-                });
+                blankData.buyers.push({ fullName: nameOnly, idType: "Cyprus ID", idNumber: "[ID NUMBER]" });
               }
             }
           }
@@ -982,15 +704,11 @@ export function parseReservationAgreementData(
       }
 
       // Extract vendor info if available
-      const vendorLineMatch = cleanResponse.match(
-        /(?:^|\n)Vendor[:\s]*([^\n]+)/im
-      );
+      const vendorLineMatch = cleanResponse.match(/(?:^|\n)Vendor[:\s]*([^\n]+)/im);
       if (vendorLineMatch) {
         const vendorText = vendorLineMatch[1].trim();
-        if (vendorText && !/^[[\].…_\s:]+$/.test(vendorText)) {
-          const vendorIdMatch = vendorText.match(
-            /^(.+?)\s+((?:\w+\s+)?(?:Passport|Cyprus\s+ID|ID))[:\s]+([A-Z0-9]+)/i
-          );
+        if (vendorText && !/^[\[\]\.…_\s:]+$/.test(vendorText)) {
+          const vendorIdMatch = vendorText.match(/^(.+?)\s+((?:\w+\s+)?(?:Passport|Cyprus\s+ID|ID))[:\s]+([A-Z0-9]+)/i);
           if (vendorIdMatch) {
             blankData.vendor.name = vendorIdMatch[1].trim();
             blankData.vendor.idType = vendorIdMatch[2].trim();
@@ -1001,9 +719,7 @@ export function parseReservationAgreementData(
               blankData.vendors[0].idNumber = vendorIdMatch[3].trim();
             }
           } else {
-            const nameOnly = vendorText
-              .split(/\s+(?:Cyprus\s+ID|Passport|ID|UK|\[)/i)[0]
-              .trim();
+            const nameOnly = vendorText.split(/\s+(?:Cyprus\s+ID|Passport|ID|UK|\[)/i)[0].trim();
             const isBracketPlaceholder = /^\[[\s]*\]$/.test(nameOnly);
             if (nameOnly && nameOnly.length > 1 && !isBracketPlaceholder) {
               blankData.vendor.name = nameOnly;
@@ -1016,16 +732,10 @@ export function parseReservationAgreementData(
       }
 
       // Extract date if available
-      const dateMatch = cleanResponse.match(
-        /Date\s+Reservation\s+Fee\s+Received[:\s]*([^\n]+)/i
-      );
+      const dateMatch = cleanResponse.match(/Date\s+Reservation\s+Fee\s+Received[:\s]*([^\n]+)/i);
       if (dateMatch) {
         const dateText = dateMatch[1].trim();
-        if (
-          dateText &&
-          !/^[[\].…_\s]+$/.test(dateText) &&
-          dateText.length > 3
-        ) {
+        if (dateText && !/^[\[\]\.…_\s]+$/.test(dateText) && dateText.length > 3) {
           blankData.date = dateText;
         }
       }
@@ -1034,39 +744,27 @@ export function parseReservationAgreementData(
       const propertyMatch = cleanResponse.match(/^Property\s*:\s*(.+)/im);
       if (propertyMatch) {
         const prop = propertyMatch[1].trim();
-        if (prop && !/^[[\].…_\s]+$/.test(prop) && prop.length > 3) {
+        if (prop && !/^[\[\]\.…_\s]+$/.test(prop) && prop.length > 3) {
           blankData.property.description = formatPropertyDescription(prop);
         }
       }
 
       // Extract amounts if available
-      const reservationFeeMatch = cleanResponse.match(
-        /Reservation\s+Fee[:\s]*[€$]?\s*([\d,]+)/i
-      );
+      const reservationFeeMatch = cleanResponse.match(/Reservation\s+Fee[:\s]*[€$]?\s*([\d,]+)/i);
       if (reservationFeeMatch) {
-        const fee = Number.parseInt(
-          reservationFeeMatch[1].replace(/,/g, ""),
-          10
-        );
+        const fee = parseInt(reservationFeeMatch[1].replace(/,/g, ""), 10);
         if (fee > 0) {
           blankData.financial.reservationFee = fee;
-          blankData.financial.reservationFeeWords =
-            numberToWords(fee) + " euro";
+          blankData.financial.reservationFeeWords = numberToWords(fee) + " euro";
         }
       }
 
-      const purchasePriceMatch = cleanResponse.match(
-        /Purchase\s+Price[:\s]*[€$]?\s*([\d,]+)/i
-      );
+      const purchasePriceMatch = cleanResponse.match(/Purchase\s+Price[:\s]*[€$]?\s*([\d,]+)/i);
       if (purchasePriceMatch) {
-        const price = Number.parseInt(
-          purchasePriceMatch[1].replace(/,/g, ""),
-          10
-        );
+        const price = parseInt(purchasePriceMatch[1].replace(/,/g, ""), 10);
         if (price > 0) {
           blankData.financial.purchasePrice = price;
-          blankData.financial.purchasePriceWords =
-            numberToWords(price) + " euro";
+          blankData.financial.purchasePriceWords = numberToWords(price) + " euro";
         }
       }
 
@@ -1086,16 +784,11 @@ export function parseReservationAgreementData(
     let hasLoanClause = false;
     let hasVatClause = false;
 
-    const commentMatch = cleanResponse.match(
-      /<!--[^>]*?loan[:\s]*(yes|no)[^>]*?vat[:\s]*(yes|no)[^>]*?-->/i
-    );
+    const commentMatch = cleanResponse.match(/<!--[^>]*?loan[:\s]*(yes|no)[^>]*?vat[:\s]*(yes|no)[^>]*?-->/i);
     if (commentMatch) {
       hasLoanClause = /yes/i.test(commentMatch[1]);
       hasVatClause = /yes/i.test(commentMatch[2]);
-      logger.debug("[ReservationAgreement] Flags from comment", {
-        hasLoan: hasLoanClause,
-        hasVat: hasVatClause,
-      });
+      logger.debug("[ReservationAgreement] Flags from comment", { hasLoan: hasLoanClause, hasVat: hasVatClause });
     } else {
       // Fallback: match "loan: yes/no" and "vat: yes/no" individually
       // Use capture group [1] to avoid false positives from surrounding text
@@ -1104,10 +797,7 @@ export function parseReservationAgreementData(
 
       const vatMatch = cleanResponse.match(/\bvat[:\s]*(yes|no)/i);
       hasVatClause = vatMatch ? /yes/i.test(vatMatch[1]) : false;
-      logger.debug("[ReservationAgreement] Flags from regex fallback", {
-        hasLoan: hasLoanClause,
-        hasVat: hasVatClause,
-      });
+      logger.debug("[ReservationAgreement] Flags from regex fallback", { hasLoan: hasLoanClause, hasVat: hasVatClause });
     }
 
     // BUYERS: Parse multiple buyers separated by "and"
@@ -1115,9 +805,7 @@ export function parseReservationAgreementData(
     const buyers: BuyerInfo[] = [];
 
     // First, find the buyer section
-    const buyerLineMatch = cleanResponse.match(
-      /Prospective\s+Buyer[:\s]*([^\n]+)/i
-    );
+    const buyerLineMatch = cleanResponse.match(/Prospective\s+Buyer[:\s]*([^\n]+)/i);
     if (buyerLineMatch) {
       const buyerLine = buyerLineMatch[1].trim();
       logger.debug("[ReservationAgreement] Buyer line:", { buyerLine });
@@ -1131,9 +819,7 @@ export function parseReservationAgreementData(
 
         // Try to parse "Name IDType: IDNumber" format
         // Captures country/nationality before Passport/ID (e.g., "Jordan Passport", "American Passport", "British ID")
-        const parsed = trimmedSegment.match(
-          /^([A-Za-z][A-Za-z\s]+?)\s+((?:[A-Za-z]+\s+)?(?:Passport|ID)|Cyprus\s+ID|UK\s+Passport)[:\s]*([A-Z0-9]+)/i
-        );
+        const parsed = trimmedSegment.match(/^([A-Za-z][A-Za-z\s]+?)\s+((?:[A-Za-z]+\s+)?(?:Passport|ID)|Cyprus\s+ID|UK\s+Passport)[:\s]*([A-Z0-9]+)/i);
 
         if (parsed) {
           buyers.push({
@@ -1143,9 +829,7 @@ export function parseReservationAgreementData(
           });
         } else {
           // Try simpler format: "Name IDNumber" (assuming Cyprus ID)
-          const simpleParsed = trimmedSegment.match(
-            /^([A-Za-z][A-Za-z\s]+?)\s+(\d{5,})/
-          );
+          const simpleParsed = trimmedSegment.match(/^([A-Za-z][A-Za-z\s]+?)\s+(\d{5,})/);
           if (simpleParsed) {
             buyers.push({
               fullName: simpleParsed[1].trim(),
@@ -1167,10 +851,7 @@ export function parseReservationAgreementData(
       }
     }
 
-    logger.debug("[ReservationAgreement] Buyers parsed:", {
-      count: buyers.length,
-      buyers,
-    });
+    logger.debug("[ReservationAgreement] Buyers parsed:", { count: buyers.length, buyers });
 
     if (buyers.length === 0) {
       logger.debug("[ReservationAgreement] No buyers found");
@@ -1194,9 +875,7 @@ export function parseReservationAgreementData(
 
         // Try to parse "Name IDType: IDNumber" format
         // Captures country/nationality before Passport/ID (e.g., "Jordan Passport", "American Passport")
-        const parsed = trimmedSegment.match(
-          /^([A-Za-z][A-Za-z\s]+?)\s+((?:[A-Za-z]+\s+)?(?:Passport|ID)|Cyprus\s+ID|UK\s+Passport)[:\s]*([A-Z0-9]+)/i
-        );
+        const parsed = trimmedSegment.match(/^([A-Za-z][A-Za-z\s]+?)\s+((?:[A-Za-z]+\s+)?(?:Passport|ID)|Cyprus\s+ID|UK\s+Passport)[:\s]*([A-Z0-9]+)/i);
 
         if (parsed) {
           vendors.push({
@@ -1206,9 +885,7 @@ export function parseReservationAgreementData(
           });
         } else {
           // Try simpler format: "Name IDNumber"
-          const simpleParsed = trimmedSegment.match(
-            /^([A-Za-z][A-Za-z\s]+?)\s+(\d{5,})/
-          );
+          const simpleParsed = trimmedSegment.match(/^([A-Za-z][A-Za-z\s]+?)\s+(\d{5,})/);
           if (simpleParsed) {
             vendors.push({
               name: simpleParsed[1].trim(),
@@ -1217,13 +894,9 @@ export function parseReservationAgreementData(
             });
           } else {
             // Just take the name
-            const nameOnly = trimmedSegment
-              .split(/\s+(Cyprus|Passport|ID|\d)/i)[0]
-              .trim();
+            const nameOnly = trimmedSegment.split(/\s+(Cyprus|Passport|ID|\d)/i)[0].trim();
             if (nameOnly && nameOnly.length > 2) {
-              const idMatch = trimmedSegment.match(
-                /(?:Cyprus\s+ID|Passport|ID)[:\s]*([A-Z0-9]+)/i
-              );
+              const idMatch = trimmedSegment.match(/(?:Cyprus\s+ID|Passport|ID)[:\s]*([A-Z0-9]+)/i);
               vendors.push({
                 name: nameOnly,
                 idType: "Cyprus ID",
@@ -1235,10 +908,7 @@ export function parseReservationAgreementData(
       }
     }
 
-    logger.debug("[ReservationAgreement] Vendors parsed:", {
-      count: vendors.length,
-      vendors,
-    });
+    logger.debug("[ReservationAgreement] Vendors parsed:", { count: vendors.length, vendors });
 
     if (vendors.length === 0) {
       logger.debug("[ReservationAgreement] No vendors found");
@@ -1266,10 +936,9 @@ export function parseReservationAgreementData(
     for (const pattern of propertyPatterns) {
       const match = cleanResponse.match(pattern);
       if (match && match[1]) {
-        rawPropertyDesc = match[1]
-          .trim()
-          .replace(/\n+/g, " ")
-          .replace(/\s+/g, " ")
+        rawPropertyDesc = match[1].trim()
+          .replace(/\n+/g, ' ')
+          .replace(/\s+/g, ' ')
           .trim();
         if (rawPropertyDesc && rawPropertyDesc.length > 5) {
           break;
@@ -1279,9 +948,9 @@ export function parseReservationAgreementData(
 
     // Clean up property description - remove any trailing field markers
     rawPropertyDesc = rawPropertyDesc
-      .replace(/\s*Reservation\s+Fee.*$/i, "")
-      .replace(/\s*Purchase\s+Price.*$/i, "")
-      .replace(/\s*\d+\.\s*.*$/i, "")
+      .replace(/\s*Reservation\s+Fee.*$/i, '')
+      .replace(/\s*Purchase\s+Price.*$/i, '')
+      .replace(/\s*\d+\.\s*.*$/i, '')
       .trim();
 
     // FORMAT the property description as single line with location outside parentheses
@@ -1298,7 +967,7 @@ export function parseReservationAgreementData(
 
     // FINANCIAL: Extract amounts
     let reservationFee = 5000; // default
-    let purchasePrice = 300_000; // default
+    let purchasePrice = 300000; // default
 
     // Reservation fee patterns
     const reservationPatterns = [
@@ -1310,7 +979,7 @@ export function parseReservationAgreementData(
     for (const pattern of reservationPatterns) {
       const match = cleanResponse.match(pattern);
       if (match) {
-        const parsed = Number.parseInt(match[1].replace(/,/g, ""), 10);
+        const parsed = parseInt(match[1].replace(/,/g, ""), 10);
         if (parsed > 0) {
           reservationFee = parsed;
           break;
@@ -1328,7 +997,7 @@ export function parseReservationAgreementData(
     for (const pattern of purchasePatterns) {
       const match = cleanResponse.match(pattern);
       if (match) {
-        const parsed = Number.parseInt(match[1].replace(/,/g, ""), 10);
+        const parsed = parseInt(match[1].replace(/,/g, ""), 10);
         if (parsed > 0) {
           purchasePrice = parsed;
           break;
@@ -1336,10 +1005,7 @@ export function parseReservationAgreementData(
       }
     }
 
-    logger.debug("[ReservationAgreement] Financial", {
-      reservationFee,
-      purchasePrice,
-    });
+    logger.debug("[ReservationAgreement] Financial", { reservationFee, purchasePrice });
 
     const financial: FinancialTerms = {
       reservationFee,
@@ -1349,8 +1015,8 @@ export function parseReservationAgreementData(
     };
 
     logger.debug("[ReservationAgreement] PARSE SUCCESS:", {
-      buyers: buyers.map((b) => `${b.fullName} ${b.idType}: ${b.idNumber}`),
-      vendors: vendors.map((v) => `${v.name} ${v.idType}: ${v.idNumber}`),
+      buyers: buyers.map(b => `${b.fullName} ${b.idType}: ${b.idNumber}`),
+      vendors: vendors.map(v => `${v.name} ${v.idType}: ${v.idNumber}`),
       property: formattedDescription.substring(0, 80),
       loan: hasLoanClause,
       vat: hasVatClause,
@@ -1366,10 +1032,7 @@ export function parseReservationAgreementData(
       hasVatClause,
     };
   } catch (error) {
-    logger.error(
-      "[ReservationAgreement] Parse error",
-      error instanceof Error ? error : new Error(String(error))
-    );
+    logger.error("[ReservationAgreement] Parse error", error instanceof Error ? error : new Error(String(error)));
     return null;
   }
 }

@@ -1,9 +1,37 @@
 /**
  * Tool Input Validation Schemas
  * Zod schemas for validating tool arguments against malicious payloads (SEC-04)
+ *
+ * NOTE: URL fields use z.string() instead of z.string().url() because:
+ * - AI sometimes passes empty strings for optional fields
+ * - WhatsApp media URLs may not pass strict URL validation
+ * - Image URLs from pending_images are validated downstream anyway
+ * Bounds checks (max length, positive numbers) still catch injection attacks.
  */
 
 import { z } from "https://esm.sh/zod@3.22.4";
+
+/** Coerce empty string to undefined for optional fields */
+const optionalString = (maxLen: number) =>
+  z
+    .string()
+    .max(maxLen)
+    .optional()
+    .transform((v) => (v === "" ? undefined : v));
+
+const optionalUrl = () =>
+  z
+    .string()
+    .max(2000)
+    .optional()
+    .transform((v) => (v === "" ? undefined : v));
+
+const optionalEmail = () =>
+  z
+    .string()
+    .max(200)
+    .optional()
+    .transform((v) => (v === "" ? undefined : v));
 
 /**
  * Schema for createPropertyListing tool
@@ -48,18 +76,21 @@ export const createPropertyListingSchema = z.object({
     .max(10_000, "Veranda area must be under 10,000 sqm")
     .optional(),
   ownerName: z.string().min(1).max(200),
-  ownerPhone: z.string().min(6).max(20),
-  ownerEmail: z.string().email().optional(),
-  titleDeedStatus: z.enum([
-    "separate",
-    "final_approval",
-    "in_process",
-    "pending",
-    "share_of_land",
-    "permits_only",
-    "unknown",
-    "do_not_display",
-  ]),
+  ownerPhone: z.string().min(4).max(40),
+  ownerEmail: optionalEmail(),
+  titleDeedStatus: z
+    .enum([
+      "separate",
+      "final_approval",
+      "in_process",
+      "pending",
+      "share_of_land",
+      "permits_only",
+      "unknown",
+      "do_not_display",
+    ])
+    .optional()
+    .default("unknown"),
   priceNegotiable: z.boolean().optional(),
   isNewBuild: z.boolean().optional(),
   parkingType: z
@@ -81,13 +112,13 @@ export const createPropertyListingSchema = z.object({
     ])
     .optional(),
   priceModifier: z.enum(["no_vat", "plus_vat", "vat_included"]).optional(),
-  registrationNumber: z.string().max(100).optional(),
+  registrationNumber: optionalString(100),
   imageUrls: z
-    .array(z.string().url())
-    .min(1)
-    .max(100, "Maximum 100 images allowed"),
-  floorPlanUrls: z.array(z.string().url()).max(50).optional(),
-  titleDeedFileUrls: z.array(z.string().url()).max(20).optional(),
+    .array(z.string().max(2000))
+    .max(100, "Maximum 100 images allowed")
+    .default([]),
+  floorPlanUrls: z.array(z.string().max(2000)).max(50).optional(),
+  titleDeedFileUrls: z.array(z.string().max(2000)).max(20).optional(),
   titleDeedImageIndices: z
     .array(z.number().int().positive())
     .max(100)
@@ -98,21 +129,22 @@ export const createPropertyListingSchema = z.object({
     .optional(),
   imageOrder: z.array(z.number().int().positive()).max(100).optional(),
   mainPhotoIndex: z.number().int().positive().max(100).optional(),
-  unitBreakdown: z.string().max(5000).optional(),
+  unitBreakdown: optionalString(5000),
   poolType: z.enum(["private", "communal", "provisions"]).optional(),
   features: z.array(z.string().max(100)).max(100).optional(),
-  energyClass: z.string().max(10).optional(),
+  energyClass: optionalString(10),
   yearBuilt: z.number().int().min(1800).max(2100).optional(),
   yearRenovated: z.number().int().min(1800).max(2100).optional(),
-  floor: z.string().max(20).optional(),
+  floor: optionalString(20),
   basementRooms: z.number().int().min(0).max(20).optional(),
   roofRooms: z.number().int().min(0).max(20).optional(),
-  assignTo: z.string().email().optional(),
-  buildingName: z.string().max(200).optional(),
-  specialNotes: z.string().max(10_000).optional(),
-  structureDescription: z.string().max(2000).optional(),
-  areaDescription: z.string().max(5000).optional(),
-  locationUrl: z.string().url().optional(),
+  confirmDuplicate: z.boolean().optional(),
+  assignTo: optionalEmail(),
+  buildingName: optionalString(200),
+  specialNotes: optionalString(10_000),
+  structureDescription: optionalString(2000),
+  areaDescription: optionalString(5000),
+  locationUrl: optionalUrl(),
   coordinates: z
     .object({
       lat: z.number().min(-90).max(90),
@@ -135,25 +167,28 @@ export const createLandListingSchema = z.object({
     .positive()
     .max(10_000_000, "Land size must be under 10,000,000 sqm"),
   ownerName: z.string().min(1).max(200),
-  ownerPhone: z.string().min(6).max(20),
-  ownerEmail: z.string().email().optional(),
-  titleDeedStatus: z.enum([
-    "separate",
-    "final_approval",
-    "in_process",
-    "pending",
-    "share_of_land",
-    "permits_only",
-    "unknown",
-    "do_not_display",
-  ]),
+  ownerPhone: z.string().min(4).max(40),
+  ownerEmail: optionalEmail(),
+  titleDeedStatus: z
+    .enum([
+      "separate",
+      "final_approval",
+      "in_process",
+      "pending",
+      "share_of_land",
+      "permits_only",
+      "unknown",
+      "do_not_display",
+    ])
+    .optional()
+    .default("unknown"),
   priceModifier: z.enum(["no_vat", "plus_vat", "vat_included"]).optional(),
-  registrationNumber: z.string().max(100).optional(),
+  registrationNumber: optionalString(100),
   imageUrls: z
-    .array(z.string().url())
-    .min(1)
-    .max(100, "Maximum 100 images allowed"),
-  titleDeedFileUrls: z.array(z.string().url()).max(20).optional(),
+    .array(z.string().max(2000))
+    .max(100, "Maximum 100 images allowed")
+    .default([]),
+  titleDeedFileUrls: z.array(z.string().max(2000)).max(20).optional(),
   titleDeedImageIndices: z
     .array(z.number().int().positive())
     .max(100)
@@ -168,10 +203,11 @@ export const createLandListingSchema = z.object({
     .optional(),
   infrastructure: z.array(z.string().max(50)).max(20).optional(),
   features: z.array(z.string().max(100)).max(100).optional(),
-  assignTo: z.string().email().optional(),
-  specialNotes: z.string().max(10_000).optional(),
-  areaDescription: z.string().max(5000).optional(),
-  locationUrl: z.string().url().optional(),
+  confirmDuplicate: z.boolean().optional(),
+  assignTo: optionalEmail(),
+  specialNotes: optionalString(10_000),
+  areaDescription: optionalString(5000),
+  locationUrl: optionalUrl(),
   coordinates: z
     .object({
       lat: z.number().min(-90).max(90),
@@ -268,8 +304,8 @@ export const extractFromBazarakiSchema = z.object({
 export const sendEmailSchema = z.object({
   subject: z.string().min(1).max(500),
   body: z.string().min(1).max(10_240, "Email body must be under 10KB"),
-  attachmentUrl: z.string().url().optional(),
-  attachmentName: z.string().max(200).optional(),
+  attachmentUrl: optionalUrl(),
+  attachmentName: optionalString(200),
 });
 
 /**

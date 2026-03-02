@@ -247,6 +247,11 @@ export const TOOLS: ToolDefinition[] = [
             description:
               "Number of rooms on the roof garden (e.g., if agent says '3 bedrooms + 1 room on the roof garden', pass bedrooms=3 and roofRooms=1). These will be shown as '3+1 Bedroom Penthouse' in the title and '3 Bedrooms + 1 Roof Garden Room' in the description. Use for penthouses with extra rooms on the roof level.",
           },
+          confirmDuplicate: {
+            type: "boolean",
+            description:
+              "Set to true when the agent confirms they want to upload a property that was flagged as a potential duplicate. Use this when the agent says 'upload anyway' or confirms re-upload after a duplicate warning.",
+          },
           assignTo: {
             type: "string",
             description:
@@ -431,6 +436,11 @@ export const TOOLS: ToolDefinition[] = [
             items: { type: "string" },
             description:
               "Land features, primarily VIEWS: sea view, mountain view, city view, valley view, panoramic view, etc.",
+          },
+          confirmDuplicate: {
+            type: "boolean",
+            description:
+              "Set to true when the agent confirms they want to upload land that was flagged as a potential duplicate. Use this when the agent says 'upload anyway' or confirms re-upload after a duplicate warning.",
           },
           assignTo: {
             type: "string",

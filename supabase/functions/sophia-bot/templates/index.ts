@@ -5,50 +5,51 @@
  * Import from here instead of individual files.
  */
 
-// Detection exports
+// Registry exports
 export {
-  containsPlaceholders,
-  type DocxTemplateType,
-  detectDocxTemplateType,
-  detectTemplateTypeFromMessage,
-  isClarificationQuestion,
-  isCompletedMarketingAgreement,
-  isCompletedReservationAgreement,
-  isCompletedViewingForm,
-  isConfirmationMessage,
-  shouldSendAsDocx,
-  wasDocxTemplateRequested,
-} from "./detection.ts";
+  TEMPLATE_REGISTRY,
+  TEMPLATE_CATEGORIES,
+  DOCX_TEMPLATE_TITLES,
+  DOCX_TEMPLATE_IDS,
+  getTemplateOutputType,
+  isDocxTemplateId,
+  isDocxTemplateTitle,
+  extractTemplateTitle,
+  findTemplateByAlias,
+  getTemplateById,
+  getTemplatesByOutputType,
+  getDocxTemplates,
+  getTextTemplates,
+  type TemplateOutputType,
+  type TemplateCategory,
+  type TemplateDefinition,
+} from "./registry.ts";
 
 // Field exports
 export {
   FIELD_DEFINITIONS,
-  type FieldDefinition,
-  type FieldType,
-  generateFieldPrompt,
   getFieldDefinition,
-  getMissingFields,
-  getOptionalFields,
-  getRequiredFields,
-  hasAllRequiredFields,
   validateField,
+  generateFieldPrompt,
+  getRequiredFields,
+  getOptionalFields,
+  hasAllRequiredFields,
+  getMissingFields,
+  type FieldType,
+  type FieldDefinition,
 } from "./fields.ts";
-// Registry exports
+
+// Detection exports
 export {
-  DOCX_TEMPLATE_IDS,
-  DOCX_TEMPLATE_TITLES,
-  extractTemplateTitle,
-  findTemplateByAlias,
-  getDocxTemplates,
-  getTemplateById,
-  getTemplateOutputType,
-  getTemplatesByOutputType,
-  getTextTemplates,
-  isDocxTemplateId,
-  isDocxTemplateTitle,
-  TEMPLATE_CATEGORIES,
-  TEMPLATE_REGISTRY,
-  type TemplateCategory,
-  type TemplateDefinition,
-  type TemplateOutputType,
-} from "./registry.ts";
+  isCompletedReservationAgreement,
+  isCompletedViewingForm,
+  isCompletedMarketingAgreement,
+  isClarificationQuestion,
+  isConfirmationMessage,
+  containsPlaceholders,
+  shouldSendAsDocx,
+  detectDocxTemplateType,
+  detectTemplateTypeFromMessage,
+  wasDocxTemplateRequested,
+  type DocxTemplateType,
+} from "./detection.ts";

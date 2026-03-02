@@ -261,6 +261,8 @@ export async function findTitleDeedUuid(status?: string): Promise<string> {
         "title deed",
         "full ownership",
         "has title",
+        "final_approval",
+        "final approval",
       ],
       "title deed": ["title deed", "full ownership", "has title", "available"],
       "not available": [
@@ -279,7 +281,6 @@ export async function findTitleDeedUuid(status?: string): Promise<string> {
         "in process",
         "being issued",
         "in_process",
-        "final approval",
       ],
       "share of land": ["share of land", "shared", "fractional"],
     };

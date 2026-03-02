@@ -34,6 +34,7 @@ import {
 import {
   clearPendingDocuments,
 } from "../../services/pending-documents.ts";
+import { releaseUploadLock } from "../validators/upload-lock.ts";
 
 // Re-export ToolResult for external consumers
 export type { ToolResult };
@@ -61,7 +62,7 @@ export async function handleCreatePropertyListing(
   }
 
   const validated = validationResult as ValidatedFields;
-  const { location, listingType, locationUrl, reviewers, listingOwnerName, potentialDuplicateNote } =
+  const { location, listingType, locationUrl, reviewers, listingOwnerName, potentialDuplicateNote, uploadLockKey } =
     validated;
 
   const agentPhone = agent!.mobile?.replace(/\D/g, "") || "";
@@ -329,8 +330,8 @@ export async function handleCreatePropertyListing(
       {
         reviewer1Uuid: reviewers.reviewer1Uuid,
         reviewer2Uuid: reviewers.reviewer2Uuid,
-        listingOwner: reviewers.reviewer1Uuid, // FIXME: Add to ValidatedFields
-        listingInstructor: reviewers.reviewer1Uuid, // FIXME: Add to ValidatedFields
+        listingOwner: reviewers.listingOwner,
+        listingInstructor: reviewers.listingInstructor,
       },
       listingOwnerName,
       potentialDuplicateNote,
@@ -381,8 +382,8 @@ export async function handleCreatePropertyListing(
       images: validImages.map((img) => img.url),
       reviewer1: reviewers.reviewer1Uuid,
       reviewer2: reviewers.reviewer2Uuid || undefined,
-      listingOwner: reviewers.reviewer1Uuid, // FIXME
-      listingInstructor: reviewers.reviewer1Uuid, // FIXME
+      listingOwner: reviewers.listingOwner,
+      listingInstructor: reviewers.listingInstructor,
       features: effectiveFeatures.length > 0 ? effectiveFeatures : undefined,
       titleDeedStatus: args.titleDeedStatus as string,
       yearBuilt: args.yearBuilt as number | undefined,
@@ -434,8 +435,9 @@ export async function handleCreatePropertyListing(
 
     await clearPendingImages(agentPhone);
     await clearPendingDocuments(agentPhone);
+    await releaseUploadLock(uploadLockKey);
     logger.info(
-      "Cleared pending images and documents after successful upload",
+      "Cleared pending images/documents and released upload lock after successful upload",
       {
         category: LogCategory.IMAGE,
       }
@@ -455,6 +457,7 @@ export async function handleCreatePropertyListing(
       })
     );
   } catch (createError) {
+    await releaseUploadLock(uploadLockKey);
     const err =
       createError instanceof Error
         ? createError
@@ -497,8 +500,8 @@ export async function handleCreatePropertyListing(
   if (documentUrls.length > 0) {
     message += `• Title deed documents: ${documentUrls.length} attached\n`;
   }
-  message += `• Assigned to: ${reviewers.reviewer1Uuid}\n`; // FIXME
-  message += `• Reviewer: ${reviewers.reviewer1Uuid}\n`; // FIXME
+  message += `• Listing Owner: ${listingOwnerName}\n`;
+  message += `• Reviewer: ${reviewers.reviewer1Uuid}\n`;
   message += `\n🔗 **Draft URL:** ${result.listingUrl}\n`;
 
   if (locationUrl) {

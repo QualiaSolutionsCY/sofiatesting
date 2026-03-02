@@ -7,10 +7,10 @@
 
 // Re-export property formatter from shared utility (single source of truth)
 export {
-  COMPLEX_INDICATORS,
-  CYPRUS_AREAS,
-  CYPRUS_DISTRICTS,
   formatPropertyDescription,
+  CYPRUS_DISTRICTS,
+  CYPRUS_AREAS,
+  COMPLEX_INDICATORS,
   PROPERTY_TYPES,
   titleCase,
 } from "../utils/property-formatter.ts";
@@ -43,7 +43,7 @@ export const FONTS = {
   PRIMARY: "Calibri",
   /** Fallback fonts */
   FALLBACK: ["Segoe UI", "Arial", "sans-serif"],
-
+  
   /** Font sizes in half-points (Word uses half-points) */
   SIZES: {
     /** Body text: 12pt = 24 half-points */
@@ -81,9 +81,9 @@ export const SPACING = {
  */
 export const PAGE = {
   /** A4 width */
-  WIDTH: 11_906,
+  WIDTH: 11906,
   /** A4 height */
-  HEIGHT: 16_838,
+  HEIGHT: 16838,
   /** Margins */
   MARGIN: {
     TOP: 1440,
@@ -99,9 +99,9 @@ export const PAGE = {
  */
 export const LOGO = {
   /** Logo width: 200px ≈ 2.08 inches */
-  WIDTH: 1_905_000,
+  WIDTH: 1905000,
   /** Logo height: 60px ≈ 0.625 inches */
-  HEIGHT: 571_500,
+  HEIGHT: 571500,
 } as const;
 
 /**
@@ -111,8 +111,7 @@ export const COMPANY = {
   NAME: "CSC Zyprus Property Group LTD",
   REG_NUMBER: "742",
   LICENSE_NUMBER: "378/E",
-  FULL_REFERENCE:
-    "CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E)",
+  FULL_REFERENCE: "CSC Zyprus Property Group LTD (Reg. No. 742, Lic. No. 378/E)",
 } as const;
 
 /**
@@ -158,9 +157,7 @@ export function isPlaceholder(value: string): boolean {
 /**
  * Generate a signature line string
  */
-export function createSignatureLine(
-  width: number = SIGNATURE.LINE_WIDTH
-): string {
+export function createSignatureLine(width: number = SIGNATURE.LINE_WIDTH): string {
   return SIGNATURE.LINE_CHAR.repeat(width);
 }
 
@@ -168,11 +165,12 @@ export function createSignatureLine(
  * Format a date for documents (DD/MM/YYYY)
  */
 export function formatDate(date: Date = new Date()): string {
-  const day = date.getDate().toString().padStart(2, "0");
-  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const year = date.getFullYear();
   return `${day}/${month}/${year}`;
 }
 
 // Note: formatPropertyDescription and related constants are now imported from ../utils/property-formatter.ts
 // This keeps styles.ts focused on styling while the property formatter logic lives in one place.
+

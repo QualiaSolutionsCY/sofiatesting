@@ -1,46 +1,51 @@
 /**
  * DOCX Templates Index
- *
+ * 
  * Exports all DOCX template creators and parsers.
  */
 
-// Marketing Agreement (Non-Exclusive)
+// Viewing Forms
 export {
-  createBlankMarketingAgreementData,
-  createMarketingAgreement,
-  type MarketingAgreementData,
-  parseMarketingAgreementData,
-} from "./marketing-agreement.ts";
+  createViewingFormSingle,
+  parseViewingFormSingleData,
+  createBlankViewingFormData,
+  type ViewingFormSingleData,
+} from "./viewing-form-single.ts";
+
+export {
+  createViewingFormMultiple,
+  parseViewingFormMultipleData,
+  createBlankViewingFormMultipleData,
+  type ViewingFormMultipleData,
+  type PersonData,
+} from "./viewing-form-multiple.ts";
+
+export {
+  createViewingFormAdvanced,
+  parseViewingFormAdvancedData,
+  createBlankViewingFormAdvancedData,
+  type ViewingFormAdvancedData,
+} from "./viewing-form-advanced.ts";
+
 // Reservation Agreement
 export {
-  type BuyerInfo,
-  createBlankReservationAgreementData,
   createReservationAgreement,
-  type FinancialTerms,
-  type PropertyInfo,
   parseReservationAgreementData,
+  createBlankReservationAgreementData,
   type ReservationAgreementData,
+  type BuyerInfo,
   type VendorInfo,
+  type PropertyInfo,
+  type FinancialTerms,
   ZYPRUS_DEFAULTS,
 } from "./reservation-agreement.ts";
 
+// Marketing Agreement (Non-Exclusive)
 export {
-  createBlankViewingFormAdvancedData,
-  createViewingFormAdvanced,
-  parseViewingFormAdvancedData,
-  type ViewingFormAdvancedData,
-} from "./viewing-form-advanced.ts";
-export {
-  createBlankViewingFormMultipleData,
-  createViewingFormMultiple,
-  type PersonData,
-  parseViewingFormMultipleData,
-  type ViewingFormMultipleData,
-} from "./viewing-form-multiple.ts";
-// Viewing Forms
-export {
-  createBlankViewingFormData,
-  createViewingFormSingle,
-  parseViewingFormSingleData,
-  type ViewingFormSingleData,
-} from "./viewing-form-single.ts";
+  createMarketingAgreement,
+  parseMarketingAgreementData,
+  createBlankMarketingAgreementData,
+  type MarketingAgreementData,
+} from "./marketing-agreement.ts";
+
+

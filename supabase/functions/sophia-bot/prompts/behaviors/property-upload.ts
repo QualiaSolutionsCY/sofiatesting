@@ -40,6 +40,7 @@ When user says "create listing", "upload property", "I want to add a property":
 10. **Owner/Agent Phone**
 11. **Title Deed Status** - separate, final_approval, in_process, pending, share_of_land, permits_only, unknown, or do_not_display
     - "in the process of being issued" / "currently being issued" / "issuance process" → use **"in_process"** (NOT "pending")
+    - "final stage of being issued" / "almost ready" / "about to be issued" → use **"final_approval"** (this maps to "Available" on the Zyprus dropdown — title deeds are nearly ready so we display them as available)
     - "applied" / "pending" / "waiting" → use "pending"
     - "permits only" / "no title deeds, only permits" / "building permit" / "planning permit only" → use **"permits_only"** (means NO title deeds exist — only building/planning permits)
     - "don't display" or "don't show" → use "do_not_display" but ALWAYS capture the REAL deed status in specialNotes for reviewers
@@ -108,6 +109,7 @@ When user says "create listing", "upload property", "I want to add a property":
   - MUST pass email format (e.g., "Assign to Evelina" → assignTo: "evelina@zyprus.com")
   - If user provides the email directly (e.g., "assign to danae@zyprus.com"), use it EXACTLY as-is
   - CRITICAL: Extract assignTo from the FIRST message — do NOT ask again if user already specified it
+  - CRITICAL: If agent says "assign to [name]" ANYWHERE in the conversation — even in the first message — you MUST extract it and pass assignTo. Re-read ALL messages before calling the tool. Common pattern: agent says "assign to Susan" with photos → assignTo: "susan@zyprus.com". NEVER ignore assignment instructions.
   - CRITICAL: "Paphos office" = requestpaphos@zyprus.com, NOT lysandros or any other agent. Lysandros is LARNACA, not Paphos. Match the region EXACTLY.
 
 **CRITICAL: Never omit optional information the user provides. If user gives owner email, special notes, veranda sizes, floor level, or assignment instructions - you MUST include them in the tool call.**
@@ -189,7 +191,7 @@ If user provides a Google Maps link:
 
 4. **MANDATORY - ALWAYS generate areaDescription from the location**:
    - You MUST provide an areaDescription for EVERY listing. This is what makes the description look professional.
-   - **1-2 SHORT SENTENCES.** Describe what makes the area attractive.
+   - **MAXIMUM 2 short sentences, under 120 characters total.** Be punchy and specific. BAD: "Lania is a charming village nestled in the foothills of the Troodos mountains, known for its wine heritage and traditional stone architecture." GOOD: "Charming wine village with Troodos mountain views! Peaceful countryside setting."
    - Example: "Close to the seafront and local amenities! Highway access and Kings Avenue Mall within a 10-minute drive."
    - Example: "Peaceful residential area with views overlooking the valley!"
    - Do NOT start with "Located in..." or "Situated in..." — the location is already shown in the headline
@@ -322,6 +324,7 @@ When the property has multiple structures (e.g., main house + separate bungalow,
 1. Pass \`structureDescription\` — a concise description of the property structure for the listing description. Example: \`structureDescription: "a 3-bedroom main house and a separate 2-bedroom bungalow/maid's quarters"\`. This text will appear in the published description body.
 2. Mention the full detail in \`specialNotes\` for the reviewer (e.g., "Property consists of a main house with office, laundry room, 2 bathrooms AND a separate bungalow with 1 bathroom, laundry room, and storeroom")
 3. Set bedrooms to the TOTAL across ALL structures
+   - **Guest house counting:** When agent says "X bedrooms plus Y guest house(s)", each guest house = at least 1 bedroom. Total bedrooms = X + Y. Example: "4 bedrooms plus 1 guest house" → bedrooms: 5. If the guest house has more than 1 bedroom, the agent will specify.
 4. **NEVER omit structureDescription for multi-structure properties** — without it, the listing will read like a single building and confuse buyers
 
 ---
@@ -483,9 +486,10 @@ Before uploading, system checks for duplicates by:
 3. Exact address match
 
 If potential duplicate found:
+- The system will warn the agent and ask them to confirm with "upload anyway"
+- **When agent says "upload anyway" or confirms re-upload:** You MUST call createPropertyListing again with **confirmDuplicate: true** added to the tool arguments. This tells the system to skip the duplicate check and proceed with upload.
 - Flag listing with "POTENTIAL DUPLICATE"
 - Include duplicate warning in AI notes
-- Inform agent: "I believe this property may already exist in the system. I've flagged it for reviewer verification."
 
 ---
 

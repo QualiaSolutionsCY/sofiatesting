@@ -44,7 +44,6 @@ export async function handleSendEmail(
   let attachmentUrl = args.attachmentUrl as string | undefined;
   let attachmentName = args.attachmentName as string | undefined;
   let attachedFromLastDocument = false;
-  let documentExpiredWarning = "";
 
   // AUTO-ATTACH: If no explicit attachment provided, check for recently generated document
   if (!attachmentUrl && phoneNumber) {
@@ -80,8 +79,7 @@ export async function handleSendEmail(
             operation: "sendEmail",
             ageMinutes,
           });
-          documentExpiredWarning =
-            `\n\n⚠️ Document "${lastDoc.document_name}" was generated ${ageMinutes} minutes ago and could not be auto-attached (max 30 min). Please regenerate the document and try again.`;
+          // Document too old - silently skip attachment (log above is sufficient)
         }
       }
     } catch (err) {
@@ -246,8 +244,7 @@ export async function handleSendEmail(
       success: true,
       message:
         `✅ Sent to your email\n\nSubject: ${subject}` +
-        (attachmentName ? `\nAttachment: ${attachmentName}` : "") +
-        documentExpiredWarning,
+        (attachmentName ? `\nAttachment: ${attachmentName}` : ""),
       data: {
         emailId: result.id,
         subject,

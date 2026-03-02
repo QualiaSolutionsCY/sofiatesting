@@ -59,7 +59,8 @@ supabase secrets set SOPHIA_TELEGRAM_ENABLED=false --project-ref vceeheaxcrhmpqu
 |---------|-------------|----------------|
 | **WhatsApp (sophia-bot)** | OpenRouter -> Gemini | `supabase/functions/sophia-bot/` calls OpenRouter directly |
 
-**Primary Model** (via OpenRouter): `google/gemini-3-flash-preview`, fallback: `google/gemini-2.0-flash`
+**Primary Model** (via OpenRouter): `google/gemini-3.1-flash-preview`, fallback: `google/gemini-2.0-flash`
+
 
 > **⚠️ IGNORE `app/(chat)/`, `app/(auth)/`, and `app/properties/` directories.** The chat frontend is deprecated and unused. The **admin panel** (`app/(admin)/`) is still LIVE. All active development is on the WhatsApp bot in `supabase/functions/sophia-bot/`. Do NOT read, modify, or reference chat-related files.
 

@@ -61,3 +61,12 @@ export async function acquireUploadLock(
 
   return { acquired: true };
 }
+
+/**
+ * Release an upload lock after upload completes (success or failure).
+ * This allows immediate re-upload instead of waiting for expiry.
+ */
+export async function releaseUploadLock(lockKey: string): Promise<void> {
+  const sb = getSupabaseAdmin();
+  await sb.from("upload_locks").delete().eq("fingerprint", lockKey);
+}

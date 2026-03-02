@@ -47,12 +47,12 @@
  * ===========================================
  */
 
-import { APPENDIX } from "./appendix.ts";
-import { CLIENT_COMMS } from "./client-comms.ts";
 import { HEADER } from "./header.ts";
-import { MARKETING } from "./marketing.ts";
 import { REGISTRATIONS } from "./registrations.ts";
 import { VIEWING_FORMS } from "./viewing-forms.ts";
+import { MARKETING } from "./marketing.ts";
+import { CLIENT_COMMS } from "./client-comms.ts";
+import { APPENDIX } from "./appendix.ts";
 
 export const TEMPLATES = `${HEADER}
 ${REGISTRATIONS}

@@ -47,9 +47,15 @@ export interface ValidatedFields {
   listingType: "sale" | "rent";
   locationUrl: string;
   streetName: string;
-  reviewers: { reviewer1Uuid: string; reviewer2Uuid: string | null };
+  reviewers: {
+    reviewer1Uuid: string;
+    reviewer2Uuid: string | null;
+    listingOwner: string;
+    listingInstructor: string;
+  };
   listingOwnerName: string;
   potentialDuplicateNote: string;
+  uploadLockKey: string;
   args: Record<string, unknown>;
 }
 
@@ -100,11 +106,12 @@ export async function validateAndPrepareFields(
   }
 
   // 1.6 Check listing_uploads for recent duplicates — BLOCKS upload if match found within 24 hours
+  // Skip if agent already confirmed duplicate with "upload anyway" (confirmDuplicate=true)
   let potentialDuplicateNote = "";
 
   const sb = getSupabaseAdmin();
 
-  {
+  if (!args.confirmDuplicate) {
     const twentyFourHoursAgo = new Date(
       Date.now() - 24 * 60 * 60 * 1000
     ).toISOString();
@@ -144,6 +151,12 @@ export async function validateAndPrepareFields(
         };
       }
     }
+  } else {
+    logger.info("Duplicate check skipped — agent confirmed upload anyway", {
+      category: LogCategory.TOOL,
+      operation: "validateAndPrepareFields",
+      agentPhone,
+    });
   }
 
   // 2. Validate required fields
@@ -365,9 +378,12 @@ export async function validateAndPrepareFields(
     reviewers: {
       reviewer1Uuid: reviewers.reviewer1,
       reviewer2Uuid: reviewers.reviewer2,
+      listingOwner: reviewers.listingOwner,
+      listingInstructor: reviewers.listingInstructor,
     },
     listingOwnerName,
     potentialDuplicateNote,
+    uploadLockKey: propertyLockKey,
     args,
   };
 }

@@ -203,11 +203,11 @@ export async function classifyImagesWithVision(
       else if (c === "floor_plan") floorPlanIndices.push(i);
     }
 
-    // False-positive guard: if only 1 title deed out of 10+ images, likely a misclassification
-    // Real title deed uploads are typically 1-3 docs out of a handful of images, not 1 out of 15+
-    if (titleDeedIndices.length === 1 && safeUrls.length >= 10) {
+    // False-positive guard: if only 1 title deed out of 25+ images, likely a misclassification
+    // Relaxed from 10 to 25 — the old threshold dropped real title deed photos in normal batches
+    if (titleDeedIndices.length === 1 && safeUrls.length >= 25) {
       logger.info(
-        "Dropping likely false-positive title deed classification (1 out of 10+ images)",
+        "Dropping likely false-positive title deed classification (1 out of 25+ images)",
         {
           category: LogCategory.IMAGE,
           operation: "classifyImages",
