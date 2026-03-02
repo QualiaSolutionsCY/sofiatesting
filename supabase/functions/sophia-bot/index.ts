@@ -19,11 +19,15 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { initSentry } from "../_shared/sentry.ts";
 import { handleAdminRequest } from "./handlers/admin.ts";
 import { handleHealthCheck } from "./handlers/health.ts";
 import { handleWebhook } from "./handlers/webhook.ts";
 import { withContext } from "./utils/context.ts";
 import { ErrorCategory, LogCategory, logger } from "./utils/logger.ts";
+
+// Initialize Sentry for error tracking (OBS-01)
+initSentry();
 
 // Environment variables
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
