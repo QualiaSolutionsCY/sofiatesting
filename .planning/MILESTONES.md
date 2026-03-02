@@ -1,5 +1,33 @@
 # Project Milestones: SOPHIA Production Hardening
 
+## v1.5 Audit Excellence (Shipped: 2026-03-02)
+
+**Delivered:** Production-grade audit excellence — hardcoded secrets removed, all external API calls timeout-protected with circuit breakers, full type safety on WaSend/OpenRouter interfaces, Sentry error tracking integrated, per-agent AI cost monitoring, and 3 monolith files refactored into modular architecture.
+
+**Phases completed:** 21-25 (14 plans total)
+
+**Key accomplishments:**
+
+- Removed hardcoded secrets and added SOPHIA identity protection against disclosure
+- 30-second timeouts + circuit breakers (3-failure/60s-reset) on all external API calls
+- Type-safe interfaces for WaSend webhooks and OpenRouter API — zero `any` types
+- Sentry error tracking with user context, breadcrumbs, and correlation IDs
+- Per-agent AI cost monitoring with token extraction and cost aggregation views
+- 3 monolith files (5,010 LOC combined) split into 12 focused modules + Supabase singleton
+
+**Stats:**
+
+- 81 files changed, +12,331 / -4,435 lines
+- 48 commits
+- 5 phases, 14 plans
+- 1 day (2026-03-02)
+
+**Git range:** `eee3b32` → `8491a36`
+
+**What's next:** TBD — `/gsd:new-milestone` for next milestone planning
+
+---
+
 ## v1.4 Security & Performance Hardening (Shipped: 2026-03-01)
 
 **Delivered:** Complete security hardening — Row Level Security on all 38 database tables, server-only service role key protection, authentication on all server actions, and Zod input validation across all API endpoints.

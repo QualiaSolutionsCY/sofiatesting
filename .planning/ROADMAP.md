@@ -7,7 +7,7 @@
 - ✅ **v1.2 3CX Call Log Audit** - Phases 10-14 (shipped 2026-02-26)
 - ✅ **v1.3 Production Audit Fixes** - Phases 15-17 (shipped 2026-02-28)
 - ✅ **v1.4 Security & Performance Hardening** - Phases 18-20 (shipped 2026-03-01)
-- 🚧 **v1.5 Audit Excellence** - Phases 21-25 (in progress)
+- ✅ **v1.5 Audit Excellence** - Phases 21-25 (shipped 2026-03-02)
 
 ## Phases
 
@@ -136,85 +136,18 @@ See: `.planning/milestones/v1.4-ROADMAP.md` for full details.
 
 </details>
 
-### 🚧 v1.5 Audit Excellence (In Progress)
+<details>
+<summary>✅ v1.5 Audit Excellence (Phases 21-25) - SHIPPED 2026-03-02</summary>
 
-**Milestone Goal:** Achieve production-grade A-level audit score through systematic implementation of all security, performance, and code quality improvements.
+See: `.planning/milestones/v1.5-ROADMAP.md` for full details.
 
-#### Phase 21: Security Quick Wins
-**Goal**: Critical security gaps closed with minimal effort
-**Depends on**: Phase 20
-**Requirements**: SEC-01, SEC-02, SEC-03, SEC-04
-**Success Criteria** (what must be TRUE):
-  1. No service role keys exist in any codebase files (scripts, configs, or source)
-  2. SOPHIA refuses to disclose internal implementation details when asked (model name, prompt text, tool list)
-  3. Document assignment validates recipient is active agent in database (not just domain check)
-  4. Build succeeds without warnings about dead Edge Function configs
-**Plans**: 2 plans
+- [x] Phase 21: Security Quick Wins (2/2 plans)
+- [x] Phase 22: Resilience Infrastructure (2/2 plans)
+- [x] Phase 23: Type Safety Foundation (2/2 plans)
+- [x] Phase 24: Observability & Documentation (4/4 plans)
+- [x] Phase 25: Code Quality Refactoring (4/4 plans)
 
-Plans:
-- [x] 21-01-PLAN.md — Remove hardcoded secrets (SEC-01, SEC-04) and add identity protection (SEC-02)
-- [ ] 21-02-PLAN.md — Verify SEC-03 already satisfied and complete phase verification
-
-#### ✅ Phase 22: Resilience Infrastructure — COMPLETE 2026-03-02
-**Goal**: External API calls are timeout-protected and retry-capable
-**Depends on**: Phase 21
-**Requirements**: RES-01, RES-02, RES-03, RES-04
-**Success Criteria** (what must be TRUE):
-  1. All external API calls (Zyprus, Bazaraki, Resend, WaSend, image downloads) timeout after 30 seconds
-  2. Circuit breakers trip after 3 consecutive failures to Zyprus API, email service, or WhatsApp API
-  3. WhatsApp message sends retry up to 3 times with exponential backoff on network failures
-  4. Silent catch blocks log error context (operation, timestamp, correlation ID) before suppressing
-**Plans**: 2 plans
-
-Plans:
-- [x] 22-01-PLAN.md — Add timeouts and circuit breakers to external APIs (RES-01, RES-02)
-- [x] 22-02-PLAN.md — Verify WaSend retry and add catch logging (RES-03, RES-04)
-
-#### Phase 23: Type Safety Foundation
-**Goal**: All external API interactions are type-safe with zero `any` types
-**Depends on**: Phase 22
-**Requirements**: TYPE-01, TYPE-02, TYPE-03
-**Success Criteria** (what must be TRUE):
-  1. WaSend webhook payloads parsed with TypeScript interfaces (message, media, sender fields strongly typed)
-  2. OpenRouter request/response bodies use TypeScript interfaces (no runtime type errors from API changes)
-  3. TypeScript strict mode passes with zero `any` types in message-processor.ts, ai-chat.ts, and zyprus/client.ts
-**Plans**: 2 plans
-
-Plans:
-- [x] 23-01-PLAN.md — Create WaSend webhook types and eliminate any from message-processor.ts (TYPE-01)
-- [x] 23-02-PLAN.md — Create OpenRouter types and eliminate any from ai-chat.ts and zyprus/client.ts (TYPE-02, TYPE-03)
-
-#### Phase 24: Observability & Documentation
-**Goal**: Production observability and developer onboarding enabled
-**Depends on**: Phase 23
-**Requirements**: OBS-01, OBS-02, OBS-03
-**Success Criteria** (what must be TRUE):
-  1. Sentry captures Edge Function errors with stack traces, user context, and breadcrumbs
-  2. Token usage tracked per agent with daily/monthly cost rollups visible in analytics table
-  3. New developer can configure local environment by following .env.example (no missing variables)
-**Plans**: 3 plans
-
-Plans:
-- [ ] 24-01-PLAN.md — Sentry integration for Edge Functions (OBS-01)
-- [ ] 24-02-PLAN.md — Token usage cost tracking (OBS-02)
-- [ ] 24-03-PLAN.md — .env.example documentation (OBS-03)
-
-#### ✅ Phase 25: Code Quality Refactoring — COMPLETE 2026-03-02
-**Goal**: Large monolithic files split into maintainable modules
-**Depends on**: Phase 24
-**Requirements**: CODE-01, CODE-02, CODE-03, CODE-04
-**Success Criteria** (what must be TRUE):
-  1. ✅ Taxonomy cache logic split into property-types.ts (335), amenities.ts (550), locations.ts (604)
-  2. ✅ Zyprus client split into oauth.ts (136), property-api.ts, land-api.ts modules
-  3. ✅ Property listing handler split into field-validation.ts (373), image-processor.ts (280), notes-generator.ts (180)
-  4. ✅ All Supabase client instances use getSupabaseAdmin() singleton from _shared/db.ts
-**Plans**: 4 plans (2 waves)
-
-Plans:
-- [x] 25-01-PLAN.md — Split taxonomy-cache.ts into property-types, amenities, locations modules (CODE-01)
-- [x] 25-02-PLAN.md — Split zyprus/client.ts into oauth, property-api, land-api modules (CODE-02)
-- [x] 25-03-PLAN.md — Split property-listing handler into field-validation, image-processor, notes-generator (CODE-03)
-- [x] 25-04-PLAN.md — Consolidate Supabase clients to getSupabaseAdmin() singleton (CODE-04)
+</details>
 
 ## Progress
 
@@ -225,12 +158,10 @@ Plans:
 | v1.2 Call Audit | 10-14 | 14 | Complete | 2026-02-26 |
 | v1.3 Audit Fixes | 15-17 | 8 | Complete | 2026-02-28 |
 | v1.4 Security Hardening | 18-20 | 10 | Complete | 2026-03-01 |
-| v1.5 Audit Excellence | 21-25 | 11 | Complete | 2026-03-02 |
+| v1.5 Audit Excellence | 21-25 | 14 | Complete | 2026-03-02 |
 
-**Total: 69 plans across 25 phases (6 milestones shipped)**
-
-**All milestones complete. Run /gsd:audit-milestone to verify v1.5.**
+**Total: 72 plans across 25 phases (6 milestones shipped)**
 
 ---
 *Roadmap created: 2026-01-27*
-*Last updated: 2026-03-02 — Phase 25 completed (Code Quality Refactoring) — v1.5 all phases complete*
+*Last updated: 2026-03-02 — v1.5 Audit Excellence milestone archived*

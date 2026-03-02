@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Agents can trust SOPHIA to do the right thing every time
-**Current focus:** v1.5 Audit Excellence — Phase 25 Complete
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Milestone: v1.5 Audit Excellence
-Phase: 25 of 25 (Code Quality Refactoring)
-Plan: 4 of 4 complete
-Status: Phase complete — deployed to production
-Last activity: 2026-03-02 - Completed Phase 25: Code Quality Refactoring
+Milestone: v1.5 Audit Excellence — SHIPPED
+Phase: 25 of 25 (all complete)
+Plan: Not started (next milestone)
+Status: Ready to plan next milestone
+Last activity: 2026-03-02 — v1.5 milestone archived
 
-Progress: [█████████████████████████] 100% (25 of 25 phases complete)
+Progress: [█████████████████████████] 100% (6 milestones shipped)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 69
+- Total plans completed: 72
 - Total phases shipped: 25
-- Milestones completed: 5 (v1.5 in progress — all phases complete, pending milestone close)
+- Milestones completed: 6
 
 **By Milestone:**
 
@@ -33,65 +33,36 @@ Progress: [███████████████████████
 | v1.2 Call Audit | 10-14 | 14 plans | Shipped 2026-02-26 |
 | v1.3 Audit Fixes | 15-17 | 8 plans | Shipped 2026-02-28 |
 | v1.4 Hardening | 18-20 | 10 plans | Shipped 2026-03-01 |
-| v1.5 Audit Excellence | 21-25 | 11 plans | All phases complete — pending milestone close |
+| v1.5 Audit Excellence | 21-25 | 14 plans | Shipped 2026-03-02 |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting v1.5 and Phase 23:
-- Cowork audit → Claude Code pipeline (External review identifies issues, Claude Code fixes them)
-- Audit tier structure (Tier 1 quick wins → Tier 2 observability → Tier 3 refactoring)
-- 30-second timeout threshold for all external API calls (balances user experience with system protection)
-- Circuit breakers positioned BEFORE retry logic to fail fast when services are persistently degraded
-- Consistent 3-failure threshold and 60s reset timeout across all circuit breakers (matches OpenRouter pattern)
-- Silent catch blocks must log operation context before suppressing errors (use logger.warn for non-critical, logger.error for critical)
-- All catch block logs include operation name, userId/phoneNumber, and error message for debugging
-- WaSend webhook interfaces make all nested fields optional to handle payload structure variations by message type (23-01)
-- WaSend interfaces include alternative field locations to support all fallback extraction patterns (23-01)
-- Created types/openrouter.ts as single source of truth for OpenRouter API schema (23-02)
-- Replaced all any types in ai-chat.ts and zyprus/client.ts error handling with precise interfaces (23-02)
-- Accumulate tokens across all OpenRouter calls (primary, fallback, retries) for accurate per-message cost tracking (24-02)
-- Edge Function deployments batched at Wave 1 completion to minimize production disruptions (24-02)
-- Environment variables organized by category (AI, Database, Auth, Integrations) not alphabetically for better developer comprehension (24-03)
-- Descriptive placeholders (your_*_here) used instead of empty values to prevent accidental deployment with defaults (24-03)
-- Provider dashboard links included inline with environment variables to reduce context switching during setup (24-03)
-- Taxonomy cache split into property-types.ts, amenities.ts, locations.ts modules (25-01)
-- Zyprus client split into oauth.ts, property-api.ts, land-api.ts modules (25-02)
-- Property listing handler split into field-validation.ts, image-processor.ts, notes-generator.ts (25-03)
-- All Supabase client instances consolidated to getSupabaseAdmin() singleton from _shared/db.ts (25-04)
-- Removed redundant supabaseUrl/supabaseKey pass-through parameters across call chain (25-04)
+
 ### Pending Todos
 
-- **CRITICAL:** Rotate production webhook secret (hardcoded secret exposed in repo - see quick-10 SUMMARY)
-- **CRITICAL:** Rotate Supabase service_role key (hardcoded JWT was in git history - see quick-11 SUMMARY)
-- Enable WhatsApp agent identification: uncomment lib/whatsapp/user-mapping.ts lines 22-55, populate agents.whatsapp_phone_number
-- Enable web agent authentication: implement isZyprusAgent() in lib/agents/identifier.ts, populate agents.user_id
-- Database maintenance (manual): VACUUM FULL webhook_debug_logs, REINDEX sophia_memory_embedding_idx (~736 kB to reclaim)
-- Index optimization: Investigate upload_locks/sophia_user_profiles schemas, add composite indexes if needed (17k/12k seq scans)
+- **CRITICAL:** Rotate production webhook secret (hardcoded secret exposed in repo)
+- **CRITICAL:** Rotate Supabase service_role key (hardcoded JWT was in git history)
+- **OPERATIONAL:** Set SENTRY_DSN secret via `supabase secrets set`
+- **OPERATIONAL:** Verify Sentry dashboard captures errors with context
+- **OPERATIONAL:** Sync identity prompt Security Boundaries section to sophia_prompts DB table
+- Enable WhatsApp agent identification
+- Enable web agent authentication
+- Database maintenance (VACUUM FULL, REINDEX)
+- Index optimization (upload_locks, sophia_user_profiles)
 
 ### Blockers/Concerns
 
-- upload_locks and sophia_user_profiles tables exist in DB but not in Drizzle schema (discovered in quick-19) - investigate and add if actively used
-
-### Quick Tasks Completed (Last 5)
-
-| # | Description | Date | Commit |
-|---|-------------|------|--------|
-| 20 | Fix empty bracket placeholders with descriptive field names in templates | 2026-03-02 | 11d536f |
-| 19 | Add 3 missing fields to agents table + database maintenance | 2026-03-01 | 899cfa9 |
-| 18 | Remove 5 phantom PascalCase duplicate tables + migrate to snake_case | 2026-03-01 | c8015ee |
-| 17 | Create 4 missing database tables with RLS policies | 2026-03-01 | 97400f7 |
-| 16 | Repair Supabase migration history + document Drizzle schema cleanup | 2026-03-01 | 9745ad8 |
+- upload_locks and sophia_user_profiles tables exist in DB but not in Drizzle schema
 
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Phase 25 complete — all 4 plans executed, deployed to production (sophia-bot, listing-notifier, draft-cleanup, Vercel)
-Resume file: .planning/phases/25-code-quality-refactoring/
-Next step: Close v1.5 milestone with /gsd:complete-milestone or /gsd:audit-milestone
+Stopped at: v1.5 milestone archived
+Next step: `/gsd:new-milestone` (fresh context window recommended — `/clear` first)
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-03-02 — Phase 25 completed (Code Quality Refactoring) — deployed to production*
+*Last updated: 2026-03-02 — v1.5 Audit Excellence milestone archived*

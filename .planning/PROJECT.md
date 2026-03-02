@@ -8,9 +8,9 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 
 **Agents can trust SOPHIA to do the right thing every time** — correct templates, correct routing, correct uploads, user-friendly errors, no manual intervention needed.
 
-## Current State (v1.4 Shipped)
+## Current State (v1.5 Shipped)
 
-**Shipped:** 2026-03-01
+**Shipped:** 2026-03-02
 
 **Infrastructure:**
 - Supabase Edge Functions: `sophia-bot` (WhatsApp), `call-audit` (3CX audit), `listing-notifier`, `draft-cleanup`
@@ -23,6 +23,11 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 - Server-only service role key protection (build-time enforcement)
 - Auth checks on all server actions + ownership verification
 - Zod input validation on all API routes and server actions
+- 30-second timeouts + circuit breakers on all external API calls
+- Type-safe interfaces for WaSend webhooks and OpenRouter API (zero `any` types)
+- Sentry error tracking with user context and breadcrumbs
+- Per-agent AI cost monitoring with token extraction and cost aggregation views
+- Modular architecture: monolith files split into focused modules + Supabase singleton
 
 **Key capabilities:**
 - WhatsApp AI assistant (SOPHIA) for Zyprus agents
@@ -43,14 +48,9 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 - Deno runtime
 - Next.js web app with Vercel AI SDK
 
-## Current Milestone: v1.5 Audit Excellence
+## Next Milestone
 
-**Goal:** Achieve production-grade A-level audit score through systematic implementation of all security, performance, and code quality improvements.
-
-**Target features:**
-- Tier 1: Critical security fixes (hardcoded keys, timeouts, circuit breakers)
-- Tier 2: Production observability (Sentry integration, identity protection, type safety)
-- Tier 3: Operational excellence (cost tracking, code refactoring, error recovery)
+TBD — Run `/gsd:new-milestone` to define next milestone goals.
 
 ## Requirements
 
@@ -92,12 +92,16 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 - AUTH-01 to AUTH-05: Server-only guards + server action auth checks
 - CODE-01 to CODE-06: Console.log cleanup + Zod validation on all endpoints
 
+**v1.5 (shipped 2026-03-02):**
+- SEC-01 to SEC-04: Security quick wins (hardcoded secrets, identity protection, config cleanup)
+- RES-01 to RES-04: Resilience infrastructure (timeouts, circuit breakers, retry logic, catch logging)
+- TYPE-01 to TYPE-03: Type safety foundation (WaSend/OpenRouter interfaces, zero `any` types)
+- OBS-01 to OBS-03: Observability (Sentry integration, AI cost tracking, .env.example)
+- CODE-01 to CODE-04: Code quality refactoring (3 monolith splits, Supabase singleton)
+
 ### Active
 
-**v1.5 (in progress):**
-- Audit Tier 1: Critical security and reliability fixes
-- Audit Tier 2: Production observability and type safety
-- Audit Tier 3: Operational excellence and code quality
+No active requirements — run `/gsd:new-milestone` to define next milestone.
 
 ### Out of Scope
 
@@ -105,18 +109,17 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 |---------|--------|
 | Per-agent prompt customization | Not needed for 30 agents |
 | Visual prompt builder | DB editing sufficient |
-| Circuit breaker pattern | Retry logic sufficient |
-| External logging services | Supabase dashboard sufficient |
+| External logging services | Supabase dashboard + Sentry sufficient |
 | Real-time dashboards | Manual review sufficient |
 
 ## Context
 
 **Codebase:**
-- 102,088 lines of TypeScript
-- Edge Functions: `sophia-bot/` (~15 files), `call-audit/` (~12 files), `listing-notifier/`, `draft-cleanup/`
+- ~110,000 lines of TypeScript (+12,331 / -4,435 in v1.5)
+- Edge Functions: `sophia-bot/` (~25 files post-refactor), `call-audit/` (~12 files), `listing-notifier/`, `draft-cleanup/`
 - Prompt files: 7 files with DB ownership headers
 - Migrations: 6 SQL files (call tracking, cron, RLS)
-- 58 plans shipped across 5 milestones
+- 72 plans shipped across 6 milestones
 
 **Known issues:**
 - Drizzle schema/DB mismatch: 8 tables defined in schema.ts don't exist in production
@@ -153,6 +156,15 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 | safeParse in API routes, parse in actions | Consistent error handling per context | Good |
 | z.literal(true) for confirmations | Prevents truthy-value bypasses | Good |
 | RLS applied via MCP (not db push) | Migration history mismatch workaround | Revisit |
+| 30s timeout on all external calls | Balances UX with system protection | Good |
+| Circuit breakers before retry | Fail fast when services persistently degraded | Good |
+| 3-failure/60s-reset threshold | Consistent across all circuit breakers | Good |
+| WaSend optional nested fields | Handles payload structure variations by message type | Good |
+| OpenRouter types as single source | types/openrouter.ts for all AI interactions | Good |
+| Token accumulation across calls | Primary + fallback + retries for accurate cost tracking | Good |
+| Env vars organized by category | Better developer comprehension than alphabetical | Good |
+| Monolith splits into focused modules | taxonomy-cache, client, property-listing split into 12 modules | Good |
+| Supabase singleton pattern | getSupabaseAdmin() eliminates redundant clients | Good |
 
 ## Constraints
 
@@ -162,4 +174,4 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 - **Backwards Compatible**: Changes must not break existing functionality
 
 ---
-*Last updated: 2026-03-02 after v1.5 milestone started*
+*Last updated: 2026-03-02 after v1.5 milestone*
