@@ -9,6 +9,10 @@
 
 import type { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import type { Agent } from "../agents/identifier.ts";
+import type {
+  OpenRouterMessage,
+  OpenRouterTool,
+} from "../types/openrouter.ts";
 import { getToolDefinitions } from "../tools/definitions.ts";
 import { executeTool } from "../tools/executor.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
@@ -278,16 +282,11 @@ ${accumulatedImages.map((url, i) => `${i + 1}. ${url}`).join("\n")}
  * Calls OpenRouter API with retry logic for rate limiting
  */
 async function callOpenRouter(
-  messages: Array<{
-    role: string;
-    content: string;
-    tool_calls?: any[];
-    tool_call_id?: string;
-  }>,
-  tools: any[],
+  messages: OpenRouterMessage[],
+  tools: OpenRouterTool[],
   toolChoice: "auto" | "required" = "auto",
   model: string = PRIMARY_MODEL
-): Promise<{ message: any; error?: string }> {
+): Promise<{ message: OpenRouterMessage | null; error?: string }> {
   // Circuit breaker: fail fast if OpenRouter has been consistently failing
   if (!canRequest(OPENROUTER_CIRCUIT)) {
     logger.warn("OpenRouter circuit breaker OPEN — failing fast", {
@@ -412,18 +411,20 @@ export async function chat(
   }
 
   // Convert Gemini history format to OpenRouter format
-  const openrouterMessages: Array<{
-    role: string;
-    content: string;
-    tool_calls?: any[];
-    tool_call_id?: string;
-  }> = [{ role: "system", content: systemPrompt }];
+  const openrouterMessages: OpenRouterMessage[] = [
+    { role: "system", content: systemPrompt },
+  ];
 
   // Convert history: {role, parts: [{text}]} -> {role, content}
   for (const msg of history) {
     const role = msg.role === "model" ? "assistant" : msg.role;
-    const content = msg.parts.map((p: any) => p.text || "").join("");
-    openrouterMessages.push({ role, content });
+    const content = msg.parts
+      .map((p: { text?: string }) => p.text || "")
+      .join("");
+    openrouterMessages.push({
+      role: role as "system" | "user" | "assistant" | "tool",
+      content,
+    });
   }
 
   logger.info(
