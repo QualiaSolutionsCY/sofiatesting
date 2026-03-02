@@ -155,7 +155,7 @@ Plans:
 - [x] 21-01-PLAN.md — Remove hardcoded secrets (SEC-01, SEC-04) and add identity protection (SEC-02)
 - [ ] 21-02-PLAN.md — Verify SEC-03 already satisfied and complete phase verification
 
-#### Phase 22: Resilience Infrastructure
+#### ✅ Phase 22: Resilience Infrastructure — COMPLETE 2026-03-02
 **Goal**: External API calls are timeout-protected and retry-capable
 **Depends on**: Phase 21
 **Requirements**: RES-01, RES-02, RES-03, RES-04
@@ -167,8 +167,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 22-01-PLAN.md — Add timeouts and circuit breakers to external APIs (RES-01, RES-02)
-- [ ] 22-02-PLAN.md — Verify WaSend retry and add catch logging (RES-03, RES-04)
+- [x] 22-01-PLAN.md — Add timeouts and circuit breakers to external APIs (RES-01, RES-02)
+- [x] 22-02-PLAN.md — Verify WaSend retry and add catch logging (RES-03, RES-04)
 
 #### Phase 23: Type Safety Foundation
 **Goal**: All external API interactions are type-safe with zero `any` types
@@ -231,4 +231,5 @@ Plans:
 
 ---
 *Roadmap created: 2026-01-27*
+*Last updated: 2026-03-02 — Phase 22 complete (resilience infrastructure)*
 *Last updated: 2026-03-02 — Phase 23 completed (Type Safety Foundation)*

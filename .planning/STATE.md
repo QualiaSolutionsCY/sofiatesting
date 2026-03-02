@@ -79,10 +79,10 @@ Recent decisions affecting v1.5 and Phase 23:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed Phase 23 (Type Safety Foundation) — all 2 plans executed, verification passed
-Resume file: .planning/phases/23-type-safety-foundation/23-VERIFICATION.md
-Next step: Plan and execute Phase 24 (Observability & Documentation)
+Stopped at: Completed Phase 22 (Resilience Infrastructure) — all 2 plans executed, verification passed
+Resume file: .planning/phases/22-resilience-infrastructure/22-VERIFICATION.md
+Next step: Continue Phase 24 execution (Observability & Documentation)
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-03-02 — Phase 23 completed (Type Safety Foundation)*
+*Last updated: 2026-03-02 — Phase 22 completed (Resilience Infrastructure)*
