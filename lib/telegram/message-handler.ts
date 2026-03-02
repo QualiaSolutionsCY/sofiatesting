@@ -408,7 +408,7 @@ function getQuickResponse(text: string, firstName: string): string | null {
 
   // How are you (using top-level pattern)
   if (HOW_ARE_YOU_PATTERN.test(msg)) {
-    return `I'm great, thanks! Ready to help with Cyprus real estate. What do you need?`;
+    return `I'm great, thanks! What do you need?`;
   }
 
   // Thank you (using top-level pattern)
@@ -418,7 +418,7 @@ function getQuickResponse(text: string, firstName: string): string | null {
 
   // Goodbye (using top-level pattern)
   if (GOODBYE_PATTERN.test(msg)) {
-    return `Goodbye ${firstName}! Come back anytime for property help.`;
+    return `Goodbye ${firstName}! Talk soon.`;
   }
 
   // Can you help / what can you do (using top-level pattern)
@@ -531,21 +531,7 @@ async function handleStartCommand(
   chatId: number,
   firstName: string
 ): Promise<void> {
-  const startText = `Welcome ${firstName}! I'm SOFIA, your Cyprus Real Estate AI Assistant.
-
-I help with:
-- Property tax calculations (VAT, transfer fees, capital gains)
-- Document templates for real estate transactions
-- Cyprus property market information
-
-Quick Start:
-Just type your question naturally, like:
-"Calculate VAT for a €400,000 apartment"
-"Transfer fees for €250,000 property"
-
-Or use /help to see all commands.
-
-How can I assist you today?`;
+  const startText = `Hello ${firstName}! I'm SOPHIA. How can I help you today?`;
 
   await sendTelegramMessage(chatId, startText);
 }

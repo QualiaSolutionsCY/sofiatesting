@@ -13,8 +13,9 @@ import {
   lt,
   type SQL,
 } from "drizzle-orm";
-import type { ArtifactKind } from "@/components/artifact";
-import type { VisibilityType } from "@/components/visibility-selector";
+// Inline types from deleted deprecated components
+type ArtifactKind = "text" | "code" | "image" | "sheet";
+type VisibilityType = "private" | "public";
 import { ChatSDKError } from "../errors";
 import { logger } from "../logger";
 import type { AppUsage } from "../usage";

@@ -526,11 +526,13 @@ export async function chat(
     const toolChoiceForCall =
       isPropertyUploadIntent && toolCallCount === 0 ? "required" : "auto";
 
-    let { message, usage, error } = await callOpenRouter(
+    const openRouterResult = await callOpenRouter(
       currentMessages,
       tools,
       toolChoiceForCall
     );
+    let { message, error } = openRouterResult;
+    const { usage } = openRouterResult;
 
     // Accumulate token usage
     if (usage?.totalTokens) {
