@@ -284,23 +284,30 @@ export interface InvalidImage {
 
 /**
  * Validate that all images are accessible
+ * IMPORTANT: Preserves original array order (parallel checks complete in random order)
  */
 export async function validateImages(
   images: ProcessedImage[]
 ): Promise<{ valid: ProcessedImage[]; invalid: InvalidImage[] }> {
+  // Check all images in parallel but use index to preserve order
+  const results = await Promise.all(
+    images.map(async (img) => {
+      const result = await checkImageAccessibleWithError(img.url);
+      return { img, result };
+    })
+  );
+
   const valid: ProcessedImage[] = [];
   const invalid: InvalidImage[] = [];
 
-  await Promise.all(
-    images.map(async (img) => {
-      const result = await checkImageAccessibleWithError(img.url);
-      if (result.valid) {
-        valid.push(img);
-      } else {
-        invalid.push({ url: img.url, error: result.error });
-      }
-    })
-  );
+  // Iterate in original order (Promise.all preserves index mapping)
+  for (const { img, result } of results) {
+    if (result.valid) {
+      valid.push(img);
+    } else {
+      invalid.push({ url: img.url, error: result.error });
+    }
+  }
 
   return { valid, invalid };
 }

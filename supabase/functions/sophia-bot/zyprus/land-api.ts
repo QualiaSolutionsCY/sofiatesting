@@ -165,7 +165,8 @@ function buildJsonApiPayloadLand(
   reviewerUuids: string[],
   listingOwnerUuid: string,
   infrastructureUuids: string[],
-  viewUuids: string[]
+  viewUuids: string[],
+  titleDeedFileIds: string[] = []
 ): Record<string, unknown> {
   // Generate Own Reference ID for quick reviewer reference
   const ownReferenceId = generateOwnReferenceId(
@@ -278,6 +279,16 @@ function buildJsonApiPayloadLand(
       id,
     })),
   };
+
+  // Title deed files — include in initial POST (same fix as property-api.ts)
+  if (titleDeedFileIds.length > 0) {
+    relationships.field_title_deed_file = {
+      data: titleDeedFileIds.map((id) => ({
+        type: "file--file",
+        id,
+      })),
+    };
+  }
 
   // Infrastructure (electricity, water, etc.)
   if (infrastructureUuids.length > 0) {
@@ -683,7 +694,8 @@ export async function createDraftLandListing(
     reviewerUuids,
     listingOwnerUuid,
     infrastructureUuids,
-    viewUuids
+    viewUuids,
+    titleDeedFileIds
   );
 
   const response = await withRetry(
@@ -750,8 +762,22 @@ export async function createDraftLandListing(
     listingId,
   });
 
-  // Attach title deed files via PATCH if needed
+  // Title deed files: Check if attached via initial POST
+  // Fall back to PATCH only if POST didn't include them
+  let titleDeedAttachedToLand = false;
   if (titleDeedFileIds.length > 0) {
+    const hasRelationship = result.data?.relationships?.field_title_deed_file?.data;
+    if (hasRelationship) {
+      titleDeedAttachedToLand = true;
+      logger.info("Title deed files attached to land listing via initial POST", {
+        category: LogCategory.ZYPRUS,
+        operation: "createDraftLandListing",
+        listingId,
+        fileCount: titleDeedFileIds.length,
+      });
+    }
+  }
+  if (titleDeedFileIds.length > 0 && !titleDeedAttachedToLand) {
     try {
       const patchPayload = {
         data: {

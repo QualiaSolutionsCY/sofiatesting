@@ -184,7 +184,8 @@ function buildJsonApiPayload(
   indoorFeatureUuids: string[],
   outdoorFeatureUuids: string[],
   viewUuids: string[],
-  floorPlanFileIds: string[] = []
+  floorPlanFileIds: string[] = [],
+  titleDeedFileIds: string[] = []
 ): Record<string, unknown> {
   // Generate Own Reference ID for quick reviewer reference
   // Format: Owner - {Agent Name} - {Seller Name} - {Seller Phone} - {Email}
@@ -373,9 +374,18 @@ function buildJsonApiPayload(
     };
   }
 
-  // NOTE: field_title_deed_file is NOT included in the initial POST payload.
-  // The service account does not have permission to POST this field (403).
-  // Title deed files are attached via PATCH after listing creation instead.
+  // Title deed files — include in initial POST (same pattern as floor plans).
+  // Previously excluded and attached via PATCH, but PATCH returns 403.
+  // Including in initial POST may succeed since node creation has different permissions.
+  // PATCH fallback still exists in createDraftListing() if this doesn't work.
+  if (titleDeedFileIds.length > 0) {
+    relationships.field_title_deed_file = {
+      data: titleDeedFileIds.map((id) => ({
+        type: "file--file",
+        id,
+      })),
+    };
+  }
 
   // Indoor features (AC, heating, etc.)
   // Note: field is field_indoor_property_features but references taxonomy_term--indoor_property_views
@@ -965,7 +975,8 @@ export async function createDraftListing(
     indoorFeatureUuids,
     outdoorFeatureUuids,
     viewUuids,
-    floorPlanFileIds
+    floorPlanFileIds,
+    titleDeedFileIds
   );
 
   const response = await withRetry(
@@ -1036,10 +1047,32 @@ export async function createDraftListing(
     listingId,
   });
 
-  // Attach title deed files via PATCH (cannot be included in initial POST due to 403)
-  // BUG FIX: Added retry logic — title deeds were silently failing to attach
-  let titleDeedAttached = false;
+  // Title deed files: Check if they were included in the initial POST payload.
+  // If the POST succeeded with title deeds in relationships, they're already attached.
+  // The PATCH fallback only runs if we need to retry attachment separately.
+  let titleDeedAttached = titleDeedFileIds.length > 0; // Assume attached via POST
   if (titleDeedFileIds.length > 0) {
+    // Verify attachment by checking if the POST response includes the relationship
+    // If not present, fall back to PATCH
+    const hasRelationship = result.data?.relationships?.field_title_deed_file?.data;
+    if (hasRelationship) {
+      logger.info("Title deed files attached via initial POST", {
+        category: LogCategory.ZYPRUS,
+        operation: "createDraftListing",
+        listingId,
+        fileCount: titleDeedFileIds.length,
+      });
+    } else {
+      // POST didn't include title deeds (possibly 403 on that field) — fall back to PATCH
+      titleDeedAttached = false;
+      logger.warn("Title deed files NOT in POST response — falling back to PATCH", {
+        category: LogCategory.ZYPRUS,
+        operation: "patchTitleDeedFiles",
+        listingId,
+      });
+    }
+  }
+  if (titleDeedFileIds.length > 0 && !titleDeedAttached) {
     const patchPayload = {
       data: {
         type: "node--property",
