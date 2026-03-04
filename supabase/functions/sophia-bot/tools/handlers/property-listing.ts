@@ -318,6 +318,74 @@ export async function handleCreatePropertyListing(
     });
   }
 
+  // Step 9f: Auto-inject parking feature based on parkingType
+  // BUG FIX: parkingType was going to description text but NOT to Zyprus feature checkboxes
+  const parkingTypeArg = args.parkingType as string | undefined;
+  if (parkingTypeArg && parkingTypeArg !== "none") {
+    const parkingFeatureMap: Record<string, string> = {
+      garage: "single garage",
+      covered: "covered parking",
+      open: "uncovered parking",
+      carport: "carport",
+    };
+    const parkingFeature = parkingFeatureMap[parkingTypeArg];
+    if (parkingFeature) {
+      const hasParkingFeature = effectiveFeatures.some((f) => {
+        const lower = f.toLowerCase();
+        return (
+          lower.includes("parking") ||
+          lower.includes("garage") ||
+          lower.includes("carport")
+        );
+      });
+      if (!hasParkingFeature) {
+        effectiveFeatures.push(parkingFeature);
+        logger.info("Auto-injected parking feature based on parkingType", {
+          category: LogCategory.TOOL,
+          operation: "createPropertyListing",
+          parkingType: parkingTypeArg,
+          feature: parkingFeature,
+        });
+      }
+    }
+  }
+
+  // Step 9g: Auto-inject implied features for 4+ bedroom houses
+  // BUG FIX: description-generator adds "Office/Playroom" text for large properties
+  // but it wasn't being added to the Zyprus feature checkboxes
+  const totalBeds =
+    (args.bedrooms as number) +
+    ((args.basementRooms as number) || 0) +
+    ((args.roofRooms as number) || 0);
+  if (totalBeds >= 4) {
+    const typeLower = propertyTypeLower;
+    const isHouseType =
+      typeLower.includes("house") ||
+      typeLower.includes("villa") ||
+      typeLower.includes("bungalow") ||
+      typeLower.includes("detached") ||
+      typeLower.includes("townhouse");
+    if (isHouseType) {
+      const allFeaturesLower = effectiveFeatures
+        .map((f) => f.toLowerCase())
+        .join(" ");
+      if (
+        !allFeaturesLower.includes("office") &&
+        !allFeaturesLower.includes("playroom")
+      ) {
+        effectiveFeatures.push("playroom");
+        logger.info(
+          "Auto-injected 'playroom' for 4+ bedroom house (implied feature)",
+          {
+            category: LogCategory.TOOL,
+            operation: "createPropertyListing",
+            totalBedrooms: totalBeds,
+          }
+        );
+      }
+    }
+  }
+
   // Step 10-12: Generate content
   const { description, myNotes, aiAssistantNotes } =
     await generateListingContent(
@@ -498,7 +566,11 @@ export async function handleCreatePropertyListing(
   message += `• Type: For ${listingType}\n`;
   message += `• Images: ${validImages.length} uploaded\n`;
   if (documentUrls.length > 0) {
-    message += `• Title deed documents: ${documentUrls.length} attached\n`;
+    if (result.titleDeedAttached === false) {
+      message += `• Title deed documents: ${documentUrls.length} uploaded but ⚠️ FAILED to attach to listing — please add manually\n`;
+    } else {
+      message += `• Title deed documents: ${documentUrls.length} attached\n`;
+    }
   }
   message += `• Listing Owner: ${listingOwnerName}\n`;
   message += `• Reviewer: ${reviewers.reviewer1Uuid}\n`;

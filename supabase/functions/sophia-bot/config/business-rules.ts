@@ -144,7 +144,8 @@ export const REGION_LOCATIONS: Record<string, string[]> = {
   larnaca: [
     "larnaca", "larnaka", "oroklini", "pervolia", "livadia", "dekelia", "dhekelia",
     "kamares", "aradippou", "meneou", "dromolaxia", "kiti", "tersefanou", "perivolia",
-    "chrysopolitissa", "pyla"
+    "chrysopolitissa", "pyla", "mosfiloti", "mosfilioti", "softades", "kivisili",
+    "anglisides", "alethriko", "klavdia", "mazotos", "psematismenos"
   ],
   nicosia: [
     "nicosia", "lefkosia", "strovolos", "lakatamia", "engomi", "aglantzia",
@@ -225,6 +226,10 @@ export const DEFAULT_COORDINATES: Record<string, { lat: number; lon: number }> =
   "aradippou": { lat: 34.9500, lon: 33.5833 },
   "meneou": { lat: 34.8517, lon: 33.5833 },
   "kiti": { lat: 34.8500, lon: 33.5667 },
+  "mosfiloti": { lat: 34.9000, lon: 33.4500 },
+  "mosfilioti": { lat: 34.9000, lon: 33.4500 },
+  "tersefanou": { lat: 34.8667, lon: 33.5500 },
+  "softades": { lat: 34.8833, lon: 33.4333 },
   // Nicosia district
   "strovolos": { lat: 35.1367, lon: 33.3353 },
   "engomi": { lat: 35.1600, lon: 33.3517 },
@@ -335,7 +340,7 @@ export const OUTDOOR_FEATURE_ALIASES: Record<string, string[]> = {
   "photovoltaic system": ["pv system", "photovoltaic", "pv panels", "solar panels"],
   "solar system": ["solar water heater", "solar panels", "solar"],
   "double garage": ["2 car garage", "two car garage"],
-  "single garage": ["1 car garage", "one car garage", "garage"],
+  "single garage": ["1 car garage", "one car garage", "garage", "garage parking"],
   "irrigation system": ["irrigation", "sprinkler system", "sprinklers"],
   "barbecue area": ["bbq", "bbq area", "barbecue", "barbeque"],
   "electric shutters": ["electric blinds", "motorized shutters"],
@@ -349,7 +354,7 @@ export const INDOOR_FEATURE_ALIASES: Record<string, string[]> = {
   "provision for central heating": ["provisions for central heating", "provision for heating", "provision for electric central heating", "provisions for heating"],
   "underfloor heating": ["under floor heating", "floor heating", "radiant floor", "heated floors", "ufh"],
   "fitted kitchen": ["built-in kitchen", "modern kitchen"],
-  "covered parking": ["indoor parking", "garage parking"],
+  "covered parking": ["indoor parking"],
   "guest toilet": ["guest wc", "powder room", "guest bathroom", "second bathroom", "2nd bathroom"],
   "electrical appliances": ["appliances", "white goods"],
   "fly screens": ["flyscreen", "fly screen", "insect screens", "mosquito screens"],
@@ -357,6 +362,9 @@ export const INDOOR_FEATURE_ALIASES: Record<string, string[]> = {
   "open-plan": ["open plan", "openplan", "open layout"],
   "utility room": ["laundry room", "laundry", "storage room", "storeroom", "store room"],
   "master bed": ["master bedroom", "master suite", "en-suite", "ensuite"],
+  "jacuzzi": ["jacuzzi tub", "whirlpool bath", "spa bath", "hot tub"],
+  "fireplace": ["wood burning fireplace", "wood fireplace", "fire place"],
+  "playroom": ["play room", "games room", "game room"],
 };
 
 // =============================================================================

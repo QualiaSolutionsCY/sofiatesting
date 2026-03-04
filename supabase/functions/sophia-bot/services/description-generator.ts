@@ -163,6 +163,10 @@ const LOCATION_DESCRIPTIONS: Record<string, string> = {
     "Aradippou is an affordable residential area just 10 minutes to Larnaca center with good local amenities.",
   kamares:
     "Kamares is an upscale area with sea views, just 5-10 minutes to Larnaca center and the beach.",
+  mosfiloti:
+    "Mosfiloti is a peaceful residential village with easy access to the Larnaca-Nicosia highway, just 20 minutes from both city centers.",
+  mosfilioti:
+    "Mosfiloti is a peaceful residential village with easy access to the Larnaca-Nicosia highway, just 20 minutes from both city centers.",
 
   // Nicosia - focused on access to Nicosia center/amenities
   nicosia:
@@ -1219,6 +1223,23 @@ function parseUserAreaDescription(
       .replace(/[.!]*$/, "") // Remove trailing punctuation
       .trim();
 
+    // Strip redundant location name mentions from mid-sentence
+    // e.g., "Peaceful residential area in Mosfiloti with highway access" →
+    //        "Peaceful residential area with highway access"
+    // The location name is already in the headline, so repeating it is redundant
+    if (locationParts.length > 0) {
+      for (const lp of locationParts) {
+        // Remove patterns like "in Mosfiloti", "of Mosfiloti", "in the Mosfiloti area"
+        const locationPattern = new RegExp(
+          `\\s+(in|of|at|near)\\s+(the\\s+)?(${lp})(\\s+area)?`,
+          "gi"
+        );
+        sentence = sentence.replace(locationPattern, "");
+      }
+      // Clean up any double spaces left after removal
+      sentence = sentence.replace(/\s{2,}/g, " ").trim();
+    }
+
     // Truncate long sentences to keep description mobile-friendly
     if (sentence.length > 120) {
       // Cut at last comma or space before 120 chars
@@ -1394,6 +1415,14 @@ function getGenericLocationSentences(location: string): string[] {
     kiti: [
       "Located in a charming and peaceful community near the coast",
       "Many amenities are nearby, with the airport and Larnaca city center only minutes away!",
+    ],
+    mosfiloti: [
+      "Situated within a peaceful and attractive neighborhood",
+      "It offers easy access to the Larnaca-Nicosia highway!",
+    ],
+    mosfilioti: [
+      "Situated within a peaceful and attractive neighborhood",
+      "It offers easy access to the Larnaca-Nicosia highway!",
     ],
     kamares: [
       "Located in a sought-after hillside community with stunning panoramic views",

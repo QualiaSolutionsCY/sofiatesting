@@ -66,6 +66,7 @@ export interface ListingData {
 export interface CreateResult {
   listingId: string;
   listingUrl: string;
+  titleDeedAttached?: boolean;
 }
 
 /**
@@ -1036,73 +1037,114 @@ export async function createDraftListing(
   });
 
   // Attach title deed files via PATCH (cannot be included in initial POST due to 403)
+  // BUG FIX: Added retry logic — title deeds were silently failing to attach
+  let titleDeedAttached = false;
   if (titleDeedFileIds.length > 0) {
-    try {
-      const patchPayload = {
-        data: {
-          type: "node--property",
-          id: listingId,
-          relationships: {
-            field_title_deed_file: {
-              data: titleDeedFileIds.map((id) => ({
-                type: "file--file",
-                id,
-              })),
-            },
+    const patchPayload = {
+      data: {
+        type: "node--property",
+        id: listingId,
+        relationships: {
+          field_title_deed_file: {
+            data: titleDeedFileIds.map((id) => ({
+              type: "file--file",
+              id,
+            })),
           },
         },
-      };
-      const patchRes = await fetch(
-        `${config.apiUrl}/jsonapi/node/property/${listingId}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/vnd.api+json",
-            Accept: "application/vnd.api+json",
-            "User-Agent": "SophiaAI",
-          },
-          body: JSON.stringify(patchPayload),
-          signal: AbortSignal.timeout(30_000),
+      },
+    };
+
+    // Retry up to 3 times with increasing delay
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const patchRes = await fetch(
+          `${config.apiUrl}/jsonapi/node/property/${listingId}`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/vnd.api+json",
+              Accept: "application/vnd.api+json",
+              "User-Agent": "SophiaAI",
+            },
+            body: JSON.stringify(patchPayload),
+            signal: AbortSignal.timeout(30_000),
+          }
+        );
+        if (patchRes.ok) {
+          titleDeedAttached = true;
+          logger.info("Title deed files attached to listing via PATCH", {
+            category: LogCategory.ZYPRUS,
+            operation: "patchTitleDeedFiles",
+            listingId,
+            fileCount: titleDeedFileIds.length,
+            attempt,
+          });
+          break;
+        } else {
+          let patchErrorBody = "";
+          try {
+            patchErrorBody = await patchRes.text();
+          } catch {
+            /* ignore */
+          }
+          logger.error(
+            `Title deed PATCH failed (attempt ${attempt}/3)`,
+            undefined,
+            {
+              category: LogCategory.ZYPRUS,
+              operation: "patchTitleDeedFiles",
+              listingId,
+              status: patchRes.status,
+              errorBody: patchErrorBody.substring(0, 500),
+              attempt,
+            }
+          );
+          // Only retry on 5xx errors
+          if (patchRes.status < 500 && attempt < 3) {
+            // 4xx error — likely permissions. Try without delay.
+            continue;
+          }
         }
-      );
-      if (patchRes.ok) {
-        logger.info("Title deed files attached to listing via PATCH", {
-          category: LogCategory.ZYPRUS,
-          operation: "patchTitleDeedFiles",
-          listingId,
-          fileCount: titleDeedFileIds.length,
-        });
-      } else {
-        let patchErrorBody = "";
-        try {
-          patchErrorBody = await patchRes.text();
-        } catch {
-          /* ignore */
-        }
-        logger.warn(
-          "Could not attach title deed files to listing (non-blocking)",
+      } catch (patchError) {
+        logger.error(
+          `Title deed PATCH exception (attempt ${attempt}/3)`,
+          patchError instanceof Error
+            ? patchError
+            : new Error(String(patchError)),
           {
             category: LogCategory.ZYPRUS,
             operation: "patchTitleDeedFiles",
             listingId,
-            status: patchRes.status,
-            errorBody: patchErrorBody.substring(0, 500),
+            attempt,
           }
         );
       }
-    } catch (patchError) {
-      logger.warn("Failed to PATCH title deed files (non-blocking)", {
-        category: LogCategory.ZYPRUS,
-        operation: "patchTitleDeedFiles",
-        listingId,
-      });
+      // Wait before retry (500ms, 1s, 2s)
+      if (attempt < 3) {
+        await new Promise((r) => setTimeout(r, 500 * attempt));
+      }
+    }
+
+    if (!titleDeedAttached) {
+      logger.error(
+        "CRITICAL: Title deed files could NOT be attached after 3 attempts",
+        undefined,
+        {
+          category: LogCategory.ZYPRUS,
+          operation: "patchTitleDeedFiles",
+          listingId,
+          fileCount: titleDeedFileIds.length,
+        }
+      );
     }
   }
 
   return {
     listingId,
     listingUrl: `${config.siteUrl}/property/${listingId}`,
+    titleDeedAttached: titleDeedFileIds.length > 0 ? titleDeedAttached : undefined,
   };
 }
 
