@@ -13,7 +13,7 @@ Milestone: v1.5 Audit Excellence — SHIPPED
 Phase: 25 of 25 (all complete)
 Plan: Not started (next milestone)
 Status: Ready to plan next milestone
-Last activity: 2026-03-02 — v1.5 milestone archived
+Last activity: 2026-03-04 — Completed quick task 21: Fix title deed attachment + image ordering
 
 Progress: [█████████████████████████] 100% (6 milestones shipped)
 
@@ -57,11 +57,17 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 - upload_locks and sophia_user_profiles tables exist in DB but not in Drizzle schema
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 21 | Fix title deed attachment failure + image ordering bug | 2026-03-04 | 119266d | [21-fix-title-deed-patch-attachment-failure-](./quick/21-fix-title-deed-patch-attachment-failure-/) |
+
 ## Session Continuity
 
 Last session: 2026-03-02
 Stopped at: v1.5 milestone archived
-Next step: `/gsd:new-milestone` (fresh context window recommended — `/clear` first)
+Next step: `/qualia:new-milestone` (fresh context window recommended — `/clear` first)
 
 ---
 *STATE.md initialized: 2026-02-26*
