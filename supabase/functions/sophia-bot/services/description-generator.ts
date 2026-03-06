@@ -1693,19 +1693,12 @@ export function generateLandDescription(details: LandDetails): string {
     }
   }
 
-  // Area description (if provided by agent)
+  // No auto-generated area description for land — the opening lines + building regs
+  // already cover everything. Agent-provided areaDescription is kept only if it adds
+  // genuinely new info (e.g., "next to a green area", "borders with Agios Athanasios").
   if (details.areaDescription) {
     lines.push("");
     lines.push(details.areaDescription);
-  } else {
-    const locationLower = details.location.toLowerCase();
-    const areaKey = Object.keys(LOCATION_DESCRIPTIONS).find((key) =>
-      locationLower.includes(key)
-    );
-    if (areaKey) {
-      lines.push("");
-      lines.push(LOCATION_DESCRIPTIONS[areaKey]);
-    }
   }
 
   // NO title deed mention in land descriptions (Zyprus rule: never mention deeds for land)
