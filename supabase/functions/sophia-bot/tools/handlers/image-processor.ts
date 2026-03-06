@@ -4,7 +4,11 @@
  * title deed image splitting, floor plan processing, photo reordering, pending documents retrieval
  */
 
-import { classifyImagesWithVision } from "../../services/image-classifier.ts";
+import {
+  classifyImagesWithVision,
+  type RoomType,
+  ROOM_TYPE_ORDER,
+} from "../../services/image-classifier.ts";
 import {
   clearPendingDocuments,
   getPendingDocuments,
@@ -114,19 +118,19 @@ export async function processListingImages(
     });
   }
 
-  // 7a.0 AI Vision classification — auto-detect title deeds and floor plans
-  // Only runs if agent didn't already identify them explicitly
+  // 7a.0 AI Vision classification — detect title deeds, floor plans, AND room types
+  // ALWAYS runs to enable mandatory photo ordering by room type
   let titleDeedImageIndices = (args.titleDeedImageIndices as number[]) || [];
   let floorPlanImageIndicesFromArgs =
     (args.floorPlanImageIndices as number[]) || [];
-  if (
-    titleDeedImageIndices.length === 0 &&
-    floorPlanImageIndicesFromArgs.length === 0 &&
-    imageUrls.length >= 2
-  ) {
+  let visionRoomTypes: (RoomType | "title_deed" | "floor_plan")[] = [];
+
+  if (imageUrls.length >= 2) {
     const visionResult = await classifyImagesWithVision(imageUrls);
-    if (visionResult.titleDeedIndices.length > 0) {
-      // Convert 0-based to 1-based for existing split logic
+    visionRoomTypes = visionResult.roomTypes;
+
+    // Use vision-detected title deeds if agent didn't specify
+    if (titleDeedImageIndices.length === 0 && visionResult.titleDeedIndices.length > 0) {
       titleDeedImageIndices = visionResult.titleDeedIndices.map((i) => i + 1);
       logger.info("Vision auto-detected title deed images", {
         category: LogCategory.IMAGE,
@@ -134,7 +138,8 @@ export async function processListingImages(
         indices: titleDeedImageIndices,
       });
     }
-    if (visionResult.floorPlanIndices.length > 0) {
+    // Use vision-detected floor plans if agent didn't specify
+    if (floorPlanImageIndicesFromArgs.length === 0 && visionResult.floorPlanIndices.length > 0) {
       floorPlanImageIndicesFromArgs = visionResult.floorPlanIndices.map(
         (i) => i + 1
       );
@@ -155,7 +160,10 @@ export async function processListingImages(
         .filter((i) => i >= 0 && i < imageUrls.length)
     );
     titleDeedImageUrls = imageUrls.filter((_, idx) => validIndices.has(idx));
-    imageUrls = imageUrls.filter((_, idx) => !validIndices.has(idx));
+    // Remove title deeds from imageUrls AND from visionRoomTypes (keep indices aligned)
+    const keepMask = imageUrls.map((_, idx) => !validIndices.has(idx));
+    imageUrls = imageUrls.filter((_, idx) => keepMask[idx]);
+    visionRoomTypes = visionRoomTypes.filter((_, idx) => keepMask[idx]);
     logger.info("Split title deed images from gallery", {
       category: LogCategory.IMAGE,
       operation: "processListingImages",
@@ -166,7 +174,6 @@ export async function processListingImages(
   }
 
   // 7a.2 Floor plan images: move to END of gallery AND add to floorPlanUrls
-  // Floor plans appear as last photos in the gallery AND in the dedicated floor plans section
   const floorPlanImageIndices = floorPlanImageIndicesFromArgs;
   let floorPlanImageUrls: string[] = [];
   if (floorPlanImageIndices.length > 0 && imageUrls.length > 0) {
@@ -178,11 +185,15 @@ export async function processListingImages(
     floorPlanImageUrls = imageUrls.filter((_, idx) =>
       validFloorPlanIndices.has(idx)
     );
-    // Move floor plans to end of gallery (not removed - they stay in gallery as last photos)
     const nonFloorPlan = imageUrls.filter(
       (_, idx) => !validFloorPlanIndices.has(idx)
     );
+    const nonFloorPlanRoomTypes = visionRoomTypes.filter(
+      (_, idx) => !validFloorPlanIndices.has(idx)
+    );
+    // Floor plans go to end of gallery
     imageUrls = [...nonFloorPlan, ...floorPlanImageUrls];
+    visionRoomTypes = [...nonFloorPlanRoomTypes, ...floorPlanImageUrls.map(() => "floor_plan" as const)];
     logger.info(
       "Floor plans moved to end of gallery and added to floor plan section",
       {
@@ -195,13 +206,48 @@ export async function processListingImages(
     );
   }
 
-  // 7a.3 Apply agent-specified photo ordering (if provided)
+  // 7a.3 MANDATORY auto-sort by room type (vision classification)
+  // This ensures the correct order on ALL uploads: exterior → pool → garden → living → kitchen → bedrooms → bathrooms → floor plans
   const imageOrder = (args.imageOrder as number[]) || [];
-  if (imageOrder.length > 0 && imageUrls.length > 0) {
+  const hasAgentOrdering = imageOrder.length > 0 || !!args.mainPhotoIndex;
+
+  if (visionRoomTypes.length === imageUrls.length && visionRoomTypes.length > 0 && !hasAgentOrdering) {
+    // Build paired array of [url, roomType] for sorting
+    const paired = imageUrls.map((url, i) => ({
+      url,
+      roomType: visionRoomTypes[i],
+      originalIndex: i,
+    }));
+
+    // Separate floor plans (keep at end) from sortable photos
+    const floorPlanPairs = paired.filter((p) => p.roomType === "floor_plan");
+    const sortablePairs = paired.filter((p) => p.roomType !== "floor_plan");
+
+    // Sort by room type priority
+    sortablePairs.sort((a, b) => {
+      const orderA = ROOM_TYPE_ORDER[a.roomType as RoomType] ?? 10;
+      const orderB = ROOM_TYPE_ORDER[b.roomType as RoomType] ?? 10;
+      if (orderA !== orderB) return orderA - orderB;
+      // Stable sort: preserve original order within same category
+      return a.originalIndex - b.originalIndex;
+    });
+
+    const sorted = [...sortablePairs, ...floorPlanPairs];
+    imageUrls = sorted.map((p) => p.url);
+    visionRoomTypes = sorted.map((p) => p.roomType);
+
+    logger.info("Photos auto-sorted by AI vision room classification", {
+      category: LogCategory.IMAGE,
+      operation: "processListingImages",
+      order: sorted.map((p) => p.roomType),
+      totalImages: imageUrls.length,
+    });
+  } else if (imageOrder.length > 0 && imageUrls.length > 0) {
+    // Agent-specified full ordering overrides auto-sort
     const reordered: string[] = [];
     const usedIndices = new Set<number>();
     for (const idx of imageOrder) {
-      const zeroIdx = idx - 1; // Convert 1-based to 0-based
+      const zeroIdx = idx - 1;
       if (
         zeroIdx >= 0 &&
         zeroIdx < imageUrls.length &&
@@ -211,26 +257,48 @@ export async function processListingImages(
         usedIndices.add(zeroIdx);
       }
     }
-    // Append any images not included in the ordering (don't lose photos)
     for (let i = 0; i < imageUrls.length; i++) {
       if (!usedIndices.has(i)) {
         reordered.push(imageUrls[i]);
       }
     }
     imageUrls = reordered;
-    logger.info("Photos reordered per agent classification", {
+    logger.info("Photos reordered per agent-specified imageOrder (overrides auto-sort)", {
       category: LogCategory.IMAGE,
       operation: "processListingImages",
       orderProvided: imageOrder.length,
       totalImages: imageUrls.length,
     });
   } else if (args.mainPhotoIndex && imageUrls.length > 0) {
-    // Simpler alternative: just move one photo to the front
-    const mainIdx = (args.mainPhotoIndex as number) - 1; // Convert 1-based to 0-based
+    // mainPhotoIndex: move one photo to front, then auto-sort the rest
+    const mainIdx = (args.mainPhotoIndex as number) - 1;
     if (mainIdx >= 0 && mainIdx < imageUrls.length) {
       const mainPhoto = imageUrls[mainIdx];
-      imageUrls = [mainPhoto, ...imageUrls.filter((_, i) => i !== mainIdx)];
-      logger.info("Main photo moved to first position", {
+      const rest = imageUrls.filter((_, i) => i !== mainIdx);
+      const restRoomTypes = visionRoomTypes.filter((_, i) => i !== mainIdx);
+
+      // Auto-sort the remaining photos by room type if we have classifications
+      if (restRoomTypes.length === rest.length && restRoomTypes.length > 0) {
+        const paired = rest.map((url, i) => ({
+          url,
+          roomType: restRoomTypes[i],
+          originalIndex: i,
+        }));
+        const floorPlanPairs = paired.filter((p) => p.roomType === "floor_plan");
+        const sortablePairs = paired.filter((p) => p.roomType !== "floor_plan");
+        sortablePairs.sort((a, b) => {
+          const orderA = ROOM_TYPE_ORDER[a.roomType as RoomType] ?? 10;
+          const orderB = ROOM_TYPE_ORDER[b.roomType as RoomType] ?? 10;
+          if (orderA !== orderB) return orderA - orderB;
+          return a.originalIndex - b.originalIndex;
+        });
+        const sorted = [...sortablePairs, ...floorPlanPairs];
+        imageUrls = [mainPhoto, ...sorted.map((p) => p.url)];
+      } else {
+        imageUrls = [mainPhoto, ...rest];
+      }
+
+      logger.info("Main photo moved to first + remaining auto-sorted by room type", {
         category: LogCategory.IMAGE,
         operation: "processListingImages",
         mainPhotoIndex: args.mainPhotoIndex,

@@ -131,7 +131,9 @@ export const REGION_LOCATIONS: Record<string, string[]> = {
     "paphos", "pafos", "tala", "peyia", "chloraka", "kato paphos", "coral bay", "polis",
     "geroskipou", "pegeia", "kissonerga", "emba", "tremithousa", "mesa chorio",
     "kamares", "mandria", "kouklia", "letymvou", "tsada", "mesogi", "koloni",
-    "universal", "anavargos", "konia", "tomb of kings", "sea caves"
+    "universal", "anavargos", "konia", "tomb of kings", "sea caves",
+    "kallepia", "peristerona", "letymbou", "letymvou", "stroumbi", "kathikas",
+    "polemi", "choulou", "simou", "drouseia", "ineia", "arodes", "akourdaleia"
   ],
   limassol: [
     "limassol", "lemesos", "germasogeia", "agios tychonas", "potamos", "mesa geitonia",
@@ -303,25 +305,85 @@ export const PROPERTY_STATUS_UUIDS: Record<string, string> = {
 // FEATURE FALLBACKS
 // =============================================================================
 
-/** Indoor Features - taxonomy_term--indoor_property_views */
+/**
+ * Indoor Features - taxonomy_term--indoor_property_views
+ * All 34 terms from live Zyprus API (verified Mar 2026)
+ */
 export const INDOOR_FEATURE_FALLBACKS: Record<string, string> = {
   "air conditioning": "f577829f-8cbe-4ba8-9ce8-e67a30b6fe76",
+  "basement": "1b16146f-6298-4690-a779-328b0fc3b88c",
+  "cctv system": "1ba67b0a-94a2-4998-9553-0ddce11aa64d",
   "central heating": "4f2523f7-9fde-4390-b532-c0da52644632",
+  "conference room": "7af7be29-e1df-458a-8d10-2edda6c9b685",
   "covered parking": "432ac572-ed64-4107-a818-19a8a22c5371",
+  "electrical appliances": "3ad75077-e2a8-4a2f-9b04-b10f2f797ac1",
+  "elevator": "55b75d9e-76fb-4fe8-b2dd-55f48b7ef0ea",
+  "fire alarm system": "75a1d23e-dc4f-4b7c-a80d-40984899ba1e",
+  "fireplace": "bd49f04a-5eae-4056-9565-ecd898f49fe9",
+  "fitted kitchen": "92015a2f-f3dd-42c0-80f9-be90d8bbb0ea",
+  "fly screens": "3cdae0f7-afde-43dc-896b-4c6588d83618",
+  "furnished": "3d5b2d80-0f61-480f-a481-156ea25cf20c",
   "guest toilet": "5e2a90da-6836-444b-8d72-a5f810d3a9e5",
+  "internal pool": "f46a3ff9-b499-4ddf-9aeb-49da0cd47545",
+  "jacuzzi": "596b1dd8-7867-4258-b50a-8d323ab60113",
+  "male and female w/c": "7cd54930-dc67-4680-a343-67d5838fe1a2",
+  "master bed": "5c19f790-1ea2-4c8e-9820-2a03f9ce6ac2",
+  "mezzanine": "24b4054c-d535-48f4-866a-a9a67037ea24",
+  "open-plan": "5e13a12b-fde0-459e-ac4b-3ada19b63ca6",
+  "pet friendly": "83cf669a-069d-4c79-baac-b51dc8930af8",
+  "playroom": "41ba2e44-9a56-4b71-b1c5-804377cb0840",
+  "pressurised water system": "caa7b9a2-9e44-4585-a1cc-f86ae22c0ed1",
+  "provision for air conditioning": "273a7354-b3e3-435e-a71e-263edbebc190",
+  "provision for central heating": "12f34f20-02dd-46c4-af4c-baf2c771fabe",
+  "reception": "c3e320d2-0291-410b-aa4a-f09c710f8a97",
+  "security system": "f1e7f4c3-7595-4de7-bfe7-2203035b9c46",
+  "under floor heating": "061507f4-4f13-4877-b70e-78f6612abfe7",
+  "underground parking": "698e0dd1-5b9a-47cd-a36a-3f0d5bb7f258",
+  "unfurnished": "85c67873-4c1b-4dcf-976c-69b1347bb90e",
+  "utility room": "c8993099-d8f0-45a7-acbb-3f15c3ee2f6d",
+  "ventilation system": "31c6f6d3-2b45-42bf-b1f1-8564cc9262db",
+  "video entrance system": "b61345b7-77c6-4822-a394-64bcddfd3ca9",
+  "water heater": "a2cf21f4-6d09-44a4-8083-71b901d28594",
 };
 
-/** Outdoor Features - taxonomy_term--outdoor_property_features */
+/**
+ * Outdoor Features - taxonomy_term--outdoor_property_features
+ * All 18 terms from live Zyprus API (verified Mar 2026)
+ */
 export const OUTDOOR_FEATURE_FALLBACKS: Record<string, string> = {
-  "on street parking": "695d4e05-83df-4345-8f03-911302e96784",
+  "barbecue area": "c3f02ad5-4275-4cb5-acaa-359673e2b0ac",
+  "bore hole": "40663548-4e62-4a51-80ca-f30f4209e765",
+  "communal pool": "ccc59522-df2f-4755-954a-f56776623901",
+  "double garage": "113ca053-3606-45e0-b8b5-cd06a3ab814c",
+  "electric shutters": "28011f8b-b2ac-46bd-b8b0-85a5609b3c44",
+  "heated swimming pool": "ee30636b-e17a-4cd0-8af9-9d673bd7bdc0",
+  "irrigation system": "b8da3137-9259-4f81-8d43-746a912a707c",
+  "landscape garden": "7a695b83-390d-4436-8cf9-a45377251387",
+  "on street parking": "5de70a0c-f6b5-4ba6-9c08-afc5837427b1",
+  "outdoor shower": "0b1aa221-917d-4626-bcac-cf3a28d133b4",
   "photovoltaic system": "cf0e9658-bd22-4d8d-988e-b579f7139c1a",
-  "private pool": "c3f02ad5-4275-4cb5-acaa-359673e2b0ac",
+  "private pool": "2967d26d-60d7-48d2-85a1-d3e84dbda1a4",
+  "rear garden": "92ce9c79-30bd-4393-9517-8617855836cb",
+  "roof garden": "bb232e56-7347-4763-818a-888ad6f72bf8",
+  "single garage": "aa533eae-adec-4905-8372-270241d848c5",
+  "solar system": "83683acd-8112-4a0d-80b2-a662bca371ad",
+  "standard garden": "b7ca0d6d-a69e-4410-903b-6c1f578913de",
   "uncovered parking": "695d4e05-83df-4345-8f03-911302e96784",
 };
 
-/** Property Views - taxonomy_term--property_views */
+/**
+ * Property Views - taxonomy_term--property_views
+ * All 8 terms from live Zyprus API (verified Mar 2026)
+ */
 export const VIEW_FALLBACKS: Record<string, string> = {
-  // TODO: Get actual UUIDs from API when available
+  "city view": "f65cd149-fcfa-4333-871b-3c1279cb8094",
+  "golf course view": "7c093b10-ccfe-4686-aefb-f08f5243d50b",
+  "green area view": "0f45eaaf-cf4a-46b5-a120-2ec4d88e64c0",
+  "mountain view": "5a8665d5-9d2b-4e2f-9d70-e219fa4d9c3a",
+  "pool view": "77d22bf3-651f-45f2-938d-270b5520201f",
+  "river view": "84dfaf3d-6672-4707-b730-367439751b95",
+  "road view": "d4404e30-b754-4414-a1c3-c851dc43fcb4",
+  "sea view": "6cd2b7af-eff7-42e7-b030-2e6bd1c4c7ef",
 };
 
 // =============================================================================
@@ -330,21 +392,24 @@ export const VIEW_FALLBACKS: Record<string, string> = {
 
 /** Maps common user terms to Zyprus taxonomy terms for outdoor features */
 export const OUTDOOR_FEATURE_ALIASES: Record<string, string[]> = {
-  "private pool": ["private swimming pool", "private pool"],
+  "private pool": ["private swimming pool", "private pool", "swimming pool", "pool"],
   "communal pool": ["shared pool", "common pool", "communal swimming pool"],
-  // NOTE: "swimming pool" and "pool" are intentionally NOT aliased here.
-  // The executor auto-injects the correct pool type based on poolType field.
-  "landscape garden": ["landscaped garden", "landscaping"],
-  "standard garden": ["basic garden", "simple garden", "garden"],
+  "heated swimming pool": ["heated pool"],
+  "landscape garden": ["landscaped garden", "landscaping", "garden"],
+  "standard garden": ["basic garden", "simple garden"],
+  "rear garden": ["back garden", "backyard garden"],
   "roof garden": ["rooftop garden", "terrace garden"],
-  "photovoltaic system": ["pv system", "photovoltaic", "pv panels", "solar panels"],
+  "photovoltaic system": ["pv system", "photovoltaic", "pv panels"],
   "solar system": ["solar water heater", "solar panels", "solar"],
   "double garage": ["2 car garage", "two car garage"],
   "single garage": ["1 car garage", "one car garage", "garage", "garage parking"],
   "irrigation system": ["irrigation", "sprinkler system", "sprinklers"],
   "barbecue area": ["bbq", "bbq area", "barbecue", "barbeque"],
-  "electric shutters": ["electric blinds", "motorized shutters"],
-  "cul-de-sac": ["cul de sac", "culdesac", "dead end", "dead-end street"],
+  "electric shutters": ["electric blinds", "motorized shutters", "shutters"],
+  "bore hole": ["borehole", "bore well", "well water"],
+  "outdoor shower": ["outside shower"],
+  "on street parking": ["street parking"],
+  "uncovered parking": ["open parking", "outdoor parking"],
 };
 
 /** Maps common user terms to Zyprus taxonomy terms for indoor features */
@@ -352,7 +417,7 @@ export const INDOOR_FEATURE_ALIASES: Record<string, string[]> = {
   "air conditioning": ["ac", "a/c", "aircon", "air con"],
   "central heating": ["central heat"],
   "provision for central heating": ["provisions for central heating", "provision for heating", "provision for electric central heating", "provisions for heating"],
-  "underfloor heating": ["under floor heating", "floor heating", "radiant floor", "heated floors", "ufh"],
+  "under floor heating": ["underfloor heating", "floor heating", "radiant floor", "heated floors", "ufh"],
   "fitted kitchen": ["built-in kitchen", "modern kitchen"],
   "covered parking": ["indoor parking"],
   "guest toilet": ["guest wc", "powder room", "guest bathroom", "second bathroom", "2nd bathroom"],
@@ -362,9 +427,21 @@ export const INDOOR_FEATURE_ALIASES: Record<string, string[]> = {
   "open-plan": ["open plan", "openplan", "open layout"],
   "utility room": ["laundry room", "laundry", "storage room", "storeroom", "store room"],
   "master bed": ["master bedroom", "master suite", "en-suite", "ensuite"],
-  "jacuzzi": ["jacuzzi tub", "whirlpool bath", "spa bath", "hot tub"],
+  "jacuzzi": ["jacuzzi tub", "whirlpool bath", "spa bath", "hot tub", "indoor jacuzzi"],
   "fireplace": ["wood burning fireplace", "wood fireplace", "fire place"],
-  "playroom": ["play room", "games room", "game room"],
+  "playroom": ["play room", "games room", "game room", "entertainment room", "rec room"],
+  "basement": ["underground storage", "cellar"],
+  "cctv system": ["cctv", "security cameras", "surveillance"],
+  "security system": ["alarm", "alarm system", "security alarm", "burglar alarm"],
+  "fire alarm system": ["fire alarm", "smoke detector", "smoke alarm"],
+  "elevator": ["lift"],
+  "mezzanine": ["mezzanine floor", "loft", "attic"],
+  "internal pool": ["indoor pool", "indoor swimming pool"],
+  "pressurised water system": ["pressurised water", "water pressure system", "pressure pump"],
+  "video entrance system": ["video intercom", "intercom", "video door"],
+  "reception": ["reception area", "lobby", "entrance hall"],
+  "conference room": ["meeting room"],
+  "underground parking": ["underground garage"],
 };
 
 // =============================================================================

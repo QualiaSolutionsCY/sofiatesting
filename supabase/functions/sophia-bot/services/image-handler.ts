@@ -265,16 +265,10 @@ export async function processImages(
     });
   }
 
-  // Only sort when images have meaningful filenames (e.g., URL images from ibb.co).
-  // WhatsApp images from Supabase Storage all get "unknown" classification (generic UUIDs),
-  // so sorting is meaningless and can shuffle the agent's intended order.
-  const allUnknown = processed.every((img) => img.classification === "unknown");
-  if (allUnknown) {
-    return processed; // Preserve original order (created_at ASC from getPendingImages)
-  }
-
-  // Sort by order priority when meaningful classifications exist
-  return processed.sort((a, b) => a.order - b.order);
+  // IMPORTANT: Do NOT re-sort here. Image ordering is now handled upstream by
+  // AI vision classification in image-processor.ts (mandatory room-type sort).
+  // Re-sorting here by filename would undo the vision-based ordering.
+  return processed;
 }
 
 export interface InvalidImage {

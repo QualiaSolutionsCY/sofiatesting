@@ -163,9 +163,12 @@ export function validateRequiredFields(data: Record<string, unknown>): {
     "titleDeedStatus",
   ];
 
-  // Bathrooms are required for all types EXCEPT residential buildings
+  // Bathrooms are required for residential types only
+  // Commercial types (office, shop, warehouse, hotel) and buildings are exempt
   const propertyType = ((data.propertyType as string) || "").toLowerCase();
-  if (!propertyType.includes("building")) {
+  const commercialTypes = ["building", "office", "shop", "warehouse", "hotel"];
+  const isCommercial = commercialTypes.some((t) => propertyType.includes(t));
+  if (!isCommercial) {
     required.push("bathrooms");
   }
 

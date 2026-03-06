@@ -333,10 +333,18 @@ async function processRequest(
     }
 
     if (!aiResult.success || !aiResult.response) {
-      await sendTextMessage(
-        phoneNumber,
+      const errorResponse =
         aiResult.response ||
-          "I couldn't process your request. Please try again."
+        "I couldn't process your request. Please try again.";
+      await sendTextMessage(phoneNumber, errorResponse);
+      // CRITICAL: Save error responses to chat_history to prevent conversation corruption.
+      // Without this, subsequent messages have orphan user messages with no model response,
+      // causing the AI model to fail on all following messages.
+      await addMessage(userId, "model", errorResponse).catch((err) =>
+        logger.warn("Failed to save error response to chat_history", {
+          category: LogCategory.GENERAL,
+          error: String(err),
+        })
       );
       return undefined;
     }

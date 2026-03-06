@@ -415,8 +415,9 @@ export async function handleCreatePropertyListing(
       safePriceModifier
     );
 
-  const isBuilding = propertyTypeLower.includes("building");
-  const bathrooms = isBuilding
+  const commercialPropertyTypes = ["building", "office", "shop", "warehouse", "hotel"];
+  const isCommercialType = commercialPropertyTypes.some((t) => propertyTypeLower.includes(t));
+  const bathrooms = isCommercialType
     ? (args.bathrooms as number) || 0
     : (args.bathrooms as number) || 1;
 
@@ -511,7 +512,10 @@ export async function handleCreatePropertyListing(
       }
     );
 
-    const propertyTitle = `${args.bedrooms} bed ${args.propertyType} in ${location}`;
+    const bedrooms = args.bedrooms as number;
+    const propertyTitle = bedrooms > 0
+      ? `${bedrooms} bed ${args.propertyType} in ${location}`
+      : `${args.propertyType} in ${location}`;
     trackListingUpload(
       result.listingId,
       agentPhone,
@@ -548,7 +552,7 @@ export async function handleCreatePropertyListing(
     if (errorType === ErrorType.AUTH) {
       return {
         error:
-          "There's a configuration issue with the property system. Please contact support.",
+          "The property upload system is temporarily unable to authenticate. This usually resolves on its own — please try again in a minute. If it persists, contact support.",
       };
     }
     const detail =
@@ -561,7 +565,10 @@ export async function handleCreatePropertyListing(
   // Step 14: Build success message
   let message = `✅ I've uploaded the property as a draft listing.\n\n`;
   message += "**Summary:**\n";
-  message += `• Property: ${args.bedrooms} bed ${args.propertyType} in ${location}\n`;
+  const bedroomsDisplay = (args.bedrooms as number) > 0
+    ? `${args.bedrooms} bed ${args.propertyType}`
+    : `${args.propertyType}`;
+  message += `• Property: ${bedroomsDisplay} in ${location}\n`;
   message += `• Price: €${(args.price as number).toLocaleString()}\n`;
   message += `• Type: For ${listingType}\n`;
   message += `• Images: ${validImages.length} uploaded\n`;

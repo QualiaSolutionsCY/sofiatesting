@@ -77,13 +77,23 @@ async function getZyprusToken(): Promise<string> {
 }
 
 /**
+ * Detect node type from listing URL
+ * Land listings: /land/{id}, Property listings: /property/{id}
+ */
+function getNodeType(listingUrl: string): "land" | "property" {
+  return listingUrl.includes("/land/") ? "land" : "property";
+}
+
+/**
  * Check if a specific listing is published on Zyprus
  */
 async function isListingPublished(
   listingId: string,
+  listingUrl: string,
   token: string
 ): Promise<boolean> {
-  const url = `${ZYPRUS_API_URL}/jsonapi/node/property/${listingId}?fields[node--property]=status`;
+  const nodeType = getNodeType(listingUrl);
+  const url = `${ZYPRUS_API_URL}/jsonapi/node/${nodeType}/${listingId}?fields[node--${nodeType}]=status`;
 
   const response = await fetch(url, {
     headers: {
@@ -151,6 +161,7 @@ Deno.serve(async (req: Request) => {
           try {
             const published = await isListingPublished(
               listing.zyprus_listing_id,
+              listing.listing_url,
               token
             );
 

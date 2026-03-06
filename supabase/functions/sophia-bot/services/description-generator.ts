@@ -757,9 +757,14 @@ export function generateDescription(details: PropertyDetails): string {
   const propertyType = toTitleCase(details.type); // Title Case: Detached House, Villa, etc.
   const location = capitalizeLocation(details.location);
   // Bedroom text for headline — show as "5+1 Bedroom" when basement/roof rooms exist
+  // Commercial types (office, shop, warehouse, hotel) skip bedroom text entirely
+  const commercialTypes = ["office", "shop", "warehouse", "hotel"];
+  const isCommercialType = commercialTypes.some((t) => details.type.toLowerCase().includes(t));
   let bedroomText: string;
   const extraRooms = (details.basementRooms || 0) + (details.roofRooms || 0);
-  if (extraRooms > 0) {
+  if (isCommercialType) {
+    bedroomText = ""; // No bedrooms for commercial types
+  } else if (extraRooms > 0) {
     bedroomText = `${details.bedrooms}+${extraRooms} Bedroom`;
   } else {
     bedroomText =
@@ -812,7 +817,9 @@ export function generateDescription(details: PropertyDetails): string {
     }
   } else {
     // Standard headline: "Spacious 5+1 Bedroom Detached House For Sale In Moutagiaka, Limassol With Title Deeds"
-    headline = `${adjective} ${bedroomText} ${propertyType} ${listingTypeText} In ${location}`;
+    headline = bedroomText
+      ? `${adjective} ${bedroomText} ${propertyType} ${listingTypeText} In ${location}`
+      : `${adjective} ${propertyType} ${listingTypeText} In ${location}`;
     if (
       details.titleDeedStatus &&
       details.listingType === "sale" &&
@@ -970,8 +977,10 @@ export function generateDescription(details: PropertyDetails): string {
       }
     }
 
-    // Bedrooms — show basement/roof rooms separately if provided
+    // Bedrooms — skip entirely for commercial types (office, shop, warehouse, hotel)
+    // Show basement/roof rooms separately if provided
     // e.g., "5 Bedrooms + 1 Basement Bedroom" or "3 Bedrooms + 1 Roof Garden Room"
+    if (!isCommercialType) {
     const bedroomParts: string[] = [];
     bedroomParts.push(
       `${details.bedrooms} ${details.bedrooms === 1 ? "Bedroom" : "Bedrooms"}`
@@ -991,6 +1000,7 @@ export function generateDescription(details: PropertyDetails): string {
       );
     }
     lines.push(bedroomParts.join(" + "));
+    } // end if (!isCommercialType) — skip bedrooms for offices/shops/etc.
     // Bathrooms — detect guest W/C in features for precise display
     if (details.bathrooms && details.bathrooms > 0) {
       // Check if features mention guest W/C (agent distinguished ensuites from guest toilet)
@@ -1552,8 +1562,12 @@ function getClosingSentences(details: PropertyDetails): string[] {
  * If covered veranda exists, includes both covered area and covered veranda separately
  */
 export function generateTitle(details: PropertyDetails): string {
-  const bedroomText =
-    details.bedrooms === 0
+  // Commercial types skip bedroom prefix entirely
+  const commercialTypes = ["office", "shop", "warehouse", "hotel"];
+  const isCommercial = commercialTypes.some((t) => details.type.toLowerCase().includes(t));
+  const bedroomText = isCommercial
+    ? ""
+    : details.bedrooms === 0
       ? "Studio"
       : details.bedrooms === 1
         ? "1 Bed"
@@ -1570,11 +1584,13 @@ export function generateTitle(details: PropertyDetails): string {
       ? " - No VAT"
       : "";
 
+  const prefix = bedroomText ? `${bedroomText} ` : "";
+
   if (hasCoveredVeranda) {
-    return `${bedroomText} ${propertyType} (${formatArea(details.coveredArea)}m² + ${formatArea(details.coveredVeranda!)}m² covered veranda) in ${location}${noVatSuffix}`;
+    return `${prefix}${propertyType} (${formatArea(details.coveredArea)}m² + ${formatArea(details.coveredVeranda!)}m² covered veranda) in ${location}${noVatSuffix}`;
   }
 
-  return `${bedroomText} ${propertyType} (${formatArea(details.coveredArea)}m²) in ${location}${noVatSuffix}`;
+  return `${prefix}${propertyType} (${formatArea(details.coveredArea)}m²) in ${location}${noVatSuffix}`;
 }
 
 /**
@@ -1604,20 +1620,30 @@ export interface LandDetails {
 export function generateLandDescription(details: LandDetails): string {
   const lines: string[] = [];
 
-  // Opening paragraph: land type + size + location
-  const landTypeCapitalized = capitalize(details.landType);
+  // Map land types to Zyprus display names
+  const landTypeDisplay: Record<string, string> = {
+    "plot": "Residential Plot",
+    "residential": "Residential Plot",
+    "field": "Land Parcel",
+    "land parcel": "Land Parcel",
+    "agricultural": "Agricultural Land",
+    "commercial": "Commercial Plot",
+    "industrial": "Industrial Plot",
+  };
+
+  const landTypeKey = details.landType.toLowerCase().trim();
+  const displayType = landTypeDisplay[landTypeKey] || `${capitalize(details.landType)} Plot`;
   const location = capitalizeLocation(details.location);
   const formattedSize = formatArea(details.landSize);
+  const listingTypeText = details.listingType === "rent" ? "For Rent" : "For Sale";
 
-  if (details.listingType === "sale") {
-    lines.push(
-      `${landTypeCapitalized} for sale in ${location}, offering ${formattedSize}m² of land.`
-    );
-  } else {
-    lines.push(
-      `${landTypeCapitalized} for rent in ${location}, offering ${formattedSize}m² of land.`
-    );
-  }
+  // Opening: "{Type} For Sale in {Location}, {District}" format
+  lines.push(`${displayType} ${listingTypeText} in ${location}`);
+  lines.push("");
+  lines.push("Located in a peaceful and attractive environment");
+  lines.push("It is only minutes from the community center and amenities!");
+  lines.push("");
+  lines.push(`This ${displayType.toLowerCase()} offers ${formattedSize}m² of land.`);
 
   // Building regulations paragraph (if any provided)
   if (
@@ -1649,7 +1675,6 @@ export function generateLandDescription(details: LandDetails): string {
   // Infrastructure paragraph (if provided)
   if (details.infrastructure && details.infrastructure.length > 0) {
     const infraList = details.infrastructure.map((i) => {
-      // Convert "road_access" → "road access", "electricity" → "electricity"
       return i.replace(/_/g, " ");
     });
 
@@ -1666,7 +1691,7 @@ export function generateLandDescription(details: LandDetails): string {
     }
   }
 
-  // Views/location paragraph (if views or area description provided)
+  // Views paragraph (if provided)
   if (details.views && details.views.length > 0) {
     const viewsList = details.views
       .filter((v) => v.toLowerCase().includes("view"))
@@ -1690,7 +1715,6 @@ export function generateLandDescription(details: LandDetails): string {
     lines.push("");
     lines.push(details.areaDescription);
   } else {
-    // Generic area info from LOCATION_DESCRIPTIONS if available
     const locationLower = details.location.toLowerCase();
     const areaKey = Object.keys(LOCATION_DESCRIPTIONS).find((key) =>
       locationLower.includes(key)
@@ -1701,51 +1725,13 @@ export function generateLandDescription(details: LandDetails): string {
     }
   }
 
-  // Title deed paragraph
-  if (details.titleDeedStatus) {
-    lines.push("");
-    switch (details.titleDeedStatus) {
-      case "separate":
-        lines.push("The land comes with separate title deeds.");
-        break;
-      case "final_approval":
-        lines.push("The title deeds are at final approval stage.");
-        break;
-      case "in_process":
-        lines.push("Title deeds are currently in the process of being issued.");
-        break;
-      case "pending":
-        lines.push(
-          "Title deeds have been applied for and are pending issuance."
-        );
-        break;
-      case "share_of_land":
-        lines.push("The land has shared ownership with title deeds.");
-        break;
-      case "permits_only":
-        lines.push(
-          "Planning and building permits are available (title deeds not yet issued)."
-        );
-        break;
-    }
-  }
+  // NO title deed mention in land descriptions (Zyprus rule: never mention deeds for land)
+  // NO price in description (price is shown separately on the listing)
 
-  // Price paragraph
-  lines.push("");
-  const formattedPrice = `€${details.price.toLocaleString()}`;
-
-  if (details.priceModifier === "plus_vat") {
-    lines.push(`The asking price is ${formattedPrice} plus VAT.`);
-  } else if (details.priceModifier === "vat_included") {
-    lines.push(`The asking price is ${formattedPrice} (VAT included).`);
-  } else {
-    lines.push(`The asking price is ${formattedPrice}.`);
-  }
-
-  // Closing call to action
+  // Closing — same as property listings
   lines.push("");
   lines.push(
-    "For more information or to arrange a viewing, please contact us today."
+    "Contact us for full information and for a private viewing!"
   );
 
   return lines.join("\n");

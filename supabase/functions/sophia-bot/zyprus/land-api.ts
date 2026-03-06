@@ -177,13 +177,23 @@ function buildJsonApiPayloadLand(
     listing.registrationNumber
   );
 
-  // Build proper title: "Plot (2,500m²) For Sale in Mesa Chorio, Paphos"
-  const landTypeStr = listing.landType || "Plot";
-  const landTypeCapitalized =
-    landTypeStr.charAt(0).toUpperCase() + landTypeStr.slice(1).toLowerCase();
+  // Build proper title: "Residential Land 3,679 SQM For Sale in Kallepia, Paphos"
+  // Map land types to Zyprus display names
+  const landTypeDisplay: Record<string, string> = {
+    "plot": "Residential Land",
+    "residential": "Residential Land",
+    "field": "Land Parcel",
+    "land parcel": "Land Parcel",
+    "agricultural": "Agricultural Land",
+    "commercial": "Commercial Land",
+    "industrial": "Industrial Land",
+  };
+  const landTypeKey = (listing.landType || "plot").toLowerCase().trim();
+  const displayType = landTypeDisplay[landTypeKey] ||
+    `${listing.landType.charAt(0).toUpperCase() + listing.landType.slice(1).toLowerCase()} Land`;
   const listingTypeText =
     listing.listingType === "rent" ? "For Rent" : "For Sale";
-  const generatedTitle = `${landTypeCapitalized} (${listing.landSize.toLocaleString()}m²) ${listingTypeText} in ${listing.location}`;
+  const generatedTitle = `${displayType} ${listing.landSize.toLocaleString()} SQM ${listingTypeText} in ${listing.location}`;
 
   logger.info(`Generated land title: ${generatedTitle}`, {
     category: LogCategory.ZYPRUS,
@@ -280,7 +290,9 @@ function buildJsonApiPayloadLand(
     })),
   };
 
-  // Title deed files — include in initial POST (same fix as property-api.ts)
+  // Title deed files — included in initial POST now that Zyprus granted field-level permission.
+  // Previously excluded due to 403, but fixed by Denys (Mar 2026).
+  // PATCH fallback still exists below for resilience.
   if (titleDeedFileIds.length > 0) {
     relationships.field_title_deed_file = {
       data: titleDeedFileIds.map((id) => ({
@@ -480,7 +492,8 @@ async function uploadLandImages(
 }
 
 /**
- * Upload title deed files for land (uses field_title_deed_file endpoint)
+ * Upload title deed files for land via field_title_deed_file endpoint.
+ * Files go to private:// storage (unlike gallery which uses public://).
  */
 async function uploadLandTitleDeedFiles(
   fileUrls: string[],
@@ -529,7 +542,6 @@ async function uploadLandTitleDeedFiles(
         let filename =
           url.split("/").pop()?.split("?")[0] || `title_deed_${index + 1}`;
         if (!filename.match(/\.(jpg|jpeg|png|gif|webp|pdf|doc|docx)$/i)) {
-          // Use detected extension from content-type, default to .jpg for images
           filename = `title_deed_${index + 1}${detectedExt || ".jpg"}`;
         }
         logger.info("Title deed file type detected", {
@@ -584,7 +596,17 @@ async function uploadLandTitleDeedFiles(
         }
 
         const result = await response.json();
-        return result.data?.id || null;
+        const fileId = result.data?.id || null;
+        if (fileId) {
+          logger.info("Title deed file uploaded successfully", {
+            category: LogCategory.ZYPRUS,
+            operation: "uploadLandTitleDeedFile",
+            imageIndex: index,
+            fileId,
+            filename,
+          });
+        }
+        return fileId;
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         logger.error("Title deed upload error", err, {
@@ -597,7 +619,14 @@ async function uploadLandTitleDeedFiles(
     })
   );
 
-  return results.filter((id): id is string => id !== null);
+  const successfulIds = results.filter((id): id is string => id !== null);
+  logger.info("Land title deed uploads complete", {
+    category: LogCategory.ZYPRUS,
+    operation: "uploadLandTitleDeedFiles",
+    successful: successfulIds.length,
+    failed: fileUrls.length - successfulIds.length,
+  });
+  return successfulIds;
 }
 
 /**

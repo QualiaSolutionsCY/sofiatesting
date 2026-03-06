@@ -199,9 +199,14 @@ function buildJsonApiPayload(
   );
 
   // Build proper title: "2 Bedroom Bungalow (125m²) For Sale in Kamares, Tala"
+  // For 0-bedroom properties (offices, shops): "Office (125m²) For Sale in Nicosia"
   // If there's a covered veranda, include total area (Net Indoor Area + Covered Veranda only)
-  const bedroomText =
-    listing.bedrooms === 1 ? "1 Bedroom" : `${listing.bedrooms} Bedroom`;
+  const isCommercial = listing.bedrooms === 0 || ["office", "shop", "warehouse", "building", "hotel"].includes(listing.propertyType.toLowerCase());
+  const bedroomText = isCommercial
+    ? "" // No bedroom text for commercial properties
+    : listing.bedrooms === 1
+      ? "1 Bedroom"
+      : `${listing.bedrooms} Bedroom`;
   const listingTypeText =
     listing.listingType === "rent" ? "For Rent" : "For Sale";
   const propertyTypeCapitalized =
@@ -232,7 +237,9 @@ function buildJsonApiPayload(
     );
   }
 
-  const generatedTitle = `${bedroomText} ${propertyTypeCapitalized}${titleAreaText} ${listingTypeText} in ${listing.location}`;
+  const generatedTitle = bedroomText
+    ? `${bedroomText} ${propertyTypeCapitalized}${titleAreaText} ${listingTypeText} in ${listing.location}`
+    : `${propertyTypeCapitalized}${titleAreaText} ${listingTypeText} in ${listing.location}`;
   logger.info(`Generated title: ${generatedTitle}`, {
     category: LogCategory.ZYPRUS,
     operation: "createDraftListing",
@@ -242,7 +249,7 @@ function buildJsonApiPayload(
     title: generatedTitle,
     status: false, // Always unpublished draft
     field_price: listing.price,
-    field_no_bedrooms: listing.bedrooms,
+    ...(listing.bedrooms > 0 ? { field_no_bedrooms: listing.bedrooms } : {}),
     ...(listing.bathrooms > 0 ? { field_no_bathrooms: listing.bathrooms } : {}),
     // NOTE: field_no_kitchens and field_no_living_rooms intentionally NOT set
     // Zyprus auto-generates titles from room counts — only bedrooms/bathrooms are standard
@@ -374,10 +381,9 @@ function buildJsonApiPayload(
     };
   }
 
-  // Title deed files — include in initial POST (same pattern as floor plans).
-  // Previously excluded and attached via PATCH, but PATCH returns 403.
-  // Including in initial POST may succeed since node creation has different permissions.
-  // PATCH fallback still exists in createDraftListing() if this doesn't work.
+  // Title deed files — included in initial POST now that Zyprus granted field-level permission.
+  // Previously excluded due to 403, but fixed by Denys (Mar 2026).
+  // PATCH fallback still exists below for resilience.
   if (titleDeedFileIds.length > 0) {
     relationships.field_title_deed_file = {
       data: titleDeedFileIds.map((id) => ({
@@ -742,8 +748,8 @@ async function uploadFloorPlans(
 }
 
 /**
- * Upload title deed files to Zyprus (uses field_title_deed_file endpoint)
- * Falls back gracefully if the field doesn't exist on property nodes
+ * Upload title deed files to Zyprus via field_title_deed_file endpoint.
+ * Files go to private:// storage (unlike gallery which uses public://).
  */
 async function uploadTitleDeedFiles(
   fileUrls: string[],
@@ -792,7 +798,6 @@ async function uploadTitleDeedFiles(
         let filename =
           url.split("/").pop()?.split("?")[0] || `title_deed_${index + 1}`;
         if (!filename.match(/\.(jpg|jpeg|png|gif|webp|pdf|doc|docx)$/i)) {
-          // Use detected extension from content-type, default to .jpg for images
           filename = `title_deed_${index + 1}${detectedExt || ".jpg"}`;
         }
         logger.info("Title deed file type detected", {
@@ -847,7 +852,17 @@ async function uploadTitleDeedFiles(
         }
 
         const result = await response.json();
-        return result.data?.id || null;
+        const fileId = result.data?.id || null;
+        if (fileId) {
+          logger.info("Title deed file uploaded successfully", {
+            category: LogCategory.ZYPRUS,
+            operation: "uploadTitleDeedFile",
+            imageIndex: index,
+            fileId,
+            filename,
+          });
+        }
+        return fileId;
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         logger.error("Title deed upload error", err, {
@@ -860,7 +875,14 @@ async function uploadTitleDeedFiles(
     })
   );
 
-  return results.filter((id): id is string => id !== null);
+  const successfulIds = results.filter((id): id is string => id !== null);
+  logger.info("Title deed uploads complete", {
+    category: LogCategory.ZYPRUS,
+    operation: "uploadTitleDeedFiles",
+    successful: successfulIds.length,
+    failed: fileUrls.length - successfulIds.length,
+  });
+  return successfulIds;
 }
 
 /**

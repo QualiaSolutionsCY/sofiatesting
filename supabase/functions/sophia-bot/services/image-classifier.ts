@@ -1,7 +1,8 @@
 /**
  * AI Vision Image Classifier
  * Uses Gemini Flash via OpenRouter to auto-classify images as
- * property photos, title deeds, or floor plans.
+ * room types (exterior, living room, kitchen, etc.), title deeds, or floor plans.
+ * Room-type classification enables mandatory photo ordering on all uploads.
  */
 
 import { LogCategory, logger } from "../utils/logger.ts";
@@ -9,7 +10,7 @@ import { LogCategory, logger } from "../utils/logger.ts";
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const VISION_MODEL = "google/gemini-3-flash-preview";
-const VISION_TIMEOUT_MS = 15_000;
+const VISION_TIMEOUT_MS = 20_000;
 
 /** Block private/internal IPs and cloud metadata endpoints to prevent SSRF */
 function isUnsafeUrl(url: string): boolean {
@@ -48,24 +49,69 @@ function isUnsafeUrl(url: string): boolean {
   }
 }
 
+/** Room-type classifications matching the mandatory photo order */
+export type RoomType =
+  | "exterior_front"
+  | "exterior_other"
+  | "pool"
+  | "garden"
+  | "living_room"
+  | "kitchen"
+  | "additional_room"
+  | "bedroom"
+  | "bathroom"
+  | "other"
+  | "satellite";
+
+/** Priority order for room types (lower = first in gallery, satellite always LAST) */
+export const ROOM_TYPE_ORDER: Record<RoomType, number> = {
+  exterior_front: 1,
+  exterior_other: 2,
+  pool: 3,
+  garden: 4,
+  living_room: 5,
+  kitchen: 6,
+  additional_room: 7,
+  bedroom: 8,
+  bathroom: 9,
+  other: 10,
+  satellite: 99, // Google Earth / satellite always last
+};
+
 interface ClassificationResult {
   titleDeedIndices: number[];
   floorPlanIndices: number[];
+  /** Room-type classification for each image (same length as input, excluding title deeds/floor plans) */
+  roomTypes: (RoomType | "title_deed" | "floor_plan")[];
 }
 
 const EMPTY_RESULT: ClassificationResult = {
   titleDeedIndices: [],
   floorPlanIndices: [],
+  roomTypes: [],
 };
 
 const CLASSIFICATION_PROMPT = `You are an image classifier for real estate listings. For each image, classify it as exactly one of:
-- "property_photo" — interior/exterior property photo, construction site, view from property, any photo taken with a camera
-- "title_deed" — ONLY official printed/typed documents: title deed certificates, land registry papers, contracts with official stamps/seals/signatures, government-issued documents. The image must clearly show a DOCUMENT with printed text. Photos that happen to show papers on a wall, framed certificates, or documents in the background are NOT title deeds — classify those as property_photo.
+- "exterior_front" — the BEST exterior/building front shot: main facade, street view of building, entrance with full building visible
+- "exterior_other" — other exterior shots: side views, back of building, construction site, views FROM the property
+- "satellite" — Google Earth screenshots, satellite/aerial views, map screenshots, drone overview of entire area (NOT a drone photo of the property itself)
+- "pool" — swimming pool (private or communal), pool area, pool terrace
+- "garden" — garden, yard, terrace, patio, outdoor seating area, balcony with plants
+- "living_room" — living room, lounge, salon, sitting area, open-plan living space
+- "kitchen" — kitchen, cooking area, open-plan kitchen section
+- "additional_room" — office, laundry room, storage room, utility room, playroom, hallway, staircase, dining room (separate from living)
+- "bedroom" — bedroom, master bedroom, sleeping area
+- "bathroom" — bathroom, shower room, WC, toilet
+- "other" — any property photo that doesn't fit above categories
+- "title_deed" — ONLY official printed/typed documents: title deed certificates, land registry papers, contracts with official stamps/seals/signatures. Must clearly show a DOCUMENT with printed text. Photos showing papers in background are NOT title deeds.
 - "floor_plan" — architectural floor plan drawing, blueprint, layout diagram with room labels and measurements
 
-IMPORTANT: When in doubt, classify as "property_photo". Only use "title_deed" if the ENTIRE image is a scan/photo of an official document.
+RULES:
+- Classify the FIRST clear exterior/building front shot as "exterior_front". Additional exterior shots are "exterior_other".
+- When in doubt between room types, pick the best match. When truly ambiguous, use "other".
+- Only use "title_deed" if the ENTIRE image is a scan/photo of an official document.
 
-Respond with JSON only: {"classifications":["property_photo","title_deed",...]}
+Respond with JSON only: {"classifications":["exterior_front","living_room","bedroom",...]}
 The array must have exactly the same number of entries as images provided, in the same order.`;
 
 /**
@@ -140,7 +186,7 @@ export async function classifyImagesWithVision(
         model: VISION_MODEL,
         messages: [{ role: "user", content }],
         temperature: 0,
-        max_tokens: 256,
+        max_tokens: 1024,
         response_format: { type: "json_object" },
       }),
       signal: controller.signal,
@@ -196,25 +242,45 @@ export async function classifyImagesWithVision(
 
     const titleDeedIndices: number[] = [];
     const floorPlanIndices: number[] = [];
+    const validRoomTypes: Set<string> = new Set([
+      "exterior_front", "exterior_other", "pool", "garden",
+      "living_room", "kitchen", "additional_room", "bedroom",
+      "bathroom", "other", "title_deed", "floor_plan", "satellite",
+    ]);
 
+    // Normalize classifications to valid types
+    const roomTypes: (RoomType | "title_deed" | "floor_plan")[] = [];
     for (let i = 0; i < classifications.length; i++) {
       const c = classifications[i].toLowerCase().trim();
-      if (c === "title_deed") titleDeedIndices.push(i);
-      else if (c === "floor_plan") floorPlanIndices.push(i);
+      if (c === "title_deed") {
+        titleDeedIndices.push(i);
+        roomTypes.push("title_deed");
+      } else if (c === "floor_plan") {
+        floorPlanIndices.push(i);
+        roomTypes.push("floor_plan");
+      } else if (validRoomTypes.has(c)) {
+        roomTypes.push(c as RoomType);
+      } else {
+        // Unknown classification from AI → default to "other"
+        roomTypes.push("other");
+      }
     }
 
     // False-positive guard: if only 1 title deed out of 25+ images, likely a misclassification
     // Relaxed from 10 to 25 — the old threshold dropped real title deed photos in normal batches
     if (titleDeedIndices.length === 1 && safeUrls.length >= 25) {
+      const fpIdx = titleDeedIndices[0];
       logger.info(
         "Dropping likely false-positive title deed classification (1 out of 25+ images)",
         {
           category: LogCategory.IMAGE,
           operation: "classifyImages",
-          droppedIndex: titleDeedIndices[0],
+          droppedIndex: fpIdx,
           totalImages: imageUrls.length,
         }
       );
+      // Reclassify the false-positive as "other"
+      roomTypes[fpIdx] = "other";
       titleDeedIndices.length = 0;
     }
 
@@ -222,11 +288,12 @@ export async function classifyImagesWithVision(
       category: LogCategory.IMAGE,
       operation: "classifyImages",
       classifications,
+      roomTypes,
       titleDeeds: titleDeedIndices.length,
       floorPlans: floorPlanIndices.length,
     });
 
-    return { titleDeedIndices, floorPlanIndices };
+    return { titleDeedIndices, floorPlanIndices, roomTypes };
   } catch (err) {
     clearTimeout(timeoutId);
     const isTimeout = err instanceof DOMException && err.name === "AbortError";

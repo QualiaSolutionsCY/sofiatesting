@@ -119,12 +119,14 @@ export async function findIndoorFeatureUuids(
     // Skip features that are clearly outdoor-only (pool, garden, etc.)
     // But be careful - "covered parking" is INDOOR in Zyprus taxonomy!
     const isOutdoorOnly = [
+      "pool",
       "private pool",
       "communal pool",
       "swimming pool",
       "heated swimming pool",
       "landscape garden",
       "standard garden",
+      "rear garden",
       "roof garden",
       "barbecue",
       "bbq",
@@ -132,8 +134,14 @@ export async function findIndoorFeatureUuids(
       "bore hole",
       "photovoltaic",
       "solar system",
+      "solar panels",
       "irrigation",
-    ].some((kw) => normalized.includes(kw));
+      "garage",
+      "single garage",
+      "double garage",
+      "electric shutters",
+      "carport",
+    ].some((kw) => normalized === kw || normalized.includes(kw));
 
     if (isOutdoorOnly) continue;
 
@@ -187,7 +195,10 @@ export async function findIndoorFeatureUuids(
         );
         uuids.push(fallbackUuid);
       } else {
-        logger.debug(`[Taxonomy] INDOOR NO MATCH: "${name}"`);
+        logger.warn(`[Taxonomy] INDOOR NO MATCH: "${name}" (resolved: "${normalized}")`, {
+          category: LogCategory.ZYPRUS,
+          operation: "findIndoorFeatureUuids",
+        });
       }
     }
   }
@@ -250,6 +261,7 @@ export async function findOutdoorFeatureUuids(
     const isIndoorOnly = [
       "air conditioning",
       "central heating",
+      "under floor heating",
       "fireplace",
       "elevator",
       "fitted kitchen",
@@ -263,6 +275,16 @@ export async function findOutdoorFeatureUuids(
       "playroom",
       "conference room",
       "cctv",
+      "security system",
+      "fire alarm",
+      "open-plan",
+      "utility room",
+      "master bed",
+      "fly screens",
+      "covered parking",
+      "underground parking",
+      "furnished",
+      "unfurnished",
     ].some((kw) => normalized.includes(kw));
 
     if (isIndoorOnly) continue;
@@ -326,7 +348,10 @@ export async function findOutdoorFeatureUuids(
         );
         uuids.push(fallbackUuid);
       } else {
-        logger.debug(`[Taxonomy] OUTDOOR NO MATCH: "${name}"`);
+        logger.warn(`[Taxonomy] OUTDOOR NO MATCH: "${name}" (resolved: "${normalized}")`, {
+          category: LogCategory.ZYPRUS,
+          operation: "findOutdoorFeatureUuids",
+        });
       }
     }
   }
@@ -403,7 +428,10 @@ export async function findPropertyViewUuids(
         logger.debug(`[Taxonomy] VIEW FALLBACK: "${name}" -> ${fallbackUuid}`);
         uuids.push(fallbackUuid);
       } else {
-        logger.debug(`[Taxonomy] VIEW NO MATCH: "${name}"`);
+        logger.warn(`[Taxonomy] VIEW NO MATCH: "${name}"`, {
+          category: LogCategory.ZYPRUS,
+          operation: "findPropertyViewUuids",
+        });
       }
     }
   }

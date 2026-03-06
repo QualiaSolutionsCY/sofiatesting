@@ -48,10 +48,18 @@ export const TOOLS: ToolDefinition[] = [
               "townhouse",
               "studio",
               "semi-detached",
+              "semi-detached house",
               "residential building",
+              "office",
+              "shop",
+              "warehouse",
+              "building",
+              "hotel",
+              "flat",
+              "entire floor apartment",
             ],
             description:
-              "The type of property (use 'detached house' for standalone houses, 'semi-detached' for joined houses, 'residential building' for multi-unit buildings)",
+              "The type of property (use 'detached house' for standalone houses, 'semi-detached' or 'semi-detached house' for joined houses, 'office' for office spaces, 'shop' for retail)",
           },
           price: {
             type: "number",
@@ -64,7 +72,8 @@ export const TOOLS: ToolDefinition[] = [
           },
           bedrooms: {
             type: "integer",
-            description: "Number of bedrooms (0 for studio)",
+            description:
+              "Number of bedrooms (0 for studio or commercial properties like offices/shops). Optional — defaults to 0 if not provided.",
           },
           bathrooms: {
             type: "integer",
@@ -305,7 +314,6 @@ export const TOOLS: ToolDefinition[] = [
           "propertyType",
           "price",
           "location",
-          "bedrooms",
           "coveredArea",
           "ownerName",
           "ownerPhone",
