@@ -333,103 +333,112 @@ export async function extractMessage(payload: WaSendWebhookPayload): Promise<{
     }
   }
 
-  // Also check for document messages with images
-  if (
-    message.message?.documentMessage?.url &&
-    message.message?.documentMessage?.mimetype?.startsWith("image/")
-  ) {
-    const docMsg = message.message.documentMessage;
-    const rawUrl = docMsg.url;
-    logger.info(
-      "Found image in documentMessage, URL: " +
-        (rawUrl?.substring(0, 80) || "none"),
-      { category: LogCategory.GENERAL }
-    );
+  // Check for document messages — WaSend sends at multiple locations (like images)
+  // Location 1: message.message.documentMessage (primary)
+  // Location 2: message.documentMessage (direct — WaSend variation)
+  // Location 3: message.data.documentMessage (data wrapper)
+  const docMsg =
+    message.message?.documentMessage ||
+    message.documentMessage ||
+    message.data?.documentMessage ||
+    null;
 
-    if (rawUrl) {
-      if (needsDecryption(rawUrl) && docMsg.mediaKey) {
-        logger.info("Decrypting document image via WaSend API...", {
-          category: LogCategory.GENERAL,
-        });
-        const decryptedUrl = await decryptWhatsAppImage(messageId + "_doc", {
-          url: rawUrl,
-          mimetype: docMsg.mimetype,
-          mediaKey: docMsg.mediaKey,
-          fileSha256: docMsg.fileSha256,
-          fileLength: docMsg.fileLength?.toString(),
-          fileName: docMsg.fileName,
-        });
-        if (decryptedUrl) {
-          logger.info("Document image decryption successful!", {
+  if (docMsg?.url) {
+    const docMimetype = docMsg.mimetype || "application/octet-stream";
+    const isImageDoc = docMimetype.startsWith("image/");
+
+    if (isImageDoc) {
+      // Image sent as document (e.g., high-res photo) — treat as image
+      const rawUrl = docMsg.url;
+      logger.info(
+        "Found image in documentMessage, URL: " +
+          (rawUrl?.substring(0, 80) || "none"),
+        { category: LogCategory.GENERAL }
+      );
+
+      if (rawUrl) {
+        if (needsDecryption(rawUrl) && docMsg.mediaKey) {
+          logger.info("Decrypting document image via WaSend API...", {
             category: LogCategory.GENERAL,
           });
-          imageUrls.push(decryptedUrl);
-        }
-      } else if (isPublicUrl(rawUrl)) {
-        imageUrls.push(rawUrl);
-      }
-    }
-  }
-
-  // Capture non-image document attachments (PDF, DOCX — e.g., title deeds)
-  // These get persisted to Supabase Storage and tracked in pending_documents
-  if (
-    message.message?.documentMessage?.url &&
-    !message.message?.documentMessage?.mimetype?.startsWith("image/")
-  ) {
-    const docMsg = message.message.documentMessage;
-    const rawUrl = docMsg.url;
-    const docMimetype = docMsg.mimetype || "application/octet-stream";
-    const docFilename = docMsg.fileName || undefined;
-
-    logger.info("Found non-image document attachment", {
-      category: LogCategory.GENERAL,
-      operation: "extractMessage",
-      mimetype: docMimetype,
-      filename: docFilename,
-    });
-
-    if (rawUrl) {
-      let documentUrl: string | null = null;
-
-      if (needsDecryption(rawUrl) && docMsg.mediaKey) {
-        logger.info("Decrypting document via WaSend API...", {
-          category: LogCategory.GENERAL,
-        });
-        documentUrl = await decryptWhatsAppImage(messageId + "_doc", {
-          url: rawUrl,
-          mimetype: docMimetype,
-          mediaKey: docMsg.mediaKey,
-          fileSha256: docMsg.fileSha256,
-          fileLength: docMsg.fileLength?.toString(),
-          fileName: docFilename,
-        });
-      } else if (isPublicUrl(rawUrl)) {
-        documentUrl = rawUrl;
-      }
-
-      if (documentUrl) {
-        // Persist to Supabase Storage for stable URL
-        const persistedUrl = await persistDocument(
-          documentUrl,
-          docFilename,
-          docMimetype
-        );
-        if (persistedUrl) {
-          const phoneNumber =
-            remoteJid?.split("@")[0]?.replace(/\D/g, "") || "";
-          if (phoneNumber) {
-            await addPendingDocument(
-              phoneNumber,
-              persistedUrl,
-              docFilename,
-              docMimetype
-            );
+          const decryptedUrl = await decryptWhatsAppImage(messageId + "_doc", {
+            url: rawUrl,
+            mimetype: docMimetype,
+            mediaKey: docMsg.mediaKey,
+            fileSha256: docMsg.fileSha256,
+            fileLength: docMsg.fileLength?.toString(),
+            fileName: docMsg.fileName,
+          });
+          if (decryptedUrl) {
+            logger.info("Document image decryption successful!", {
+              category: LogCategory.GENERAL,
+            });
+            imageUrls.push(decryptedUrl);
           }
+        } else if (isPublicUrl(rawUrl)) {
+          imageUrls.push(rawUrl);
+        }
+      }
+    } else {
+      // Non-image document (PDF, DOCX — e.g., title deeds)
+      // Persist to Supabase Storage and track in pending_documents
+      const rawUrl = docMsg.url;
+      const docFilename = docMsg.fileName || undefined;
 
-          // Use placeholder so AI knows a document was sent
-          if (!userMessage || userMessage.trim() === "") {
-            userMessage = `[User sent document: ${docFilename || "file"}]`;
+      logger.info("Found non-image document attachment", {
+        category: LogCategory.GENERAL,
+        operation: "extractMessage",
+        mimetype: docMimetype,
+        filename: docFilename,
+        source: message.message?.documentMessage
+          ? "message.message"
+          : message.documentMessage
+            ? "message"
+            : "message.data",
+      });
+
+      if (rawUrl) {
+        let documentUrl: string | null = null;
+
+        if (needsDecryption(rawUrl) && docMsg.mediaKey) {
+          logger.info("Decrypting document via WaSend API...", {
+            category: LogCategory.GENERAL,
+          });
+          documentUrl = await decryptWhatsAppImage(messageId + "_doc", {
+            url: rawUrl,
+            mimetype: docMimetype,
+            mediaKey: docMsg.mediaKey,
+            fileSha256: docMsg.fileSha256,
+            fileLength: docMsg.fileLength?.toString(),
+            fileName: docFilename,
+          });
+        } else if (isPublicUrl(rawUrl)) {
+          documentUrl = rawUrl;
+        }
+
+        if (documentUrl) {
+          // Persist to Supabase Storage for stable URL
+          const persistedUrl = await persistDocument(
+            documentUrl,
+            docFilename,
+            docMimetype
+          );
+          if (persistedUrl) {
+            const phoneNumber =
+              remoteJid?.split("@")[0]?.replace(/\D/g, "") || "";
+            if (phoneNumber) {
+              await addPendingDocument(
+                phoneNumber,
+                persistedUrl,
+                docFilename,
+                docMimetype
+              );
+            }
+
+            // Use placeholder so AI knows a document was sent
+            if (!userMessage || userMessage.trim() === "") {
+              userMessage = `[User sent document: ${docFilename || "file"}]`;
+            }
           }
         }
       }
