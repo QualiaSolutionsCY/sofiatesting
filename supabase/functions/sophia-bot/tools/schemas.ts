@@ -209,6 +209,11 @@ export const createLandListingSchema = z.object({
     .positive()
     .max(500, "Max height must be under 500m")
     .optional(),
+  roadFrontage: z
+    .number()
+    .positive()
+    .max(10_000, "Road frontage must be under 10,000m")
+    .optional(),
   infrastructure: z.array(z.string().max(50)).max(20).optional(),
   features: z.array(z.string().max(100)).max(100).optional(),
   confirmDuplicate: z.boolean().optional(),

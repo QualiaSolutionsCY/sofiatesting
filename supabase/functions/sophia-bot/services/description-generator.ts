@@ -1607,6 +1607,7 @@ export interface LandDetails {
   siteCoverage?: number;
   maxFloors?: number;
   maxHeight?: number;
+  roadFrontage?: number;
   infrastructure?: string[];
   views?: string[];
   price: number;
@@ -1643,52 +1644,34 @@ export function generateLandDescription(details: LandDetails): string {
   lines.push("Located in a peaceful and attractive environment");
   lines.push("It is only minutes from the community center and amenities!");
   lines.push("");
-  lines.push(`This ${displayType.toLowerCase()} offers ${formattedSize}m² of land.`);
-
-  // Building regulations paragraph (if any provided)
-  if (
-    details.buildingDensity ||
-    details.siteCoverage ||
-    details.maxFloors ||
-    details.maxHeight
-  ) {
-    const regs: string[] = [];
-    if (details.buildingDensity !== undefined) {
-      regs.push(`${details.buildingDensity}% building density`);
-    }
-    if (details.siteCoverage !== undefined) {
-      regs.push(`${details.siteCoverage}% site coverage`);
-    }
-    if (details.maxFloors !== undefined) {
-      regs.push(`up to ${details.maxFloors} floors`);
-    }
-    if (details.maxHeight !== undefined) {
-      regs.push(`maximum height of ${details.maxHeight}m`);
-    }
-
-    if (regs.length > 0) {
-      lines.push("");
-      lines.push(`Building regulations allow ${regs.join(", ")}.`);
-    }
+  // Building regulations + specs — each on its own line (per Lauren's format)
+  lines.push(`${formattedSize}m2 of ${displayType} area`);
+  if (details.roadFrontage !== undefined && details.roadFrontage > 0) {
+    lines.push(`Around ${details.roadFrontage}m of Road Frontage`);
+  }
+  if (details.buildingDensity !== undefined) {
+    lines.push(`${details.buildingDensity}% of Building Density`);
+  }
+  if (details.siteCoverage !== undefined) {
+    lines.push(`${details.siteCoverage}% of Site Coverage`);
+  }
+  if (details.maxFloors !== undefined && details.maxHeight !== undefined) {
+    lines.push(`Up to ${details.maxFloors} floors and a height of ${details.maxHeight}m`);
+  } else if (details.maxFloors !== undefined) {
+    lines.push(`Up to ${details.maxFloors} floors`);
+  } else if (details.maxHeight !== undefined) {
+    lines.push(`Maximum height of ${details.maxHeight}m`);
   }
 
-  // Infrastructure paragraph (if provided)
+  // Infrastructure summary line
   if (details.infrastructure && details.infrastructure.length > 0) {
-    const infraList = details.infrastructure.map((i) => {
-      return i.replace(/_/g, " ");
-    });
-
-    lines.push("");
-    if (infraList.length === 1) {
-      lines.push(`The plot has ${infraList[0]} available.`);
-    } else if (infraList.length === 2) {
-      lines.push(`The plot has ${infraList[0]} and ${infraList[1]} available.`);
-    } else {
-      const lastInfra = infraList.pop();
-      lines.push(
-        `The plot has ${infraList.join(", ")} and ${lastInfra} available.`
-      );
+    const hasRoadAccess = details.infrastructure.some((i) =>
+      i.toLowerCase().replace(/_/g, " ").includes("road")
+    );
+    if (hasRoadAccess) {
+      lines.push("Access to a registered road");
     }
+    lines.push("All development infrastructures are in place");
   }
 
   // Views paragraph (if provided)
@@ -1728,7 +1711,7 @@ export function generateLandDescription(details: LandDetails): string {
   // NO title deed mention in land descriptions (Zyprus rule: never mention deeds for land)
   // NO price in description (price is shown separately on the listing)
 
-  // Closing — same as property listings
+  // Closing
   lines.push("");
   lines.push(
     "Contact us for full information and for a private viewing!"

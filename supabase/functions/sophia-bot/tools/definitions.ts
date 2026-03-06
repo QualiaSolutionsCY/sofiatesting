@@ -433,11 +433,16 @@ export const TOOLS: ToolDefinition[] = [
             description:
               "Maximum building height allowed in meters (e.g., 12.5)",
           },
+          roadFrontage: {
+            type: "number",
+            description:
+              "Road frontage in meters (e.g., 52 means approximately 52m of road frontage). Extract from agent's info about the plot's frontage/face on the road.",
+          },
           infrastructure: {
             type: "array",
             items: { type: "string" },
             description:
-              "Available infrastructure on the plot. Options: electricity, water, road_access, sewage, telephone. Example: ['electricity', 'water', 'road_access']",
+              "Available infrastructure on the plot. Options: electricity, water, road_access, telecommunications. Example: ['electricity', 'water', 'road_access', 'telecommunications']. DEFAULT: Include all 4 unless agent explicitly says something is missing.",
           },
           features: {
             type: "array",

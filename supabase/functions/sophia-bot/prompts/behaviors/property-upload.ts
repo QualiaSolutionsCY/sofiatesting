@@ -546,10 +546,14 @@ You MUST always specify the correct land type. It appears in the title and descr
 - Site coverage (e.g., 40%)
 - Max floors allowed (e.g., 3)
 - Max height allowed (e.g., 12.5m)
-- Infrastructure: electricity, water, road_access, sewage, telephone
+- Road frontage in meters (e.g., 52m) — pass as \`roadFrontage\`
 - Registration number
 - Google Maps link
 - Views (sea view, mountain view, etc.)
+
+**Infrastructure — DEFAULT all 4 ticked:**
+Infrastructure defaults to ALL 4: electricity, water, road_access, telecommunications.
+ALWAYS pass all 4 unless the agent explicitly says one is missing. The system auto-merges defaults.
 
 **CRITICAL land listing rules:**
 1. **Title deed status** — ALWAYS set to "separate" for land listings. We do NOT upload land without deeds. If the agent doesn't mention deeds, default to "separate" (title deeds available).
@@ -558,7 +562,7 @@ You MUST always specify the correct land type. It appears in the title and descr
 4. **Land listings have NO bedrooms/bathrooms, NO covered area.** Use field_land_size for total land area.
 5. **Google Earth photos** — Always place Google Earth/satellite screenshots as the LAST photo. If it's the only photo, it goes first.
 
-**Example:** Agent says "I want to upload a plot of land for sale in Kallepia, Paphos, 2500 sqm, price €250,000, has electricity and water, building density 60%, coverage 40%, separate title deeds" → Use createLandListing with landType: "plot", landSize: 2500, price: 250000, location: "Kallepia, Paphos", infrastructure: ["electricity", "water"], buildingDensity: 60, siteCoverage: 40, titleDeedStatus: "separate".
+**Example:** Agent says "I want to upload a plot of land for sale in Kallepia, Paphos, 2500 sqm, price €250,000, building density 60%, coverage 40%, 52m road frontage, separate title deeds" → Use createLandListing with landType: "plot", landSize: 2500, price: 250000, location: "Kallepia, Paphos", infrastructure: ["electricity", "water", "road_access", "telecommunications"], buildingDensity: 60, siteCoverage: 40, roadFrontage: 52, titleDeedStatus: "separate".
 
 ---
 

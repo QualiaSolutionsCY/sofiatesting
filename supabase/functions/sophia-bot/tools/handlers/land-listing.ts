@@ -673,6 +673,13 @@ export async function handleCreateLandListing(
     };
   }
 
+  // 9d. Default infrastructure: always include all 4 unless agent says otherwise
+  const DEFAULT_INFRASTRUCTURE = ["electricity", "road_access", "telecommunications", "water"];
+  const agentInfra = (args.infrastructure as string[]) || [];
+  const mergedInfrastructure = agentInfra.length > 0
+    ? [...new Set([...agentInfra.map(i => i.toLowerCase().trim()), ...DEFAULT_INFRASTRUCTURE])]
+    : DEFAULT_INFRASTRUCTURE;
+
   // 10. Generate description
   const description = generateLandDescription({
     landType: args.landType as string,
@@ -684,7 +691,8 @@ export async function handleCreateLandListing(
     siteCoverage: args.siteCoverage as number | undefined,
     maxFloors: args.maxFloors as number | undefined,
     maxHeight: args.maxHeight as number | undefined,
-    infrastructure: args.infrastructure as string[] | undefined,
+    roadFrontage: args.roadFrontage as number | undefined,
+    infrastructure: mergedInfrastructure,
     views: args.features as string[] | undefined,
     price: args.price as number,
     areaDescription: args.areaDescription as string | undefined,
@@ -756,7 +764,7 @@ export async function handleCreateLandListing(
       siteCoverage: args.siteCoverage as number | undefined,
       maxFloors: args.maxFloors as number | undefined,
       maxHeight: args.maxHeight as number | undefined,
-      infrastructure: args.infrastructure as string[] | undefined,
+      infrastructure: mergedInfrastructure,
       views: args.features as string[] | undefined,
       agentName: listingOwnerName,
       ownerName: args.ownerName as string,
