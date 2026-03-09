@@ -13,7 +13,7 @@ Milestone: v1.5 Audit Excellence — SHIPPED
 Phase: 25 of 25 (all complete)
 Plan: Not started (next milestone)
 Status: Ready to plan next milestone
-Last activity: 2026-03-04 — Completed quick task 21: Fix title deed attachment + image ordering
+Last activity: 2026-03-09 — Completed quick task 22: Gmail email router (Railway)
 
 Progress: [█████████████████████████] 100% (6 milestones shipped)
 
@@ -62,6 +62,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 21 | Fix title deed attachment failure + image ordering bug | 2026-03-04 | 119266d | [21-fix-title-deed-patch-attachment-failure-](./quick/21-fix-title-deed-patch-attachment-failure-/) |
+| 22 | Gmail email router — poll info@zyprus.com, forward + draft | 2026-03-09 | b01860f | [22-add-gmail-email-router-poll-info-zyprus-](./quick/22-add-gmail-email-router-poll-info-zyprus-/) |
 
 ## Session Continuity
 

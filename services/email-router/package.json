@@ -1,0 +1,26 @@
+{
+  "name": "sophia-email-router",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.87.1",
+    "imapflow": "^1.0.171",
+    "mailparser": "^3.7.2",
+    "nodemailer": "^6.10.1"
+  },
+  "devDependencies": {
+    "@types/mailparser": "^3.4.6",
+    "@types/nodemailer": "^6.4.17",
+    "tsx": "^4.19.1",
+    "typescript": "^5.8.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
