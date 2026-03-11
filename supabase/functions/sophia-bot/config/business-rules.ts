@@ -132,8 +132,10 @@ export const REGION_LOCATIONS: Record<string, string[]> = {
     "geroskipou", "pegeia", "kissonerga", "emba", "tremithousa", "mesa chorio",
     "kamares", "mandria", "kouklia", "letymvou", "tsada", "mesogi", "koloni",
     "universal", "anavargos", "konia", "tomb of kings", "sea caves",
-    "kallepia", "peristerona", "letymbou", "letymvou", "stroumbi", "kathikas",
-    "polemi", "choulou", "simou", "drouseia", "ineia", "arodes", "akourdaleia"
+    "kallepia", "peristerona", "letymbou", "stroumbi", "kathikas",
+    "polemi", "choulou", "simou", "drouseia", "ineia", "arodes", "akourdaleia",
+    "anarita", "achelia", "timi", "nikoklia", "armou", "marathounta",
+    "neo chorio", "latchi", "latsi", "prodromi", "goudi", "fyti", "kritou terra"
   ],
   limassol: [
     "limassol", "lemesos", "germasogeia", "agios tychonas", "potamos", "mesa geitonia",

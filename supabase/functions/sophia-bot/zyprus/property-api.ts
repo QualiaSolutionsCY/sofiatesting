@@ -918,6 +918,24 @@ export async function createDraftListing(
   if (listing.reviewer1) reviewerEmails.push(listing.reviewer1);
   if (listing.reviewer2) reviewerEmails.push(listing.reviewer2);
 
+  // Auto-add common assumption features that agents rarely mention but properties always have
+  // These are safe assumptions for residential properties — reviewers can remove if wrong
+  const effectiveFeatures = [...(listing.features || [])];
+  const featLower = effectiveFeatures.map(f => f.toLowerCase());
+  const isResidential = ["house", "villa", "detached", "semi-detached", "apartment", "maisonette", "penthouse", "townhouse", "bungalow"]
+    .some(t => (listing.propertyType || "").toLowerCase().includes(t));
+  if (isResidential) {
+    if (!featLower.some(f => f.includes("fitted kitchen") || f.includes("built-in kitchen"))) {
+      effectiveFeatures.push("fitted kitchen");
+    }
+    if (!featLower.some(f => f.includes("water heater") || f.includes("boiler"))) {
+      effectiveFeatures.push("water heater");
+    }
+    if (!featLower.some(f => f.includes("solar"))) {
+      effectiveFeatures.push("solar system");
+    }
+  }
+
   // Resolve all taxonomy UUIDs, user UUIDs, and feature UUIDs in parallel
   // CRITICAL: listingOwner and listingInstructor should be the SAME person (same UUID)
   // We resolve listingOwner first, then use that UUID for both fields
@@ -938,9 +956,9 @@ export async function createDraftListing(
     findTitleDeedUuid(listing.titleDeedStatus), // Maps status to Zyprus taxonomy (permits_only → "not available")
     findUserUuid(listing.listingOwner), // CRITICAL: Resolve listing owner email to UUID
     findUserUuids(reviewerEmails), // Resolve reviewer emails to UUIDs
-    findIndoorFeatureUuids(listing.features || [], listing.bathrooms), // Resolve indoor features (auto-adds guest toilet + master bed if bathrooms >= 2)
-    findOutdoorFeatureUuids(listing.features || []), // Resolve outdoor features
-    findPropertyViewUuids(listing.features || []), // Resolve property views (sea view, etc.)
+    findIndoorFeatureUuids(effectiveFeatures, listing.bathrooms), // Resolve indoor features (auto-adds guest toilet + master bed if bathrooms >= 2)
+    findOutdoorFeatureUuids(effectiveFeatures), // Resolve outdoor features
+    findPropertyViewUuids(effectiveFeatures), // Resolve property views (sea view, etc.)
   ]);
 
   // Note: All taxonomy/user functions now have hardcoded fallbacks, so they cannot fail
@@ -1156,10 +1174,9 @@ export async function createDraftListing(
               attempt,
             }
           );
-          // Only retry on 5xx errors
-          if (patchRes.status < 500 && attempt < 3) {
-            // 4xx error — likely permissions. Try without delay.
-            continue;
+          // 4xx errors (permissions, validation) won't succeed on retry — abort immediately
+          if (patchRes.status < 500) {
+            break;
           }
         }
       } catch (patchError) {
