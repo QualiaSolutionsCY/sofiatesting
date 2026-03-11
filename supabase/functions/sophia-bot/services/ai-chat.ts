@@ -286,7 +286,7 @@ ${accumulatedImages.map((url, i) => `${i + 1}. ${url}`).join("\n")}
 async function callOpenRouter(
   messages: OpenRouterMessage[],
   tools: OpenRouterTool[],
-  toolChoice: "auto" | "required" = "auto",
+  toolChoice: "auto" | "required" | { type: "function"; function: { name: string } } = "auto",
   model: string = PRIMARY_MODEL
 ): Promise<{
   message: OpenRouterMessage | null;
@@ -485,9 +485,19 @@ export async function chat(
         lowerMessage.includes("villa") ||
         lowerMessage.includes("house")));
 
+  // Detect if email contains structured property data (has key required fields)
+  // When all core fields are present, force createPropertyListing specifically
+  const isEmailWithStructuredData =
+    lowerMessage.includes("this message is via email") &&
+    isPropertyUploadIntent &&
+    lowerMessage.includes("price") &&
+    lowerMessage.includes("location") &&
+    (lowerMessage.includes("owner") || lowerMessage.includes("seller")) &&
+    (lowerMessage.includes("title deed") || lowerMessage.includes("deed status"));
+
   if (isPropertyUploadIntent) {
     logger.info(
-      "[OpenRouter] Property upload intent detected - will force tool usage",
+      `[OpenRouter] Property upload intent detected - will force tool usage${isEmailWithStructuredData ? " (EMAIL with structured data → forcing createPropertyListing)" : ""}`,
       { category: LogCategory.ZYPRUS }
     );
   }
@@ -523,8 +533,15 @@ export async function chat(
       };
     }
 
-    const toolChoiceForCall =
-      isPropertyUploadIntent && toolCallCount === 0 ? "required" : "auto";
+    // For structured email data, force createPropertyListing specifically
+    // For other upload intents, force any tool ("required")
+    // Otherwise, let AI decide ("auto")
+    const toolChoiceForCall: "auto" | "required" | { type: "function"; function: { name: string } } =
+      isEmailWithStructuredData && toolCallCount === 0
+        ? { type: "function", function: { name: "createPropertyListing" } }
+        : isPropertyUploadIntent && toolCallCount === 0
+          ? "required"
+          : "auto";
 
     const openRouterResult = await callOpenRouter(
       currentMessages,

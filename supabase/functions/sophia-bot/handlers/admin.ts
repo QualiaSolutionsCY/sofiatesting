@@ -25,6 +25,8 @@ import {
 } from "../services/prompt-loader.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
 import { constantTimeCompare } from "../utils/webhook-auth.ts";
+import { handleCreatePropertyListing } from "../tools/handlers/property-listing.ts";
+import { getAgentByEmail } from "../agents/identifier.ts";
 
 const ADMIN_SECRET = Deno.env.get("SOPHIA_ADMIN_SECRET");
 
@@ -125,6 +127,14 @@ export async function handleAdminRequest(
     req.method === "POST"
   ) {
     return handleGenerateDescription(req);
+  }
+
+  // Direct tool invocation (bypasses AI pipeline)
+  if (
+    url.pathname === "/sophia-bot/admin/create-listing" &&
+    req.method === "POST"
+  ) {
+    return handleDirectCreateListing(req);
   }
 
   // Unknown admin endpoint
@@ -755,6 +765,55 @@ async function handleGenerateDescription(req: Request): Promise<Response> {
         error: "Failed to generate description",
         details: err instanceof Error ? err.message : String(err),
       }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+}
+
+/**
+ * POST /admin/create-listing
+ * Directly invoke createPropertyListing tool handler, bypassing AI pipeline.
+ * Body: { agentEmail: string, args: { ...tool args } }
+ */
+async function handleDirectCreateListing(req: Request): Promise<Response> {
+  try {
+    const body = await req.json();
+    const { agentEmail, args } = body;
+
+    if (!agentEmail || !args) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Missing agentEmail or args" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Look up agent
+    const agent = await getAgentByEmail(agentEmail);
+    if (!agent) {
+      return new Response(
+        JSON.stringify({ success: false, error: `Agent not found for ${agentEmail}` }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    logger.info(`Admin: Direct create-listing for ${agent.fullName}`, {
+      category: LogCategory.GENERAL,
+      agentEmail,
+      argsPreview: JSON.stringify(args).substring(0, 300),
+    });
+
+    const result = await handleCreatePropertyListing(args, agent);
+
+    return new Response(
+      JSON.stringify({ success: true, result }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    logger.error("Admin: Direct create-listing error", err instanceof Error ? err : undefined, {
+      category: LogCategory.GENERAL,
+    });
+    return new Response(
+      JSON.stringify({ success: false, error: String(err) }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }

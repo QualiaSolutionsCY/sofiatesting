@@ -21,10 +21,13 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0
 import { addMessage, getHistory } from "../../_shared/db.ts";
 import { getAgentByEmail } from "../agents/identifier.ts";
 import { buildSystemPrompt, chat } from "../services/ai-chat.ts";
+import { addPendingImages, getPendingImages } from "../services/pending-images.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
 import { constantTimeCompare } from "../utils/webhook-auth.ts";
 
 const ADMIN_SECRET = Deno.env.get("SOPHIA_ADMIN_SECRET");
+
+// No alias mapping needed — agents table uses communication_email directly
 
 export interface EmailWebhookPayload {
   from: string;        // Sender email address (used as userId)
@@ -77,12 +80,12 @@ export async function handleEmailWebhook(
   // Sanitize email
   const senderEmail = from.toLowerCase().trim();
 
-  logger.info(`[Email] Processing email from ${senderEmail}: "${subject}"`, {
+  logger.info(`[Email] Processing from ${senderEmail}: "${subject}"`, {
     category: LogCategory.GENERAL,
   });
 
   try {
-    // Identify agent by email
+    // Identify agent by resolved email
     const identifiedAgent = await getAgentByEmail(senderEmail).catch((err) => {
       logger.warn("[Email] Failed to identify agent by email (non-critical)", {
         category: LogCategory.GENERAL,
@@ -104,23 +107,35 @@ export async function handleEmailWebhook(
     // Use sender email as userId for chat_history (keeps email threads separate from WhatsApp)
     const userId = senderEmail;
 
-    // Build user message: combine subject + body
-    // Include subject for context, especially useful on first email in a thread
+    // Build user message: subject + body + email channel context
+    // CRITICAL: Tell AI this is EMAIL so it never mentions WhatsApp
+    const emailPrefix = "[THIS MESSAGE IS VIA EMAIL — NOT WHATSAPP. Reply as email. Never mention WhatsApp or ask to send photos on WhatsApp. All images are already attached to this email. IMPORTANT: When the email contains property details for upload, call createPropertyListing directly with the provided data. Do NOT call extractFromBazaraki unless the email contains a bazaraki.com URL. Do NOT call getZyprusData. Use the property details from the email text directly.]";
     const userMessage = subject
-      ? `[Subject: ${subject}]\n\n${textBody || ""}`
-      : textBody || "";
+      ? `${emailPrefix}\n\n[Subject: ${subject}]\n\n${textBody || ""}`
+      : `${emailPrefix}\n\n${textBody || ""}`;
 
     const imageUrls = payload.imageUrls || [];
 
-    // Store user message in chat history
-    await addMessage(userId, "user", userMessage).catch((err) => {
-      logger.warn("[Email] Failed to store user message (non-critical)", {
-        category: LogCategory.GENERAL,
-        error: String(err),
-      });
-    });
+    // Store email images under agent's MOBILE number (the property listing tool reads by phone)
+    // Falls back to senderEmail if agent not identified or has no mobile
+    const imageKey = identifiedAgent?.mobile?.replace(/\D/g, "") || senderEmail;
 
-    // Load chat history (email conversations keyed by sender email)
+    if (imageUrls.length > 0) {
+      await addPendingImages(
+        imageKey,
+        imageUrls.map((url) => ({ url, contentHash: url }))
+      ).catch((err) => {
+        logger.warn("[Email] Failed to store pending images (non-critical)", {
+          category: LogCategory.GENERAL,
+          error: String(err),
+        });
+      });
+      logger.info(`[Email] Stored ${imageUrls.length} images in pending_images for ${imageKey}`, {
+        category: LogCategory.GENERAL,
+      });
+    }
+
+    // Load chat history BEFORE storing current message (avoids duplication)
     const history = await getHistory(userId).catch((err) => {
       logger.warn("[Email] Failed to get chat history (non-critical)", {
         category: LogCategory.GENERAL,
@@ -129,31 +144,52 @@ export async function handleEmailWebhook(
       return [];
     });
 
-    // Build system prompt — pass sender email as phoneNumber (used as userId internally)
+    // Store user message AFTER loading history
+    await addMessage(userId, "user", userMessage).catch((err) => {
+      logger.warn("[Email] Failed to store user message (non-critical)", {
+        category: LogCategory.GENERAL,
+        error: String(err),
+      });
+    });
+
+    // Use agent's mobile number for image lookups (pending_images is keyed by phone)
+    // Falls back to senderEmail if agent not identified
+    const phoneForImages = identifiedAgent?.mobile?.replace(/\D/g, "") || senderEmail;
+
+    // Fetch ALL pending images for this agent (includes any previously stored from email)
+    // This is critical: chat() uses imageUrls for upload intent detection
+    const allPendingImages = await getPendingImages(phoneForImages).catch(() => [] as string[]);
+    if (allPendingImages.length > 0) {
+      logger.info(`[Email] Found ${allPendingImages.length} pending images for ${phoneForImages}`, {
+        category: LogCategory.GENERAL,
+      });
+    }
+
+    // Build system prompt — pass agent's mobile as phoneNumber so pending_images lookup works
     const systemPrompt = await buildSystemPrompt(
       supabase,
       {
         userId,
-        phoneNumber: senderEmail, // email used as identifier
+        phoneNumber: phoneForImages, // agent mobile for pending_images lookup
         agentName: identifiedAgent?.fullName,
         agentEmail: identifiedAgent?.communicationEmail,
         agentRegion: identifiedAgent?.region,
         agentCanUpload: identifiedAgent?.canUpload,
-        imageUrls,
+        imageUrls: allPendingImages, // pass ALL pending images so AI sees them
         userMessage,
         lastDocument: null,
       },
       identifiedAgent
     );
 
-    // Run AI chat — pass senderEmail as phoneNumber (used as userId for pending images)
+    // Run AI chat — pass agent's mobile + all pending images for intent detection & tool execution
     const aiResult = await chat(
       history,
       systemPrompt,
       userMessage,
-      imageUrls,
+      allPendingImages, // pass pending images so isPropertyUploadIntent triggers
       identifiedAgent,
-      senderEmail
+      phoneForImages
     );
 
     const reply = aiResult.response || "I couldn't process your request. Please try again.";
