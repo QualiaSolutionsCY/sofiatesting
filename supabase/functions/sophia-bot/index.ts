@@ -20,6 +20,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { initSentry } from "../_shared/sentry.ts";
 import { handleAdminRequest } from "./handlers/admin.ts";
+import { handleEmailWebhook } from "./handlers/email-webhook.ts";
 import { handleHealthCheck } from "./handlers/health.ts";
 import { handleWebhook } from "./handlers/webhook.ts";
 import { getSupabaseAdmin } from "../_shared/db.ts";
@@ -110,6 +111,11 @@ serve(async (req) => {
   // Admin endpoints
   if (url.pathname.startsWith("/sophia-bot/admin/")) {
     return handleAdminRequest(req, url, supabase);
+  }
+
+  // Email inbound endpoint — called by email-router Railway service
+  if (url.pathname.endsWith("/email") && req.method === "POST") {
+    return handleEmailWebhook(req, supabase);
   }
 
   // Wrap webhook requests in context for correlation ID tracking
