@@ -2,12 +2,11 @@
  * Gmail IMAP/SMTP Client
  *
  * Reads emails via IMAP, forwards via SMTP, creates drafts via IMAP APPEND.
- * Uses app password authentication (info@zyprus.com).
+ * Uses app password authentication (info@zyprus.com and sophia@zyprus.com).
  */
 
 import { ImapFlow } from "imapflow";
 import { simpleParser, type ParsedMail } from "mailparser";
-import nodemailer from "nodemailer";
 import { config } from "./config.js";
 
 export interface EmailMessage {
@@ -36,23 +35,10 @@ function createImapClient(): ImapFlow {
       pass: config.gmail.appPassword,
     },
     logger: false,
+    socketTimeout: 30_000,
   });
 }
 
-/**
- * Create an SMTP transporter
- */
-function createSmtpTransporter(): nodemailer.Transporter {
-  return nodemailer.createTransport({
-    host: config.gmail.smtpHost,
-    port: config.gmail.smtpPort,
-    secure: true,
-    auth: {
-      user: config.gmail.email,
-      pass: config.gmail.appPassword,
-    },
-  });
-}
 
 /**
  * Fetch unread emails from inbox
@@ -136,53 +122,46 @@ export async function markAsRead(uid: number): Promise<void> {
 }
 
 /**
- * Forward an email to a recipient
+ * Forward an email to a recipient via Resend API
+ * (Railway blocks outbound SMTP, so we use Resend instead)
  */
 export async function forwardEmail(
   original: EmailMessage,
   toEmail: string,
-  agentName: string
+  _agentName: string
 ): Promise<boolean> {
-  const transporter = createSmtpTransporter();
-
   const forwardSubject = original.subject.startsWith("Fwd:")
     ? original.subject
     : `Fwd: ${original.subject}`;
 
-  const forwardBody = `
----------- Forwarded message ----------
-From: ${original.fromName} <${original.from}>
-Date: ${original.date.toLocaleString("en-GB", { timeZone: "Asia/Nicosia" })}
-Subject: ${original.subject}
-To: ${config.gmail.email}
-
-${original.textBody}
-`.trim();
-
-  const htmlForwardBody = `
-<div style="font-family: Arial, sans-serif; padding: 10px;">
-  <p>Hi ${agentName.split(" ")[0]},</p>
-  <p>SOPHIA has forwarded this email to you based on your region assignment.</p>
-  <hr style="border: 1px solid #ddd;" />
-  <p style="color: #666; font-size: 12px;">
-    <strong>From:</strong> ${original.fromName} &lt;${original.from}&gt;<br/>
-    <strong>Date:</strong> ${original.date.toLocaleString("en-GB", { timeZone: "Asia/Nicosia" })}<br/>
-    <strong>Subject:</strong> ${original.subject}
-  </p>
-  ${original.htmlBody || `<p>${original.textBody.replace(/\n/g, "<br/>")}</p>`}
-</div>
-`.trim();
+  // Clean forward — just the original email content, no added text
+  const body = original.htmlBody || `<p>${original.textBody.replace(/\n/g, "<br/>")}</p>`;
 
   try {
-    await transporter.sendMail({
-      from: `SOPHIA <${config.gmail.email}>`,
-      to: toEmail,
-      subject: forwardSubject,
-      text: forwardBody,
-      html: htmlForwardBody,
-      replyTo: original.from,
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.resend.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: `${original.fromName || original.from} <sophia@zyprus.com>`,
+        to: toEmail,
+        subject: forwardSubject,
+        html: body,
+        text: original.textBody,
+        reply_to: original.from,
+      }),
+      signal: AbortSignal.timeout(30_000),
     });
-    console.log(`Forwarded email "${original.subject}" to ${toEmail}`);
+
+    if (!response.ok) {
+      const err = await response.text();
+      console.error(`Resend API error (${response.status}):`, err);
+      return false;
+    }
+
+    console.log(`Forwarded email "${original.subject}" to ${toEmail} via Resend`);
     return true;
   } catch (err) {
     console.error(`Failed to forward email to ${toEmail}:`, err);
@@ -305,6 +284,182 @@ export async function createDraft(
   } catch (err) {
     console.error("Failed to create draft:", err);
     try { await client.logout(); } catch { /* ignore */ }
+    return false;
+  }
+}
+
+/**
+ * Extracted image attachment from a parsed email
+ */
+export interface EmailAttachment {
+  content: Buffer;
+  contentType: string;
+  filename: string;
+}
+
+/**
+ * Extract image attachments from a parsed email
+ * Returns only image/* MIME types as Buffer objects
+ */
+export function extractAttachments(parsed: ParsedMail): EmailAttachment[] {
+  if (!parsed.attachments || parsed.attachments.length === 0) {
+    return [];
+  }
+
+  return parsed.attachments
+    .filter((att) => att.contentType.startsWith("image/"))
+    .map((att) => ({
+      content: att.content as Buffer,
+      contentType: att.contentType,
+      filename: att.filename || `image-${Date.now()}.jpg`,
+    }));
+}
+
+/**
+ * Create an IMAP client for sophia@zyprus.com
+ */
+export function createSophiaImapClient(): ImapFlow {
+  return new ImapFlow({
+    host: "imap.gmail.com",
+    port: 993,
+    secure: true,
+    auth: {
+      user: config.sophia.email,
+      pass: config.sophia.appPassword,
+    },
+    logger: false,
+    socketTimeout: 30_000,
+  });
+}
+
+/**
+ * Fetch unread emails from sophia@zyprus.com inbox
+ * Returns emails with their parsed attachments for image extraction
+ */
+export async function fetchSophiaUnreadEmails(): Promise<Array<EmailMessage & { parsedAttachments: EmailAttachment[] }>> {
+  const client = createSophiaImapClient();
+  const emails: Array<EmailMessage & { parsedAttachments: EmailAttachment[] }> = [];
+
+  try {
+    await client.connect();
+    const lock = await client.getMailboxLock("INBOX");
+
+    try {
+      const messages = client.fetch(
+        { seen: false },
+        {
+          source: true,
+          envelope: true,
+          uid: true,
+        }
+      );
+
+      for await (const msg of messages) {
+        try {
+          const source = msg.source;
+          if (!source) continue;
+
+          const parsed = await simpleParser(source) as ParsedMail;
+          const fromAddr = parsed.from?.value?.[0];
+          const attachments = extractAttachments(parsed);
+
+          emails.push({
+            messageId: parsed.messageId || `uid-${msg.uid}`,
+            uid: msg.uid,
+            from: fromAddr?.address || "",
+            fromName: fromAddr?.name || "",
+            to: (parsed.to && !Array.isArray(parsed.to) ? [parsed.to] : parsed.to as any)
+              ?.map((t: any) => t?.value?.[0]?.address)
+              .filter(Boolean) || [],
+            subject: parsed.subject || "(no subject)",
+            textBody: parsed.text || "",
+            htmlBody: parsed.html || "",
+            date: parsed.date || new Date(),
+            raw: source,
+            parsedAttachments: attachments,
+          });
+        } catch (parseErr) {
+          console.error(`[Sophia] Failed to parse email uid=${msg.uid}:`, parseErr);
+        }
+      }
+    } finally {
+      lock.release();
+    }
+
+    await client.logout();
+  } catch (err) {
+    console.error("[Sophia] IMAP fetch error:", err);
+    try { await client.logout(); } catch { /* ignore */ }
+  }
+
+  return emails;
+}
+
+/**
+ * Mark a sophia@zyprus.com email as read
+ */
+export async function markSophiaEmailAsRead(uid: number): Promise<void> {
+  const client = createSophiaImapClient();
+  try {
+    await client.connect();
+    const lock = await client.getMailboxLock("INBOX");
+    try {
+      await client.messageFlagsAdd({ uid }, ["\\Seen"], { uid: true });
+    } finally {
+      lock.release();
+    }
+    await client.logout();
+  } catch (err) {
+    console.error(`[Sophia] Failed to mark uid=${uid} as read:`, err);
+    try { await client.logout(); } catch { /* ignore */ }
+  }
+}
+
+/**
+ * Send a reply from sophia@zyprus.com via Resend API
+ */
+export async function sendSophiaReply(
+  toEmail: string,
+  toName: string,
+  subject: string,
+  replyBody: string,
+  inReplyToMessageId: string,
+  resendApiKey: string
+): Promise<boolean> {
+  const replySubject = subject.startsWith("Re:") ? subject : `Re: ${subject}`;
+  const htmlBody = `<p>${replyBody.replace(/\n/g, "<br/>")}</p>`;
+
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "SOPHIA <sophia@zyprus.com>",
+        to: toEmail,
+        subject: replySubject,
+        html: htmlBody,
+        text: replyBody,
+        headers: {
+          "In-Reply-To": inReplyToMessageId,
+          "References": inReplyToMessageId,
+        },
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      console.error(`[Sophia] Resend API error (${response.status}):`, err);
+      return false;
+    }
+
+    console.log(`[Sophia] Sent reply to ${toEmail} for "${subject}" via Resend`);
+    return true;
+  } catch (err) {
+    console.error(`[Sophia] Failed to send reply to ${toEmail}:`, err);
     return false;
   }
 }

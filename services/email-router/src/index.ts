@@ -14,6 +14,7 @@ import { shouldSkipEmail } from "./filter.js";
 import { routeEmail } from "./router.js";
 import { createDraftReply } from "./drafter.js";
 import { getActiveAgents, isEmailProcessed, logEmailForward, updateRotation } from "./db.js";
+import { processSophiaEmails, getSophiaStatus } from "./sophia-handler.js";
 
 let lastRunAt: Date | null = null;
 let lastRunStats = { processed: 0, forwarded: 0, skipped: 0, drafts: 0 };
@@ -115,11 +116,8 @@ async function processEmails(): Promise<void> {
           await updateRotation(route.region, route.agent.id);
         }
 
-        // Create a draft reply using best-matching template
-        const draftResult = await createDraftReply(email);
-        if (draftResult.created) {
-          stats.drafts++;
-        }
+        // Draft creation disabled — forwarding only for now
+        const draftResult = { created: false, templateName: null as string | null };
 
         // Log to database
         await logEmailForward({
@@ -171,18 +169,21 @@ const server = http.createServer((req, res) => {
       JSON.stringify({
         status: "ok",
         service: "sophia-email-router",
-        lastRun: lastRunAt?.toISOString() || null,
-        lastStats: lastRunStats,
-        isRunning,
-        nextRunIn: lastRunAt
-          ? `${Math.max(0, Math.round((config.polling.intervalMs - (Date.now() - lastRunAt.getTime())) / 1000))}s`
-          : "starting soon",
+        infoMailbox: {
+          lastRun: lastRunAt?.toISOString() || null,
+          lastStats: lastRunStats,
+          isRunning,
+          nextRunIn: lastRunAt
+            ? `${Math.max(0, Math.round((config.polling.intervalMs - (Date.now() - lastRunAt.getTime())) / 1000))}s`
+            : "starting soon",
+        },
+        sophiaMailbox: getSophiaStatus(),
       })
     );
     return;
   }
 
-  // Manual trigger endpoint
+  // Manual trigger endpoint — info@ mailbox
   if (req.url === "/trigger" && req.method === "POST") {
     if (isRunning) {
       res.writeHead(409, { "Content-Type": "application/json" });
@@ -195,6 +196,14 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Manual trigger endpoint — sophia@ mailbox
+  if (req.url === "/trigger/sophia" && req.method === "POST") {
+    processSophiaEmails().catch(console.error);
+    res.writeHead(202, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "triggered" }));
+    return;
+  }
+
   res.writeHead(404);
   res.end("Not found");
 });
@@ -202,13 +211,25 @@ const server = http.createServer((req, res) => {
 // Start server
 server.listen(config.port, () => {
   console.log(`SOPHIA Email Router listening on port ${config.port}`);
-  console.log(`Polling interval: ${config.polling.intervalMs / 1000}s`);
+  console.log(`info@ polling interval: ${config.polling.intervalMs / 1000}s`);
 
-  // Run immediately on startup
+  // Run info@ immediately on startup, then on interval
   processEmails().catch(console.error);
-
-  // Then run on interval
   setInterval(() => {
     processEmails().catch(console.error);
   }, config.polling.intervalMs);
+
+  // Run sophia@ polling if configured
+  if (config.sophia.enabled) {
+    console.log(`sophia@ polling enabled: ${config.sophia.email} every ${config.sophia.pollingIntervalMs / 1000}s`);
+    // Delay sophia@ first run by 30s to avoid startup congestion
+    setTimeout(() => {
+      processSophiaEmails().catch(console.error);
+      setInterval(() => {
+        processSophiaEmails().catch(console.error);
+      }, config.sophia.pollingIntervalMs);
+    }, 30_000);
+  } else {
+    console.log("sophia@ polling disabled (SOPHIA_GMAIL_EMAIL / SOPHIA_GMAIL_APP_PASSWORD not set)");
+  }
 });

@@ -18,9 +18,21 @@ export const config = {
     smtpHost: "smtp.gmail.com",
     smtpPort: 465,
   },
+  resend: {
+    apiKey: required("RESEND_API_KEY"),
+  },
   supabase: {
     url: required("SUPABASE_URL"),
     serviceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
+    adminSecret: required("SOPHIA_ADMIN_SECRET"),
+  },
+  sophia: {
+    email: process.env.SOPHIA_GMAIL_EMAIL || "",
+    appPassword: process.env.SOPHIA_GMAIL_APP_PASSWORD || "",
+    enabled: !!(process.env.SOPHIA_GMAIL_EMAIL && process.env.SOPHIA_GMAIL_APP_PASSWORD),
+    botUrl: process.env.SOPHIA_BOT_URL || "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot",
+    pollingIntervalMs: 5 * 60 * 1000, // 5 minutes
+    storageBucket: "email-attachments",
   },
   polling: {
     intervalMs: 30 * 60 * 1000, // 30 minutes
