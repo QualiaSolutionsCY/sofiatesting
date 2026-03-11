@@ -13,7 +13,7 @@ Milestone: v1.5 Audit Excellence — SHIPPED
 Phase: 25 of 25 (all complete)
 Plan: Not started (next milestone)
 Status: Ready to plan next milestone
-Last activity: 2026-03-09 — Completed quick task 22: Gmail email router (Railway)
+Last activity: 2026-03-11 — Completed quick task 23: Email listing upload via sophia@zyprus.com
 
 Progress: [█████████████████████████] 100% (6 milestones shipped)
 
@@ -63,12 +63,13 @@ Decisions are logged in PROJECT.md Key Decisions table.
 |---|-------------|------|--------|-----------|
 | 21 | Fix title deed attachment failure + image ordering bug | 2026-03-04 | 119266d | [21-fix-title-deed-patch-attachment-failure-](./quick/21-fix-title-deed-patch-attachment-failure-/) |
 | 22 | Gmail email router — poll info@zyprus.com, forward + draft | 2026-03-09 | b01860f | [22-add-gmail-email-router-poll-info-zyprus-](./quick/22-add-gmail-email-router-poll-info-zyprus-/) |
+| 23 | Email listing upload via sophia@zyprus.com — full AI pipeline via email | 2026-03-11 | ebfeead | [23-email-listing-upload-replicate-whatsapp-](./quick/23-email-listing-upload-replicate-whatsapp-/) |
 
 ## Session Continuity
 
-Last session: 2026-03-02
-Stopped at: v1.5 milestone archived
-Next step: `/qualia:new-milestone` (fresh context window recommended — `/clear` first)
+Last session: 2026-03-11
+Stopped at: Quick task 23 complete
+Next step: Set Railway env vars SOPHIA_GMAIL_EMAIL + SOPHIA_GMAIL_APP_PASSWORD to activate sophia@ polling
 
 ---
 *STATE.md initialized: 2026-02-26*
