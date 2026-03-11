@@ -237,7 +237,7 @@ export async function processSophiaEmails(): Promise<void> {
 export function getSophiaStatus() {
   return {
     enabled: config.sophia.enabled,
-    email: config.sophia.email || null,
+    email: config.sophia.email ? "configured" : null,
     lastRun: lastSophiaRunAt?.toISOString() || null,
     lastStats: lastSophiaStats,
     isRunning: isSophiaRunning,
