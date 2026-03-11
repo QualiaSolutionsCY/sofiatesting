@@ -420,7 +420,7 @@ export async function markSophiaEmailAsRead(uid: number): Promise<void> {
  */
 export async function sendSophiaReply(
   toEmail: string,
-  toName: string,
+  _toName: string,
   subject: string,
   replyBody: string,
   inReplyToMessageId: string,

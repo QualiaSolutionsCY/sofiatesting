@@ -52,7 +52,7 @@ async function uploadAttachmentToStorage(
     }
 
     // Upload the file
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from(bucket)
       .upload(path, attachment.content, {
         contentType: attachment.contentType,

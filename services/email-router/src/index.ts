@@ -12,7 +12,6 @@ import { config } from "./config.js";
 import { fetchUnreadEmails, forwardEmail, markAsRead } from "./gmail.js";
 import { shouldSkipEmail } from "./filter.js";
 import { routeEmail } from "./router.js";
-import { createDraftReply } from "./drafter.js";
 import { getActiveAgents, isEmailProcessed, logEmailForward, updateRotation } from "./db.js";
 import { processSophiaEmails, getSophiaStatus } from "./sophia-handler.js";
 

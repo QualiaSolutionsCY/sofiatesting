@@ -69,7 +69,7 @@ export async function handleEmailWebhook(
   }
 
   // Validate required fields
-  const { from, fromName, subject, textBody } = payload;
+  const { from, subject, textBody } = payload;
   if (!from || !subject || (!textBody && !payload.htmlBody)) {
     return jsonError("Missing required fields: from, subject, textBody", 400);
   }
