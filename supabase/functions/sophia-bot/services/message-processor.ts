@@ -224,6 +224,9 @@ export async function extractMessage(payload: WaSendWebhookPayload): Promise<{
   // Get message ID for decryption
   const messageId = message.key?.id || message.id || `msg_${Date.now()}`;
 
+  // Get WhatsApp message timestamp for image ordering
+  const messageTimestamp = message.messageTimestamp || Math.floor(Date.now() / 1000);
+
   // Extract image URLs from WhatsApp media messages
   // WaSend provides encrypted URLs that need decryption via their API
   // Check MULTIPLE locations for imageMessage (WaSend payload variations)
@@ -512,6 +515,7 @@ export async function extractMessage(payload: WaSendWebhookPayload): Promise<{
             persistResults.map((r) => ({
               url: r.url,
               contentHash: r.contentHash,
+              messageTimestamp,
             })),
             getContext().correlationId
           );
