@@ -65,7 +65,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | 22 | Gmail email router — poll info@zyprus.com, forward + draft | 2026-03-09 | b01860f | [22-add-gmail-email-router-poll-info-zyprus-](./quick/22-add-gmail-email-router-poll-info-zyprus-/) |
 | 23 | Email listing upload via sophia@zyprus.com — full AI pipeline via email | 2026-03-11 | ebfeead | [23-email-listing-upload-replicate-whatsapp-](./quick/23-email-listing-upload-replicate-whatsapp-/) |
 | 24 | Fix review findings — upload lock leak, PATCH retry, rotation, SVG filter, listing-owner security | 2026-03-11 | ac70efd | [24-fix-review-findings-upload-lock-leak-pat](./quick/24-fix-review-findings-upload-lock-leak-pat/) |
-| 25 | Fix remaining review findings — trigger auth, email guards, history order, migrations | 2026-03-11 | pending | [25-fix-remaining-review-findings-trigger-au](./quick/25-fix-remaining-review-findings-trigger-au/) |
+| 25 | Fix remaining review findings — trigger auth, email guards, history order, migrations | 2026-03-11 | c1a1a35 | [25-fix-remaining-review-findings-trigger-au](./quick/25-fix-remaining-review-findings-trigger-au/) |
 
 ## Session Continuity
 
