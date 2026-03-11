@@ -66,23 +66,13 @@ export async function processListingImages(
     });
 
     if (pendingImages.length > 0) {
-      // Deduplicate URLs as safety net — WhatsApp retries can insert same image twice
-      const uniqueUrls = [...new Set(pendingImages)];
-      if (uniqueUrls.length < pendingImages.length) {
-        logger.warn("Removed duplicate image URLs from pending_images", {
-          category: LogCategory.IMAGE,
-          operation: "processListingImages",
-          before: pendingImages.length,
-          after: uniqueUrls.length,
-        });
-      }
       logger.info("Using images from pending_images table", {
         category: LogCategory.IMAGE,
         operation: "processListingImages",
-        imageCount: uniqueUrls.length,
+        imageCount: pendingImages.length,
         source: "pending_images",
       });
-      imageUrls = uniqueUrls;
+      imageUrls = pendingImages;
     } else {
       // Fallback to AI-provided URLs only if no pending images found
       // Filter out obviously fake URLs (hallucinated by AI)

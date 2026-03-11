@@ -96,18 +96,9 @@ export async function handleEmailWebhook(
         category: LogCategory.GENERAL,
       });
     } else {
-      logger.warn(`[Email] Unknown sender rejected: ${senderEmail}`, {
+      logger.info(`[Email] Unknown sender: ${senderEmail}`, {
         category: LogCategory.GENERAL,
       });
-      return new Response(
-        JSON.stringify({
-          success: true,
-          reply: "Thank you for your email. I can only assist registered Zyprus agents. If you believe this is an error, please contact your office administrator.",
-          agentFound: false,
-          agentName: null,
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      );
     }
 
     // Use sender email as userId for chat_history (keeps email threads separate from WhatsApp)
@@ -121,21 +112,21 @@ export async function handleEmailWebhook(
 
     const imageUrls = payload.imageUrls || [];
 
-    // Load chat history BEFORE storing current message to avoid duplicating it in context
+    // Store user message in chat history
+    await addMessage(userId, "user", userMessage).catch((err) => {
+      logger.warn("[Email] Failed to store user message (non-critical)", {
+        category: LogCategory.GENERAL,
+        error: String(err),
+      });
+    });
+
+    // Load chat history (email conversations keyed by sender email)
     const history = await getHistory(userId).catch((err) => {
       logger.warn("[Email] Failed to get chat history (non-critical)", {
         category: LogCategory.GENERAL,
         error: String(err),
       });
       return [];
-    });
-
-    // Store user message in chat history (after loading history)
-    await addMessage(userId, "user", userMessage).catch((err) => {
-      logger.warn("[Email] Failed to store user message (non-critical)", {
-        category: LogCategory.GENERAL,
-        error: String(err),
-      });
     });
 
     // Build system prompt — pass sender email as phoneNumber (used as userId internally)
@@ -204,6 +195,7 @@ export async function handleEmailWebhook(
       JSON.stringify({
         success: false,
         reply: "I encountered an unexpected error. Please try again.",
+        error: err instanceof Error ? err.message : String(err),
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );

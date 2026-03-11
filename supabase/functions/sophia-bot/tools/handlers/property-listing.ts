@@ -3,7 +3,7 @@
  * Orchestrates property listing creation by coordinating validation, image processing, and content generation
  */
 
-import { trackListingUpload, getSupabaseAdmin } from "../../../_shared/db.ts";
+import { trackListingUpload } from "../../../_shared/db.ts";
 import { type Agent } from "../../agents/identifier.ts";
 import { DEFAULT_COORDINATES } from "../../config/business-rules.ts";
 import { classifyError, ErrorType } from "../../utils/error-mapper.ts";
@@ -67,140 +67,6 @@ export async function handleCreatePropertyListing(
 
   const agentPhone = agent!.mobile?.replace(/\D/g, "") || "";
 
-  // Step 6c-6d: Extract photo instructions AND missed features from chat history
-  // These are safety nets because the AI frequently:
-  //   - Ignores agent's photo instructions (e.g., "Photo #9 are the deeds")
-  //   - Misses features like fireplace, uncovered parking, CCTV
-  try {
-    const chatMessages = await getSupabaseAdmin()
-      .from("chat_history")
-      .select("parts")
-      .eq("user_id", agentPhone)
-      .eq("role", "user")
-      .order("created_at", { ascending: false })
-      .limit(10);
-
-    if (chatMessages.data) {
-      const allUserText = chatMessages.data
-        .map((m: Record<string, unknown>) => {
-          const parts = m.parts as Array<{ text?: string }>;
-          return parts?.map(p => p.text || "").join(" ") || "";
-        })
-        .join(" ")
-        .toLowerCase();
-
-      // Step 6c: Extract photo instructions (only when AI didn't provide them)
-      // Extract title deed photo indices: "photo #9 are the deeds", "photo 9 is the deed", "#9 is title deed"
-      if (!args.titleDeedImageIndices || (args.titleDeedImageIndices as number[]).length === 0) {
-        const deedPatterns = [
-          /photo\s*#?(\d+)\s*(?:is|are)\s*(?:the\s*)?(?:deed|deeds|title\s*deed)/gi,
-          /#(\d+)\s*(?:is|are)\s*(?:the\s*)?(?:deed|deeds|title\s*deed)/gi,
-          /(?:deed|deeds|title\s*deed).*?photo\s*#?(\d+)/gi,
-        ];
-        const deedIndices: number[] = [];
-        for (const pattern of deedPatterns) {
-          let match;
-          while ((match = pattern.exec(allUserText)) !== null) {
-            const idx = parseInt(match[1], 10);
-            if (idx > 0 && idx <= 50 && !deedIndices.includes(idx)) {
-              deedIndices.push(idx);
-            }
-          }
-        }
-        if (deedIndices.length > 0) {
-          args.titleDeedImageIndices = deedIndices;
-          logger.warn("Extracted titleDeedImageIndices from chat history (AI missed them)", {
-            category: LogCategory.TOOL,
-            operation: "createPropertyListing",
-            indices: deedIndices,
-          });
-        }
-      }
-
-      // Extract main photo index: "photo #1 is the best", "#1 is best exterior", "photo 1 first"
-      if (!args.mainPhotoIndex) {
-        const mainPatterns = [
-          /photo\s*#?(\d+)\s*(?:is|as)\s*(?:the\s*)?(?:best|first|main|cover|exterior|1st)/gi,
-          /#(\d+)\s*(?:is|as)\s*(?:the\s*)?(?:best|first|main|cover|exterior|1st)/gi,
-          /(?:best|first|main|cover)\s*(?:photo|picture|image|exterior)\s*(?:is\s*)?(?:photo\s*)?#?(\d+)/gi,
-        ];
-        for (const pattern of mainPatterns) {
-          const match = pattern.exec(allUserText);
-          if (match) {
-            const idx = parseInt(match[1], 10);
-            if (idx > 0 && idx <= 50) {
-              args.mainPhotoIndex = idx;
-              logger.warn("Extracted mainPhotoIndex from chat history (AI missed it)", {
-                category: LogCategory.TOOL,
-                operation: "createPropertyListing",
-                index: idx,
-              });
-              break;
-            }
-          }
-        }
-      }
-
-      // Step 6d: ALWAYS extract commonly missed features from chat history
-      // This runs regardless of whether photo indices were provided
-      const features = (args.features as string[]) || [];
-      const featLower = features.map(f => f.toLowerCase());
-
-      // Features the AI keeps missing — check if agent mentioned them
-      const missedFeatureChecks: Array<{ keyword: RegExp; feature: string }> = [
-        { keyword: /\bfireplace\b/i, feature: "fireplace" },
-        { keyword: /\bsingle\s*garage\b/i, feature: "single garage" },
-        { keyword: /\buncovered\s*park/i, feature: "uncovered parking" },
-        { keyword: /\bgated\s*property\b|\bgated\b/i, feature: "gated community" },
-        { keyword: /\bcctv\b/i, feature: "cctv system" },
-        { keyword: /\bsecurity\s*camer/i, feature: "cctv system" },
-        { keyword: /\bsurveillance\b/i, feature: "cctv system" },
-      ];
-
-      for (const check of missedFeatureChecks) {
-        if (check.keyword.test(allUserText) && !featLower.some(f => f.includes(check.feature.split(" ")[0]))) {
-          features.push(check.feature);
-          logger.warn(`Extracted missing feature "${check.feature}" from chat history`, {
-            category: LogCategory.TOOL,
-            operation: "createPropertyListing",
-          });
-        }
-      }
-
-      // Fix AI hallucinations: "double garage" when agent said "single garage"
-      if (/\bsingle\s*garage\b/i.test(allUserText) && !(/\bdouble\s*garage\b/i.test(allUserText))) {
-        const doubleIdx = features.findIndex(f => f.toLowerCase().includes("double garage"));
-        if (doubleIdx >= 0) {
-          features[doubleIdx] = "single garage";
-          logger.warn("Corrected AI hallucination: double garage → single garage", {
-            category: LogCategory.TOOL,
-            operation: "createPropertyListing",
-          });
-        }
-      }
-
-      // Fix: "underground parking" when agent said "uncovered parking"
-      if (/\buncovered\s*park/i.test(allUserText) && !(/\bunderground\s*park/i.test(allUserText))) {
-        const ugIdx = features.findIndex(f => f.toLowerCase().includes("underground parking"));
-        if (ugIdx >= 0) {
-          features[ugIdx] = "uncovered parking";
-          logger.warn("Corrected AI hallucination: underground parking → uncovered parking", {
-            category: LogCategory.TOOL,
-            operation: "createPropertyListing",
-          });
-        }
-      }
-
-      args.features = features;
-    }
-  } catch (err) {
-    // Non-critical — don't fail the upload
-    logger.warn("Failed to extract photo/feature instructions from chat history", {
-      category: LogCategory.TOOL,
-      error: String(err),
-    });
-  }
-
   // Step 7-7b: Process images
   const { imageUrls, titleDeedImageUrls, floorPlanUrls, documentUrls } =
     await processListingImages(args, agentPhone);
@@ -213,7 +79,6 @@ export async function handleCreatePropertyListing(
     args.propertyType as string
   );
   if (!imageCheck.enough) {
-    await releaseUploadLock(uploadLockKey);
     return {
       needsInput: true,
       question: `I need at least ${imageCheck.required} ${imageCheck.required === 1 ? "image" : "images"} for a ${args.propertyType}. You've provided ${imageCheck.provided}. Please send more photos.`,
@@ -241,7 +106,6 @@ export async function handleCreatePropertyListing(
       category: LogCategory.ZYPRUS,
       operation: "createPropertyListing",
     });
-    await releaseUploadLock(uploadLockKey);
     return { error: `Failed to authenticate with Zyprus API: ${err.message}` };
   }
 
@@ -353,7 +217,6 @@ export async function handleCreatePropertyListing(
       invalidCount: invalidImages.length,
     });
 
-    await releaseUploadLock(uploadLockKey);
     return {
       error:
         "None of the images could be uploaded.\n\n" +
@@ -642,28 +505,8 @@ export async function handleCreatePropertyListing(
     await clearPendingImages(agentPhone);
     await clearPendingDocuments(agentPhone);
     await releaseUploadLock(uploadLockKey);
-
-    // Clear chat history after successful upload to prevent old listing data
-    // from bleeding into the next upload session (price, features, photos, deeds)
-    try {
-      // user_id in chat_history is the raw remoteJid (digits only, e.g. "35799279563")
-      await getSupabaseAdmin()
-        .from("chat_history")
-        .delete()
-        .eq("user_id", agentPhone);
-      logger.info("Cleared chat history after successful upload", {
-        category: LogCategory.TOOL,
-        operation: "createPropertyListing",
-      });
-    } catch (err) {
-      logger.warn("Failed to clear chat history after upload (non-critical)", {
-        category: LogCategory.TOOL,
-        error: String(err),
-      });
-    }
-
     logger.info(
-      "Cleared pending images/documents/history and released upload lock after successful upload",
+      "Cleared pending images/documents and released upload lock after successful upload",
       {
         category: LogCategory.IMAGE,
       }
@@ -678,9 +521,7 @@ export async function handleCreatePropertyListing(
       agentPhone,
       agent!.fullName,
       propertyTitle,
-      result.listingUrl,
-      Number(args.price) || undefined,
-      bedrooms || undefined
+      result.listingUrl
     ).catch((err) =>
       logger.warn("Failed to track listing upload (non-critical)", {
         category: LogCategory.TOOL,
@@ -739,7 +580,7 @@ export async function handleCreatePropertyListing(
     }
   }
   message += `• Listing Owner: ${listingOwnerName}\n`;
-  message += `• Reviewer: ${listingOwnerName}\n`;
+  message += `• Reviewer: ${reviewers.reviewer1Uuid}\n`;
   message += `\n🔗 **Draft URL:** ${result.listingUrl}\n`;
 
   if (locationUrl) {

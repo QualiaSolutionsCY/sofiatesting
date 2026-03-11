@@ -20,7 +20,6 @@ const EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 export interface PendingImageRecord {
   url: string;
   contentHash: string;
-  messageTimestamp?: number;
 }
 
 /**
@@ -51,7 +50,6 @@ export async function addPendingImages(
     phone_number: phoneNumber,
     image_url: img.url,
     content_hash: img.contentHash,
-    ...(img.messageTimestamp ? { message_timestamp: img.messageTimestamp } : {}),
   }));
 
   // Use upsert with ignoreDuplicates on content_hash
@@ -124,14 +122,13 @@ export async function getPendingImages(phoneNumber: string): Promise<string[]> {
   });
 
   // Get all pending images for this user
-  // Order by message_timestamp (WhatsApp send time) to preserve the order the agent sent them
-  // Falls back to created_at for images without timestamp (legacy rows)
+  // Order by id (auto-increment) for reliable insertion-order preservation
+  // created_at can have identical timestamps for batch inserts
   const { data, error } = await supabase
     .from("pending_images")
-    .select("image_url, message_timestamp")
+    .select("image_url")
     .eq("phone_number", phoneNumber)
-    .order("message_timestamp", { ascending: true, nullsFirst: false })
-    .order("created_at", { ascending: true });
+    .order("id", { ascending: true });
 
   if (error) {
     logger.error("Failed to get pending images", error, {

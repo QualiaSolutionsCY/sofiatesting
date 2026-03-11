@@ -12,8 +12,7 @@
  */
 
 import type { Agent } from "./db.js";
-import { getNextInRotation } from "./db.js";
-import { extractPropertyId, getListingOwnerEmail } from "./zyprus.js";
+import { getAgentsForRegion, getNextInRotation } from "./db.js";
 
 // City name → canonical region mapping
 const REGION_MAP: Record<string, string> = {
@@ -29,16 +28,13 @@ const REGION_MAP: Record<string, string> = {
   ammochostos: "famagusta",
 };
 
-// Paphos agents for 50/50 rotation
+// Agents for specific region routing (names must match DB exactly)
+const LIMASSOL_AGENTS = ["Michelle Longridge", "Diana Kultaseva"];
+const LARNACA_AGENTS = ["Michelle Longridge", "Diana Kultaseva"];
 const PAPHOS_AGENTS = ["Marios Azinas", "Dimitris Panayiotou"];
 
-// Regional office emails — all non-Paphos regions go to their office
-const OFFICE_EMAILS: Record<string, string> = {
-  limassol: "requestlimassol@zyprus.com",
-  larnaca: "requestlarnaca@zyprus.com",
-  nicosia: "requestnicosia@zyprus.com",
-  famagusta: "requestfamagusta@zyprus.com",
-};
+// Cyrillic detection for Russian-speaking preference
+const CYRILLIC_PATTERN = /[\u0400-\u04FF]/;
 
 export interface RoutingResult {
   agent: Agent;
@@ -69,30 +65,38 @@ export function detectRegionFromContent(subject: string, body: string): string |
  */
 export function detectRequestedAgent(
   subject: string,
-  _body: string,
+  body: string,
   agents: Agent[]
 ): Agent | null {
-  const subjectLower = subject.toLowerCase();
+  const combined = `${subject}\n${body}`.toLowerCase();
 
   for (const agent of agents) {
     if (!agent.full_name || agent.full_name.toLowerCase().includes("office")) continue;
-    if (subjectLower.includes(agent.full_name.toLowerCase())) {
+    if (combined.includes(agent.full_name.toLowerCase())) {
       return agent;
     }
   }
 
-  // Check first names only in subject (more lenient)
+  // Check first names only (more lenient)
   for (const agent of agents) {
     if (!agent.full_name) continue;
     const firstName = agent.full_name.split(" ")[0].toLowerCase();
-    if (firstName.length < 4) continue;
+    if (firstName.length < 4) continue; // Skip very short names
+    // Look for "for Marios" or "to Marios" patterns
     const patterns = [`for ${firstName}`, `to ${firstName}`, `@ ${firstName}`, `att: ${firstName}`];
     for (const p of patterns) {
-      if (subjectLower.includes(p)) return agent;
+      if (combined.includes(p)) return agent;
     }
   }
 
   return null;
+}
+
+/**
+ * Detect if email content contains Russian/Cyrillic text
+ */
+function isRussianContent(subject: string, body: string, fromEmail: string): boolean {
+  return CYRILLIC_PATTERN.test(subject) || CYRILLIC_PATTERN.test(body) || CYRILLIC_PATTERN.test(fromEmail);
 }
 
 /**
@@ -104,29 +108,7 @@ export async function routeEmail(
   fromEmail: string,
   allAgents: Agent[]
 ): Promise<RoutingResult | null> {
-  // Rule 0 (PRIORITY): Check listing owner on Zyprus
-  const propertyId = extractPropertyId(subject, body);
-  if (propertyId) {
-    const ownerEmail = await getListingOwnerEmail(propertyId);
-    if (ownerEmail) {
-      // Find the agent whose communication_email or listing_owner_email matches
-      const ownerAgent = allAgents.find(
-        (a) =>
-          a.communication_email.toLowerCase() === ownerEmail.toLowerCase() ||
-          a.listing_owner_email.toLowerCase() === ownerEmail.toLowerCase()
-      );
-      if (ownerAgent) {
-        return {
-          agent: ownerAgent,
-          region: ownerAgent.region,
-          reason: `Listing owner: ${ownerAgent.full_name} (property ${propertyId})`,
-        };
-      }
-      console.log(`Listing owner email ${ownerEmail} not matched to any agent`);
-    }
-  }
-
-  // Rule 1: Check if email mentions a specific agent
+  // Rule 0: Check if email mentions a specific agent
   const requestedAgent = detectRequestedAgent(subject, body, allAgents);
   if (requestedAgent) {
     return {
@@ -136,14 +118,15 @@ export async function routeEmail(
     };
   }
 
-  // Rule 2: Try to detect region from content
+  // Rule 1: Try to detect region from content
   const region = detectRegionFromContent(subject, body);
 
   if (region) {
     return routeByRegion(region, subject, body, fromEmail, allAgents);
   }
 
-  // Rule 3: No region detected — route to Paphos (Marios/Dimitris) as default
+  // Rule 2: No region detected — route to Paphos (Marios/Dimitris) as default
+  // since most office listings come through Paphos
   return routeByRegion("paphos", subject, body, fromEmail, allAgents);
 }
 
@@ -152,53 +135,54 @@ export async function routeEmail(
  */
 async function routeByRegion(
   region: string,
-  _subject: string,
-  _body: string,
-  _fromEmail: string,
+  subject: string,
+  body: string,
+  fromEmail: string,
   allAgents: Agent[]
 ): Promise<RoutingResult | null> {
-  // Paphos: Marios or Dimitris (50/50 rotation)
+  const isRussian = isRussianContent(subject, body, fromEmail);
+
+  // Limassol: Michelle or Diana (prefer Diana for Russian)
+  if (region === "limassol") {
+    const candidates = allAgents.filter(
+      (a) => LIMASSOL_AGENTS.includes(a.full_name) && a.is_active
+    );
+    if (isRussian) {
+      const diana = candidates.find((a) => a.full_name === "Diana Kultaseva");
+      if (diana) return { agent: diana, region, reason: "Limassol + Russian speaker → Diana" };
+    }
+    const next = await getNextInRotation("email_limassol", candidates);
+    if (next) return { agent: next, region, reason: "Limassol rotation" };
+  }
+
+  // Larnaca: Michelle or Diana
+  if (region === "larnaca") {
+    const candidates = allAgents.filter(
+      (a) => LARNACA_AGENTS.includes(a.full_name) && a.is_active
+    );
+    const next = await getNextInRotation("email_larnaca", candidates);
+    if (next) return { agent: next, region, reason: "Larnaca rotation" };
+  }
+
+  // Paphos: Marios or Dimitris
   if (region === "paphos") {
     const candidates = allAgents.filter(
       (a) => PAPHOS_AGENTS.includes(a.full_name) && a.is_active
     );
-    const next = await getNextInRotation(region, candidates);
+    const next = await getNextInRotation("email_paphos", candidates);
     if (next) return { agent: next, region, reason: "Paphos rotation (Marios/Dimitris)" };
   }
 
-  // All other regions: forward to regional office email
-  const officeEmail = OFFICE_EMAILS[region];
-  if (officeEmail) {
-    // Find the office agent in the DB (communication_email matches)
-    const officeAgent = allAgents.find(
-      (a) => a.communication_email.toLowerCase() === officeEmail.toLowerCase()
-    );
-    if (officeAgent) {
-      return { agent: officeAgent, region, reason: `${region} → office (${officeEmail})` };
-    }
-    // If no agent row, create a synthetic one for forwarding
-    return {
-      agent: {
-        id: `office-${region}`,
-        full_name: `${region.charAt(0).toUpperCase() + region.slice(1)} Office`,
-        communication_email: officeEmail,
-        listing_owner_email: officeEmail,
-        region,
-        is_active: true,
-        can_receive_leads: true,
-      },
-      region,
-      reason: `${region} → office (${officeEmail})`,
-    };
+  // Nicosia / Famagusta / other: get regional agents
+  const regionAgents = await getAgentsForRegion(region);
+  const candidates = regionAgents.filter((a) => a.can_receive_leads);
+
+  if (candidates.length > 0) {
+    const next = await getNextInRotation(`email_${region}`, candidates);
+    if (next) return { agent: next, region, reason: `${region} rotation` };
   }
 
-  // Unknown region fallback: Paphos rotation
-  const candidates = allAgents.filter(
-    (a) => PAPHOS_AGENTS.includes(a.full_name) && a.is_active
-  );
-  const next = await getNextInRotation("paphos", candidates);
-  if (next) return { agent: next, region: "paphos", reason: "Unknown region → Paphos fallback" };
-
+  // Fallback: no agents found for region
   console.warn(`No agents found for region: ${region}`);
   return null;
 }

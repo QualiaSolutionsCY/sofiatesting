@@ -68,8 +68,5 @@ export async function acquireUploadLock(
  */
 export async function releaseUploadLock(lockKey: string): Promise<void> {
   const sb = getSupabaseAdmin();
-  const { error } = await sb.from("upload_locks").delete().eq("fingerprint", lockKey);
-  if (error) {
-    console.warn(`[upload-lock] Failed to release lock ${lockKey}: ${error.message}`);
-  }
+  await sb.from("upload_locks").delete().eq("fingerprint", lockKey);
 }

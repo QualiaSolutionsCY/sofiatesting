@@ -176,44 +176,31 @@ const server = http.createServer((req, res) => {
             ? `${Math.max(0, Math.round((config.polling.intervalMs - (Date.now() - lastRunAt.getTime())) / 1000))}s`
             : "starting soon",
         },
-        sophiaMailbox: { ...getSophiaStatus(), email: undefined },
+        sophiaMailbox: getSophiaStatus(),
       })
     );
     return;
   }
 
-  // Manual trigger endpoints — require auth to prevent abuse
-  if ((req.url === "/trigger" || req.url === "/trigger/sophia") && req.method === "POST") {
-    const triggerSecret = req.headers["x-admin-secret"];
-    if (!triggerSecret || triggerSecret !== config.supabase.adminSecret) {
-      res.writeHead(401, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Unauthorized" }));
+  // Manual trigger endpoint — info@ mailbox
+  if (req.url === "/trigger" && req.method === "POST") {
+    if (isRunning) {
+      res.writeHead(409, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Already running" }));
       return;
     }
+    processEmails().catch(console.error);
+    res.writeHead(202, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "triggered" }));
+    return;
+  }
 
-    if (req.url === "/trigger") {
-      if (isRunning) {
-        res.writeHead(409, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Already running" }));
-        return;
-      }
-      processEmails().catch(console.error);
-      res.writeHead(202, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: "triggered" }));
-      return;
-    }
-
-    if (req.url === "/trigger/sophia") {
-      if (getSophiaStatus().isRunning) {
-        res.writeHead(409, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Already running" }));
-        return;
-      }
-      processSophiaEmails().catch(console.error);
-      res.writeHead(202, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: "triggered" }));
-      return;
-    }
+  // Manual trigger endpoint — sophia@ mailbox
+  if (req.url === "/trigger/sophia" && req.method === "POST") {
+    processSophiaEmails().catch(console.error);
+    res.writeHead(202, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "triggered" }));
+    return;
   }
 
   res.writeHead(404);

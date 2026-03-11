@@ -37,19 +37,7 @@ async function uploadAttachmentToStorage(
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   // Generate unique filename
-  // Strict allowlist — block SVG (XSS risk) and non-image types
-  const SAFE_EXTENSIONS: Record<string, string> = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-    "image/gif": "gif",
-    "image/heic": "heic",
-  };
-  const ext = SAFE_EXTENSIONS[attachment.contentType];
-  if (!ext) {
-    console.warn(`[Sophia] Rejected attachment ${attachment.filename}: unsupported type ${attachment.contentType}`);
-    return null;
-  }
+  const ext = attachment.contentType.split("/")[1] || "jpg";
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
   const path = `email-attachments/${filename}`;
 
@@ -237,7 +225,7 @@ export async function processSophiaEmails(): Promise<void> {
 export function getSophiaStatus() {
   return {
     enabled: config.sophia.enabled,
-    email: config.sophia.email ? "configured" : null,
+    email: config.sophia.email || null,
     lastRun: lastSophiaRunAt?.toISOString() || null,
     lastStats: lastSophiaStats,
     isRunning: isSophiaRunning,
