@@ -152,11 +152,23 @@ export async function runDailyAudit(
 
     // Step 4: Search Telegram groups for each external caller
     const missingCallers: MissingCallerInfo[] = [];
-    // Check if Telegram is configured
-    const groupIds = Object.values(REGIONAL_GROUP_IDS);
-    if (groupIds.some((id) => id === 0)) {
+    // Build search group list: regional groups + "Zypress Others"
+    const allGroupIds = [
+      ...Object.values(REGIONAL_GROUP_IDS),
+      ...(ZYPRESS_OTHERS_CHAT_ID !== 0 ? [ZYPRESS_OTHERS_CHAT_ID] : []),
+    ];
+    // Only search groups that are actually configured (non-zero)
+    const configuredGroupIds = allGroupIds.filter((id) => id !== 0);
+    const allGroupNames = [
+      ...Object.keys(REGIONAL_GROUP_IDS).filter(
+        (k) => REGIONAL_GROUP_IDS[k] !== 0
+      ),
+      ...(ZYPRESS_OTHERS_CHAT_ID !== 0 ? ["others"] : []),
+    ];
+
+    if (configuredGroupIds.length === 0) {
       logger.warn(
-        "[Audit Pipeline] REGIONAL_GROUP_IDS contains unconfigured (0) values - skipping Telegram search",
+        "[Audit Pipeline] No Telegram groups configured - skipping search",
         {
           category: LogCategory.GENERAL,
           operation: "runDailyAudit",
@@ -182,11 +194,13 @@ export async function runDailyAudit(
         operation: "runDailyAudit",
         runId,
         callerCount: auditResult.externalCallers.length,
+        groupCount: configuredGroupIds.length,
+        groups: allGroupNames,
       });
 
       for (const phone of auditResult.externalCallers) {
         try {
-          const searchResults = await searchPhoneInGroups(phone, groupIds);
+          const searchResults = await searchPhoneInGroups(phone, configuredGroupIds);
 
           if (searchResults.length > 0) {
             // Found in Telegram - log success
@@ -197,9 +211,6 @@ export async function runDailyAudit(
               phone,
               groupName: searchResults[0].groupName,
             });
-
-            // TODO: Update call_record telegram status once we have record IDs
-            // await updateCallRecordTelegramStatus(recordId, true, searchResults[0].groupName);
           } else {
             // Not found - add to missing callers
             missingCallers.push({
@@ -208,7 +219,7 @@ export async function runDailyAudit(
                 callTimeMap[phone] || new Date().toISOString()
               ),
               callDate: auditDate,
-              searchedGroups: Object.keys(REGIONAL_GROUP_IDS),
+              searchedGroups: allGroupNames,
             });
 
             logger.info("[Audit Pipeline] Caller not found in any group", {

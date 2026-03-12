@@ -27,15 +27,14 @@ export interface SearchResult {
 // Regional Group IDs
 // ---------------------------------------------------------------------------
 
-// TODO: Get actual group chat IDs from Fawzi
 export const REGIONAL_GROUP_IDS: Record<string, number> = {
-  paphos: 0, // Replace with actual Paphos group chat ID
-  limassol: 0, // Replace with actual Limassol group chat ID
-  larnaca: 0, // Replace with actual Larnaca group chat ID
-  nicosia: 0, // Replace with actual Nicosia group chat ID
+  paphos: -843115873,
+  limassol: -768604814,
+  larnaca: 0, // Not yet configured
+  nicosia: 0, // Not yet configured
 };
 
-export const ZYPRESS_OTHERS_CHAT_ID = 0; // Replace with actual "Zypress Others" group chat ID
+export const ZYPRESS_OTHERS_CHAT_ID: number = -1003337263793;
 export const VASYA_TELEGRAM_USER_ID = 0; // Replace with actual Vasya's Telegram user ID
 
 // ---------------------------------------------------------------------------
@@ -112,10 +111,11 @@ export async function searchPhoneInGroups(
   phoneNumber: string,
   groupChatIds: number[]
 ): Promise<SearchResult[]> {
-  // Guard: fail loudly if any group ID is the placeholder value
-  if (groupChatIds.some((id) => id === 0)) {
+  // Guard: caller should pass only configured (non-zero) group IDs
+  const validIds = groupChatIds.filter((id) => id !== 0);
+  if (validIds.length === 0) {
     throw new Error(
-      "Unconfigured group chat ID (0) detected \u2014 configure REGIONAL_GROUP_IDS before use"
+      "No configured group chat IDs provided \u2014 all IDs are 0 (unconfigured)"
     );
   }
 
@@ -135,7 +135,7 @@ export async function searchPhoneInGroups(
       .select(
         "group_name, group_chat_id, message_date, sender_name, message_text"
       )
-      .in("group_chat_id", groupChatIds)
+      .in("group_chat_id", validIds)
       .or(orFilter)
       .order("message_date", { ascending: false })
       .limit(20);

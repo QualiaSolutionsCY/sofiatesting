@@ -13,6 +13,7 @@ import { validateImagesAtIngress } from "./image-validator.ts";
 import {
   decryptWhatsAppImage,
   isPublicUrl,
+  type MediaMessageType,
   needsDecryption,
 } from "./media-decryptor.ts";
 import { addPendingDocument } from "./pending-documents.ts";
@@ -150,9 +151,20 @@ export async function extractMessage(payload: WaSendWebhookPayload): Promise<{
       { category: LogCategory.GENERAL }
     );
   }
+  if (payloadStr.includes("documentMessage")) {
+    logger.debug(" *** Found 'documentMessage' — document attachment detected ***", {
+      category: LogCategory.GENERAL,
+    });
+    const docIdx = payloadStr.indexOf("documentMessage");
+    logger.debug(
+      "Context around documentMessage: " +
+        payloadStr.substring(Math.max(0, docIdx - 50), docIdx + 200),
+      { category: LogCategory.GENERAL }
+    );
+  }
   if (payloadStr.includes("mediaKey")) {
     logger.debug(
-      " *** Found 'mediaKey' - this is likely an image message ***",
+      " *** Found 'mediaKey' - this is likely a media message ***",
       { category: LogCategory.GENERAL }
     );
   }
@@ -211,7 +223,7 @@ export async function extractMessage(payload: WaSendWebhookPayload): Promise<{
     message.message?.conversation ||
     message.message?.extendedTextMessage?.text ||
     message.message?.imageMessage?.caption ||
-    message.message?.text ||
+    message.message?.documentMessage?.caption ||
     message.text ||
     message.body ||
     message.content ||
@@ -368,7 +380,7 @@ export async function extractMessage(payload: WaSendWebhookPayload): Promise<{
             fileSha256: docMsg.fileSha256,
             fileLength: docMsg.fileLength?.toString(),
             fileName: docMsg.fileName,
-          });
+          }, "documentMessage");
           if (decryptedUrl) {
             logger.info("Document image decryption successful!", {
               category: LogCategory.GENERAL,
@@ -411,7 +423,7 @@ export async function extractMessage(payload: WaSendWebhookPayload): Promise<{
             fileSha256: docMsg.fileSha256,
             fileLength: docMsg.fileLength?.toString(),
             fileName: docFilename,
-          });
+          }, "documentMessage");
         } else if (isPublicUrl(rawUrl)) {
           documentUrl = rawUrl;
         }

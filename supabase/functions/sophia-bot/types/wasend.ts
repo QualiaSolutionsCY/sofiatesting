@@ -58,6 +58,8 @@ export interface WaSendDocumentMessage {
   fileSha256?: string;
   /** File length in bytes */
   fileLength?: number | string;
+  /** Document caption (text sent alongside the document) */
+  caption?: string;
 }
 
 /**
@@ -114,15 +116,24 @@ export interface WaSendMessage {
   content?: string;
   /** Image message (alternative location) */
   imageMessage?: WaSendImageMessage;
+  /** Document message (alternative location — WaSend variation) */
+  documentMessage?: WaSendDocumentMessage;
   /** Pre-decrypted media URL (if WaSend provides it) */
   decryptedMediaUrl?: string;
   /** Media URL (alternative location) */
   mediaUrl?: string;
   /** Test/simple webhook format - array of public image URLs */
   media?: string[];
+  /** Whether message has media attachment */
+  hasMedia?: boolean;
+  /** Message type identifier (e.g., "image", "document", "text") */
+  messageType?: string;
+  /** Message type (alternative) */
+  type?: string;
   /** Nested data object (alternative location) */
   data?: {
     imageMessage?: WaSendImageMessage;
+    documentMessage?: WaSendDocumentMessage;
   };
 }
 

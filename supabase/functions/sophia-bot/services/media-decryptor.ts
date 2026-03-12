@@ -20,6 +20,9 @@ interface ImageMessageData {
   fileName?: string;
 }
 
+/** Which wrapper key to use in the WaSend decrypt API request body */
+export type MediaMessageType = "imageMessage" | "documentMessage";
+
 interface DecryptResponse {
   success: boolean;
   publicUrl?: string;
@@ -30,12 +33,14 @@ interface DecryptResponse {
  * Decrypt a WhatsApp image message and get a public URL
  *
  * @param messageId - Unique message ID from webhook
- * @param imageData - Image message data containing url, mimetype, mediaKey
- * @returns Public URL to decrypted image (valid for 1 hour) or null on failure
+ * @param imageData - Media message data containing url, mimetype, mediaKey
+ * @param messageType - Wrapper key for the decrypt API (imageMessage or documentMessage)
+ * @returns Public URL to decrypted media (valid for 1 hour) or null on failure
  */
 export async function decryptWhatsAppImage(
   messageId: string,
-  imageData: ImageMessageData
+  imageData: ImageMessageData,
+  messageType: MediaMessageType = "imageMessage"
 ): Promise<string | null> {
   if (!WASEND_API_KEY) {
     logger.error("[MediaDecryptor] WASEND_API_KEY not set", undefined, {
@@ -63,6 +68,15 @@ export async function decryptWhatsAppImage(
   );
 
   try {
+    const mediaPayload = {
+      url: imageData.url,
+      mimetype: imageData.mimetype,
+      mediaKey: imageData.mediaKey,
+      ...(imageData.fileSha256 && { fileSha256: imageData.fileSha256 }),
+      ...(imageData.fileLength && { fileLength: imageData.fileLength }),
+      ...(imageData.fileName && { fileName: imageData.fileName }),
+    };
+
     const requestBody = {
       data: {
         messages: {
@@ -70,14 +84,7 @@ export async function decryptWhatsAppImage(
             id: messageId,
           },
           message: {
-            imageMessage: {
-              url: imageData.url,
-              mimetype: imageData.mimetype,
-              mediaKey: imageData.mediaKey,
-              ...(imageData.fileSha256 && { fileSha256: imageData.fileSha256 }),
-              ...(imageData.fileLength && { fileLength: imageData.fileLength }),
-              ...(imageData.fileName && { fileName: imageData.fileName }),
-            },
+            [messageType]: mediaPayload,
           },
         },
       },

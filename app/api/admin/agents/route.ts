@@ -146,16 +146,19 @@ export async function GET(request: NextRequest) {
 const createAgentSchema = z.object({
   fullName: z.string().min(1, "Full name is required").max(255),
   email: z.string().email("Invalid email format").toLowerCase(),
-  phoneNumber: z.string().optional(),
+  phoneNumber: z.string().optional().or(z.literal("")),
   region: z.enum(
-    ["paphos", "limassol", "larnaca", "nicosia", "famagusta", "all"],
+    ["Paphos", "Limassol", "Larnaca", "Nicosia", "Famagusta", "All"],
     {
       errorMap: () => ({ message: "Invalid region" }),
     }
   ),
   role: z.string().min(1, "Role is required"),
   isActive: z.boolean().optional().default(true),
-  notes: z.string().optional(),
+  canUpload: z.boolean().optional().default(true),
+  canReceiveLeads: z.boolean().optional().default(true),
+  zyprusUserId: z.string().optional().or(z.literal("")),
+  notes: z.string().optional().or(z.literal("")),
 });
 
 export async function POST(request: NextRequest) {
@@ -216,9 +219,12 @@ export async function POST(request: NextRequest) {
         communication_email: validatedData.email,
         listing_owner_email: validatedData.email,
         mobile: validatedData.phoneNumber || "",
-        region: validatedData.region,
+        region: validatedData.region.toLowerCase(),
         role: validatedData.role,
         is_active: validatedData.isActive,
+        can_upload: validatedData.canUpload ?? true,
+        can_receive_leads: validatedData.canReceiveLeads ?? true,
+        zyprus_user_id: validatedData.zyprusUserId || null,
       })
       .select()
       .single();
