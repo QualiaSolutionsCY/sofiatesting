@@ -30,7 +30,7 @@ export interface SearchResult {
 export const REGIONAL_GROUP_IDS: Record<string, number> = {
   paphos: -843115873,
   limassol: -768604814,
-  larnaca: 0, // Not yet configured
+  larnaca: -870056882,
   nicosia: 0, // Not yet configured
 };
 
