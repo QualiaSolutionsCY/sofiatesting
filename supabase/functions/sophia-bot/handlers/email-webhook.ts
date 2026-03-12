@@ -21,8 +21,10 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0
 import { addMessage, getHistory } from "../../_shared/db.ts";
 import { getAgentByEmail } from "../agents/identifier.ts";
 import { buildSystemPrompt, chat } from "../services/ai-chat.ts";
+import { validateImagesAtIngress } from "../services/image-validator.ts";
 import { addPendingImages, getPendingImages } from "../services/pending-images.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
+import { checkRateLimit } from "../utils/rate-limiter.ts";
 import { constantTimeCompare } from "../utils/webhook-auth.ts";
 
 const ADMIN_SECRET = Deno.env.get("SOPHIA_ADMIN_SECRET");
@@ -99,9 +101,33 @@ export async function handleEmailWebhook(
         category: LogCategory.GENERAL,
       });
     } else {
-      logger.info(`[Email] Unknown sender: ${senderEmail}`, {
+      logger.warn(`[Email] Unknown sender rejected: ${senderEmail}`, {
         category: LogCategory.GENERAL,
       });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          reply: "I don't recognise this email address. Please email from your registered Zyprus agent email, or contact support to register.",
+          agentFound: false,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Rate limiting (keyed by sender email)
+    const withinRateLimit = await checkRateLimit(supabase, senderEmail).catch(() => true);
+    if (!withinRateLimit) {
+      logger.warn(`[Email] Rate limit exceeded for ${senderEmail}`, {
+        category: LogCategory.GENERAL,
+      });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          reply: "You're sending emails too quickly. Please wait a moment and try again.",
+          agentFound: true,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     // Use sender email as userId for chat_history (keeps email threads separate from WhatsApp)
@@ -114,25 +140,40 @@ export async function handleEmailWebhook(
       ? `${emailPrefix}\n\n[Subject: ${subject}]\n\n${textBody || ""}`
       : `${emailPrefix}\n\n${textBody || ""}`;
 
-    const imageUrls = payload.imageUrls || [];
+    const rawImageUrls = payload.imageUrls || [];
 
     // Store email images under agent's MOBILE number (the property listing tool reads by phone)
-    // Falls back to senderEmail if agent not identified or has no mobile
-    const imageKey = identifiedAgent?.mobile?.replace(/\D/g, "") || senderEmail;
+    const imageKey = identifiedAgent.mobile?.replace(/\D/g, "") || senderEmail;
 
-    if (imageUrls.length > 0) {
-      await addPendingImages(
-        imageKey,
-        imageUrls.map((url) => ({ url, contentHash: url }))
-      ).catch((err) => {
-        logger.warn("[Email] Failed to store pending images (non-critical)", {
+    // Validate images before storing (parity with WhatsApp path)
+    let imageUrls: string[] = [];
+    if (rawImageUrls.length > 0) {
+      const validation = await validateImagesAtIngress(rawImageUrls);
+      imageUrls = validation.valid.map((i) => i.url);
+
+      if (validation.invalid.length > 0) {
+        logger.warn("[Email] Some images failed validation", {
           category: LogCategory.GENERAL,
-          error: String(err),
+          validCount: validation.valid.length,
+          invalidCount: validation.invalid.length,
+          invalidReasons: validation.invalid.map((i) => i.error),
         });
-      });
-      logger.info(`[Email] Stored ${imageUrls.length} images in pending_images for ${imageKey}`, {
-        category: LogCategory.GENERAL,
-      });
+      }
+
+      if (imageUrls.length > 0) {
+        await addPendingImages(
+          imageKey,
+          imageUrls.map((url) => ({ url, contentHash: url }))
+        ).catch((err) => {
+          logger.warn("[Email] Failed to store pending images (non-critical)", {
+            category: LogCategory.GENERAL,
+            error: String(err),
+          });
+        });
+        logger.info(`[Email] Stored ${imageUrls.length} validated images in pending_images for ${imageKey}`, {
+          category: LogCategory.GENERAL,
+        });
+      }
     }
 
     // Load chat history BEFORE storing current message (avoids duplication)
@@ -153,8 +194,7 @@ export async function handleEmailWebhook(
     });
 
     // Use agent's mobile number for image lookups (pending_images is keyed by phone)
-    // Falls back to senderEmail if agent not identified
-    const phoneForImages = identifiedAgent?.mobile?.replace(/\D/g, "") || senderEmail;
+    const phoneForImages = identifiedAgent.mobile?.replace(/\D/g, "") || senderEmail;
 
     // Fetch ALL pending images for this agent (includes any previously stored from email)
     // This is critical: chat() uses imageUrls for upload intent detection
@@ -171,10 +211,10 @@ export async function handleEmailWebhook(
       {
         userId,
         phoneNumber: phoneForImages, // agent mobile for pending_images lookup
-        agentName: identifiedAgent?.fullName,
-        agentEmail: identifiedAgent?.communicationEmail,
-        agentRegion: identifiedAgent?.region,
-        agentCanUpload: identifiedAgent?.canUpload,
+        agentName: identifiedAgent.fullName,
+        agentEmail: identifiedAgent.communicationEmail,
+        agentRegion: identifiedAgent.region,
+        agentCanUpload: identifiedAgent.canUpload,
         imageUrls: allPendingImages, // pass ALL pending images so AI sees them
         userMessage,
         lastDocument: null,
@@ -211,8 +251,8 @@ export async function handleEmailWebhook(
         success: true,
         reply,
         toolsUsed: aiResult.toolsUsed || [],
-        agentFound: identifiedAgent !== null,
-        agentName: identifiedAgent?.fullName || null,
+        agentFound: true,
+        agentName: identifiedAgent.fullName,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );

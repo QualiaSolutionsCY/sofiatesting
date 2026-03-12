@@ -9,6 +9,36 @@ import { ImapFlow } from "imapflow";
 import { simpleParser, type ParsedMail } from "mailparser";
 import { config } from "./config.js";
 
+/**
+ * Convert markdown-style text to HTML for email replies.
+ * Handles: **bold**, *italic*, bullet points, URLs, newlines.
+ */
+function markdownToHtml(text: string): string {
+  let html = text
+    // Escape HTML entities first
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    // Convert **bold** to <strong>
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    // Convert *italic* (but not already-converted <strong> tags)
+    .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<em>$1</em>")
+    // Convert URLs to clickable links
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>')
+    // Convert bullet points (• or - at line start)
+    .replace(/^[•\-]\s+(.+)$/gm, "<li>$1</li>")
+    // Convert newlines to <br>
+    .replace(/\n/g, "<br/>");
+
+  // Wrap consecutive <li> elements in <ul>
+  html = html.replace(/((?:<li>.*?<\/li><br\/>?)+)/g, (match) => {
+    const cleaned = match.replace(/<br\/>/g, "");
+    return `<ul>${cleaned}</ul>`;
+  });
+
+  return `<div style="font-family: Arial, sans-serif; line-height: 1.6;">${html}</div>`;
+}
+
 export interface EmailMessage {
   messageId: string;
   uid: number;
@@ -427,7 +457,7 @@ export async function sendSophiaReply(
   resendApiKey: string
 ): Promise<boolean> {
   const replySubject = subject.startsWith("Re:") ? subject : `Re: ${subject}`;
-  const htmlBody = `<p>${replyBody.replace(/\n/g, "<br/>")}</p>`;
+  const htmlBody = markdownToHtml(replyBody);
 
   try {
     const response = await fetch("https://api.resend.com/emails", {

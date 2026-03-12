@@ -115,7 +115,13 @@ serve(async (req) => {
 
   // Email inbound endpoint — called by email-router Railway service
   if (url.pathname.endsWith("/email") && req.method === "POST") {
-    return handleEmailWebhook(req, supabase);
+    return withContext(
+      {
+        correlationId: crypto.randomUUID(),
+        startTime: Date.now(),
+      },
+      () => handleEmailWebhook(req, supabase)
+    );
   }
 
   // Wrap webhook requests in context for correlation ID tracking
