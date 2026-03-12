@@ -13,7 +13,7 @@ Milestone: v1.5 Audit Excellence — SHIPPED
 Phase: 25 of 25 (all complete)
 Plan: Not started (next milestone)
 Status: Ready to plan next milestone
-Last activity: 2026-03-11 — Completed quick task 23: Email listing upload via sophia@zyprus.com
+Last activity: 2026-03-12 — Completed quick task 24: Fix email upload parity
 
 Progress: [█████████████████████████] 100% (6 milestones shipped)
 
@@ -64,6 +64,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | 21 | Fix title deed attachment failure + image ordering bug | 2026-03-04 | 119266d | [21-fix-title-deed-patch-attachment-failure-](./quick/21-fix-title-deed-patch-attachment-failure-/) |
 | 22 | Gmail email router — poll info@zyprus.com, forward + draft | 2026-03-09 | b01860f | [22-add-gmail-email-router-poll-info-zyprus-](./quick/22-add-gmail-email-router-poll-info-zyprus-/) |
 | 23 | Email listing upload via sophia@zyprus.com — full AI pipeline via email | 2026-03-11 | ebfeead | [23-email-listing-upload-replicate-whatsapp-](./quick/23-email-listing-upload-replicate-whatsapp-/) |
+| 24 | Fix email upload parity — HTML replies, image validation, sender guard, rate limiting | 2026-03-12 | 5b9ef56 | [24-fix-email-upload-parity-markdown-to-html](./quick/24-fix-email-upload-parity-markdown-to-html/) |
 
 ## Session Continuity
 
