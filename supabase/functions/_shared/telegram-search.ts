@@ -103,13 +103,15 @@ export function normalizePhoneForSearch(phone: string): string[] {
  *
  * @param phoneNumber  - Raw phone number to search (any format)
  * @param groupChatIds - Array of group chat IDs to search within
+ * @param auditDate    - Only match messages from this date (YYYY-MM-DD). If omitted, searches all time.
  * @returns            - Array of matching messages
  *
- * @throws Error if any groupChatId is 0 (unconfigured placeholder)
+ * @throws Error if no configured group IDs provided
  */
 export async function searchPhoneInGroups(
   phoneNumber: string,
-  groupChatIds: number[]
+  groupChatIds: number[],
+  auditDate?: string
 ): Promise<SearchResult[]> {
   // Guard: caller should pass only configured (non-zero) group IDs
   const validIds = groupChatIds.filter((id) => id !== 0);
@@ -130,13 +132,22 @@ export async function searchPhoneInGroups(
     // Build OR filter: message_text ilike '%variant%' for each variant
     const orFilter = variants.map((v) => `message_text.ilike.%${v}%`).join(",");
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("telegram_group_messages")
       .select(
         "group_name, group_chat_id, message_date, sender_name, message_text"
       )
       .in("group_chat_id", validIds)
-      .or(orFilter)
+      .or(orFilter);
+
+    // Restrict to same-day messages when auditDate is provided
+    if (auditDate) {
+      query = query
+        .gte("message_date", `${auditDate}T00:00:00+00`)
+        .lt("message_date", `${auditDate}T23:59:59+00`);
+    }
+
+    const { data, error } = await query
       .order("message_date", { ascending: false })
       .limit(20);
 
