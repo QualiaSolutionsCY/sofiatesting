@@ -44,7 +44,6 @@ export async function extractTodayCalls(
   const endOfDayLocal = new Date(`${todayDate}T23:59:59`);
 
   // Convert to Cyprus timezone offset and then to UTC
-  const cyprusOffset = -2; // Cyprus is UTC+2 (standard) or UTC+3 (DST)
   const now = new Date();
   const isDST = now.getMonth() >= 2 && now.getMonth() <= 9; // Rough DST check
   const actualOffset = isDST ? -3 : -2;
@@ -64,7 +63,13 @@ export async function extractTodayCalls(
   });
 
   // Try multiple 3CX API endpoints (versions vary)
+  // IMPORTANT: v16 Admin Console API is the ONLY working endpoint on this instance
   const endpoints = [
+    {
+      name: "v16 Admin Console API",
+      method: "GET",
+      path: `/api/CallLog?TimeZoneName=Asia%2FNicosia&callState=All&dateRangeType=Today&numberOfRows=200&startRow=0&searchFilter=&fromFilter=&fromFilterType=Any&toFilter=&toFilterType=Any`,
+    },
     {
       name: "v18+ REST API",
       method: "GET",
@@ -79,11 +84,6 @@ export async function extractTodayCalls(
         dateTo: endOfDay,
         filter: AUDIT_CONFIG.TARGET_NUMBER,
       }),
-    },
-    {
-      name: "Web Client API",
-      method: "GET",
-      path: `/webclient/api/CallLog/GetCallHistory?from=${encodeURIComponent(startOfDay)}&to=${encodeURIComponent(endOfDay)}`,
     },
   ];
 
@@ -272,6 +272,9 @@ function parseCallLogResponse(
 
   if (Array.isArray(data)) {
     callList = data;
+  } else if (data.CallLogRows && Array.isArray(data.CallLogRows)) {
+    // v16 Admin Console API format
+    callList = data.CallLogRows;
   } else if (data.list && Array.isArray(data.list)) {
     callList = data.list;
   } else if (data.calls && Array.isArray(data.calls)) {
@@ -361,6 +364,7 @@ function parseCallEntry(entry: any): ThreeCXCallLogEntry | null {
   const getCallerNumber = () =>
     entry.callerNumber ||
     entry.CallerNumber ||
+    entry.CallerId ||    // v16 Admin Console API
     entry.Caller ||
     entry.from ||
     entry.From ||
@@ -371,26 +375,34 @@ function parseCallEntry(entry: any): ThreeCXCallLogEntry | null {
   const getCalledNumber = () =>
     entry.calledNumber ||
     entry.CalledNumber ||
+    entry.Destination ||  // v16 Admin Console API
     entry.Called ||
     entry.to ||
     entry.To ||
     entry.called ||
-    entry.destination ||
-    entry.Destination;
+    entry.destination;
 
-  const getDuration = () =>
-    entry.duration ||
-    entry.Duration ||
-    entry.CallDuration ||
-    entry.call_duration ||
-    0;
+  const getDuration = () => {
+    const raw = entry.duration || entry.Duration || entry.CallDuration || entry.call_duration || 0;
+    // v16 returns duration as "HH:MM:SS" string — convert to seconds
+    if (typeof raw === "string" && raw.includes(":")) {
+      const parts = raw.split(":").map(Number);
+      return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+    }
+    return Number(raw) || 0;
+  };
 
-  const getStatus = () =>
-    entry.status ||
-    entry.Status ||
-    entry.CallStatus ||
-    entry.call_status ||
-    "Unknown";
+  const getStatus = () => {
+    // v16 uses Answered (boolean), not a status string
+    if (typeof entry.Answered === "boolean") {
+      return entry.Answered ? "Answered" : "Missed";
+    }
+    return entry.status ||
+      entry.Status ||
+      entry.CallStatus ||
+      entry.call_status ||
+      "Unknown";
+  };
 
   const getDirection = () =>
     entry.direction ||
@@ -399,7 +411,7 @@ function parseCallEntry(entry: any): ThreeCXCallLogEntry | null {
     entry.call_direction ||
     entry.Type ||
     entry.type ||
-    "Unknown";
+    "Inbound"; // v16 doesn't provide direction — default to Inbound
 
   const getAgentExtension = () =>
     entry.agentExtension ||

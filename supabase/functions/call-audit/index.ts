@@ -62,8 +62,8 @@ function isRetryableError(category: ErrorCategory): boolean {
  * Classify error by type and message
  */
 function classifyError(error: Error): ErrorCategory {
-  const message = error.message.toLowerCase();
-  const name = error.name.toLowerCase();
+  const message = (error.message || "").toLowerCase();
+  const name = (error.name || "").toLowerCase();
 
   // Authentication errors
   if (
