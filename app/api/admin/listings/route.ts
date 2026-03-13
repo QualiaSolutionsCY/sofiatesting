@@ -2,19 +2,18 @@ import { desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { checkAdminAuth } from "@/lib/auth/admin";
 import { db } from "@/lib/db/client";
-import { propertyListing, user } from "@/lib/db/schema";
+import { listingUpload } from "@/lib/db/schema";
 import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("api:admin:listings");
 
 /**
- * GET /api/admin/listings - Get all property listings for admin review
- * Returns all listings, with optional status filter
+ * GET /api/admin/listings - Get all listing uploads for admin review
+ * Queries listing_uploads table (populated by sophia-bot WhatsApp flow)
  * Requires admin role
  */
 export async function GET(req: Request) {
   try {
-    // Check admin authentication
     const adminCheck = await checkAdminAuth();
 
     if (!adminCheck.isAdmin) {
@@ -25,54 +24,20 @@ export async function GET(req: Request) {
     }
 
     const url = new URL(req.url);
-    const status = url.searchParams.get("status"); // draft, uploaded, failed
+    const status = url.searchParams.get("status");
     const limit = Math.min(
       Number.parseInt(url.searchParams.get("limit") || "50", 10),
       200
     );
 
-    // Build query
     let query = db
-      .select({
-        id: propertyListing.id,
-        name: propertyListing.name,
-        description: propertyListing.description,
-        price: propertyListing.price,
-        currency: propertyListing.currency,
-        propertyType: propertyListing.propertyType,
-        status: propertyListing.status,
-        reviewStatus: propertyListing.reviewStatus,
-        zyprusListingId: propertyListing.zyprusListingId,
-        zyprusListingUrl: propertyListing.zyprusListingUrl,
-        createdAt: propertyListing.createdAt,
-        updatedAt: propertyListing.updatedAt,
-        address: propertyListing.address,
-        numberOfRooms: propertyListing.numberOfRooms,
-        numberOfBathroomsTotal: propertyListing.numberOfBathroomsTotal,
-        floorSize: propertyListing.floorSize,
-        ownerName: propertyListing.ownerName,
-        ownerPhone: propertyListing.ownerPhone,
-        swimmingPool: propertyListing.swimmingPool,
-        hasParking: propertyListing.hasParking,
-        hasAirConditioning: propertyListing.hasAirConditioning,
-        backofficeNotes: propertyListing.backofficeNotes,
-        googleMapsUrl: propertyListing.googleMapsUrl,
-        reviewNotes: propertyListing.reviewNotes,
-        userId: propertyListing.userId,
-        userEmail: user.email,
-        // Additional fields for reference ID, AI notes, and duplicate detection
-        referenceId: propertyListing.referenceId,
-        propertyNotes: propertyListing.propertyNotes,
-        duplicateDetected: propertyListing.duplicateDetected,
-      })
-      .from(propertyListing)
-      .leftJoin(user, eq(propertyListing.userId, user.id))
-      .orderBy(desc(propertyListing.createdAt))
+      .select()
+      .from(listingUpload)
+      .orderBy(desc(listingUpload.createdAt))
       .limit(limit);
 
-    // Apply status filter if provided
     if (status) {
-      query = query.where(eq(propertyListing.status, status)) as typeof query;
+      query = query.where(eq(listingUpload.status, status)) as typeof query;
     }
 
     const listings = await query;

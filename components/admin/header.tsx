@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Settings, User as UserIcon } from "lucide-react";
+import { LogOut, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import type { User } from "next-auth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -29,19 +29,17 @@ export function AdminHeader({ user, role }: AdminHeaderProps) {
     .join(" ");
 
   return (
-    <header className="flex h-14 items-center justify-between border-b bg-background px-6">
+    <header className="flex h-14 items-center justify-between border-b bg-background px-4 md:px-6">
+      {/* Left side — spacer for hamburger on mobile */}
       <div className="flex items-center gap-4">
+        <div className="w-10 md:hidden" />
         <h2 className="font-medium text-muted-foreground text-sm">
           Role:{" "}
           <span className="font-semibold text-foreground">{roleLabel}</span>
         </h2>
       </div>
 
-      <div className="flex items-center gap-4">
-        <Button asChild size="sm" variant="outline">
-          <Link href="/">Return to Chat</Link>
-        </Button>
-
+      <div className="flex items-center gap-2 md:gap-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button className="relative h-9 w-9 rounded-full" variant="ghost">
@@ -61,15 +59,9 @@ export function AdminHeader({ user, role }: AdminHeaderProps) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link className="cursor-pointer" href="/admin/settings">
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
               <Link className="cursor-pointer" href="/">
                 <UserIcon className="mr-2 h-4 w-4" />
-                User Profile
+                Profile
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />

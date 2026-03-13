@@ -19,7 +19,6 @@ import { redirect } from "next/navigation";
 import { auth } from "@/app/(auth)/auth";
 import { DistributionChart, OverviewChart } from "@/components/admin/charts";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -147,29 +146,26 @@ export default async function AdminDashboardPage() {
   const session = await auth();
 
   if (!session || !session.user) {
-    redirect("/api/auth/signin");
+    redirect("/login");
   }
 
   const stats = await getDashboardStats();
 
   return (
-    <div className="space-y-8 p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
+    <div className="space-y-4 md:space-y-8">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text font-bold text-3xl text-transparent tracking-tight">
+          <h2 className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text font-bold text-xl text-transparent tracking-tight md:text-3xl">
             Admin Dashboard
           </h2>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm md:text-base">
             Overview of SOPHIA AI Agents, System Health, and Activity.
           </p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button>Download Report</Button>
         </div>
       </div>
 
       {/* Key Metrics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 md:gap-4 lg:grid-cols-4">
         <Card className="border-l-4 border-l-blue-500 shadow-sm transition-shadow hover:shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="font-medium text-sm">Total Agents</CardTitle>
@@ -224,7 +220,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 md:gap-4">
         <Link href="/admin/prompts">
           <Card className="h-full cursor-pointer transition-all hover:border-primary hover:shadow-md">
             <CardHeader className="pb-3">
@@ -300,15 +296,15 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Charts Section */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+      <div className="grid gap-4 lg:grid-cols-7">
         <OverviewChart
-          className="col-span-4 shadow-sm"
+          className="lg:col-span-4 shadow-sm"
           data={stats.activityData}
           description="Daily interactions over the last 7 days"
           title="Agent Activity"
         />
         <DistributionChart
-          className="col-span-3 shadow-sm"
+          className="lg:col-span-3 shadow-sm"
           data={stats.regionalStats}
           description="Agents by region"
           title="Regional Distribution"
@@ -316,8 +312,8 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Recent Agents & System Health */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4 shadow-sm">
+      <div className="grid gap-4 lg:grid-cols-7">
+        <Card className="lg:col-span-4 shadow-sm">
           <CardHeader>
             <CardTitle>Recent Agents</CardTitle>
             <CardDescription>
@@ -363,7 +359,7 @@ export default async function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-3 shadow-sm">
+        <Card className="lg:col-span-3 shadow-sm">
           <CardHeader>
             <CardTitle>System Health</CardTitle>
             <CardDescription>Latest system status checks.</CardDescription>

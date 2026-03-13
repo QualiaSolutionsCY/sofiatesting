@@ -2,15 +2,11 @@
 
 import { formatDistanceToNow } from "date-fns";
 import {
-  AlertTriangle,
   Building2,
   CheckCircle,
   Clock,
   ExternalLink,
-  FileText,
-  Phone,
   RefreshCw,
-  Upload,
   User,
   XCircle,
 } from "lucide-react";
@@ -43,42 +39,22 @@ import {
 
 type Listing = {
   id: string;
-  name: string;
-  description: string | null;
-  price: string | null;
-  currency: string | null;
-  propertyType: string | null;
-  status: string | null;
-  reviewStatus: string | null;
-  zyprusListingId: string | null;
-  zyprusListingUrl: string | null;
+  zyprusListingId: string;
+  agentPhone: string;
+  agentName: string;
+  propertyTitle: string;
+  listingUrl: string;
+  status: string;
+  notifiedAt: string | null;
   createdAt: string;
-  updatedAt: string | null;
-  address: string | null;
-  numberOfRooms: number | null;
-  numberOfBathroomsTotal: string | null;
-  floorSize: string | null;
-  ownerName: string | null;
-  ownerPhone: string | null;
-  swimmingPool: string | null;
-  hasParking: boolean | null;
-  hasAirConditioning: boolean | null;
-  backofficeNotes: string | null;
-  googleMapsUrl: string | null;
-  reviewNotes: string | null;
-  userId: string | null;
-  userEmail: string | null;
-  // Reference ID, AI notes, and duplicate detection fields
-  referenceId: string | null;
-  propertyNotes: string | null;
-  duplicateDetected: boolean | null;
+  price: number | null;
+  bedrooms: number | null;
 };
 
 export default function AdminListingsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const fetchListings = useCallback(async () => {
     setIsLoading(true);
@@ -110,53 +86,20 @@ export default function AdminListingsPage() {
     fetchListings();
   }, [fetchListings]);
 
-  const handleUpload = async (listingId: string) => {
-    setUploadingId(listingId);
-    try {
-      const response = await fetch("/api/listings/upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ listingId }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to upload");
-      }
-
-      const result = await response.json();
-      toast.success("Listing uploaded to Zyprus!");
-
-      if (result.listingUrl) {
-        window.open(result.listingUrl, "_blank");
-      }
-
-      await fetchListings();
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to upload listing"
-      );
-    } finally {
-      setUploadingId(null);
-    }
-  };
-
-  const getStatusBadge = (status: string | null) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case "uploaded":
+      case "published":
         return (
           <Badge className="bg-green-100 text-green-700">
             <CheckCircle className="mr-1 h-3 w-3" />
-            Uploaded
+            Published
           </Badge>
         );
-      case "failed":
+      case "expired":
         return (
           <Badge className="bg-red-100 text-red-700">
             <XCircle className="mr-1 h-3 w-3" />
-            Failed
+            Expired
           </Badge>
         );
       default:
@@ -170,18 +113,21 @@ export default function AdminListingsPage() {
   };
 
   const draftCount = listings.filter((l) => l.status === "draft").length;
-  const uploadedCount = listings.filter((l) => l.status === "uploaded").length;
+  const publishedCount = listings.filter(
+    (l) => l.status === "published"
+  ).length;
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="mx-auto max-w-7xl space-y-4 md:space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="flex items-center gap-2 font-bold text-2xl">
-            <Building2 className="h-6 w-6" />
-            Property Listings Review
+          <h1 className="flex items-center gap-2 font-bold text-xl md:text-2xl">
+            <Building2 className="h-5 w-5 md:h-6 md:w-6" />
+            Property Listings
           </h1>
-          <p className="text-muted-foreground">
-            Review and approve property listings submitted via Telegram
+          <p className="text-muted-foreground text-sm">
+            Listings uploaded to Zyprus via WhatsApp
           </p>
         </div>
         <Button
@@ -197,67 +143,81 @@ export default function AdminListingsPage() {
         </Button>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-2 md:gap-4">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="font-medium text-sm">
-              Pending Review
+          <CardHeader className="p-3 pb-1 md:p-6 md:pb-2">
+            <CardTitle className="font-medium text-xs md:text-sm">
+              Draft
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
             <div className="flex items-center">
-              <Clock className="mr-2 h-8 w-8 text-yellow-500" />
-              <span className="font-bold text-3xl">{draftCount}</span>
+              <Clock className="mr-2 h-5 w-5 text-yellow-500 md:h-8 md:w-8" />
+              <span className="font-bold text-xl md:text-3xl">
+                {draftCount}
+              </span>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="font-medium text-sm">Uploaded</CardTitle>
+          <CardHeader className="p-3 pb-1 md:p-6 md:pb-2">
+            <CardTitle className="font-medium text-xs md:text-sm">
+              Published
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
             <div className="flex items-center">
-              <CheckCircle className="mr-2 h-8 w-8 text-green-500" />
-              <span className="font-bold text-3xl">{uploadedCount}</span>
+              <CheckCircle className="mr-2 h-5 w-5 text-green-500 md:h-8 md:w-8" />
+              <span className="font-bold text-xl md:text-3xl">
+                {publishedCount}
+              </span>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="font-medium text-sm">Total</CardTitle>
+          <CardHeader className="p-3 pb-1 md:p-6 md:pb-2">
+            <CardTitle className="font-medium text-xs md:text-sm">
+              Total
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
             <div className="flex items-center">
-              <Building2 className="mr-2 h-8 w-8 text-blue-500" />
-              <span className="font-bold text-3xl">{listings.length}</span>
+              <Building2 className="mr-2 h-5 w-5 text-blue-500 md:h-8 md:w-8" />
+              <span className="font-bold text-xl md:text-3xl">
+                {listings.length}
+              </span>
             </div>
           </CardContent>
         </Card>
       </div>
 
+      {/* Listings */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+        <CardHeader className="p-4 md:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle>All Listings</CardTitle>
-              <CardDescription>
-                Click "Upload to Zyprus" to publish a draft listing
+              <CardTitle className="text-base md:text-lg">
+                All Listings
+              </CardTitle>
+              <CardDescription className="text-xs md:text-sm">
+                Listings uploaded to Zyprus by SOPHIA
               </CardDescription>
             </div>
             <Select onValueChange={setStatusFilter} value={statusFilter}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger className="w-full sm:w-[150px]">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
-                <SelectItem value="draft">Drafts</SelectItem>
-                <SelectItem value="uploaded">Uploaded</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+                <SelectItem value="expired">Expired</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
           {isLoading ? (
             <div className="py-8 text-center text-muted-foreground">
               Loading listings...
@@ -267,160 +227,134 @@ export default function AdminListingsPage() {
               No listings found
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Property</TableHead>
-                  <TableHead>Owner</TableHead>
-                  <TableHead>Reference / Notes</TableHead>
-                  <TableHead>Features</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile card layout */}
+              <div className="space-y-3 md:hidden">
                 {listings.map((listing) => (
-                  <TableRow key={listing.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{listing.name}</div>
-                        <div className="text-muted-foreground text-sm">
-                          {listing.propertyType} • {listing.numberOfRooms} BR •{" "}
-                          {listing.floorSize}m²
+                  <div
+                    className="rounded-lg border p-3 space-y-2"
+                    key={listing.id}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-sm leading-tight">
+                          {listing.propertyTitle}
                         </div>
-                        <div className="font-medium text-sm">
-                          €{listing.price}
+                        <div className="mt-0.5 text-muted-foreground text-xs">
+                          {[
+                            listing.bedrooms
+                              ? `${listing.bedrooms} BR`
+                              : null,
+                            listing.price
+                              ? `\u20AC${listing.price.toLocaleString()}`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" \u2022 ") || "Details pending"}
                         </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      {listing.ownerName || listing.ownerPhone ? (
-                        <div className="text-sm">
-                          {listing.ownerName && (
-                            <div className="flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              {listing.ownerName}
-                            </div>
-                          )}
-                          {listing.ownerPhone && (
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <Phone className="h-3 w-3" />
-                              {listing.ownerPhone}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">
-                          Not provided
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {/* Reference ID */}
-                        {listing.referenceId ? (
-                          <div className="font-mono text-xs">
-                            Ref: {listing.referenceId}
-                          </div>
-                        ) : (
-                          <div className="text-muted-foreground text-xs">
-                            No reference ID
-                          </div>
-                        )}
-                        {/* Duplicate Warning */}
-                        {listing.duplicateDetected && (
-                          <Badge className="bg-orange-100 text-orange-700">
-                            <AlertTriangle className="mr-1 h-3 w-3" />
-                            Potential Duplicate
-                          </Badge>
-                        )}
-                        {/* AI Notes indicator */}
-                        {listing.propertyNotes && (
-                          <div
-                            className="flex cursor-pointer items-center gap-1 text-blue-600 text-xs hover:underline"
-                            onClick={() => {
-                              toast.info(listing.propertyNotes || "No notes", {
-                                duration: 10_000,
-                                description: "SOPHIA AI Notes",
-                              });
-                            }}
-                            title={listing.propertyNotes}
-                          >
-                            <FileText className="h-3 w-3" />
-                            View AI Notes
-                          </div>
-                        )}
+                      {getStatusBadge(listing.status)}
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        {listing.agentName}
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {listing.swimmingPool &&
-                          listing.swimmingPool !== "none" && (
-                            <Badge className="text-xs" variant="outline">
-                              🏊 {listing.swimmingPool}
-                            </Badge>
-                          )}
-                        {listing.hasParking && (
-                          <Badge className="text-xs" variant="outline">
-                            🅿️ Parking
-                          </Badge>
-                        )}
-                        {listing.hasAirConditioning && (
-                          <Badge className="text-xs" variant="outline">
-                            ❄️ AC
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(listing.status)}</TableCell>
-                    <TableCell>
-                      <div className="text-muted-foreground text-sm">
+                      <span>
                         {formatDistanceToNow(new Date(listing.createdAt), {
                           addSuffix: true,
                         })}
-                      </div>
-                      <div className="text-muted-foreground text-xs">
-                        via{" "}
-                        {listing.userEmail?.startsWith("guest-")
-                          ? "Telegram"
-                          : "Web"}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {listing.status === "draft" && (
-                        <Button
-                          disabled={uploadingId === listing.id}
-                          onClick={() => handleUpload(listing.id)}
-                          size="sm"
-                        >
-                          {uploadingId === listing.id ? (
-                            <RefreshCw className="mr-1 h-4 w-4 animate-spin" />
-                          ) : (
-                            <Upload className="mr-1 h-4 w-4" />
-                          )}
-                          Upload to Zyprus
-                        </Button>
-                      )}
-                      {listing.zyprusListingUrl && (
-                        <Button
-                          onClick={() => {
-                            if (listing.zyprusListingUrl) {
-                              window.open(listing.zyprusListingUrl, "_blank");
-                            }
-                          }}
-                          size="sm"
-                          variant="outline"
-                        >
-                          <ExternalLink className="mr-1 h-4 w-4" />
-                          View
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
+                      </span>
+                    </div>
+                    <Button
+                      className="w-full"
+                      onClick={() =>
+                        window.open(listing.listingUrl, "_blank")
+                      }
+                      size="sm"
+                      variant="outline"
+                    >
+                      <ExternalLink className="mr-1 h-4 w-4" />
+                      View on Zyprus
+                    </Button>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Property</TableHead>
+                      <TableHead>Agent</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {listings.map((listing) => (
+                      <TableRow key={listing.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">
+                              {listing.propertyTitle}
+                            </div>
+                            <div className="text-muted-foreground text-sm">
+                              {[
+                                listing.bedrooms
+                                  ? `${listing.bedrooms} BR`
+                                  : null,
+                                listing.price
+                                  ? `\u20AC${listing.price.toLocaleString()}`
+                                  : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" \u2022 ") || "Details pending"}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            <div className="flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              {listing.agentName}
+                            </div>
+                            <div className="text-muted-foreground">
+                              {listing.agentPhone}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {getStatusBadge(listing.status)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-muted-foreground text-sm">
+                            {formatDistanceToNow(
+                              new Date(listing.createdAt),
+                              { addSuffix: true }
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            onClick={() =>
+                              window.open(listing.listingUrl, "_blank")
+                            }
+                            size="sm"
+                            variant="outline"
+                          >
+                            <ExternalLink className="mr-1 h-4 w-4" />
+                            View on Zyprus
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

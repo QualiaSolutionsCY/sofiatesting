@@ -34,7 +34,7 @@ export default async function AdminLayout({
   const session = await auth();
 
   if (!session || !session.user) {
-    redirect("/api/auth/signin");
+    redirect("/login");
   }
 
   // Check if user has an explicit admin role (matched by email in admin_users table)
@@ -57,7 +57,7 @@ export default async function AdminLayout({
       email: userEmail,
       adminRoleExists: adminRole.length,
     });
-    redirect("/");
+    redirect("/login?error=AccessDenied");
   }
 
   const userRole = adminRole[0].role;
@@ -71,7 +71,7 @@ export default async function AdminLayout({
       <AdminSidebar permissions={permissions} role={userRole} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <AdminHeader role={userRole} user={session.user} />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-3 md:p-6">{children}</main>
       </div>
     </div>
   );

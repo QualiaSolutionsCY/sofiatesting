@@ -153,7 +153,9 @@ const createAgentSchema = z.object({
       errorMap: () => ({ message: "Invalid region" }),
     }
   ),
-  role: z.string().min(1, "Role is required"),
+  role: z.enum(["agent", "manager", "management"], {
+    errorMap: () => ({ message: "Invalid role" }),
+  }),
   isActive: z.boolean().optional().default(true),
   canUpload: z.boolean().optional().default(true),
   canReceiveLeads: z.boolean().optional().default(true),

@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+// UI display roles -> DB role values
+export const ROLE_OPTIONS = [
+  { label: "Normal Agent", value: "agent" },
+  { label: "Manager", value: "manager" },
+  { label: "Management", value: "management" },
+] as const;
+
+export const DB_ROLES = ["agent", "manager", "management"] as const;
+
 export const agentSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters").max(100),
   email: z.string().email("Invalid email address").toLowerCase(),
@@ -10,24 +19,11 @@ export const agentSchema = z.object({
       required_error: "Please select a region",
     }
   ),
-  role: z.enum(
-    [
-      "Normal Agent",
-      "Manager Limassol",
-      "Manager Paphos",
-      "Manager Larnaca",
-      "Manager Famagusta",
-      "Manager Nicosia",
-      "CEO",
-      "Listing Admin",
-    ],
-    {
-      required_error: "Please select a role",
-    }
-  ),
+  role: z.enum(DB_ROLES, {
+    required_error: "Please select a role",
+  }),
   isActive: z.boolean(),
   notes: z.string().optional().or(z.literal("")),
-  // New permission fields
   canUpload: z.boolean(),
   canReceiveLeads: z.boolean(),
   zyprusUserId: z.string().optional().or(z.literal("")),

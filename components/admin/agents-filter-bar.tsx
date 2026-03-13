@@ -52,15 +52,10 @@ const REGIONS = [
   "Nicosia",
 ];
 const ROLES = [
-  "All",
-  "Normal Agent",
-  "Manager Limassol",
-  "Manager Paphos",
-  "Manager Larnaca",
-  "Manager Famagusta",
-  "Manager Nicosia",
-  "CEO",
-  "Listing Admin",
+  { value: "all", label: "All Roles" },
+  { value: "agent", label: "Agent" },
+  { value: "manager", label: "Manager" },
+  { value: "management", label: "Management" },
 ];
 const STATUS_OPTIONS = [
   { value: "all", label: "All Status" },
@@ -147,15 +142,15 @@ export function AgentsFilterBar({
 
         <Select
           onValueChange={(value) => handleFilterChange("role", value)}
-          value={searchParams.role || "All"}
+          value={searchParams.role || "all"}
         >
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Role" />
           </SelectTrigger>
           <SelectContent>
             {ROLES.map((role) => (
-              <SelectItem key={role} value={role}>
-                {role}
+              <SelectItem key={role.value} value={role.value}>
+                {role.label}
               </SelectItem>
             ))}
           </SelectContent>

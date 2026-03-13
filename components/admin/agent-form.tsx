@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { type AgentFormData, agentSchema } from "@/lib/validations/agent";
+import { type AgentFormData, ROLE_OPTIONS, agentSchema } from "@/lib/validations/agent";
 
 type AgentFormProps = {
   initialData?: Partial<AgentFormData> & { id?: string };
@@ -40,16 +40,6 @@ const REGIONS = [
   "Nicosia",
   "All",
 ];
-const ROLES = [
-  "Normal Agent",
-  "Manager Limassol",
-  "Manager Paphos",
-  "Manager Larnaca",
-  "Manager Famagusta",
-  "Manager Nicosia",
-  "CEO",
-  "Listing Admin",
-];
 
 export function AgentForm({
   initialData,
@@ -64,7 +54,7 @@ export function AgentForm({
       email: "",
       phoneNumber: "",
       region: "Limassol",
-      role: "Normal Agent",
+      role: "agent",
       isActive: true,
       notes: "",
       canUpload: true,
@@ -183,9 +173,9 @@ export function AgentForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {ROLES.map((role) => (
-                      <SelectItem key={role} value={role}>
-                        {role}
+                    {ROLE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

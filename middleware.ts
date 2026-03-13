@@ -13,7 +13,7 @@ export async function middleware(request: NextRequest) {
     return new Response("pong", { status: 200 });
   }
 
-  if (pathname.startsWith("/api/auth")) {
+  if (pathname.startsWith("/api/auth") || pathname.startsWith("/login")) {
     return NextResponse.next();
   }
 
@@ -29,9 +29,9 @@ export async function middleware(request: NextRequest) {
   });
 
   if (!token) {
-    return NextResponse.redirect(
-      new URL("/api/auth/signin", request.url)
-    );
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("callbackUrl", request.url);
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();

@@ -401,6 +401,23 @@ export const adminUserRole = pgTable("admin_users", {
 
 export type AdminUserRole = InferSelectModel<typeof adminUserRole>;
 
+// Listing uploads tracked by the WhatsApp bot (sophia-bot edge function)
+export const listingUpload = pgTable("listing_uploads", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  zyprusListingId: text("zyprus_listing_id").notNull(),
+  agentPhone: text("agent_phone").notNull(),
+  agentName: text("agent_name").notNull(),
+  propertyTitle: text("property_title").notNull(),
+  listingUrl: text("listing_url").notNull(),
+  status: text("status").notNull().default("draft"), // draft, published, expired
+  notifiedAt: timestamp("notified_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  price: integer("price"),
+  bedrooms: integer("bedrooms"),
+});
+
+export type ListingUpload = InferSelectModel<typeof listingUpload>;
+
 // NOTE: Analytics tables (SystemHealthLog, AgentExecutionLog, CalculatorUsageLog,
 // AdminAuditLog, DocumentGenerationLog, UserActivitySummary) were removed in quick-12.
 // They were never migrated to production. Re-add when analytics feature is implemented.
