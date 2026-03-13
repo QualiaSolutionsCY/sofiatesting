@@ -176,24 +176,30 @@ export class ThreeCXClient {
         );
       }
 
-      // Check Content-Type before parsing JSON
-      const contentType = response.headers.get("content-type") || "";
-      if (!contentType.includes("application/json")) {
-        // HTML response often indicates auth redirect - session expired
-        const responseText = await response.text();
-        if (responseText.includes("<html") || responseText.includes("login")) {
-          throw new ThreeCXAuthError(
-            "3CX returned login page - session likely expired"
-          );
+      // Parse response — v16 may return text/plain instead of application/json
+      const responseText = await response.text();
+      if (responseText.includes("<html") || responseText.includes("<!DOCTYPE")) {
+        throw new ThreeCXAuthError(
+          "3CX returned login page - session likely expired"
+        );
+      }
+
+      let data: ThreeCXLoginResponse;
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        // v16 Admin Console returns session cookie, not JSON token
+        const setCookie = response.headers.get("set-cookie");
+        if (setCookie) {
+          this._cookie = setCookie;
+          return true;
         }
         throw new ThreeCXAPIError(
-          `Unexpected content type: ${contentType}`,
+          `Non-JSON response from /api/login: ${responseText.substring(0, 100)}`,
           response.status,
           "/api/login"
         );
       }
-
-      const data: ThreeCXLoginResponse = await response.json();
 
       if (data.Status === "Ok" && data.Token) {
         this._token = data.Token;
