@@ -192,20 +192,32 @@ export async function handleEmailWebhook(
     );
 
     // Load chat history BEFORE storing current message (avoids duplication)
-    // CRITICAL: Skip history for property upload emails to prevent data contamination
+    // CRITICAL: For email, each message is essentially a new request.
+    // - Property upload emails: skip history entirely (prevents data contamination from old uploads)
+    // - Other emails: load only last 4 messages (2 exchanges) to allow basic follow-ups
+    //   but prevent old property data from bleeding across conversations
+    // BUG HISTORY: draft-40366 (wrong property), draft-40368 (false duplicate from history contamination)
     let history: Array<{ role: string; parts: Array<{ text: string }> }> = [];
     if (hasPropertyData) {
       logger.info("[Email] Property data detected in email — SKIPPING chat history to prevent contamination", {
         category: LogCategory.GENERAL,
       });
     } else {
-      history = await getHistory(userId).catch((err) => {
+      const fullHistory = await getHistory(userId).catch((err) => {
         logger.warn("[Email] Failed to get chat history (non-critical)", {
           category: LogCategory.GENERAL,
           error: String(err),
         });
         return [];
       });
+      // Limit to last 4 messages (2 exchanges) for email — prevents old property data contamination
+      // while still allowing basic follow-ups like "yes send it" or "assign to X"
+      history = fullHistory.slice(-4);
+      if (fullHistory.length > 4) {
+        logger.info(`[Email] Trimmed chat history from ${fullHistory.length} to 4 messages (email safety limit)`, {
+          category: LogCategory.GENERAL,
+        });
+      }
     }
 
     // Store user message AFTER loading history

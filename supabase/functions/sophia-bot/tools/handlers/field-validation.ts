@@ -124,14 +124,21 @@ export async function validateAndPrepareFields(
       .limit(5);
 
     if (recentUploads && recentUploads.length > 0) {
-      const locationLower = ((args.location as string) || "").toLowerCase();
-      const match = recentUploads.find(
+      const locationLower = ((args.location as string) || "").toLowerCase().trim();
+      // Split location into parts (e.g., "Agios Tychonas, Limassol" → ["agios tychonas", "limassol"])
+      const locationParts = locationLower.split(",").map((p: string) => p.trim()).filter(Boolean);
+      // Use the FIRST part (specific area) for matching, not the city name
+      // This prevents "Limassol" matching every Limassol property, or "Paphos" matching every Paphos property
+      // Only fall back to full location if it's already specific (single part with 2+ words)
+      const specificArea = locationParts.length > 1
+        ? locationParts[0] // Use "Agios Tychonas" not "Limassol"
+        : (locationLower.split(/\s+/).length >= 2 ? locationLower : null); // Single part needs 2+ words to be specific
+      const match = specificArea ? recentUploads.find(
         (p: Record<string, unknown>) =>
-          locationLower &&
           ((p.property_title as string) || "")
             .toLowerCase()
-            .includes(locationLower)
-      );
+            .includes(specificArea)
+      ) : null;
       if (match) {
         const minutesAgo = Math.round(
           (Date.now() - new Date(match.created_at as string).getTime()) / 60_000
