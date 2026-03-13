@@ -17,7 +17,7 @@ import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
 
 const supabase = getSupabaseAdmin();
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-const OPTIMIZER_MODEL = "google/gemini-2.0-flash";
+const OPTIMIZER_MODEL = "google/gemini-2.0-flash-001";
 
 // Skip list loaded from DB
 let skipKeys: Set<string> | null = null;
@@ -365,11 +365,14 @@ async function generate(): Promise<number> {
     generationCounts.set(e.target_key, count + 1);
   }
 
-  // Pick the target — prioritize those with fewest experiments
-  eligible.sort((a: { key: string }, b: { key: string }) => {
+  // Pick the target — prioritize those with fewest experiments, then shortest content
+  // (shorter prompts are more likely to succeed with LLM generation)
+  eligible.sort((a: { key: string; content: string }, b: { key: string; content: string }) => {
     const aCount = generationCounts.get(a.key) || 0;
     const bCount = generationCounts.get(b.key) || 0;
-    return aCount - bCount;
+    if (aCount !== bCount) return aCount - bCount;
+    // Tie-break: shorter content first (more reliable generation)
+    return (a.content?.length || 0) - (b.content?.length || 0);
   });
 
   // Generate ONE challenger per run (conservative)
@@ -385,6 +388,18 @@ async function generate(): Promise<number> {
     `[Optimizer] Generating challenger for '${target.key}' (generation ${generation})`,
     { category: LogCategory.GENERAL }
   );
+
+  logger.info(`[Optimizer] Target content length: ${target.content?.length || 0}`, {
+    category: LogCategory.GENERAL,
+  });
+
+  if (!target.content || target.content.length < 50) {
+    logger.warn(`[Optimizer] Target '${target.key}' has no/empty content in DB, skipping`, {
+      category: LogCategory.GENERAL,
+      contentLength: target.content?.length || 0,
+    });
+    return 0;
+  }
 
   const challenger = await generateChallenger(
     target.key,
@@ -465,15 +480,16 @@ IMPORTANT: The "content" field must contain the COMPLETE prompt text, not just t
         model: OPTIMIZER_MODEL,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7,
-        max_tokens: 8000,
+        max_tokens: 16000,
         response_format: { type: "json_object" },
       }),
     });
 
     if (!response.ok) {
+      const errBody = await response.text();
       logger.error(
-        `[Optimizer] OpenRouter error: ${response.status}`,
-        new Error(await response.text()),
+        `[Optimizer] OpenRouter error: ${response.status}: ${errBody.slice(0, 500)}`,
+        new Error(errBody),
         { category: LogCategory.GENERAL }
       );
       return null;
@@ -482,7 +498,19 @@ IMPORTANT: The "content" field must contain the COMPLETE prompt text, not just t
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content;
 
-    if (!text) return null;
+    if (!text) {
+      logger.warn(`[Optimizer] Empty response from LLM for '${targetKey}'`, {
+        category: LogCategory.GENERAL,
+        finishReason: data.choices?.[0]?.finish_reason,
+        usage: data.usage,
+        errorDetail: data.error,
+      });
+      return null;
+    }
+
+    logger.info(`[Optimizer] LLM response received for '${targetKey}' (${text.length} chars)`, {
+      category: LogCategory.GENERAL,
+    });
 
     const parsed = JSON.parse(text);
 
@@ -507,6 +535,8 @@ IMPORTANT: The "content" field must contain the COMPLETE prompt text, not just t
   } catch (err) {
     logger.error("[Optimizer] Failed to generate challenger", err as Error, {
       category: LogCategory.GENERAL,
+      targetKey,
+      errorMessage: String(err),
     });
     return null;
   }
@@ -629,9 +659,80 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Parse request body for debug flag
+    let debug = false;
+    try {
+      const body = await req.json().catch(() => ({}));
+      debug = body?.debug === true;
+    } catch { /* empty body is fine */ }
+
     logger.info("[Optimizer] Starting autoresearch cycle", {
       category: LogCategory.GENERAL,
     });
+
+    // Debug: gather diagnostic info
+    let diagnostics: Record<string, unknown> | undefined;
+    if (debug) {
+      const skip = await getSkipList();
+      const { data: prompts } = await supabase
+        .from("sophia_prompts")
+        .select("key, version, priority")
+        .eq("is_active", true)
+        .eq("is_current", true)
+        .order("priority", { ascending: true });
+      const { data: activeExps } = await supabase
+        .from("sophia_experiments")
+        .select("id, target_key, status, baseline_version, challenger_version")
+        .eq("status", "active");
+      const { data: completedExps } = await supabase
+        .from("sophia_experiments")
+        .select("id, target_key, winner, win_reason")
+        .eq("status", "completed")
+        .order("completed_at", { ascending: false })
+        .limit(10);
+      const { data: learnings } = await supabase
+        .from("sophia_experiment_learnings")
+        .select("target_key, category, learning")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      const { data: skipRows } = await supabase
+        .from("sophia_experiment_skip_list")
+        .select("key, reason");
+
+      const eligible = (prompts || []).filter(
+        (p: { key: string }) => !skip.has(p.key) && !(activeExps || []).some((e: { target_key: string }) => e.target_key === p.key)
+      );
+
+      // Check content lengths to verify prompts have actual content
+      const { data: promptsWithContent } = await supabase
+        .from("sophia_prompts")
+        .select("key, version, priority")
+        .eq("is_active", true)
+        .eq("is_current", true);
+
+      // Get content lengths
+      const { data: contentCheck } = await supabase
+        .from("sophia_prompts")
+        .select("key, content")
+        .eq("is_active", true)
+        .eq("is_current", true);
+      const contentLengths = (contentCheck || []).map((p: { key: string; content: string | null }) => ({
+        key: p.key,
+        contentLength: p.content?.length || 0,
+      }));
+
+      diagnostics = {
+        allPrompts: (promptsWithContent || []).map((p: { key: string; version: number; priority: number }) => ({
+          ...p,
+        })),
+        contentLengths,
+        skipList: skipRows || [],
+        eligibleForExperiment: eligible.map((p: { key: string }) => p.key),
+        activeExperiments: activeExps || [],
+        recentCompleted: completedExps || [],
+        recentLearnings: learnings || [],
+      };
+    }
 
     // Phase 1: Harvest
     const harvested = await harvest();
@@ -639,16 +740,21 @@ Deno.serve(async (req) => {
     // Phase 2: Generate
     const generated = await generate();
 
-    const result = {
+    const result: Record<string, unknown> = {
       success: true,
       harvested,
       generated,
       timestamp: new Date().toISOString(),
     };
 
+    if (diagnostics) {
+      result.diagnostics = diagnostics;
+    }
+
     logger.info("[Optimizer] Autoresearch cycle complete", {
       category: LogCategory.GENERAL,
-      ...result,
+      harvested,
+      generated,
     });
 
     return new Response(JSON.stringify(result), { headers, status: 200 });
