@@ -22,6 +22,7 @@ For detailed reference (commands, schema, troubleshooting, etc.), see `docs/CLAU
 | **Telegram Bot** | Supabase Edge Function `sophia-bot` | **DISABLED** |
 | **Listing Notifier** | Supabase Edge Function `listing-notifier` | LIVE (pg_cron every 15 min) |
 | **Draft Cleanup** | Supabase Edge Function `draft-cleanup` | LIVE |
+| **Prompt Optimizer** | Supabase Edge Function `prompt-optimizer` | LIVE (pg_cron every 6 hours) |
 | **Web App (Next.js)** | Vercel | ADMIN PANEL ONLY — `/` redirects to `/admin` |
 | **Database** | Supabase PostgreSQL | LIVE |
 
@@ -39,6 +40,9 @@ supabase functions deploy sophia-bot --no-verify-jwt --project-ref vceeheaxcrhmp
 
 # listing-notifier
 supabase functions deploy listing-notifier --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
+
+# prompt-optimizer (autoresearch)
+supabase functions deploy prompt-optimizer --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
 
 # Vercel web app
 vercel --prod

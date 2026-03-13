@@ -29,6 +29,42 @@ interface AnalyticsEvent {
   errorCode?: string;
   errorMessage?: string;
   metadata?: Record<string, unknown>;
+  experimentId?: string;
+  experimentVariant?: string;
+}
+
+// Cached active experiment (refreshed every 60s)
+let cachedExperiment: { id: string; target_key: string } | null = null;
+let experimentCacheTime = 0;
+const EXPERIMENT_CACHE_TTL = 60_000;
+
+/**
+ * Get the currently active experiment (if any) for analytics tagging.
+ * Cached for 60s to avoid DB queries on every message.
+ */
+export async function getActiveExperiment(): Promise<{
+  id: string;
+  target_key: string;
+} | null> {
+  const now = Date.now();
+  if (cachedExperiment !== undefined && now - experimentCacheTime < EXPERIMENT_CACHE_TTL) {
+    return cachedExperiment;
+  }
+
+  try {
+    const { data } = await supabase
+      .from("sophia_experiments")
+      .select("id, target_key")
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+
+    cachedExperiment = data || null;
+    experimentCacheTime = now;
+    return cachedExperiment;
+  } catch {
+    return cachedExperiment;
+  }
 }
 
 /**
@@ -61,6 +97,8 @@ export async function trackEventAsync(event: AnalyticsEvent): Promise<void> {
       error_code: event.errorCode || null,
       error_message: event.errorMessage || null,
       metadata: event.metadata || {},
+      experiment_id: event.experimentId || null,
+      experiment_variant: event.experimentVariant || null,
     });
   } catch (err) {
     // Log but don't throw - analytics failures shouldn't break main flow

@@ -73,13 +73,12 @@ const FALLBACK_PROMPTS: Record<string, string> = {
 };
 
 // Keys where file content MUST override DB (updated in code, DB not yet synced)
-// TODO: Remove entries after running /admin/prompts/sync to push to DB
+// File overrides: keys where file content MUST override DB
+// Removed document_routing, response_format, property_upload to enable autoresearch optimization
+// These keys are now managed via DB (sophia_prompts) and can be experimented on
 const FILE_OVERRIDE_KEYS = [
-  "document_routing",
-  "response_format",
-  "safety_rules",
-  "property_upload",
-  "templates",
+  "safety_rules",  // Never auto-optimize — safety is non-negotiable
+  "templates",     // Template content lives in files only (not in DB)
 ];
 
 interface PromptRow {

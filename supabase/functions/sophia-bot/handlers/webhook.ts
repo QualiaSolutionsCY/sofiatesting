@@ -49,10 +49,10 @@ import {
 import { buildSystemPrompt, chat } from "../services/ai-chat.ts";
 import {
   createTimer,
+  getActiveExperiment,
   trackDocumentGenerated,
   trackError,
-  trackMessageReceived,
-  trackMessageSent,
+  trackEvent,
 } from "../services/analytics.ts";
 import {
   detectEmailSendingIntent,
@@ -823,11 +823,24 @@ export async function handleWebhook(
     return new Response("OK", { status: 200 });
   }
 
+  // Check for active autoresearch experiment (cached, non-blocking)
+  const activeExperiment = await getActiveExperiment().catch(() => null);
+  const experimentId = activeExperiment?.id;
+  // All messages during an active experiment are tagged as "challenger"
+  // (the challenger prompt is live; baseline metrics come from before the experiment)
+  const experimentVariant = activeExperiment ? "challenger" : undefined;
+
   // Track inbound message (fire-and-forget)
-  trackMessageReceived(phoneNumber, undefined, {
-    hasImages: imageUrls.length > 0,
-    imageCount: imageUrls.length,
-    messageLength: sanitizedMessage.length,
+  trackEvent({
+    phoneNumber,
+    eventType: "message_received",
+    metadata: {
+      hasImages: imageUrls.length > 0,
+      imageCount: imageUrls.length,
+      messageLength: sanitizedMessage.length,
+    },
+    experimentId,
+    experimentVariant,
   });
 
   // Start response timer
@@ -843,7 +856,14 @@ export async function handleWebhook(
       imageUrls
     );
     // Track successful response with token usage
-    trackMessageSent(phoneNumber, requestTimer.end(), tokenCount);
+    trackEvent({
+      phoneNumber,
+      eventType: "message_sent",
+      responseTimeMs: requestTimer.end(),
+      tokenCount,
+      experimentId,
+      experimentVariant,
+    });
   } catch (err) {
     captureError(err as Error, {
       phoneNumber,
@@ -853,7 +873,14 @@ export async function handleWebhook(
     logger.error("processRequest failed: " + String(err), undefined, {
       category: LogCategory.GENERAL,
     });
-    trackError(phoneNumber, "PROCESS_REQUEST_FAILED", String(err));
+    trackEvent({
+      phoneNumber,
+      eventType: "error",
+      errorCode: "PROCESS_REQUEST_FAILED",
+      errorMessage: String(err),
+      experimentId,
+      experimentVariant,
+    });
   }
 
   return new Response("OK", { status: 200 });
