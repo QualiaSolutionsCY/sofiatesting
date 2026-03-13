@@ -18,7 +18,7 @@
  */
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { addMessage, getHistory } from "../../_shared/db.ts";
+import { addMessage } from "../../_shared/db.ts";
 import { getAgentByEmail } from "../agents/identifier.ts";
 import { buildSystemPrompt, chat } from "../services/ai-chat.ts";
 import { validateImagesAtIngress } from "../services/image-validator.ts";
@@ -135,7 +135,7 @@ export async function handleEmailWebhook(
 
     // Build user message: subject + body + email channel context
     // CRITICAL: Tell AI this is EMAIL so it never mentions WhatsApp
-    const emailPrefix = "[THIS MESSAGE IS VIA EMAIL — NOT WHATSAPP. Reply as email. Never mention WhatsApp or ask to send photos on WhatsApp. All images are already attached to this email. IMPORTANT: When the email contains property details for upload, call createPropertyListing directly with the provided data. Do NOT call extractFromBazaraki unless the email contains a bazaraki.com URL. Do NOT call getZyprusData. Use the property details from the email text directly. CRITICAL: Use ONLY the data from THIS email. IGNORE any property details from previous messages in chat history — they are from DIFFERENT properties. Extract ALL fields (price, location, property type, owner, bedrooms, bathrooms, features) from THIS email only.]";
+    const emailPrefix = "[THIS MESSAGE IS VIA EMAIL — NOT WHATSAPP. Reply as email. Never mention WhatsApp or ask to send photos on WhatsApp. All images are already attached to this email. IMPORTANT: When the email contains property details for upload, call createPropertyListing directly with the provided data. Do NOT call extractFromBazaraki unless the email contains a bazaraki.com URL. Do NOT call getZyprusData. Use the property details from the email text directly. CRITICAL: Use ONLY the data from THIS email. There is NO chat history — each email is standalone. Extract ALL fields (price, location, property type, owner, bedrooms, bathrooms, features, assignment) from THIS email only. If the email says 'assign to X' or 'assign to X office', pass the assignTo parameter with the appropriate @zyprus.com email. For office assignments: 'paphos office' → assignTo: 'requestpaphos@zyprus.com', 'limassol office' → assignTo: 'requestlimassol@zyprus.com', etc.]";
     const userMessage = subject
       ? `${emailPrefix}\n\n[Subject: ${subject}]\n\n${textBody || ""}`
       : `${emailPrefix}\n\n${textBody || ""}`;
@@ -176,49 +176,29 @@ export async function handleEmailWebhook(
       }
     }
 
-    // Detect if email contains structured property data (multiple property fields present)
-    // When an email has property details, we MUST NOT load chat history because old conversations
-    // about DIFFERENT properties will confuse the AI into mixing data (BUG: draft-40311/40366)
-    const emailTextLower = (textBody || "").toLowerCase();
-    const hasPropertyData = (
-      // Check for multiple property-related keywords that indicate a structured upload request
-      (emailTextLower.includes("bedroom") || emailTextLower.includes("bed ")) &&
-      (emailTextLower.includes("sale") || emailTextLower.includes("rent")) &&
-      (emailTextLower.match(/\d{3,}k|\d{4,}|€|eur/i) !== null) // price indicator
-    ) || (
-      // Alternative: explicit upload-like instructions with details
-      (emailTextLower.includes("upload") || emailTextLower.includes("please upload") || emailTextLower.includes("assign to")) &&
-      (emailTextLower.includes("owner") || emailTextLower.includes("price") || emailTextLower.includes("bedroom"))
-    );
-
-    // Load chat history BEFORE storing current message (avoids duplication)
-    // CRITICAL: For email, each message is essentially a new request.
-    // - Property upload emails: skip history entirely (prevents data contamination from old uploads)
-    // - Other emails: load only last 4 messages (2 exchanges) to allow basic follow-ups
-    //   but prevent old property data from bleeding across conversations
-    // BUG HISTORY: draft-40366 (wrong property), draft-40368 (false duplicate from history contamination)
-    let history: Array<{ role: string; parts: Array<{ text: string }> }> = [];
-    if (hasPropertyData) {
-      logger.info("[Email] Property data detected in email — SKIPPING chat history to prevent contamination", {
-        category: LogCategory.GENERAL,
-      });
-    } else {
-      const fullHistory = await getHistory(userId).catch((err) => {
-        logger.warn("[Email] Failed to get chat history (non-critical)", {
-          category: LogCategory.GENERAL,
-          error: String(err),
-        });
-        return [];
-      });
-      // Limit to last 4 messages (2 exchanges) for email — prevents old property data contamination
-      // while still allowing basic follow-ups like "yes send it" or "assign to X"
-      history = fullHistory.slice(-4);
-      if (fullHistory.length > 4) {
-        logger.info(`[Email] Trimmed chat history from ${fullHistory.length} to 4 messages (email safety limit)`, {
-          category: LogCategory.GENERAL,
-        });
-      }
-    }
+    // CRITICAL: NEVER load chat history for email.
+    // Each email MUST be treated as a completely standalone request.
+    //
+    // Why: Multiple property emails from the same sender (listings@zyprus.com) get
+    // processed sequentially by the email-router. They all share the same userId,
+    // so chat_history messages from one property email contaminate the next.
+    // Even limiting to 4 messages isn't enough — when two emails arrive close together
+    // (e.g., Emba property + Dimitris villa), the AI mixes data between them.
+    //
+    // BUG HISTORY:
+    // - Draft 40366: AI used price/location/owner from a PREVIOUS property
+    // - Draft 40367: AI referenced Evelina (previous email) instead of Maria
+    // - Draft 40368: AI thought new office was already-uploaded house
+    // - Draft 40369+: AI mixed Emba/Paphos with Dimitris/Limassol data
+    //
+    // Trade-off: Follow-up email replies lose context. Acceptable because:
+    // 1. Well-structured emails already contain all needed data
+    // 2. Follow-ups with history caused MORE problems than they solved
+    // 3. If info is missing, Sophia asks and user re-sends with corrections
+    const history: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+    logger.info("[Email] Using empty history (email isolation mode — each email is standalone)", {
+      category: LogCategory.GENERAL,
+    });
 
     // Store user message AFTER loading history
     await addMessage(userId, "user", userMessage).catch((err) => {
