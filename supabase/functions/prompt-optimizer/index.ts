@@ -44,6 +44,7 @@ interface ExperimentRow {
   min_sessions: number;
   min_improvement: number;
   generation: number;
+  created_at: string;
 }
 
 async function harvest(): Promise<number> {
@@ -62,13 +63,17 @@ async function harvest(): Promise<number> {
   let completed = 0;
 
   for (const exp of experiments as ExperimentRow[]) {
-    // Count sessions for each variant
+    // Count sessions:
+    // - Baseline = messages sent BEFORE experiment started (no experiment_id, using same event types)
+    // - Challenger = messages tagged with this experiment's ID
     const [baselineResult, challengerResult] = await Promise.all([
       supabase
         .from("whatsapp_analytics")
         .select("id", { count: "exact", head: true })
-        .eq("experiment_id", exp.id)
-        .eq("experiment_variant", "baseline"),
+        .is("experiment_id", null)
+        .eq("event_type", "message_sent")
+        .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .lt("created_at", exp.created_at),
       supabase
         .from("whatsapp_analytics")
         .select("id", { count: "exact", head: true })
@@ -164,21 +169,32 @@ interface Metrics {
 }
 
 async function calculateMetrics(experimentId: string): Promise<Metrics | null> {
-  // Get all analytics events for this experiment
-  const { data: events } = await supabase
+  // Get experiment creation date for baseline window
+  const { data: exp } = await supabase
+    .from("sophia_experiments")
+    .select("created_at")
+    .eq("id", experimentId)
+    .single();
+
+  if (!exp) return null;
+
+  // Baseline = messages sent in the 7 days BEFORE experiment started (no experiment_id)
+  const baselineStart = new Date(new Date(exp.created_at).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: baseline } = await supabase
     .from("whatsapp_analytics")
-    .select("experiment_variant, event_type, response_time_ms, phone_number")
-    .eq("experiment_id", experimentId);
+    .select("event_type, response_time_ms, phone_number")
+    .is("experiment_id", null)
+    .gte("created_at", baselineStart)
+    .lt("created_at", exp.created_at);
 
-  if (!events || events.length === 0) return null;
+  // Challenger = messages tagged with this experiment
+  const { data: challenger } = await supabase
+    .from("whatsapp_analytics")
+    .select("event_type, response_time_ms, phone_number")
+    .eq("experiment_id", experimentId)
+    .eq("experiment_variant", "challenger");
 
-  // Group by variant
-  const baseline = events.filter(
-    (e: { experiment_variant: string }) => e.experiment_variant === "baseline"
-  );
-  const challenger = events.filter(
-    (e: { experiment_variant: string }) => e.experiment_variant === "challenger"
-  );
+  if ((!baseline || baseline.length === 0) && (!challenger || challenger.length === 0)) return null;
 
   // Primary metric: average response time (lower is better)
   const avgResponseTime = (
@@ -631,10 +647,21 @@ async function deployChallenger(
 
   if (expError) {
     logger.error(
-      "[Optimizer] Failed to create experiment record",
+      "[Optimizer] Failed to create experiment record, reverting prompt",
       new Error(expError.message),
       { category: LogCategory.DATABASE }
     );
+    // Roll back: mark challenger as not current and restore previous
+    await supabase
+      .from("sophia_prompts")
+      .update({ is_current: false, replaced_at: new Date().toISOString() })
+      .eq("key", target.key)
+      .eq("version", newVersion);
+    await supabase
+      .from("sophia_prompts")
+      .update({ is_current: true, replaced_at: null })
+      .eq("key", target.key)
+      .eq("version", target.version);
     return;
   }
 
@@ -670,8 +697,20 @@ Deno.serve(async (req) => {
       category: LogCategory.GENERAL,
     });
 
-    // Debug: gather diagnostic info
-    let diagnostics: Record<string, unknown> | undefined;
+    // Phase 1: Harvest
+    const harvested = await harvest();
+
+    // Phase 2: Generate
+    const generated = await generate();
+
+    const result: Record<string, unknown> = {
+      success: true,
+      harvested,
+      generated,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Debug: gather diagnostic info AFTER phases so it reflects current state
     if (debug) {
       const skip = await getSkipList();
       const { data: prompts } = await supabase
@@ -703,13 +742,6 @@ Deno.serve(async (req) => {
         (p: { key: string }) => !skip.has(p.key) && !(activeExps || []).some((e: { target_key: string }) => e.target_key === p.key)
       );
 
-      // Check content lengths to verify prompts have actual content
-      const { data: promptsWithContent } = await supabase
-        .from("sophia_prompts")
-        .select("key, version, priority")
-        .eq("is_active", true)
-        .eq("is_current", true);
-
       // Get content lengths
       const { data: contentCheck } = await supabase
         .from("sophia_prompts")
@@ -721,10 +753,8 @@ Deno.serve(async (req) => {
         contentLength: p.content?.length || 0,
       }));
 
-      diagnostics = {
-        allPrompts: (promptsWithContent || []).map((p: { key: string; version: number; priority: number }) => ({
-          ...p,
-        })),
+      result.diagnostics = {
+        allPrompts: prompts || [],
         contentLengths,
         skipList: skipRows || [],
         eligibleForExperiment: eligible.map((p: { key: string }) => p.key),
@@ -732,23 +762,6 @@ Deno.serve(async (req) => {
         recentCompleted: completedExps || [],
         recentLearnings: learnings || [],
       };
-    }
-
-    // Phase 1: Harvest
-    const harvested = await harvest();
-
-    // Phase 2: Generate
-    const generated = await generate();
-
-    const result: Record<string, unknown> = {
-      success: true,
-      harvested,
-      generated,
-      timestamp: new Date().toISOString(),
-    };
-
-    if (diagnostics) {
-      result.diagnostics = diagnostics;
     }
 
     logger.info("[Optimizer] Autoresearch cycle complete", {
