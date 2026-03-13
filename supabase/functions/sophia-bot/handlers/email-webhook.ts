@@ -135,7 +135,19 @@ export async function handleEmailWebhook(
 
     // Build user message: subject + body + email channel context
     // CRITICAL: Tell AI this is EMAIL so it never mentions WhatsApp
-    const emailPrefix = "[THIS MESSAGE IS VIA EMAIL — NOT WHATSAPP. Reply as email. Never mention WhatsApp or ask to send photos on WhatsApp. All images are already attached to this email. IMPORTANT: When the email contains property details for upload, call createPropertyListing directly with the provided data. Do NOT call extractFromBazaraki unless the email contains a bazaraki.com URL. Do NOT call getZyprusData. Use the property details from the email text directly. CRITICAL: Use ONLY the data from THIS email. Extract ALL fields (price, location, property type, owner, bedrooms, bathrooms, features, assignment) from THIS email only. If the email says 'assign to X' or 'assign to X office', pass the assignTo parameter with the appropriate @zyprus.com email. For office assignments: 'paphos office' → assignTo: 'requestpaphos@zyprus.com', 'limassol office' → assignTo: 'requestlimassol@zyprus.com', etc. CRITICAL ASSIGNMENT EXTRACTION: Scan the ENTIRE email text for patterns like 'Assign to [Name]', 'assign to [Name]', 'assign [Name]', or 'assigned to [Name]'. The word after 'assign to' is the agent name — convert it to firstname@zyprus.com. Example: 'Assign to Susan Note' means assignTo='susan@zyprus.com' (the word 'Note' after the name is a separate instruction, not part of the name). NEVER ask who to assign to if the email already contains 'assign to [Name]'. This is the #1 most common mistake — DO NOT REPEAT IT.]";
+
+    // Server-side assignment extraction — don't rely on the AI to parse "assign to X"
+    const extractedAssignTo = extractAssignmentFromEmail(textBody || "");
+    if (extractedAssignTo) {
+      logger.info(`[Email] Server-side extracted assignTo: ${extractedAssignTo}`, {
+        category: LogCategory.GENERAL,
+      });
+    }
+    const assignmentDirective = extractedAssignTo
+      ? ` MANDATORY ASSIGNMENT: The email contains an explicit assignment instruction. You MUST pass assignTo="${extractedAssignTo}" when calling createPropertyListing or createLandListing. DO NOT ask who to assign to — it has already been specified.`
+      : "";
+
+    const emailPrefix = `[THIS MESSAGE IS VIA EMAIL — NOT WHATSAPP. Reply as email. Never mention WhatsApp or ask to send photos on WhatsApp. All images are already attached to this email. IMPORTANT: When the email contains property details for upload, call createPropertyListing directly with the provided data. Do NOT call extractFromBazaraki unless the email contains a bazaraki.com URL. Do NOT call getZyprusData. Use the property details from the email text directly. CRITICAL: Use ONLY the data from THIS email. Extract ALL fields (price, location, property type, owner, bedrooms, bathrooms, features, assignment) from THIS email only.${assignmentDirective}]`;
     const userMessage = subject
       ? `${emailPrefix}\n\n[Subject: ${subject}]\n\n${textBody || ""}`
       : `${emailPrefix}\n\n${textBody || ""}`;
@@ -303,4 +315,90 @@ function jsonError(message: string, status: number): Response {
     JSON.stringify({ success: false, error: message }),
     { status, headers: { "Content-Type": "application/json" } }
   );
+}
+
+/**
+ * Server-side extraction of "assign to X" from email body.
+ * Returns a @zyprus.com email or null if no assignment found.
+ * This is deterministic — we don't rely on the AI to parse it.
+ */
+function extractAssignmentFromEmail(text: string): string | null {
+  // Agent name → email mapping (must stay in sync with property-upload.ts)
+  const NAME_TO_EMAIL: Record<string, string> = {
+    evelina: "evelina@zyprus.com",
+    diana: "diana@zyprus.com",
+    michelle: "michelle@zyprus.com",
+    demetra: "demetra@zyprus.com",
+    lauren: "listings@zyprus.com",
+    charalambos: "csc@zyprus.com",
+    azinas: "azinas@zyprus.com",
+    "marios azinas": "azinas@zyprus.com",
+    "marios polyviou": "marios@zyprus.com",
+    marios: "marios@zyprus.com",
+    maria: "maria@zyprus.com",
+    christos: "christos@zyprus.com",
+    dimitris: "dimitris@zyprus.com",
+    susan: "susan@zyprus.com",
+    victoria: "victoria@zyprus.com",
+    brendan: "brendan@zyprus.com",
+    natalia: "natalia.larnaca@zyprus.com",
+    lysandros: "larnaca@zyprus.com",
+    ivan: "nicosia@zyprus.com",
+    narine: "famagusta@zyprus.com",
+    nick: "nick@zyprus.com",
+    olga: "olga@zyprus.com",
+    philippos: "philippos@zyprus.com",
+    olha: "olha@zyprus.com",
+    danae: "danae@zyprus.com",
+    daga: "daga@zyprus.com",
+    olesya: "oz@zyprus.com",
+    eleni: "eleni@zyprus.com",
+    niki: "niki@zyprus.com",
+    mir: "niki@zyprus.com",
+  };
+
+  // Regional office mapping
+  const OFFICE_TO_EMAIL: Record<string, string> = {
+    "paphos office": "requestpaphos@zyprus.com",
+    "limassol office": "requestlimassol@zyprus.com",
+    "larnaca office": "requestlarnaca@zyprus.com",
+    "nicosia office": "requestnicosia@zyprus.com",
+    "famagusta office": "requestfamagusta@zyprus.com",
+  };
+
+  const lower = text.toLowerCase();
+
+  // Pattern 1: "assign to email@zyprus.com" or "assign it to email@zyprus.com"
+  const emailMatch = lower.match(/assign(?:\s+it)?\s+to\s+(\S+@\S+)/);
+  if (emailMatch) {
+    let email = emailMatch[1].replace(/[.,;:!?)]+$/, ""); // strip trailing punctuation
+    if (!email.includes(".")) {
+      // Handle "demetra@zyprus" → "demetra@zyprus.com"
+      email = email + ".com";
+    }
+    return email;
+  }
+
+  // Pattern 2: "assign to [office name]"
+  for (const [office, email] of Object.entries(OFFICE_TO_EMAIL)) {
+    if (lower.includes(`assign to ${office}`) || lower.includes(`assign it to ${office}`)) {
+      return email;
+    }
+  }
+
+  // Pattern 3: "assign to [agent name]"
+  const nameMatch = lower.match(/assign(?:\s+it)?\s+to\s+([a-z]+(?:\s+[a-z]+)?)/);
+  if (nameMatch) {
+    const name = nameMatch[1].trim();
+    if (NAME_TO_EMAIL[name]) {
+      return NAME_TO_EMAIL[name];
+    }
+    // Try first word only (e.g., "assign to susan note" → "susan")
+    const firstName = name.split(/\s+/)[0];
+    if (NAME_TO_EMAIL[firstName]) {
+      return NAME_TO_EMAIL[firstName];
+    }
+  }
+
+  return null;
 }

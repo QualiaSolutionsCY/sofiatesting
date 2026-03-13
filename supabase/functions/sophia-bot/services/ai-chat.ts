@@ -698,6 +698,20 @@ export async function chat(
           { category: LogCategory.TOOL }
         );
 
+        // Inject server-side extracted assignTo if the AI omitted it
+        if (
+          (toolName === "createPropertyListing" || toolName === "createLandListing") &&
+          !toolArgs.assignTo
+        ) {
+          const assignMatch = userMessage.match(/MANDATORY ASSIGNMENT:.*?assignTo="([^"]+)"/);
+          if (assignMatch) {
+            toolArgs.assignTo = assignMatch[1];
+            logger.info(`[Email] Injected assignTo="${assignMatch[1]}" into ${toolName} (AI omitted it)`, {
+              category: LogCategory.TOOL,
+            });
+          }
+        }
+
         toolsUsed.push(toolName);
 
         // Execute the tool with error handling
@@ -877,6 +891,20 @@ export async function chat(
           } catch (_e) {
             toolArgs = {};
           }
+          // Inject server-side extracted assignTo if the AI omitted it (retry path)
+          if (
+            (toolName === "createPropertyListing" || toolName === "createLandListing") &&
+            !toolArgs.assignTo
+          ) {
+            const assignMatch = userMessage.match(/MANDATORY ASSIGNMENT:.*?assignTo="([^"]+)"/);
+            if (assignMatch) {
+              toolArgs.assignTo = assignMatch[1];
+              logger.info(`[Email] Injected assignTo="${assignMatch[1]}" into ${toolName} (retry path)`, {
+                category: LogCategory.TOOL,
+              });
+            }
+          }
+
           logger.info(`[FORCE TOOL] Executing: ${toolName}`, {
             category: LogCategory.GENERAL,
           });
