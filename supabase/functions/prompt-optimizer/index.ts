@@ -381,14 +381,11 @@ async function generate(): Promise<number> {
     generationCounts.set(e.target_key, count + 1);
   }
 
-  // Pick the target — prioritize those with fewest experiments, then shortest content
-  // (shorter prompts are more likely to succeed with LLM generation)
-  eligible.sort((a: { key: string; content: string }, b: { key: string; content: string }) => {
+  // Pick the target — prioritize those with fewest experiments
+  eligible.sort((a: { key: string }, b: { key: string }) => {
     const aCount = generationCounts.get(a.key) || 0;
     const bCount = generationCounts.get(b.key) || 0;
-    if (aCount !== bCount) return aCount - bCount;
-    // Tie-break: shorter content first (more reliable generation)
-    return (a.content?.length || 0) - (b.content?.length || 0);
+    return aCount - bCount;
   });
 
   // Generate ONE challenger per run (conservative)
@@ -457,7 +454,38 @@ async function generateChallenger(
     return null;
   }
 
-  const prompt = `You are an AI prompt optimization expert. Your job is to create a SMALL, SURGICAL improvement to a system prompt used by Sophia, a WhatsApp real estate assistant.
+  // For very large prompts (>15K chars), use a patch-based approach
+  const isLargePrompt = currentContent.length > 15000;
+
+  const prompt = isLargePrompt
+    ? `You are an AI prompt optimization expert. Your job is to create a SMALL, SURGICAL improvement to a system prompt used by Sophia, a WhatsApp real estate assistant.
+
+## RULES
+- Make ONE focused change using a find-and-replace patch
+- Do NOT remove any required fields or safety rules
+- Do NOT change the core identity or personality
+- Focus on clarity, efficiency, and reducing ambiguity
+- The goal is to reduce the number of back-and-forth messages needed to complete a task
+
+## ACCUMULATED LEARNINGS FROM PREVIOUS EXPERIMENTS
+${learnings || "No previous experiments yet. This is generation 1."}
+
+## CURRENT PROMPT (target: "${targetKey}", generation: ${generation}, ${currentContent.length} chars)
+\`\`\`
+${currentContent}
+\`\`\`
+
+## YOUR TASK
+This prompt is very large. Instead of rewriting it entirely, provide a PATCH — a specific find-and-replace. Respond in this EXACT JSON format:
+{
+  "hypothesis": "Brief explanation of what you changed and why it should improve performance",
+  "summary": "One-line summary of the change",
+  "find": "The EXACT text to find in the current prompt (copy-paste, must match exactly)",
+  "replace": "The replacement text"
+}
+
+IMPORTANT: The "find" field must be an EXACT substring of the current prompt. If it doesn't match, the patch will fail.`
+    : `You are an AI prompt optimization expert. Your job is to create a SMALL, SURGICAL improvement to a system prompt used by Sophia, a WhatsApp real estate assistant.
 
 ## RULES
 - Make ONE focused change, not a rewrite
@@ -496,7 +524,7 @@ IMPORTANT: The "content" field must contain the COMPLETE prompt text, not just t
         model: OPTIMIZER_MODEL,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7,
-        max_tokens: 16000,
+        max_tokens: 65000,
         response_format: { type: "json_object" },
       }),
     });
@@ -530,7 +558,34 @@ IMPORTANT: The "content" field must contain the COMPLETE prompt text, not just t
 
     const parsed = JSON.parse(text);
 
-    // Validate required fields
+    // Handle patch format for large prompts
+    if (parsed.find && parsed.replace !== undefined) {
+      if (!parsed.hypothesis || !parsed.summary) {
+        logger.warn("[Optimizer] Invalid patch response structure", {
+          category: LogCategory.GENERAL,
+        });
+        return null;
+      }
+      if (!currentContent.includes(parsed.find)) {
+        logger.warn("[Optimizer] Patch 'find' string not found in current content", {
+          category: LogCategory.GENERAL,
+          findLength: parsed.find.length,
+          findPreview: parsed.find.slice(0, 100),
+        });
+        return null;
+      }
+      const patchedContent = currentContent.replace(parsed.find, parsed.replace);
+      logger.info(`[Optimizer] Applied patch for '${targetKey}': ${parsed.find.length} chars replaced with ${parsed.replace.length} chars`, {
+        category: LogCategory.GENERAL,
+      });
+      return {
+        content: patchedContent,
+        hypothesis: parsed.hypothesis,
+        summary: parsed.summary,
+      };
+    }
+
+    // Standard full-content format
     if (!parsed.content || !parsed.hypothesis || !parsed.summary) {
       logger.warn("[Optimizer] Invalid challenger response structure", {
         category: LogCategory.GENERAL,
@@ -641,7 +696,7 @@ async function deployChallenger(
       challenger_hash: challengerHash,
       hypothesis: challenger.hypothesis,
       generation,
-      min_sessions: 20,
+      min_sessions: 10,
       min_improvement: 0.10,
     });
 

@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS sophia_experiments (
 
   -- Meta
   generation INTEGER NOT NULL DEFAULT 1,       -- how many experiments have run on this target
-  min_sessions INTEGER NOT NULL DEFAULT 20,    -- minimum sessions before judging
+  min_sessions INTEGER NOT NULL DEFAULT 10,    -- minimum sessions before judging
   min_improvement NUMERIC NOT NULL DEFAULT 0.10, -- 10% minimum improvement threshold
 
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
