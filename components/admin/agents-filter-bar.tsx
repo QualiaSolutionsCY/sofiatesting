@@ -113,81 +113,84 @@ export function AgentsFilterBar({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1">
-          <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            className="pl-9"
-            onChange={(e) => setSearchValue(e.target.value)}
-            placeholder="Search by name or email..."
-            value={searchValue}
-          />
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              onChange={(e) => setSearchValue(e.target.value)}
+              placeholder="Search by name or email..."
+              value={searchValue}
+            />
+          </div>
+          <Button onClick={onRefresh} size="sm" variant="outline">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
         </div>
 
-        <Select
-          onValueChange={(value) => handleFilterChange("region", value)}
-          value={searchParams.region || "All"}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Region" />
-          </SelectTrigger>
-          <SelectContent>
-            {REGIONS.map((region) => (
-              <SelectItem key={region} value={region}>
-                {region}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            onValueChange={(value) => handleFilterChange("region", value)}
+            value={searchParams.region || "All"}
+          >
+            <SelectTrigger className="w-full sm:w-[140px]">
+              <SelectValue placeholder="Region" />
+            </SelectTrigger>
+            <SelectContent>
+              {REGIONS.map((region) => (
+                <SelectItem key={region} value={region}>
+                  {region}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select
-          onValueChange={(value) => handleFilterChange("role", value)}
-          value={searchParams.role || "all"}
-        >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Role" />
-          </SelectTrigger>
-          <SelectContent>
-            {ROLES.map((role) => (
-              <SelectItem key={role.value} value={role.value}>
-                {role.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select
+            onValueChange={(value) => handleFilterChange("role", value)}
+            value={searchParams.role || "all"}
+          >
+            <SelectTrigger className="w-full sm:w-[140px]">
+              <SelectValue placeholder="Role" />
+            </SelectTrigger>
+            <SelectContent>
+              {ROLES.map((role) => (
+                <SelectItem key={role.value} value={role.value}>
+                  {role.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select
-          onValueChange={(value) => handleFilterChange("isActive", value)}
-          value={searchParams.isActive || "all"}
-        >
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select
+            onValueChange={(value) => handleFilterChange("isActive", value)}
+            value={searchParams.isActive || "all"}
+          >
+            <SelectTrigger className="w-full sm:w-[130px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Button onClick={handleClearFilters} size="sm" variant="outline">
-          Clear Filters
-        </Button>
-
-        <Button onClick={onRefresh} size="sm" variant="outline">
-          <RefreshCw className="h-4 w-4" />
-        </Button>
+          <Button className="w-full sm:w-auto" onClick={handleClearFilters} size="sm" variant="outline">
+            Clear Filters
+          </Button>
+        </div>
       </div>
 
       {/* Bulk Actions Bar */}
       {selectedCount > 0 && (
-        <div className="flex items-center justify-between rounded-lg border bg-muted/50 p-4">
+        <div className="flex flex-col gap-3 rounded-lg border bg-muted/50 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
           <div className="font-medium text-sm">
             {selectedCount} agent{selectedCount > 1 ? "s" : ""} selected
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               onClick={() => setSendInvitesDialogOpen(true)}
               size="sm"
@@ -213,7 +216,7 @@ export function AgentsFilterBar({
       )}
 
       {/* Action Buttons */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button onClick={() => setCreateModalOpen(true)}>
           <UserPlus className="mr-2 h-4 w-4" />
           Add New Agent

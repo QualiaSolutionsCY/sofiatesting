@@ -110,7 +110,46 @@ export function AgentsTable({
 
   return (
     <>
-      <div className="rounded-md border">
+      {/* Mobile card layout */}
+      <div className="space-y-3 md:hidden">
+        {loading ? (
+          <div className="py-8 text-center text-muted-foreground">Loading...</div>
+        ) : agents.length === 0 ? (
+          <div className="py-8 text-center text-muted-foreground">No agents found</div>
+        ) : (
+          agents.map((agent) => (
+            <div
+              className="cursor-pointer rounded-lg border p-3 space-y-2 active:bg-muted/50"
+              key={agent.id}
+              onClick={() => handleRowClick(agent)}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-sm">{agent.fullName}</div>
+                  <div className="text-muted-foreground text-xs">{agent.email}</div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {agent.isActive ? (
+                    <Badge className="bg-green-100 text-green-700 text-xs">Active</Badge>
+                  ) : (
+                    <Badge className="bg-red-100 text-red-700 text-xs">Inactive</Badge>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                <Badge variant="outline">{agent.region}</Badge>
+                <Badge variant="secondary">{agent.role}</Badge>
+                {agent.whatsappPhoneNumber && (
+                  <Badge variant="secondary">WhatsApp</Badge>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden rounded-md border md:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -283,11 +322,11 @@ export function AgentsTable({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <div className="text-muted-foreground text-sm">
-          Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-          {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-          {pagination.total} agents
+      <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
+        <div className="text-muted-foreground text-xs sm:text-sm">
+          {pagination.total > 0 && (
+            <>Showing {(pagination.page - 1) * pagination.limit + 1}-{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}</>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -297,10 +336,10 @@ export function AgentsTable({
             variant="outline"
           >
             <ChevronLeft className="h-4 w-4" />
-            Previous
+            <span className="hidden sm:inline">Previous</span>
           </Button>
-          <div className="text-sm">
-            Page {pagination.page} of {pagination.totalPages}
+          <div className="text-xs sm:text-sm">
+            {pagination.page}/{pagination.totalPages}
           </div>
           <Button
             disabled={pagination.page >= pagination.totalPages}
@@ -308,7 +347,7 @@ export function AgentsTable({
             size="sm"
             variant="outline"
           >
-            Next
+            <span className="hidden sm:inline">Next</span>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>

@@ -16,14 +16,12 @@ export default async function LogsPage({ searchParams }: PageProps) {
   await searchParams;
 
   return (
-    <div className="space-y-6 p-8 pt-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-bold text-3xl tracking-tight">Agent Logs</h2>
-          <p className="text-muted-foreground">
-            Detailed execution logs of all agent interactions.
-          </p>
-        </div>
+    <div className="space-y-4 md:space-y-6">
+      <div>
+        <h2 className="font-bold text-xl tracking-tight md:text-3xl">Agent Logs</h2>
+        <p className="text-muted-foreground text-sm md:text-base">
+          Detailed execution logs of all agent interactions.
+        </p>
       </div>
 
       <Card>

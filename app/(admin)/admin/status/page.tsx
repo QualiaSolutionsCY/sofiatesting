@@ -11,10 +11,10 @@ import {
 
 export default async function StatusPage() {
   return (
-    <div className="space-y-6 p-8 pt-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
-        <h2 className="font-bold text-3xl tracking-tight">System Status</h2>
-        <p className="text-muted-foreground">
+        <h2 className="font-bold text-xl tracking-tight md:text-3xl">System Status</h2>
+        <p className="text-muted-foreground text-sm md:text-base">
           Real-time monitoring of system services and infrastructure.
         </p>
       </div>

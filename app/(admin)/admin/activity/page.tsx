@@ -96,17 +96,17 @@ export default async function ActivityPage() {
   const { onlineAgents, recentMessages } = await getActivityData();
 
   return (
-    <div className="space-y-6 p-8 pt-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
-        <h2 className="font-bold text-3xl tracking-tight">Live Activity</h2>
-        <p className="text-muted-foreground">
+        <h2 className="font-bold text-xl tracking-tight md:text-3xl">Live Activity</h2>
+        <p className="text-muted-foreground text-sm md:text-base">
           Real-time monitoring of agent presence and WhatsApp conversations.
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
         {/* Online Agents Column */}
-        <Card className="h-[calc(100vh-200px)]">
+        <Card className="lg:h-[calc(100vh-200px)]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
@@ -120,7 +120,7 @@ export default async function ActivityPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[calc(100vh-300px)] pr-4">
+            <ScrollArea className="max-h-[50vh] pr-4 lg:h-[calc(100vh-300px)] lg:max-h-none">
               {onlineAgents.length === 0 ? (
                 <div className="py-8 text-center text-muted-foreground">
                   No agents currently online.
@@ -174,7 +174,7 @@ export default async function ActivityPage() {
         </Card>
 
         {/* WhatsApp Feed Column */}
-        <Card className="h-[calc(100vh-200px)]">
+        <Card className="lg:h-[calc(100vh-200px)]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Smartphone className="h-5 w-5" />
@@ -183,7 +183,7 @@ export default async function ActivityPage() {
             <CardDescription>Live conversation stream</CardDescription>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[calc(100vh-300px)] pr-4">
+            <ScrollArea className="max-h-[50vh] pr-4 lg:h-[calc(100vh-300px)] lg:max-h-none">
               {recentMessages.length === 0 ? (
                 <div className="py-8 text-center text-muted-foreground">
                   No recent WhatsApp messages.
