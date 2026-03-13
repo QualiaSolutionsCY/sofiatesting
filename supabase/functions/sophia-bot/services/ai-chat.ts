@@ -486,14 +486,18 @@ export async function chat(
         lowerMessage.includes("house")));
 
   // Detect if email contains structured property data (has key required fields)
-  // When all core fields are present, force createPropertyListing specifically
+  // When core fields are present, force createPropertyListing specifically
+  // Relaxed detection: agents don't always use formal labels like "price:" or "location:"
+  // e.g. "500k not negotiable" contains price, "Kapsalos, Limassol" contains location implicitly
   const isEmailWithStructuredData =
     lowerMessage.includes("this message is via email") &&
     isPropertyUploadIntent &&
-    lowerMessage.includes("price") &&
-    lowerMessage.includes("location") &&
-    (lowerMessage.includes("owner") || lowerMessage.includes("seller")) &&
-    (lowerMessage.includes("title deed") || lowerMessage.includes("deed status"));
+    // Price indicator: explicit "price" label OR a number pattern (500k, €185,000, etc.)
+    (lowerMessage.includes("price") || /\d{3,}k|\d{4,}|€\d/.test(lowerMessage)) &&
+    // Location indicator: explicit "location" label OR a Cyprus city/district name
+    (lowerMessage.includes("location") || /paphos|limassol|larnaca|nicosia|famagusta|lemesos|pafos/.test(lowerMessage)) &&
+    // Owner indicator
+    (lowerMessage.includes("owner") || lowerMessage.includes("seller") || lowerMessage.includes("assign to"));
 
   if (isPropertyUploadIntent) {
     logger.info(

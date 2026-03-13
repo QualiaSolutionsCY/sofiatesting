@@ -135,7 +135,7 @@ export async function handleEmailWebhook(
 
     // Build user message: subject + body + email channel context
     // CRITICAL: Tell AI this is EMAIL so it never mentions WhatsApp
-    const emailPrefix = "[THIS MESSAGE IS VIA EMAIL — NOT WHATSAPP. Reply as email. Never mention WhatsApp or ask to send photos on WhatsApp. All images are already attached to this email. IMPORTANT: When the email contains property details for upload, call createPropertyListing directly with the provided data. Do NOT call extractFromBazaraki unless the email contains a bazaraki.com URL. Do NOT call getZyprusData. Use the property details from the email text directly.]";
+    const emailPrefix = "[THIS MESSAGE IS VIA EMAIL — NOT WHATSAPP. Reply as email. Never mention WhatsApp or ask to send photos on WhatsApp. All images are already attached to this email. IMPORTANT: When the email contains property details for upload, call createPropertyListing directly with the provided data. Do NOT call extractFromBazaraki unless the email contains a bazaraki.com URL. Do NOT call getZyprusData. Use the property details from the email text directly. CRITICAL: Use ONLY the data from THIS email. IGNORE any property details from previous messages in chat history — they are from DIFFERENT properties. Extract ALL fields (price, location, property type, owner, bedrooms, bathrooms, features) from THIS email only.]";
     const userMessage = subject
       ? `${emailPrefix}\n\n[Subject: ${subject}]\n\n${textBody || ""}`
       : `${emailPrefix}\n\n${textBody || ""}`;
@@ -176,14 +176,37 @@ export async function handleEmailWebhook(
       }
     }
 
+    // Detect if email contains structured property data (multiple property fields present)
+    // When an email has property details, we MUST NOT load chat history because old conversations
+    // about DIFFERENT properties will confuse the AI into mixing data (BUG: draft-40311/40366)
+    const emailTextLower = (textBody || "").toLowerCase();
+    const hasPropertyData = (
+      // Check for multiple property-related keywords that indicate a structured upload request
+      (emailTextLower.includes("bedroom") || emailTextLower.includes("bed ")) &&
+      (emailTextLower.includes("sale") || emailTextLower.includes("rent")) &&
+      (emailTextLower.match(/\d{3,}k|\d{4,}|€|eur/i) !== null) // price indicator
+    ) || (
+      // Alternative: explicit upload-like instructions with details
+      (emailTextLower.includes("upload") || emailTextLower.includes("please upload") || emailTextLower.includes("assign to")) &&
+      (emailTextLower.includes("owner") || emailTextLower.includes("price") || emailTextLower.includes("bedroom"))
+    );
+
     // Load chat history BEFORE storing current message (avoids duplication)
-    const history = await getHistory(userId).catch((err) => {
-      logger.warn("[Email] Failed to get chat history (non-critical)", {
+    // CRITICAL: Skip history for property upload emails to prevent data contamination
+    let history: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+    if (hasPropertyData) {
+      logger.info("[Email] Property data detected in email — SKIPPING chat history to prevent contamination", {
         category: LogCategory.GENERAL,
-        error: String(err),
       });
-      return [];
-    });
+    } else {
+      history = await getHistory(userId).catch((err) => {
+        logger.warn("[Email] Failed to get chat history (non-critical)", {
+          category: LogCategory.GENERAL,
+          error: String(err),
+        });
+        return [];
+      });
+    }
 
     // Store user message AFTER loading history
     await addMessage(userId, "user", userMessage).catch((err) => {

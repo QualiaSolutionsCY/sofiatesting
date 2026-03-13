@@ -337,6 +337,21 @@ export async function validateAndPrepareFields(
           assignToEmail,
         });
         args.assignTo = undefined;
+      } else {
+        // 5.3 REGION CHECK: Validate assignee's region matches property region
+        // Prevents assigning e.g. a Limassol property to a Paphos agent
+        if (assigneeAgent.region !== "all" && propertyRegion && assigneeAgent.region !== propertyRegion) {
+          logger.warn("Assignee region mismatch — blocking assignment", {
+            category: LogCategory.TOOL,
+            operation: "validateAndPrepareFields",
+            assigneeEmail: assignToEmail,
+            assigneeRegion: assigneeAgent.region,
+            propertyRegion,
+          });
+          return {
+            error: `This property is in ${propertyRegion}, but ${assigneeAgent.fullName} is a ${assigneeAgent.region} agent. Agents can only be assigned properties in their region. Would you like me to assign it to a ${propertyRegion}-based agent instead?`,
+          };
+        }
       }
     }
   }
