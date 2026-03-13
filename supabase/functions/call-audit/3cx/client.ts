@@ -61,6 +61,12 @@ export class ThreeCXClient {
       Accept: "application/json",
     };
 
+    // Railway proxy requires x-proxy-secret to forward requests to 3CX
+    const proxySecret = Deno.env.get("CX3_PROXY_SECRET");
+    if (proxySecret) {
+      headers["x-proxy-secret"] = proxySecret;
+    }
+
     if (this._token) {
       headers["Authorization"] = `Bearer ${this._token}`;
     }
@@ -125,11 +131,13 @@ export class ThreeCXClient {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
+          const proxySecret = Deno.env.get("CX3_PROXY_SECRET");
           return fetch(`${this.config.baseUrl}/api/login`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               "User-Agent": "SophiaAI-CallAudit",
+              ...(proxySecret ? { "x-proxy-secret": proxySecret } : {}),
             },
             body: JSON.stringify({
               Username: this.config.username,
@@ -243,6 +251,7 @@ export class ThreeCXClient {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
+          const proxySecret2 = Deno.env.get("CX3_PROXY_SECRET");
           return fetch(
             `${this.config.baseUrl}/webclient/api/Login/GetAccessToken`,
             {
@@ -250,6 +259,7 @@ export class ThreeCXClient {
               headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
                 "User-Agent": "SophiaAI-CallAudit",
+                ...(proxySecret2 ? { "x-proxy-secret": proxySecret2 } : {}),
               },
               body: new URLSearchParams({
                 Username: this.config.username,
