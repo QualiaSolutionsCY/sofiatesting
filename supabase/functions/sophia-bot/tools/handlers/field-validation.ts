@@ -29,7 +29,7 @@ import {
   isLocationAStreetInUrl,
   isStreetAddress,
 } from "../validators/location.ts";
-import { acquireUploadLock } from "../validators/upload-lock.ts";
+import { acquireUploadLock, releaseUploadLock } from "../validators/upload-lock.ts";
 import { getSupabaseAdmin } from "../../../_shared/db.ts";
 
 export interface ToolResult {
@@ -172,6 +172,8 @@ export async function validateAndPrepareFields(
           minutesAgo,
           agentPhone,
         });
+        // Release the upload lock since we're not proceeding
+        await releaseUploadLock(propertyLockKey).catch(() => {});
         return {
           needsInput: true,
           question: `This property was already uploaded ${minutesAgo < 60 ? `${minutesAgo} minutes` : `${Math.round(minutesAgo / 60)} hours`} ago: "${match.property_title}" (${match.zyprus_listing_id}). If you want to upload it again, please confirm by saying "upload anyway".`,

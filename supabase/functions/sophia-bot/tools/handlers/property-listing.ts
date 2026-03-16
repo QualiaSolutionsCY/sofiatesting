@@ -79,6 +79,10 @@ export async function handleCreatePropertyListing(
     args.propertyType as string
   );
   if (!imageCheck.enough) {
+    // Release the upload lock since we're not proceeding with upload
+    if (uploadLockKey) {
+      await releaseUploadLock(uploadLockKey).catch(() => {});
+    }
     return {
       needsInput: true,
       question: `I need at least ${imageCheck.required} ${imageCheck.required === 1 ? "image" : "images"} for a ${args.propertyType}. You've provided ${imageCheck.provided}. Please send more photos.`,
@@ -216,6 +220,11 @@ export async function handleCreatePropertyListing(
       operation: "createPropertyListing",
       invalidCount: invalidImages.length,
     });
+
+    // Release the upload lock since we're not proceeding
+    if (uploadLockKey) {
+      await releaseUploadLock(uploadLockKey).catch(() => {});
+    }
 
     return {
       error:

@@ -251,16 +251,22 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
   }
 
   // --- Notes ---
-  const notesMatch = text.match(/^notes?\s*:\s*(.+)$/im);
-  if (notesMatch) {
-    result.specialNotes = notesMatch[1].trim();
-  }
-  // Also check for "NOTE:" on its own line followed by text
-  if (!result.specialNotes) {
-    const noteLineIdx = lines.findIndex((l) => /^notes?\s*:/i.test(l));
-    if (noteLineIdx >= 0) {
-      result.specialNotes = lines[noteLineIdx].replace(/^notes?\s*:\s*/i, "").trim();
+  // Support multi-line notes: collect everything from "Notes:" until the next section
+  // (Owner, Kind Regards, Google Maps URL, or blank line followed by signature)
+  const noteLineIdx = lines.findIndex((l) => /^notes?\s*:/i.test(l));
+  if (noteLineIdx >= 0) {
+    const noteLines: string[] = [lines[noteLineIdx].replace(/^notes?\s*:\s*/i, "").trim()];
+    // Collect subsequent lines that are part of the note
+    for (let i = noteLineIdx + 1; i < lines.length; i++) {
+      const line = lines[i];
+      // Stop at: Owner line, Kind Regards, Google Maps URL, email signature patterns
+      if (/^owner\s*[-:–]/i.test(line)) break;
+      if (/^kind\s+regards/i.test(line)) break;
+      if (/^https?:\/\//i.test(line)) break;
+      if (/^(real\s+estate|zyprus\s+property|tombs\s+of)/i.test(line)) break;
+      noteLines.push(line);
     }
+    result.specialNotes = noteLines.filter(Boolean).join(" ").trim();
   }
 
   // --- Land-specific fields ---

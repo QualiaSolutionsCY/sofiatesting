@@ -708,7 +708,7 @@ export async function chat(
           (toolName === "createPropertyListing" || toolName === "createLandListing") &&
           !toolArgs.assignTo
         ) {
-          const assignMatch = userMessage.match(/MANDATORY ASSIGNMENT:.*?assignTo="([^"]+)"/);
+          const assignMatch = userMessage.match(/assignTo:\s*"([^"]+)"/) || userMessage.match(/MANDATORY ASSIGNMENT:.*?assignTo="([^"]+)"/);
           if (assignMatch) {
             toolArgs.assignTo = assignMatch[1];
             logger.info(`[Email] Injected assignTo="${assignMatch[1]}" into ${toolName} (AI omitted it)`, {
@@ -901,7 +901,7 @@ export async function chat(
             (toolName === "createPropertyListing" || toolName === "createLandListing") &&
             !toolArgs.assignTo
           ) {
-            const assignMatch = userMessage.match(/MANDATORY ASSIGNMENT:.*?assignTo="([^"]+)"/);
+            const assignMatch = userMessage.match(/assignTo:\s*"([^"]+)"/) || userMessage.match(/MANDATORY ASSIGNMENT:.*?assignTo="([^"]+)"/);
             if (assignMatch) {
               toolArgs.assignTo = assignMatch[1];
               logger.info(`[Email] Injected assignTo="${assignMatch[1]}" into ${toolName} (retry path)`, {
@@ -920,8 +920,6 @@ export async function chat(
             toolResult = await executeTool(
               { name: toolName, arguments: toolArgs },
               identifiedAgent,
-              supabaseUrl,
-              supabaseKey,
               phoneNumber
             );
           } catch (error) {
