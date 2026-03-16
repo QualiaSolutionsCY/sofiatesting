@@ -69,10 +69,12 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
   const result: ParsedEmailFields = { features: [] };
 
   // --- Listing type ---
-  if (/\bfor\s+sale\b/i.test(text) || /\bsale\b/i.test(subjectLower)) {
-    result.listingType = "sale";
-  } else if (/\bfor\s+rent\b|\bto\s+rent\b|\brental\b/i.test(text) || /\brent\b/i.test(subjectLower)) {
+  if (/\bfor\s+rent\b|\bto\s+rent\b|\brental\b/i.test(text) || /\brent\b/i.test(subjectLower)) {
     result.listingType = "rent";
+  } else {
+    // Default to "sale" — the vast majority of email uploads are sales listings
+    // Only override to "rent" if explicitly mentioned
+    result.listingType = "sale";
   }
 
   // --- Is this a land listing? ---
@@ -245,6 +247,9 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
   // --- Title deeds ---
   if (/\btitle\s+deeds?\b/i.test(text)) {
     result.titleDeedStatus = "separate";
+  } else {
+    // Default to "unknown" — the tool requires this field
+    result.titleDeedStatus = "unknown";
   }
 
   // --- Owner ---
@@ -369,7 +374,7 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
     [/\bfurnished\b/i, "furnished"],
     [/\belectrical\s+appliances?\b/i, "electrical appliances"],
     [/\bbbq\s+area?\b/i, "BBQ area"],
-    [/\bgarden\b(?!\s*complex)/i, "garden"],
+    [/\bgarden\b(?!\s*complex)(?!s\b)/i, "garden"], // Avoid "Gardens Complex", "Melania Gardens"
     [/\bseparate\s+kitchen\b/i, "separate kitchen"],
     [/\bfitted\s+kitchen\b/i, "fitted kitchen"],
     [/\bopen\s+plan\b/i, "open plan"],

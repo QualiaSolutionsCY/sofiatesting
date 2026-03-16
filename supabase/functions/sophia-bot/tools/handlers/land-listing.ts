@@ -158,6 +158,8 @@ export async function handleCreateLandListing(
   }
 
   // 2. Validate required fields (land-specific)
+  // NOTE: imageUrls excluded from required check — email uploads store images in pending_images,
+  // so imageUrls may be empty at this point. The image-processor fetches from pending_images later.
   const requiredLandFields = [
     "listingType",
     "landType",
@@ -166,7 +168,6 @@ export async function handleCreateLandListing(
     "landSize",
     "ownerName",
     "ownerPhone",
-    "imageUrls",
   ];
   const missing: string[] = [];
   for (const field of requiredLandFields) {

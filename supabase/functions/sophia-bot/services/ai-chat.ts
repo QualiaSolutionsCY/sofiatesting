@@ -544,14 +544,17 @@ export async function chat(
 
     // For emails with pre-extracted fields, ALWAYS force the correct tool
     // This is more reliable than isEmailWithStructuredData which has strict pattern matching
-    const hasPreExtractedFields = lowerMessage.includes("pre-extracted fields") && toolCallCount === 0;
+    // Check on EVERY iteration, not just first — retries after validation failure need override too
+    const hasPreExtractedFields = lowerMessage.includes("pre-extracted fields");
+    // Detect land from pre-extracted block — more reliable than isLandListing regex
+    const preExtractedIsLand = hasPreExtractedFields && lowerMessage.includes("tool: createlandlisting");
 
     // For structured email data, force the right tool (land vs property)
     // For other upload intents, force any tool ("required")
     // Otherwise, let AI decide ("auto")
     const toolChoiceForCall: "auto" | "required" | { type: "function"; function: { name: string } } =
-      hasPreExtractedFields
-        ? { type: "function", function: { name: isLandListing ? "createLandListing" : "createPropertyListing" } }
+      hasPreExtractedFields && toolCallCount === 0
+        ? { type: "function", function: { name: (preExtractedIsLand || isLandListing) ? "createLandListing" : "createPropertyListing" } }
         : isEmailWithStructuredData && toolCallCount === 0
           ? { type: "function", function: { name: isLandListing ? "createLandListing" : "createPropertyListing" } }
           : isPropertyUploadIntent && toolCallCount === 0
@@ -739,7 +742,9 @@ export async function chat(
           const nullableFields = ["coveredVeranda", "uncoveredVeranda", "plotSize", "yearBuilt", "yearRenovated", "floor", "energyClass", "buildingName", "areaDescription", "bedrooms"];
           // ALWAYS strip AI-fabricated imageUrls for email uploads
           // Email images come from pending_images (stored by email-webhook.ts), not from AI args
-          delete toolArgs.imageUrls;
+          // Set to empty array (not delete) because the tool schema requires imageUrls
+          // The handler will fetch actual images from pending_images internally
+          toolArgs.imageUrls = [];
           for (const field of nullableFields) {
             if (!(field in overrides) && toolArgs[field] !== undefined) {
               logger.info(`[Email] Removing AI-hallucinated field "${field}" (not in email)`, {
