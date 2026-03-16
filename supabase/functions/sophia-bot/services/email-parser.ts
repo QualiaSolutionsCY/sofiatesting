@@ -54,6 +54,7 @@ export interface ParsedEmailFields {
   yearBuilt?: number;
   poolType?: string;
   bathroomBreakdown?: string;
+  floor?: string;
 }
 
 /**
@@ -174,17 +175,28 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
   }
 
   // --- Location ---
-  // Pattern: "... in [Location]" or "... for sale in [Location]"
-  // First line often has: "3 bedroom detached house for sale in kato paphos with title deeds"
-  // or "Plot for sale in Tala, Paphos"
+  // Pattern 1: "... for sale/rent in [Location]"
   const locationMatch = text.match(/(?:for\s+(?:sale|rent)\s+in\s+)([^,\n]+(?:,\s*[^,\n]+){0,2})/i);
   if (locationMatch) {
     let loc = locationMatch[1].trim();
-    // Remove trailing "with title deeds" or price
     loc = loc.replace(/\s+with\s+.*/i, "").replace(/\s+\d+k?\s*$/i, "").trim();
-    // Remove "with Sea View" etc.
-    loc = loc.replace(/\s+with\s+sea\s+view/i, "").trim();
     result.location = loc;
+  }
+
+  // Pattern 2: Standalone location line — a line that contains a known Cyprus district
+  // but isn't a feature, size, owner, or other structured line
+  // e.g., "Universal Kato Paphos", "Coral Bay, Paphos", "Mesa Geitonia, Limassol"
+  if (!result.location) {
+    const districtPattern = /\b(paphos|pafos|limassol|lemesos|larnaca|nicosia|lefkosia|famagusta|ammochostos)\b/i;
+    for (const line of lines) {
+      // Skip lines that are clearly not locations
+      if (/^\d|^owner|^title|^note|^kind|^http|^energy|^built|m2\b|bathroom|bedroom|parking|%/i.test(line)) continue;
+      if (/\bfor\s+(sale|rent)\b/i.test(line)) continue; // already handled by Pattern 1
+      if (districtPattern.test(line) && line.length < 60) {
+        result.location = line.trim();
+        break;
+      }
+    }
   }
 
   // --- Sizes ---
@@ -222,16 +234,31 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
   }
 
   // --- Owner ---
-  // "Owner - Jenifer Aniston - 99 676767"
-  // "Owner: Lisa Kudrow - 97 172737 - scat@gmail.com"
-  // "Owner - Matt Le Blanc - 94 949596 - joey@gmail.com"
-  const ownerMatch = text.match(
-    /owner\s*[-:–]\s*(.+?)\s*[-–]\s*([\d\s]+?)(?:\s*[-–]\s*(\S+@\S+))?$/im
+  // Pattern 1: "Owner - Name - Phone - email" (full)
+  // Pattern 2: "Owner - Name - Phone" (no email)
+  // Pattern 3: "Owner - Name - email" (no phone)
+  const ownerWithPhone = text.match(
+    /owner\s*[-:–]\s*(.+?)\s*[-–]\s*([\d\s]{6,}?)(?:\s*[-–]\s*(\S+@\S+))?$/im
   );
-  if (ownerMatch) {
-    result.ownerName = ownerMatch[1].trim();
-    result.ownerPhone = ownerMatch[2].trim();
-    if (ownerMatch[3]) result.ownerEmail = ownerMatch[3].trim();
+  if (ownerWithPhone) {
+    result.ownerName = ownerWithPhone[1].trim();
+    result.ownerPhone = ownerWithPhone[2].trim();
+    if (ownerWithPhone[3]) result.ownerEmail = ownerWithPhone[3].trim();
+  } else {
+    // Pattern 3: "Owner - Name - email@domain.com" (no phone number)
+    const ownerWithEmail = text.match(
+      /owner\s*[-:–]\s*(.+?)\s*[-–]\s*(\S+@\S+)/im
+    );
+    if (ownerWithEmail) {
+      result.ownerName = ownerWithEmail[1].trim();
+      result.ownerEmail = ownerWithEmail[2].trim();
+    } else {
+      // Pattern 4: "Owner - Name" (just name, nothing else)
+      const ownerNameOnly = text.match(/owner\s*[-:–]\s*([A-Z][a-zA-Z\s'-]+)/m);
+      if (ownerNameOnly) {
+        result.ownerName = ownerNameOnly[1].trim();
+      }
+    }
   }
 
   // --- Google Maps URL ---
@@ -292,8 +319,15 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
   const yearMatch = text.match(/built\s*:?\s*(\d{4})/i);
   if (yearMatch) result.yearBuilt = parseInt(yearMatch[1]);
 
+  // --- Floor level ---
+  if (/\bground\s+floor\b/i.test(text)) result.floor = "ground";
+  else {
+    const floorMatch = text.match(/(\d+)(?:st|nd|rd|th)\s+floor/i);
+    if (floorMatch) result.floor = `${floorMatch[1]}${floorMatch[0].match(/(st|nd|rd|th)/i)?.[0]}`;
+  }
+
   // --- Pool ---
-  if (/\bcommunal\s+(?:swimming\s+)?pool\b/i.test(text)) result.poolType = "communal";
+  if (/\bcommunal\s+(?:swimming\s+)?pool\b|\bcommon\s+pool\b|\bshared\s+pool\b/i.test(text)) result.poolType = "communal";
   else if (/\bprivate\s+pool\b/i.test(text)) result.poolType = "private";
   else if (/\bprovisions?\s+for\s+(?:a\s+)?pool\b/i.test(text)) result.poolType = "provisions";
 
@@ -391,6 +425,7 @@ export function formatExtractedFields(parsed: ParsedEmailFields): string {
   if (parsed.energyClass) lines.push(`  energyClass: "${parsed.energyClass}"`);
   if (parsed.yearBuilt) lines.push(`  yearBuilt: ${parsed.yearBuilt}`);
   if (parsed.poolType) lines.push(`  poolType: "${parsed.poolType}"`);
+  if (parsed.floor) lines.push(`  floor: "${parsed.floor}"`);
 
   return lines.join("\n");
 }

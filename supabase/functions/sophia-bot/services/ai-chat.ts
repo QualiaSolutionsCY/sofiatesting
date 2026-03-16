@@ -703,6 +703,32 @@ export async function chat(
           { category: LogCategory.TOOL }
         );
 
+        // CRITICAL: For email uploads, OVERRIDE the AI's tool args with server-side parsed values
+        // Gemini hallucnates values even when pre-extracted fields are in the prompt
+        // So we force-inject the correct values parsed by email-parser.ts
+        if (
+          (toolName === "createPropertyListing" || toolName === "createLandListing") &&
+          userMessage.includes("PRE-EXTRACTED FIELDS")
+        ) {
+          const overrides = parsePreExtractedFields(userMessage);
+          if (Object.keys(overrides).length > 0) {
+            const overridden: string[] = [];
+            for (const [key, value] of Object.entries(overrides)) {
+              if (value !== undefined && value !== null && value !== "") {
+                if (JSON.stringify(toolArgs[key]) !== JSON.stringify(value)) {
+                  overridden.push(key);
+                }
+                toolArgs[key] = value;
+              }
+            }
+            if (overridden.length > 0) {
+              logger.warn(`[Email] Overrode ${overridden.length} AI-hallucinated args with server-parsed values: ${overridden.join(", ")}`, {
+                category: LogCategory.TOOL,
+              });
+            }
+          }
+        }
+
         // Inject server-side extracted assignTo if the AI omitted it
         if (
           (toolName === "createPropertyListing" || toolName === "createLandListing") &&
@@ -997,4 +1023,62 @@ export async function chat(
     toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
     tokenCount: totalTokens > 0 ? totalTokens : undefined,
   };
+}
+
+/**
+ * Parse PRE-EXTRACTED FIELDS block from the email prefix in userMessage.
+ * Returns a Record of field→value to override AI's hallucinated tool args.
+ * This is the nuclear option: Gemini proved unable to copy values from the prompt,
+ * so we extract them server-side and force-inject them into the tool call.
+ */
+function parsePreExtractedFields(userMessage: string): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+
+  // Extract the PRE-EXTRACTED FIELDS block
+  const blockMatch = userMessage.match(/PRE-EXTRACTED FIELDS[^\n]*\n([\s\S]*?)(?:\n\nRULES:|\n\n\[Subject:)/);
+  if (!blockMatch) return result;
+
+  const block = blockMatch[1];
+  const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+
+  for (const line of lines) {
+    // Parse "key: value" or 'key: "value"' patterns
+    const match = line.match(/^(\w+):\s*(.+)$/);
+    if (!match) continue;
+
+    const key = match[1];
+    let value: unknown = match[2].trim();
+
+    // Skip non-field lines
+    if (key === "Tool") continue;
+
+    // Parse typed values
+    const strVal = value as string;
+    if (strVal.startsWith('"') && strVal.endsWith('"')) {
+      // String value
+      value = strVal.slice(1, -1);
+    } else if (strVal === "true") {
+      value = true;
+    } else if (strVal === "false") {
+      value = false;
+    } else if (strVal.startsWith("[")) {
+      // JSON array (features)
+      try { value = JSON.parse(strVal); } catch { /* keep as string */ }
+    } else if (strVal.startsWith("{")) {
+      // JSON object (coordinates)
+      try {
+        // Convert "{ lat: 34.83, lon: 32.42 }" to proper JSON
+        const jsonStr = strVal.replace(/(\w+):/g, '"$1":');
+        value = JSON.parse(jsonStr);
+      } catch { /* keep as string */ }
+    } else if (/^\d+$/.test(strVal)) {
+      value = parseInt(strVal);
+    } else if (/^\d+\.\d+$/.test(strVal)) {
+      value = parseFloat(strVal);
+    }
+
+    result[key] = value;
+  }
+
+  return result;
 }

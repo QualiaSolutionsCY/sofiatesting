@@ -140,10 +140,10 @@ export async function validateAndPrepareFields(
             .toLowerCase()
             .includes(specificArea);
           if (!titleMatch) return false;
-          // Additional price check: if prices differ by >20%, it's likely a different property
-          // This prevents false positives when AI passes wrong location for a different property
+          // Price check: require BOTH prices for reliable comparison
           const existingPrice = Number(p.price) || 0;
           if (currentPrice > 0 && existingPrice > 0) {
+            // Both prices exist — reject if they differ by >20%
             const priceDiff = Math.abs(currentPrice - existingPrice) / Math.max(currentPrice, existingPrice);
             if (priceDiff > 0.2) {
               logger.info("Duplicate candidate rejected — price differs by >20%", {
@@ -152,6 +152,21 @@ export async function validateAndPrepareFields(
                 currentPrice,
                 existingPrice,
                 priceDiff: `${(priceDiff * 100).toFixed(0)}%`,
+              });
+              return false;
+            }
+          } else if (existingPrice === 0) {
+            // Old record has no price — can't confirm it's the same property
+            // Only match if bedrooms or type also appear in the existing title
+            const currentBeds = Number(args.bedrooms) || 0;
+            const currentType = ((args.propertyType as string) || "").toLowerCase();
+            const titleLower = ((p.property_title as string) || "").toLowerCase();
+            const bedsMatch = currentBeds > 0 && titleLower.includes(`${currentBeds} bed`);
+            const typeMatch = currentType.length > 2 && titleLower.includes(currentType);
+            if (!bedsMatch && !typeMatch) {
+              logger.info("Duplicate candidate rejected — no price on record & beds/type mismatch", {
+                category: LogCategory.TOOL,
+                operation: "validateAndPrepareFields",
               });
               return false;
             }
