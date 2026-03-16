@@ -542,15 +542,21 @@ export async function chat(
       };
     }
 
+    // For emails with pre-extracted fields, ALWAYS force the correct tool
+    // This is more reliable than isEmailWithStructuredData which has strict pattern matching
+    const hasPreExtractedFields = lowerMessage.includes("pre-extracted fields") && toolCallCount === 0;
+
     // For structured email data, force the right tool (land vs property)
     // For other upload intents, force any tool ("required")
     // Otherwise, let AI decide ("auto")
     const toolChoiceForCall: "auto" | "required" | { type: "function"; function: { name: string } } =
-      isEmailWithStructuredData && toolCallCount === 0
+      hasPreExtractedFields
         ? { type: "function", function: { name: isLandListing ? "createLandListing" : "createPropertyListing" } }
-        : isPropertyUploadIntent && toolCallCount === 0
-          ? "required"
-          : "auto";
+        : isEmailWithStructuredData && toolCallCount === 0
+          ? { type: "function", function: { name: isLandListing ? "createLandListing" : "createPropertyListing" } }
+          : isPropertyUploadIntent && toolCallCount === 0
+            ? "required"
+            : "auto";
 
     const openRouterResult = await callOpenRouter(
       currentMessages,

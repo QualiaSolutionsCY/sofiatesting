@@ -100,6 +100,8 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
       [/\bapartment\b|\bflat\b/i, "apartment"],
       [/\bresidential\s+building\b/i, "residential building"],
       [/\bentire\s+floor\b/i, "entire floor apartment"],
+      [/\bmixed[\s-]*use\s+building\b|\bresidential\s*\/?\s*commercial\b/i, "building"],
+      [/\bbuilding\b/i, "building"],
       [/\boffice\b/i, "office"],
       [/\bshop\b/i, "shop"],
       [/\bwarehouse\b/i, "warehouse"],
