@@ -721,11 +721,31 @@ export async function chat(
                 toolArgs[key] = value;
               }
             }
+            // Null out optional fields the AI hallucinated that weren't in the email
+            // If the parser didn't find a veranda/plot/etc., the AI shouldn't invent one
+            const nullableFields = ["coveredVeranda", "uncoveredVeranda", "plotSize", "yearBuilt", "yearRenovated", "floor", "energyClass", "buildingName", "areaDescription"];
+            for (const field of nullableFields) {
+              if (!(field in overrides) && toolArgs[field] !== undefined) {
+                logger.info(`[Email] Removing AI-hallucinated field "${field}" (not in email)`, {
+                  category: LogCategory.TOOL,
+                });
+                delete toolArgs[field];
+              }
+            }
             if (overridden.length > 0) {
               logger.warn(`[Email] Overrode ${overridden.length} AI-hallucinated args with server-parsed values: ${overridden.join(", ")}`, {
                 category: LogCategory.TOOL,
               });
             }
+          }
+
+          // BLOCK upload if no Google Maps link — location is critical, Sophia must ask for it
+          if (!toolArgs.locationUrl) {
+            logger.info("[Email] No locationUrl found — blocking upload, asking agent for Google Maps link", {
+              category: LogCategory.TOOL,
+            });
+            aiResponse = "Thank you for the property details! Before I upload the draft, I need one more thing:\n\nCould you please send me the **Google Maps link** (pin location) for this property? This is required so the reviewer knows the exact location.\n\nOnce you reply with the link, I'll complete the upload right away.";
+            break;
           }
         }
 
