@@ -13,7 +13,7 @@ Milestone: v1.5 Audit Excellence — SHIPPED
 Phase: 25 of 25 (all complete)
 Plan: Not started (next milestone)
 Status: Ready to plan next milestone
-Last activity: 2026-03-12 — Completed quick task 24: Fix email upload parity
+Last activity: 2026-03-16 — Completed quick task 25: Email upload retest (8/10 pass)
 
 Progress: [█████████████████████████] 100% (6 milestones shipped)
 
@@ -65,6 +65,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | 22 | Gmail email router — poll info@zyprus.com, forward + draft | 2026-03-09 | b01860f | [22-add-gmail-email-router-poll-info-zyprus-](./quick/22-add-gmail-email-router-poll-info-zyprus-/) |
 | 23 | Email listing upload via sophia@zyprus.com — full AI pipeline via email | 2026-03-11 | ebfeead | [23-email-listing-upload-replicate-whatsapp-](./quick/23-email-listing-upload-replicate-whatsapp-/) |
 | 24 | Fix email upload parity — HTML replies, image validation, sender guard, rate limiting | 2026-03-12 | 5b9ef56 | [24-fix-email-upload-parity-markdown-to-html](./quick/24-fix-email-upload-parity-markdown-to-html/) |
+| 25 | Email upload retest — 10 scenarios, server-side parser, arg override, 8/10 pass | 2026-03-16 | pending | [25-email-upload-retest-10-scenarios-with-au](./quick/25-email-upload-retest-10-scenarios-with-au/) |
 
 ## Session Continuity
 
