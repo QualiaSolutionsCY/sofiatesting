@@ -571,7 +571,15 @@ export async function chat(
       totalTokens += usage.totalTokens;
     }
 
-    // Fallback: if primary model fails, try the stable fallback model
+    // Fallback: if primary model fails OR returns no tool_calls when we forced a tool, try fallback model
+    if (hasPreExtractedFields && message && (!message.tool_calls || message.tool_calls.length === 0) && !message.content) {
+      // Primary model returned empty with no tool_calls — treat as failure for email uploads
+      logger.warn("[Email] Primary model returned empty (no tool_calls, no content) — triggering fallback", {
+        category: LogCategory.GENERAL,
+      });
+      error = "Empty response with forced tool_choice";
+      message = null;
+    }
     if (error || !message) {
       logger.warn(
         `[Fallback] Primary model failed (${error}), trying ${FALLBACK_MODEL}`,
@@ -728,7 +736,10 @@ export async function chat(
             }
           }
           // Null out optional fields the AI hallucinated that weren't in the email
-          const nullableFields = ["coveredVeranda", "uncoveredVeranda", "plotSize", "yearBuilt", "yearRenovated", "floor", "energyClass", "buildingName", "areaDescription"];
+          const nullableFields = ["coveredVeranda", "uncoveredVeranda", "plotSize", "yearBuilt", "yearRenovated", "floor", "energyClass", "buildingName", "areaDescription", "bedrooms"];
+          // ALWAYS strip AI-fabricated imageUrls for email uploads
+          // Email images come from pending_images (stored by email-webhook.ts), not from AI args
+          delete toolArgs.imageUrls;
           for (const field of nullableFields) {
             if (!(field in overrides) && toolArgs[field] !== undefined) {
               logger.info(`[Email] Removing AI-hallucinated field "${field}" (not in email)`, {
