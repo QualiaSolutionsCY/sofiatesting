@@ -780,7 +780,8 @@ export async function handleCreateLandListing(
       agentPhone,
       agent.fullName,
       listingTitle,
-      result.listingUrl
+      result.listingUrl,
+      Number(args.price) || undefined
     ).catch((err) =>
       logger.warn("Failed to track listing upload (non-critical)", {
         category: LogCategory.TOOL,

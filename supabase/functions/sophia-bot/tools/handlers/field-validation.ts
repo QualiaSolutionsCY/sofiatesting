@@ -117,7 +117,7 @@ export async function validateAndPrepareFields(
     ).toISOString();
     const { data: recentUploads } = await sb
       .from("listing_uploads")
-      .select("id, property_title, created_at, zyprus_listing_id")
+      .select("id, property_title, created_at, zyprus_listing_id, price")
       .eq("agent_phone", agentPhone)
       .gte("created_at", twentyFourHoursAgo)
       .order("created_at", { ascending: false })
@@ -125,6 +125,7 @@ export async function validateAndPrepareFields(
 
     if (recentUploads && recentUploads.length > 0) {
       const locationLower = ((args.location as string) || "").toLowerCase().trim();
+      const currentPrice = Number(args.price) || 0;
       // Split location into parts (e.g., "Agios Tychonas, Limassol" → ["agios tychonas", "limassol"])
       const locationParts = locationLower.split(",").map((p: string) => p.trim()).filter(Boolean);
       // Use the FIRST part (specific area) for matching, not the city name
@@ -134,10 +135,29 @@ export async function validateAndPrepareFields(
         ? locationParts[0] // Use "Agios Tychonas" not "Limassol"
         : (locationLower.split(/\s+/).length >= 2 ? locationLower : null); // Single part needs 2+ words to be specific
       const match = specificArea ? recentUploads.find(
-        (p: Record<string, unknown>) =>
-          ((p.property_title as string) || "")
+        (p: Record<string, unknown>) => {
+          const titleMatch = ((p.property_title as string) || "")
             .toLowerCase()
-            .includes(specificArea)
+            .includes(specificArea);
+          if (!titleMatch) return false;
+          // Additional price check: if prices differ by >20%, it's likely a different property
+          // This prevents false positives when AI passes wrong location for a different property
+          const existingPrice = Number(p.price) || 0;
+          if (currentPrice > 0 && existingPrice > 0) {
+            const priceDiff = Math.abs(currentPrice - existingPrice) / Math.max(currentPrice, existingPrice);
+            if (priceDiff > 0.2) {
+              logger.info("Duplicate candidate rejected — price differs by >20%", {
+                category: LogCategory.TOOL,
+                operation: "validateAndPrepareFields",
+                currentPrice,
+                existingPrice,
+                priceDiff: `${(priceDiff * 100).toFixed(0)}%`,
+              });
+              return false;
+            }
+          }
+          return true;
+        }
       ) : null;
       if (match) {
         const minutesAgo = Math.round(

@@ -521,7 +521,9 @@ export async function handleCreatePropertyListing(
       agentPhone,
       agent!.fullName,
       propertyTitle,
-      result.listingUrl
+      result.listingUrl,
+      Number(args.price) || undefined,
+      Number(args.bedrooms) || undefined
     ).catch((err) =>
       logger.warn("Failed to track listing upload (non-critical)", {
         category: LogCategory.TOOL,

@@ -499,9 +499,14 @@ export async function chat(
     // Owner indicator
     (lowerMessage.includes("owner") || lowerMessage.includes("seller") || lowerMessage.includes("assign to"));
 
+  // Detect if this is a LAND listing (not a property listing)
+  // Land emails typically contain "land for sale", "plot for sale", "land listing", etc.
+  const isLandListing = isEmailWithStructuredData &&
+    (/\bland\b.*\bfor\s+sale\b|\bplot\b.*\bfor\s+sale\b|\bland\s+listing\b|\bplot\s+listing\b|\bagricultural\b.*\bfor\s+sale\b/.test(lowerMessage));
+
   if (isPropertyUploadIntent) {
     logger.info(
-      `[OpenRouter] Property upload intent detected - will force tool usage${isEmailWithStructuredData ? " (EMAIL with structured data → forcing createPropertyListing)" : ""}`,
+      `[OpenRouter] Property upload intent detected - will force tool usage${isEmailWithStructuredData ? (isLandListing ? " (EMAIL with structured data → forcing createLandListing)" : " (EMAIL with structured data → forcing createPropertyListing)") : ""}`,
       { category: LogCategory.ZYPRUS }
     );
   }
@@ -537,12 +542,12 @@ export async function chat(
       };
     }
 
-    // For structured email data, force createPropertyListing specifically
+    // For structured email data, force the right tool (land vs property)
     // For other upload intents, force any tool ("required")
     // Otherwise, let AI decide ("auto")
     const toolChoiceForCall: "auto" | "required" | { type: "function"; function: { name: string } } =
       isEmailWithStructuredData && toolCallCount === 0
-        ? { type: "function", function: { name: "createPropertyListing" } }
+        ? { type: "function", function: { name: isLandListing ? "createLandListing" : "createPropertyListing" } }
         : isPropertyUploadIntent && toolCallCount === 0
           ? "required"
           : "auto";

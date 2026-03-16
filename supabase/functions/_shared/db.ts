@@ -348,7 +348,9 @@ export const trackListingUpload = async (
   agentPhone: string,
   agentName: string,
   propertyTitle: string,
-  listingUrl: string
+  listingUrl: string,
+  price?: number,
+  bedrooms?: number
 ): Promise<void> => {
   const supabase = getSupabaseAdmin();
 
@@ -360,6 +362,8 @@ export const trackListingUpload = async (
       property_title: propertyTitle,
       listing_url: listingUrl,
       status: "draft",
+      ...(price != null && { price }),
+      ...(bedrooms != null && { bedrooms }),
     },
   ]);
 
