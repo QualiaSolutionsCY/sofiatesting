@@ -21,6 +21,7 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0
 import { addMessage, getHistory } from "../../_shared/db.ts";
 import { getAgentByEmail } from "../agents/identifier.ts";
 import { buildSystemPrompt, chat } from "../services/ai-chat.ts";
+import { parsePropertyEmail, formatExtractedFields } from "../services/email-parser.ts";
 import { validateImagesAtIngress } from "../services/image-validator.ts";
 import { addPendingImages, clearPendingImages, getPendingImages } from "../services/pending-images.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
@@ -143,32 +144,36 @@ export async function handleEmailWebhook(
         category: LogCategory.GENERAL,
       });
     }
+
+    // SERVER-SIDE EMAIL PARSING — extract fields deterministically before AI sees them
+    const parsed = parsePropertyEmail(textBody || "", subject || "");
+    const extractedFieldsBlock = formatExtractedFields(parsed);
+
+    logger.info(`[Email] Server-side parsed: ${JSON.stringify({
+      isLand: parsed.isLand,
+      propertyType: parsed.propertyType,
+      price: parsed.price,
+      location: parsed.location,
+      bedrooms: parsed.bedrooms,
+      ownerName: parsed.ownerName,
+      featuresCount: parsed.features.length,
+    })}`, { category: LogCategory.GENERAL });
+
     const assignmentDirective = extractedAssignTo
-      ? ` MANDATORY ASSIGNMENT: The email contains an explicit assignment instruction. You MUST pass assignTo="${extractedAssignTo}" when calling createPropertyListing or createLandListing. DO NOT ask who to assign to — it has already been specified.`
+      ? `\n  assignTo: "${extractedAssignTo}"`
       : "";
 
-    const emailPrefix = `[THIS MESSAGE IS VIA EMAIL — NOT WHATSAPP. Reply as email. Never mention WhatsApp or ask to send photos on WhatsApp. All images are already attached to this email.
+    const emailPrefix = `[THIS MESSAGE IS VIA EMAIL — NOT WHATSAPP. Reply as email. Never mention WhatsApp or ask to send photos on WhatsApp.
 
-MANDATORY EMAIL PARSING RULES:
-1. Call createPropertyListing (or createLandListing for land/plot) directly with the data below. Do NOT call extractFromBazaraki unless a bazaraki.com URL is present. Do NOT call getZyprusData.
-2. Extract ALL fields from THIS email ONLY. Do NOT use data from previous conversations or your training data.
-3. FIELD-BY-FIELD EXTRACTION — read the email text carefully and map EACH piece of information:
-   - FIRST LINE usually contains: bedrooms, property type, location, and price (e.g., "2 Bedroom Bungalow For Sale in Peyia 400k")
-   - "Title Deeds" → titleDeedStatus: "separate"
-   - "Xm2 covered area" or "Xm2 indoor" → coveredArea: X (use the EXACT number)
-   - "Xm2 covered veranda" or "Xm2 veranda" → coveredVeranda: X
-   - "Xm2 plot" → plotSize: X
-   - "Owner - Name - Phone" or "Owner: Name - Phone" → ownerName + ownerPhone (use EXACT name and number)
-   - Google Maps URL → locationUrl (pass the FULL URL exactly as-is)
-   - "Notes:" or "Note:" lines → specialNotes (pass the FULL text verbatim)
-   - Each feature keyword (a/c, fireplace, jacuzzi, etc.) → add to features array
-   - Property type word (bungalow, townhouse, apartment, villa, etc.) → propertyType (use the EXACT word from the email)
-   - Bedroom count from the title line → bedrooms (use the EXACT number)
-   - Price from the title line (e.g., "400k" = 400000, "310k" = 310000) → price
-4. FEATURES: Every line that describes a property feature MUST be included. Common features to watch for: a/c, photovoltaic, central heating, fireplace, fly screens, jacuzzi, CCTV, security system, storeroom, covered parking, uncovered parking, landscape garden, roof garden, sea view, furnished, electrical appliances, BBQ area, garden, communal swimming pool, separate kitchen
-5. For LAND listings (email mentions "land for sale", "plot for sale"): Call createLandListing instead of createPropertyListing. Extract: landSize, buildingDensity, siteCoverage, maxFloors, maxHeight.
-6. "not negotiable" or "fixed price" → priceNegotiable: false
-${assignmentDirective}]`;
+CRITICAL INSTRUCTION: The fields below were extracted from the email by a server-side parser. You MUST use these EXACT values when calling the tool. Do NOT re-read the email to extract different values. Do NOT use your training data or imagination. Copy these values exactly as shown.
+
+${extractedFieldsBlock}${assignmentDirective}
+
+RULES:
+1. Call ${parsed.isLand ? "createLandListing" : "createPropertyListing"} with the PRE-EXTRACTED values above. Copy each field EXACTLY.
+2. Do NOT call extractFromBazaraki or getZyprusData.
+3. For any field NOT listed above, check the email text below — but for fields that ARE listed above, use the pre-extracted value.
+4. All attached images are already stored — they will be picked up automatically.]`;
     const userMessage = subject
       ? `${emailPrefix}\n\n[Subject: ${subject}]\n\n${textBody || ""}`
       : `${emailPrefix}\n\n${textBody || ""}`;
