@@ -125,6 +125,13 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
     // Skip non-price lines: phone numbers (6+ digits with spaces), m2 values, percentages, owner lines
     if (/^\d[\d\s]{5,}$/.test(line.trim())) continue; // bare phone number
     if (/\bm2\b|%|owner|kind\s+regards/i.test(line)) continue;
+    // Check for millions first: "1.2m", "€1.5m", "2m"
+    const mMatch = line.match(/^(?:€\s*)?(\d+(?:\.\d+)?)\s*m\b/i);
+    if (mMatch && parseFloat(mMatch[1]) < 100) { // < 100 to avoid matching "582m2"
+      result.price = Math.round(parseFloat(mMatch[1]) * 1_000_000);
+      if (/not\s+negotiable|fixed\s+price/i.test(line)) result.priceNegotiable = false;
+      break;
+    }
     const kMatch = line.match(/^(?:€\s*)?(\d{2,4})\s*k\b/i);
     if (kMatch) {
       result.price = parseInt(kMatch[1]) * 1000;
@@ -142,12 +149,17 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
   // Fallback: search first line for price
   if (!result.price && lines.length > 0) {
     const firstLine = lines[0];
-    const kMatch = firstLine.match(/(\d{2,4})\s*k\b/i);
-    if (kMatch) {
-      result.price = parseInt(kMatch[1]) * 1000;
+    const mMatch = firstLine.match(/(\d+(?:\.\d+)?)\s*m\b/i);
+    if (mMatch && parseFloat(mMatch[1]) < 100) {
+      result.price = Math.round(parseFloat(mMatch[1]) * 1_000_000);
     } else {
-      const numMatch = firstLine.match(/(?:€\s*)?([\d,]{5,})/);
-      if (numMatch) result.price = parseInt(numMatch[1].replace(/,/g, ""));
+      const kMatch = firstLine.match(/(\d{2,4})\s*k\b/i);
+      if (kMatch) {
+        result.price = parseInt(kMatch[1]) * 1000;
+      } else {
+        const numMatch = firstLine.match(/(?:€\s*)?([\d,]{5,})/);
+        if (numMatch) result.price = parseInt(numMatch[1].replace(/,/g, ""));
+      }
     }
     if (/not\s+negotiable|fixed\s+price/i.test(firstLine)) result.priceNegotiable = false;
   }
