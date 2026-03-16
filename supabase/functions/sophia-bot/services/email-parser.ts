@@ -117,7 +117,11 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
   // Patterns: "400k", "€400,000", "400,000", "400000", "400K not negotiable"
   // Look for price on a dedicated line OR in the first line
   // First try dedicated price line (line that starts with a number or €)
+  // Skip lines that look like phone numbers, m² values, percentages, or years
   for (const line of lines) {
+    // Skip non-price lines: phone numbers (6+ digits with spaces), m2 values, percentages, owner lines
+    if (/^\d[\d\s]{5,}$/.test(line.trim())) continue; // bare phone number
+    if (/\bm2\b|%|owner|kind\s+regards/i.test(line)) continue;
     const kMatch = line.match(/^(?:€\s*)?(\d{2,4})\s*k\b/i);
     if (kMatch) {
       result.price = parseInt(kMatch[1]) * 1000;
@@ -173,7 +177,7 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
   // Pattern: "... in [Location]" or "... for sale in [Location]"
   // First line often has: "3 bedroom detached house for sale in kato paphos with title deeds"
   // or "Plot for sale in Tala, Paphos"
-  const locationMatch = text.match(/(?:for\s+(?:sale|rent)\s+in\s+)([^,\n]+(?:,\s*[^,\n]+)?)/i);
+  const locationMatch = text.match(/(?:for\s+(?:sale|rent)\s+in\s+)([^,\n]+(?:,\s*[^,\n]+){0,2})/i);
   if (locationMatch) {
     let loc = locationMatch[1].trim();
     // Remove trailing "with title deeds" or price
@@ -332,6 +336,14 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
     }
   }
 
+  // Merge bathroom breakdown into specialNotes if present
+  if (result.bathroomBreakdown) {
+    const breakdown = `Bathroom breakdown: ${result.bathroomBreakdown}`;
+    result.specialNotes = result.specialNotes
+      ? `${result.specialNotes}\n${breakdown}`
+      : breakdown;
+  }
+
   return result;
 }
 
@@ -353,7 +365,6 @@ export function formatExtractedFields(parsed: ParsedEmailFields): string {
   if (parsed.location) lines.push(`  location: "${parsed.location}"`);
   if (parsed.bedrooms != null) lines.push(`  bedrooms: ${parsed.bedrooms}`);
   if (parsed.bathrooms != null) lines.push(`  bathrooms: ${parsed.bathrooms}`);
-  if (parsed.bathroomBreakdown) lines.push(`  bathroomBreakdown: "${parsed.bathroomBreakdown}"`);
   if (parsed.coveredArea) lines.push(`  coveredArea: ${parsed.coveredArea}`);
   if (parsed.coveredVeranda) lines.push(`  coveredVeranda: ${parsed.coveredVeranda}`);
   if (parsed.uncoveredVeranda) lines.push(`  uncoveredVeranda: ${parsed.uncoveredVeranda}`);

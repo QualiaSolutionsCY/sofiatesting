@@ -185,16 +185,22 @@ RULES:
 
     // CRITICAL: Clear old pending images BEFORE adding new ones
     // Each email is a standalone upload — old images from previous emails must not contaminate
-    // Even for replies, we clear and re-add the current email's images to avoid stale data
-    await clearPendingImages(imageKey).catch((err) => {
-      logger.warn("[Email] Failed to clear old pending images (non-critical)", {
+    // This is BLOCKING — better to fail the email than upload with wrong images
+    try {
+      await clearPendingImages(imageKey);
+      logger.info(`[Email] Cleared old pending images for ${imageKey} (email isolation)`, {
         category: LogCategory.GENERAL,
-        error: String(err),
       });
-    });
-    logger.info(`[Email] Cleared old pending images for ${imageKey} (email isolation)`, {
-      category: LogCategory.GENERAL,
-    });
+    } catch (err) {
+      logger.error("[Email] FAILED to clear old pending images — aborting to prevent contamination", err instanceof Error ? err : undefined, {
+        category: LogCategory.GENERAL,
+        imageKey,
+      });
+      return new Response(
+        JSON.stringify({ success: false, reply: "I had a temporary issue processing your email. Please resend it." }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     // Validate images before storing (parity with WhatsApp path)
     let imageUrls: string[] = [];
