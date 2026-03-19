@@ -945,8 +945,11 @@ export async function createDraftListing(
 
   // Note: All taxonomy/user functions now have hardcoded fallbacks, so they cannot fail
 
-  // CRITICAL: listingInstructor MUST be the same UUID as listingOwner
-  const instructorUuid = listingOwnerUuid;
+  // Resolve instructor UUID — usually same as owner, but differs for Michelle rentals
+  const instructorUuid =
+    listing.listingInstructor && listing.listingInstructor !== listing.listingOwner
+      ? await findUserUuid(listing.listingInstructor)
+      : listingOwnerUuid;
 
   logger.info("Resolved Zyprus UUIDs for listing", {
     category: LogCategory.ZYPRUS,

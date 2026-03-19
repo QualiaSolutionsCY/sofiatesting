@@ -218,9 +218,9 @@ export const TOOLS: ToolDefinition[] = [
           },
           poolType: {
             type: "string",
-            enum: ["private", "communal", "provisions"],
+            enum: ["private", "communal", "provisions", "none"],
             description:
-              "Type of swimming pool. 'private' = private pool on the property. 'communal' = shared pool in the complex/building. 'provisions' = plumbing/infrastructure ready to ADD a pool but NO pool exists yet. CRITICAL: 'provisions' means there is NO pool — do NOT list pool as a feature.",
+              "Type of swimming pool. 'private' = private pool on the property. 'communal' = shared pool in the complex/building. 'provisions' = plumbing/infrastructure ready to ADD a pool but NO pool exists yet. 'none' = agent explicitly stated NO pool — do NOT add any pool feature. CRITICAL: 'provisions' means there is NO pool — do NOT list pool as a feature.",
           },
           features: {
             type: "array",

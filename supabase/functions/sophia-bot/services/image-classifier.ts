@@ -9,7 +9,7 @@ import { LogCategory, logger } from "../utils/logger.ts";
 
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const VISION_MODEL = "google/gemini-3-flash-preview";
+const VISION_MODEL = "google/gemini-3.1-pro-preview-customtools";
 const VISION_TIMEOUT_MS = 20_000;
 
 /** Block private/internal IPs and cloud metadata endpoints to prevent SSRF */

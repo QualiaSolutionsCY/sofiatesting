@@ -14,18 +14,54 @@
 import type { Agent } from "./db.js";
 import { getAgentsForRegion, getNextInRotation } from "./db.js";
 
-// City name → canonical region mapping
+// City/area name → canonical region mapping
+// Must include sub-areas — matching sophia-bot's REGION_LOCATIONS in business-rules.ts
 const REGION_MAP: Record<string, string> = {
-  paphos: "paphos",
-  pafos: "paphos",
-  limassol: "limassol",
-  lemesos: "limassol",
-  larnaca: "larnaca",
-  larnaka: "larnaca",
-  nicosia: "nicosia",
-  lefkosia: "nicosia",
-  famagusta: "famagusta",
-  ammochostos: "famagusta",
+  // Paphos district
+  paphos: "paphos", pafos: "paphos", tala: "paphos", peyia: "paphos",
+  chloraka: "paphos", "kato paphos": "paphos", "coral bay": "paphos", polis: "paphos",
+  geroskipou: "paphos", pegeia: "paphos", kissonerga: "paphos", emba: "paphos",
+  tremithousa: "paphos", "mesa chorio": "paphos", kamares: "paphos", mandria: "paphos",
+  kouklia: "paphos", letymvou: "paphos", tsada: "paphos", mesogi: "paphos",
+  koloni: "paphos", universal: "paphos", anavargos: "paphos", konia: "paphos",
+  "tomb of kings": "paphos", "sea caves": "paphos", kallepia: "paphos",
+  stroumbi: "paphos", kathikas: "paphos", polemi: "paphos", choulou: "paphos",
+  simou: "paphos", drouseia: "paphos", ineia: "paphos", arodes: "paphos",
+  letymbou: "paphos", peristerona: "paphos", akourdaleia: "paphos",
+  // Limassol district
+  limassol: "limassol", lemesos: "limassol", germasogeia: "limassol",
+  "agios tychonas": "limassol", potamos: "limassol", "mesa geitonia": "limassol",
+  zakaki: "limassol", columbia: "limassol", "tourist area": "limassol",
+  pareklisia: "limassol", pissouri: "limassol", erimi: "limassol",
+  episkopi: "limassol", pyrgos: "limassol", parekklisia: "limassol",
+  mouttagiaka: "limassol", "agios athanasios": "limassol", trachoni: "limassol",
+  panthea: "limassol", ypsonas: "limassol", "kato polemidia": "limassol",
+  polemidia: "limassol", "agios nikolaos": "limassol", "agia fyla": "limassol",
+  omonia: "limassol", neapolis: "limassol", linopetra: "limassol",
+  "agios ioannis": "limassol", "ayios tychonas": "limassol", neapoli: "limassol",
+  "agia zoni": "limassol", kapsalos: "limassol", enaerios: "limassol",
+  pentadromos: "limassol", naafi: "limassol",
+  // Larnaca district
+  larnaca: "larnaca", larnaka: "larnaca", oroklini: "larnaca", pervolia: "larnaca",
+  livadia: "larnaca", dekelia: "larnaca", dhekelia: "larnaca",
+  aradippou: "larnaca", meneou: "larnaca", dromolaxia: "larnaca", kiti: "larnaca",
+  tersefanou: "larnaca", perivolia: "larnaca", chrysopolitissa: "larnaca",
+  pyla: "larnaca", mosfiloti: "larnaca", mosfilioti: "larnaca", softades: "larnaca",
+  kivisili: "larnaca", anglisides: "larnaca", alethriko: "larnaca",
+  klavdia: "larnaca", mazotos: "larnaca", psematismenos: "larnaca",
+  // Nicosia district
+  nicosia: "nicosia", lefkosia: "nicosia", strovolos: "nicosia",
+  lakatamia: "nicosia", engomi: "nicosia", aglantzia: "nicosia",
+  dasoupoli: "nicosia", makedonitissa: "nicosia", kaimakli: "nicosia",
+  pallouriotissa: "nicosia", latsia: "nicosia", geri: "nicosia", dali: "nicosia",
+  tseri: "nicosia", kokkinotrimithia: "nicosia", deftera: "nicosia",
+  acropolis: "nicosia",
+  // Famagusta district
+  famagusta: "famagusta", ammochostos: "famagusta", paralimni: "famagusta",
+  protaras: "famagusta", "ayia napa": "famagusta", "agia napa": "famagusta",
+  deryneia: "famagusta", sotira: "famagusta", frenaros: "famagusta",
+  liopetri: "famagusta", xylofagou: "famagusta", vrysoulles: "famagusta",
+  "cape greco": "famagusta", kapparis: "famagusta",
 };
 
 // Agents for specific region routing (names must match DB exactly)
@@ -44,16 +80,28 @@ export interface RoutingResult {
 
 /**
  * Detect region from email content
- * NOTE: This is only used for emails that passed the filter (no city name in them).
- * So this function looks for subtler region hints.
+ * Checks subject + body for area/city names.
+ * Tries longer names first so "kato paphos" matches before "paphos".
  */
 export function detectRegionFromContent(subject: string, body: string): string | null {
   const combined = `${subject}\n${body}`.toLowerCase();
 
-  for (const [variant, canonical] of Object.entries(REGION_MAP)) {
-    const regex = new RegExp(`\\b${variant}\\b`, "i");
-    if (regex.test(combined)) {
-      return canonical;
+  // Sort by key length descending so multi-word names match first
+  const entries = Object.entries(REGION_MAP).sort(
+    (a, b) => b[0].length - a[0].length
+  );
+
+  for (const [variant, canonical] of entries) {
+    // For multi-word names, simple includes is sufficient and more reliable
+    if (variant.includes(" ")) {
+      if (combined.includes(variant)) {
+        return canonical;
+      }
+    } else {
+      const regex = new RegExp(`\\b${variant}\\b`, "i");
+      if (regex.test(combined)) {
+        return canonical;
+      }
     }
   }
 
@@ -151,7 +199,7 @@ async function routeByRegion(
       const diana = candidates.find((a) => a.full_name === "Diana Kultaseva");
       if (diana) return { agent: diana, region, reason: "Limassol + Russian speaker → Diana" };
     }
-    const next = await getNextInRotation("email_limassol", candidates);
+    const next = await getNextInRotation(region, candidates);
     if (next) return { agent: next, region, reason: "Limassol rotation" };
   }
 
@@ -160,7 +208,7 @@ async function routeByRegion(
     const candidates = allAgents.filter(
       (a) => LARNACA_AGENTS.includes(a.full_name) && a.is_active
     );
-    const next = await getNextInRotation("email_larnaca", candidates);
+    const next = await getNextInRotation(region, candidates);
     if (next) return { agent: next, region, reason: "Larnaca rotation" };
   }
 
@@ -169,7 +217,7 @@ async function routeByRegion(
     const candidates = allAgents.filter(
       (a) => PAPHOS_AGENTS.includes(a.full_name) && a.is_active
     );
-    const next = await getNextInRotation("email_paphos", candidates);
+    const next = await getNextInRotation(region, candidates);
     if (next) return { agent: next, region, reason: "Paphos rotation (Marios/Dimitris)" };
   }
 

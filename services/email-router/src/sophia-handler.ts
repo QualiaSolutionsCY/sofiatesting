@@ -17,6 +17,8 @@ import {
   fetchSophiaUnreadEmails,
   markSophiaEmailAsRead,
   sendSophiaReply,
+  extractInlineImageUrls,
+  downloadImageUrl,
   type EmailAttachment,
 } from "./gmail.js";
 
@@ -161,6 +163,31 @@ export async function processSophiaEmails(): Promise<void> {
             if (publicUrl) {
               imageUrls.push(publicUrl);
               console.log(`[Sophia] Uploaded ${attachment.filename} → ${publicUrl}`);
+            }
+          }
+        }
+
+        // If no MIME attachments, check for inline/embedded images in HTML body
+        // (Gmail often converts attached images to inline googleusercontent URLs
+        // or Google Drive links instead of keeping them as MIME attachments)
+        if (imageUrls.length === 0 && email.htmlBody) {
+          const inlineUrls = extractInlineImageUrls(email.htmlBody);
+          if (inlineUrls.length > 0) {
+            console.log(`[Sophia] Found ${inlineUrls.length} inline image(s) in HTML body, downloading...`);
+            for (const inlineUrl of inlineUrls) {
+              const attachment = await downloadImageUrl(inlineUrl);
+              if (attachment) {
+                const publicUrl = await uploadAttachmentToStorage(
+                  attachment,
+                  config.supabase.url,
+                  config.supabase.serviceRoleKey,
+                  config.sophia.storageBucket
+                );
+                if (publicUrl) {
+                  imageUrls.push(publicUrl);
+                  console.log(`[Sophia] Uploaded inline image → ${publicUrl}`);
+                }
+              }
             }
           }
         }

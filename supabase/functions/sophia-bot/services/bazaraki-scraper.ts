@@ -1,10 +1,9 @@
 /**
  * Bazaraki Listing Scraper
  *
- * Extracts property details from Bazaraki listing URLs.
  * Two-phase approach:
- *   1. Try HTML fetch + parse (may fail due to Cloudflare)
- *   2. Fall back to URL pattern extraction
+ *   1. Call Railway-hosted Playwright scraper (bypasses Cloudflare)
+ *   2. Fall back to URL pattern extraction if scraper is unavailable
  *
  * The AI will always ask the agent to confirm/supplement the extracted data.
  */
@@ -44,34 +43,181 @@ export async function extractFromBazaraki(
     warnings: [],
   };
 
-  // Phase 1: Extract what we can from URL structure
+  // Phase 1: Extract what we can from URL structure (always runs — fast)
   extractFromUrl(url, result);
 
-  // Phase 2: Try fetching the HTML page
-  try {
-    const html = await fetchBazarakiPage(url);
-    if (html) {
-      extractFromHtml(html, result);
-      result.source = result.title ? "html" : "partial";
+  // Phase 2: Try Railway Playwright scraper (full browser rendering)
+  const scraperUrl = Deno.env.get("BAZARAKI_SCRAPER_URL");
+  const scraperSecret = Deno.env.get("BAZARAKI_SCRAPER_SECRET");
+
+  if (scraperUrl) {
+    try {
+      const scraped = await fetchFromScraperService(url, scraperUrl, scraperSecret);
+      if (scraped) {
+        mergeScrapedData(scraped, result);
+        result.source = result.title ? "html" : "partial";
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.warn(`Bazaraki scraper service failed: ${msg}`, {
+        category: LogCategory.GENERAL,
+      });
+      result.warnings.push(
+        "Scraper service unavailable. Data extracted from URL pattern only."
+      );
     }
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    logger.warn(`Bazaraki HTML fetch failed: ${msg}`, {
+  } else {
+    logger.warn("BAZARAKI_SCRAPER_URL not configured — using URL pattern only", {
       category: LogCategory.GENERAL,
     });
-    result.warnings.push(
-      "Could not fully scrape listing page (Cloudflare protection). Data extracted from URL pattern only."
-    );
-  }
-
-  // Always warn about Bazaraki watermarks on images
-  if (result.imageUrls.length > 0) {
-    result.warnings.push(
-      "Images from Bazaraki may have watermarks. Consider requesting original photos from the owner."
-    );
   }
 
   return result;
+}
+
+/**
+ * Call the Railway-hosted Playwright scraper service.
+ * Returns structured data or null on failure.
+ */
+async function fetchFromScraperService(
+  url: string,
+  scraperUrl: string,
+  scraperSecret?: string
+): Promise<Record<string, unknown> | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25_000); // 25s — Playwright needs time
+
+  try {
+    const endpoint = scraperUrl.startsWith("http")
+      ? scraperUrl
+      : `https://${scraperUrl}`;
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (scraperSecret) {
+      headers["X-Scraper-Secret"] = scraperSecret;
+    }
+
+    const response = await fetch(`${endpoint}/scrape`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ url }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      logger.info(`Scraper service returned ${response.status}`, {
+        category: LogCategory.GENERAL,
+      });
+      return null;
+    }
+
+    const json = await response.json();
+    if (json.success && json.data) {
+      // Detect Cloudflare block — scraper returns but with challenge page content
+      const title = json.data.title as string || "";
+      const desc = json.data.description as string || "";
+      if (title.includes("bazaraki.com") || desc.includes("security service") || desc.includes("malicious bots")) {
+        logger.warn("Bazaraki scraper got Cloudflare challenge page instead of listing", {
+          category: LogCategory.GENERAL,
+        });
+        return null;
+      }
+
+      logger.info(`Bazaraki scraper: extracted "${title}" — ${json.data.imageUrls?.length || 0} images`, {
+        category: LogCategory.GENERAL,
+      });
+      return json.data;
+    }
+
+    return null;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      logger.info("Bazaraki scraper service timed out", {
+        category: LogCategory.GENERAL,
+      });
+    }
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Merge data from the Playwright scraper into the result.
+ * Scraper data takes priority over URL-extracted data.
+ */
+function mergeScrapedData(
+  scraped: Record<string, unknown>,
+  result: BazarakiListing
+): void {
+  if (scraped.title && typeof scraped.title === "string") {
+    result.title = scraped.title;
+  }
+  if (scraped.price && typeof scraped.price === "number" && scraped.price > 0) {
+    result.price = scraped.price;
+    result.currency = "EUR";
+  }
+  if (scraped.location && typeof scraped.location === "string" &&
+      !scraped.location.toLowerCase().includes("all adverts")) {
+    result.location = scraped.location;
+  }
+  if (scraped.description && typeof scraped.description === "string") {
+    result.description = scraped.description;
+  }
+  if (scraped.bedrooms && typeof scraped.bedrooms === "number") {
+    result.bedrooms = scraped.bedrooms;
+  }
+  if (scraped.bathrooms && typeof scraped.bathrooms === "number") {
+    result.bathrooms = scraped.bathrooms;
+  }
+  if (scraped.coveredArea && typeof scraped.coveredArea === "number") {
+    result.coveredArea = scraped.coveredArea;
+  }
+  if (scraped.plotSize && typeof scraped.plotSize === "number") {
+    result.plotSize = scraped.plotSize;
+  }
+  if (scraped.propertyType && typeof scraped.propertyType === "string") {
+    result.propertyType = scraped.propertyType;
+  }
+  if (scraped.listingType && typeof scraped.listingType === "string") {
+    const lt = scraped.listingType.toLowerCase();
+    if (lt === "sale" || lt === "rent") {
+      result.listingType = lt;
+    }
+  }
+  // Images — collect but the handler will strip them (CDN blocks external access)
+  if (Array.isArray(scraped.imageUrls)) {
+    result.imageUrls = scraped.imageUrls.filter(
+      (u): u is string => typeof u === "string" && u.startsWith("http")
+    );
+  }
+  // Features — merge scraped features + extra fields into features list
+  if (Array.isArray(scraped.features)) {
+    result.features = scraped.features.filter(
+      (f): f is string => typeof f === "string" && f.length > 0
+    );
+  }
+  // Add structured fields as features so the AI can see them
+  if (scraped.condition && typeof scraped.condition === "string") {
+    result.features.push(`condition: ${scraped.condition}`);
+  }
+  if (scraped.parking && typeof scraped.parking === "string") {
+    result.features.push(`parking: ${scraped.parking}`);
+  }
+  if (scraped.airConditioning && typeof scraped.airConditioning === "string") {
+    result.features.push(`air conditioning: ${scraped.airConditioning}`);
+  }
+  if (scraped.furnishing && typeof scraped.furnishing === "string") {
+    result.features.push(`furnishing: ${scraped.furnishing}`);
+  }
+  if (scraped.energyClass && typeof scraped.energyClass === "string") {
+    result.features.push(`energy class: ${scraped.energyClass}`);
+  }
+  if (scraped.yearBuilt && typeof scraped.yearBuilt === "number") {
+    result.features.push(`built: ${scraped.yearBuilt}`);
+  }
 }
 
 /**
@@ -109,17 +255,17 @@ function extractFromUrl(url: string, result: BazarakiListing): void {
       result.propertyType = "studio";
     }
 
-    // Extract property type from URL
+    // Extract property type from URL (order matters — specific before general)
     const typePatterns: Array<[RegExp, string]> = [
       [/villa/, "villa"],
       [/apartment/, "apartment"],
-      [/house/, "house"],
       [/penthouse/, "penthouse"],
       [/maisonette/, "maisonette"],
       [/bungalow/, "bungalow"],
       [/townhouse/, "townhouse"],
-      [/detached/, "detached house"],
       [/semi-detached/, "semi-detached"],
+      [/detached/, "detached house"],
+      [/house/, "house"],
     ];
 
     for (const [pattern, type] of typePatterns) {
@@ -139,124 +285,6 @@ function extractFromUrl(url: string, result: BazarakiListing): void {
     }
   } catch {
     // URL parsing failed — non-critical
-  }
-}
-
-/**
- * Attempt to fetch the Bazaraki page HTML.
- * Returns null if blocked (403/503) or fails.
- */
-async function fetchBazarakiPage(url: string): Promise<string | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10_000); // 10s timeout
-
-  try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      logger.info(`Bazaraki returned ${response.status}`, {
-        category: LogCategory.GENERAL,
-      });
-      return null;
-    }
-
-    return await response.text();
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      logger.info("Bazaraki fetch timed out", {
-        category: LogCategory.GENERAL,
-      });
-    }
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-/**
- * Extract structured data from Bazaraki HTML.
- * Uses regex-based extraction (no DOM parser in Deno edge functions).
- * Selectors based on common Bazaraki page patterns.
- */
-function extractFromHtml(html: string, result: BazarakiListing): void {
-  // Extract title from <h1> or og:title
-  const titleMatch =
-    html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
-    html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-  if (titleMatch) {
-    result.title = titleMatch[1].trim();
-  }
-
-  // Extract price
-  const priceMatch =
-    html.match(/data-price="(\d+)"/i) ||
-    html.match(/class="[^"]*price[^"]*"[^>]*>[\s€]*([0-9,.]+)/i) ||
-    html.match(/€\s*([0-9,.]+)/);
-  if (priceMatch) {
-    result.price = Number.parseInt(priceMatch[1].replace(/[,.]/g, ""), 10);
-    result.currency = "EUR";
-  }
-
-  // Extract description from og:description or content area
-  const descMatch = html.match(
-    /<meta\s+property="og:description"\s+content="([^"]+)"/i
-  );
-  if (descMatch) {
-    result.description = descMatch[1].trim();
-  }
-
-  // Extract images from og:image and gallery
-  const imageMatches = html.matchAll(
-    /<meta\s+property="og:image"\s+content="([^"]+)"/gi
-  );
-  for (const match of imageMatches) {
-    if (!result.imageUrls.includes(match[1])) {
-      result.imageUrls.push(match[1]);
-    }
-  }
-
-  // Also try to find gallery images
-  const galleryMatches = html.matchAll(
-    /data-src="(https?:\/\/[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/gi
-  );
-  for (const match of galleryMatches) {
-    if (!result.imageUrls.includes(match[1])) {
-      result.imageUrls.push(match[1]);
-    }
-  }
-
-  // Extract area (sqm)
-  const areaMatch = html.match(/(\d+)\s*(?:m²|sq\.?\s*m|sqm)/i);
-  if (areaMatch) {
-    result.coveredArea = Number.parseInt(areaMatch[1], 10);
-  }
-
-  // Extract bathrooms
-  const bathMatch = html.match(/(\d+)\s*(?:bathroom|bath)/i);
-  if (bathMatch && !result.bathrooms) {
-    result.bathrooms = Number.parseInt(bathMatch[1], 10);
-  }
-
-  // Extract bedrooms (supplement URL data)
-  const bedMatch = html.match(/(\d+)\s*(?:bedroom|bed)/i);
-  if (bedMatch && !result.bedrooms) {
-    result.bedrooms = Number.parseInt(bedMatch[1], 10);
-  }
-
-  // Extract location from breadcrumbs or data attributes
-  const locationMatch =
-    html.match(/data-location="([^"]+)"/i) ||
-    html.match(/<span[^>]*class="[^"]*location[^"]*"[^>]*>([^<]+)/i);
-  if (locationMatch && !result.location) {
-    result.location = locationMatch[1].trim();
   }
 }
 
@@ -294,8 +322,11 @@ export function formatBazarakiSummary(listing: BazarakiListing): string {
     parts.push(`Bedrooms: ${listing.bedrooms}`);
   if (listing.bathrooms) parts.push(`Bathrooms: ${listing.bathrooms}`);
   if (listing.coveredArea) parts.push(`Area: ${listing.coveredArea} sqm`);
-  if (listing.imageUrls.length > 0)
-    parts.push(`Images found: ${listing.imageUrls.length}`);
+  if (listing.plotSize) parts.push(`Plot: ${listing.plotSize} sqm`);
+  if (listing.description) parts.push(`Description: ${listing.description}`);
+  if (listing.features.length > 0)
+    parts.push(`Features: ${listing.features.join(", ")}`);
+  // Do NOT mention Bazaraki images — they can't be used and mentioning them confuses agents.
 
   if (listing.warnings.length > 0) {
     parts.push(
@@ -303,9 +334,19 @@ export function formatBazarakiSummary(listing: BazarakiListing): string {
     );
   }
 
-  parts.push(
-    "\nStill needed from agent: Owner name, Owner phone, Title deed status, Confirmation of details"
-  );
+  // List fields that could NOT be extracted — the AI should check the agent's
+  // message for these before asking again (the prompt already instructs this).
+  const missing: string[] = [];
+  if (!listing.price) missing.push("Price");
+  if (!listing.coveredArea) missing.push("Covered area (m²)");
+  if (!listing.location) missing.push("Location");
+  if (!listing.bathrooms) missing.push("Bathrooms");
+
+  if (missing.length > 0) {
+    parts.push(
+      `\nCould not extract from listing: ${missing.join(", ")}. Check the agent's message — they may have already provided some of these. Only ask for what is truly missing.`
+    );
+  }
 
   return parts.join("\n");
 }

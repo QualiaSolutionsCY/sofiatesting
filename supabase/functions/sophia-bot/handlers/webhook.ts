@@ -311,7 +311,7 @@ async function processRequest(
 
     // Add breadcrumb before AI call
     addBreadcrumb("Calling OpenRouter", "ai", {
-      model: "google/gemini-3-flash-preview",
+      model: "google/gemini-3.1-pro-preview-customtools",
     });
 
     // Call AI

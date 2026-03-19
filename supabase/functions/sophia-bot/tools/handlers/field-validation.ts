@@ -32,6 +32,34 @@ import {
 import { acquireUploadLock, releaseUploadLock } from "../validators/upload-lock.ts";
 import { getSupabaseAdmin } from "../../../_shared/db.ts";
 
+/**
+ * Resolve a short URL (maps.app.goo.gl, etc.) by following redirects.
+ * Returns the final URL with full coordinates.
+ */
+async function resolveShortUrl(shortUrl: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5_000);
+
+  try {
+    // Follow redirect but don't download body
+    const response = await fetch(shortUrl, {
+      method: "HEAD",
+      redirect: "follow",
+      signal: controller.signal,
+    });
+    const resolved = response.url;
+    // Only return if it resolved to a different, longer URL
+    if (resolved && resolved !== shortUrl && resolved.length > shortUrl.length) {
+      return resolved;
+    }
+    return null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export interface ToolResult {
   success?: boolean;
   error?: string;
@@ -226,7 +254,26 @@ export async function validateAndPrepareFields(
 
   let location = args.location as string;
   const listingType = args.listingType as "sale" | "rent";
-  const locationUrl = args.locationUrl as string | undefined;
+  let locationUrl = args.locationUrl as string | undefined;
+
+  // Resolve Google Maps short links (maps.app.goo.gl) to full URLs with coordinates
+  if (locationUrl && (locationUrl.includes("goo.gl") || locationUrl.includes("maps.app"))) {
+    try {
+      const resolved = await resolveShortUrl(locationUrl);
+      if (resolved && resolved !== locationUrl) {
+        logger.info(`Resolved short URL: ${locationUrl} → ${resolved.substring(0, 100)}`, {
+          category: LogCategory.TOOL,
+        });
+        locationUrl = resolved;
+        // Update args so downstream code (coordinates, locationUrl field) uses the resolved URL
+        args.locationUrl = resolved;
+      }
+    } catch (error) {
+      logger.warn(`Failed to resolve short URL: ${error instanceof Error ? error.message : error}`, {
+        category: LogCategory.TOOL,
+      });
+    }
+  }
 
   // 2.5 CRITICAL: Correct street addresses to area names
   // AI sometimes passes street names (e.g., "Apostolou Pavlou Ave, Paphos" or "Michali Sougioul, Limassol")
@@ -297,6 +344,47 @@ export async function validateAndPrepareFields(
     };
   }
 
+  // 2.7 CRITICAL: Correct district mismatch in location string.
+  // AI often writes "Episkopi, Paphos" when Episkopi is actually in Limassol.
+  // determineRegion uses specific area names (not district names) first,
+  // so it correctly identifies the actual district. Fix the location string to match.
+  const districtNames: Record<string, string[]> = {
+    paphos: ["paphos", "pafos"],
+    limassol: ["limassol", "lemesos"],
+    larnaca: ["larnaca", "larnaka"],
+    nicosia: ["nicosia", "lefkosia"],
+    famagusta: ["famagusta", "ammochostos"],
+  };
+  const districtDisplayNames: Record<string, string> = {
+    paphos: "Paphos",
+    limassol: "Limassol",
+    larnaca: "Larnaca",
+    nicosia: "Nicosia",
+    famagusta: "Famagusta",
+  };
+  const detectedRegion = determineRegion(location);
+  if (detectedRegion) {
+    // Check if the location string contains a WRONG district name
+    const locationLower = location.toLowerCase();
+    for (const [wrongRegion, names] of Object.entries(districtNames)) {
+      if (wrongRegion === detectedRegion) continue;
+      for (const name of names) {
+        if (locationLower.includes(name)) {
+          const correctName = districtDisplayNames[detectedRegion];
+          // Replace wrong district with correct one (case-insensitive)
+          const regex = new RegExp(name, "gi");
+          const oldLocation = location;
+          location = location.replace(regex, correctName);
+          logger.warn(
+            `Location district corrected: "${oldLocation}" → "${location}" (area is in ${detectedRegion}, not ${wrongRegion})`,
+            { category: LogCategory.TOOL, operation: "validateAndPrepareFields" }
+          );
+          break;
+        }
+      }
+    }
+  }
+
   // 3. Validate regional access
   const regionResult = validateRegionalAccess(agent, location);
   if (!regionResult.allowed) {
@@ -304,7 +392,7 @@ export async function validateAndPrepareFields(
   }
 
   const propertyRegion =
-    regionResult.propertyRegion || determineRegion(location) || agent.region;
+    regionResult.propertyRegion || detectedRegion || agent.region;
 
   // 4. Handle special cases
   const specialCase = await handleSpecialCases(

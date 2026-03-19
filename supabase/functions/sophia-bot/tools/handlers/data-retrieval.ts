@@ -152,11 +152,17 @@ export async function handleExtractFromBazaraki(
     const listing = await extractBazarakiListing(url);
     const summary = formatBazarakiSummary(listing);
 
+    // NOTE: Do NOT set `message` here — that would bypass the AI and send
+    // the raw summary directly to the user. Instead, put everything in `data`
+    // so the AI processes it and composes a human-friendly response.
     return {
       success: true,
-      message: summary,
       data: {
-        ...listing,
+        summary,
+        // Strip Bazaraki image URLs — CDN blocks external access, they always fail.
+        // The prompt tells the AI to ask the agent for photos via WhatsApp instead.
+        imageUrls: [],
+        imageCount: listing.imageUrls.length,
         // Pass extracted data so AI can pre-fill createPropertyListing
         extractedFields: {
           listingType: listing.listingType,
@@ -167,7 +173,9 @@ export async function handleExtractFromBazaraki(
           bathrooms: listing.bathrooms,
           coveredArea: listing.coveredArea,
           plotSize: listing.plotSize,
-          imageUrls: listing.imageUrls,
+          description: listing.description,
+          features: listing.features,
+          warnings: listing.warnings,
         },
       },
     };

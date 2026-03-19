@@ -24,8 +24,28 @@ export function determineRegion(location: string): string | null {
     return null;
   }
 
+  // District name → region mapping
+  const districtToRegion: Record<string, string> = {
+    paphos: "paphos", pafos: "paphos",
+    limassol: "limassol", lemesos: "limassol",
+    larnaca: "larnaca", larnaka: "larnaca",
+    nicosia: "nicosia", lefkosia: "nicosia",
+    famagusta: "famagusta", ammochostos: "famagusta",
+  };
+  const districtNames = new Set(Object.keys(districtToRegion));
+
+  // Phase 1: If location EXPLICITLY contains a district name (e.g. "Mandria, Limassol"),
+  // the district name wins. This handles ambiguous villages that exist in multiple districts.
+  for (const [district, region] of Object.entries(districtToRegion)) {
+    if (normalizedLocation.includes(district)) {
+      return region;
+    }
+  }
+
+  // Phase 2: Check specific area names (not district names)
   for (const [region, locations] of Object.entries(REGION_LOCATIONS)) {
     for (const loc of locations) {
+      if (districtNames.has(loc)) continue;
       if (
         normalizedLocation.includes(loc) ||
         loc.includes(normalizedLocation)
@@ -33,38 +53,6 @@ export function determineRegion(location: string): string | null {
         return region;
       }
     }
-  }
-
-  // If no match, try to infer from partial matches
-  if (
-    normalizedLocation.includes("paphos") ||
-    normalizedLocation.includes("pafos")
-  ) {
-    return "paphos";
-  }
-  if (
-    normalizedLocation.includes("limassol") ||
-    normalizedLocation.includes("lemesos")
-  ) {
-    return "limassol";
-  }
-  if (
-    normalizedLocation.includes("larnaca") ||
-    normalizedLocation.includes("larnaka")
-  ) {
-    return "larnaca";
-  }
-  if (
-    normalizedLocation.includes("nicosia") ||
-    normalizedLocation.includes("lefkosia")
-  ) {
-    return "nicosia";
-  }
-  if (
-    normalizedLocation.includes("famagusta") ||
-    normalizedLocation.includes("ammochostos")
-  ) {
-    return "famagusta";
   }
 
   return null;

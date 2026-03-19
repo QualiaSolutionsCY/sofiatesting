@@ -19,10 +19,14 @@ For detailed reference (commands, schema, troubleshooting, etc.), see `docs/CLAU
 | Component | Runs On | Status |
 |-----------|---------|--------|
 | **WhatsApp Bot (Sophia)** | Supabase Edge Function `sophia-bot` | LIVE |
-| **Telegram Bot** | Supabase Edge Function `sophia-bot` | **DISABLED** |
+| **Telegram Bot (Lead Router)** | Supabase Edge Function `telegram-sophia` | LIVE (Paphos + Others only) |
+| **Telegram Indexer** | Supabase Edge Function `telegram-indexer` | LIVE |
 | **Listing Notifier** | Supabase Edge Function `listing-notifier` | LIVE (pg_cron every 15 min) |
 | **Draft Cleanup** | Supabase Edge Function `draft-cleanup` | LIVE |
 | **Prompt Optimizer** | Supabase Edge Function `prompt-optimizer` | LIVE (pg_cron every 6 hours) |
+| **Call Audit** | Supabase Edge Function `call-audit` | LIVE |
+| **Email Router** | Railway service (`services/email-router/`) | LIVE — forwards emails to sophia-bot `/email` endpoint |
+| **Bazaraki Scraper** | Docker service (`services/bazaraki-scraper/`) | Scrapes Bazaraki listings |
 | **Web App (Next.js)** | Vercel | ADMIN PANEL ONLY — `/` redirects to `/admin` |
 | **Database** | Supabase PostgreSQL | LIVE |
 
@@ -35,16 +39,28 @@ For detailed reference (commands, schema, troubleshooting, etc.), see `docs/CLAU
 
 ### Deploy Commands
 ```bash
-# sophia-bot (primary)
+# sophia-bot (primary — WhatsApp + email webhook)
 supabase functions deploy sophia-bot --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
+
+# telegram-sophia (lead routing + private AI chat)
+supabase functions deploy telegram-sophia --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
+
+# telegram-indexer (group message indexing)
+supabase functions deploy telegram-indexer --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
 
 # listing-notifier
 supabase functions deploy listing-notifier --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
 
+# draft-cleanup
+supabase functions deploy draft-cleanup --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
+
+# call-audit (3CX call tracking)
+supabase functions deploy call-audit --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
+
 # prompt-optimizer (autoresearch)
 supabase functions deploy prompt-optimizer --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
 
-# Vercel web app
+# Vercel web app (admin panel)
 vercel --prod
 ```
 
@@ -53,7 +69,10 @@ vercel --prod
 supabase secrets set SOPHIA_TELEGRAM_ENABLED=true --project-ref vceeheaxcrhmpqueudqx   # ON
 supabase secrets set SOPHIA_TELEGRAM_ENABLED=false --project-ref vceeheaxcrhmpqueudqx  # OFF
 ```
-**Current status: DISABLED** (as of Jan 2026)
+**Current status: ENABLED** (re-enabled 2026-03-16)
+- Paphos + Others groups: lead routing ON (`telegram_groups.lead_routing_enabled = true`)
+- Limassol + Larnaca groups: lead routing OFF (intentional)
+- Source code for `telegram-sophia` IS in repo at `supabase/functions/telegram-sophia/`
 
 ---
 
@@ -62,11 +81,14 @@ supabase secrets set SOPHIA_TELEGRAM_ENABLED=false --project-ref vceeheaxcrhmpqu
 | Channel | AI Provider | Implementation |
 |---------|-------------|----------------|
 | **WhatsApp (sophia-bot)** | OpenRouter -> Gemini | `supabase/functions/sophia-bot/` calls OpenRouter directly |
+| **Email (sophia-bot /email)** | OpenRouter -> Gemini | Same AI pipeline, triggered by email-router on Railway |
 
-**Primary Model** (via OpenRouter): `google/gemini-3.1-flash-preview`, fallback: `google/gemini-2.0-flash`
+**Primary Model** (via OpenRouter): `google/gemini-3.1-pro-preview`
+**Pro Model** (for uploads): `google/gemini-3.1-pro-preview`
+**Fallback Model**: `google/gemini-2.5-flash`
+**Vision Model** (image classification): `google/gemini-3.1-pro-preview`
 
-
-> **⚠️ IGNORE `app/(chat)/` directory.** The chat frontend is deprecated and unused. The **admin panel** (`app/(admin)/`) is LIVE, and `app/(auth)/` handles NextAuth. Root `/` redirects to `/admin`. All active development is on the WhatsApp bot in `supabase/functions/sophia-bot/`. Do NOT read, modify, or reference chat-related files.
+> The **admin panel** (`app/(admin)/`) is LIVE, and `app/(auth)/` handles NextAuth. Root `/` redirects to `/admin`. All active development is on the WhatsApp bot in `supabase/functions/sophia-bot/`.
 
 ---
 
@@ -76,11 +98,13 @@ supabase secrets set SOPHIA_TELEGRAM_ENABLED=false --project-ref vceeheaxcrhmpqu
 
 ```
 DB: sophia_prompts table (TAKES PRECEDENCE)
-  identity(10) > safety_rules(20) > document_routing(30) > property_upload(40)
-  > response_format(50) > calculators(60) > cyprus_knowledge(70)
+  identity(10) > safety_rules(20) > reservation_loan_vat_required(25)
+  > document_routing(30) > property_upload(40) > response_format(50)
+  > calculators(60) > cyprus_knowledge(70)
 
 File Fallbacks (used if key NOT in DB):
   templates (from prompts/templates/content.ts)
+  safety_rules (FILE_OVERRIDE — never auto-optimized)
 
 prompt-loader.ts merges DB + fallbacks (5-minute cache)
 ```
@@ -90,7 +114,8 @@ prompt-loader.ts merges DB + fallbacks (5-minute cache)
 |------|---------|
 | `supabase/functions/sophia-bot/services/prompt-loader.ts` | Loads prompts from DB with fallback to files |
 | `supabase/functions/sophia-bot/prompts/core/identity.ts` | SOPHIA's identity (fallback) |
-| `supabase/functions/sophia-bot/prompts/core/safety-rules.ts` | Safety and behavioral rules (fallback) |
+| `supabase/functions/sophia-bot/prompts/core/safety-rules.ts` | Safety and behavioral rules (FILE_OVERRIDE — always used) |
+| `supabase/functions/sophia-bot/prompts/behaviors/reservation-loan-vat.ts` | Reservation loan & VAT collection rules (fallback) |
 | `supabase/functions/sophia-bot/prompts/behaviors/document-routing.ts` | DOCX vs TEXT routing, field collection (fallback) |
 | `supabase/functions/sophia-bot/prompts/behaviors/property-upload.ts` | Property upload rules (fallback) |
 | `supabase/functions/sophia-bot/prompts/behaviors/response-format.ts` | Response formatting rules (fallback) |
@@ -112,7 +137,7 @@ prompt-loader.ts merges DB + fallbacks (5-minute cache)
 - Clear chat_history, test on WhatsApp, verify in chat_history table
 
 **DO NOT:**
-- Edit `lib/ai/instructions/`, `docs/templates/`, `docs/knowledge/` - NOT USED by live SOPHIA
+- Edit `lib/ai/instructions/` — legacy file, NOT USED by live SOPHIA
 - Assume file changes go live without deploying Edge Function
 - Make changes without searching ALL prompts first
 
@@ -144,7 +169,7 @@ For the full 8-step prompt change workflow, see `docs/CLAUDE-REFERENCE.md`.
 ### Regional Office Accounts
 | Regional Email | Zyprus UUID |
 |----------------|-------------|
-| requestpaphos@zyprus.com | c8e05e2a-56e6-4d1f-9a20-31235feaec54 |
+| requestpaphos@zyprus.com | ce23963b-ea29-4d42-933e-d0cd60bac5c7 |
 | requestlimassol@zyprus.com | c82d28cd-8167-4a2a-9ae8-8168015869c3 |
 | requestlarnaca@zyprus.com | f889a6dc-0973-44b2-b10c-0d681f84f560 |
 | requestnicosia@zyprus.com | 630cc4fd-d2c7-410a-821d-b0a9adfae4ea |
@@ -155,11 +180,19 @@ For the full 8-step prompt change workflow, see `docs/CLAUDE-REFERENCE.md`.
 SOPHIA_AI_UUID = "7026c7a3-1ef0-419f-9957-15a8c161b614"  # NOT "Sophia" user d697ac16
 LAUREN_UUID = "0caa9a75-362a-4156-b11b-b52839243b74"
 MICHELLE_UUID = "dc2688d2-0ea1-4c13-b03d-3309ee8de6a4"
+DEMETRA_UUID = "b72a0f7c-62d8-4f69-89f3-aaebee31676a"
+AZINAS_UUID = "c8e05e2a-56e6-4d1f-9a20-31235feaec54"
+CHARALAMBOS_UUID = "71ac4784-238f-45b2-ac15-5f74200601ce"
 ```
 
+### Email Upload Pipeline
+- `email-router` (Railway) watches Gmail inbox, forwards property emails to sophia-bot `/email` endpoint
+- `email-webhook.ts` handler: authenticates via `X-Admin-Secret`, identifies agent by email, runs same AI pipeline
+- `email-parser.ts`: server-side field extraction BEFORE AI sees the email (prevents hallucination)
+- Email uploads use the same tools/reviewers as WhatsApp uploads
+
 ### Pending
-1. **Resend Domain Verification** - Add SPF/DKIM records for `zyprus.com` in DNS
-2. **End-to-End Email Testing** - Test document creation via WhatsApp -> email with attachment
+- ~~Resend Domain Verification~~ — VERIFIED, domain is live
 
 ---
 

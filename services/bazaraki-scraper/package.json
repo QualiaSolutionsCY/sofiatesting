@@ -1,0 +1,14 @@
+{
+  "name": "bazaraki-scraper",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "playwright": "1.50.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

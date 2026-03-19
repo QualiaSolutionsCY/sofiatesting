@@ -138,7 +138,7 @@ export const createPropertyListingSchema = z.object({
   imageOrder: z.array(z.number().int().positive()).max(100).optional(),
   mainPhotoIndex: z.number().int().positive().max(100).optional(),
   unitBreakdown: optionalString(5000),
-  poolType: z.enum(["private", "communal", "provisions"]).optional(),
+  poolType: z.enum(["private", "communal", "provisions", "none"]).optional(),
   features: z.array(z.string().max(100)).max(100).optional(),
   energyClass: optionalString(10),
   yearBuilt: z.number().int().min(1800).max(2100).optional(),

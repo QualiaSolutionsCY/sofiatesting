@@ -672,7 +672,11 @@ export async function createDraftLandListing(
     findPropertyViewUuids(listing.views || []),
   ]);
 
-  const instructorUuid = listingOwnerUuid;
+  // Resolve instructor UUID — usually same as owner, but differs for Michelle rentals
+  const instructorUuid =
+    listing.listingInstructor && listing.listingInstructor !== listing.listingOwner
+      ? await findUserUuid(listing.listingInstructor)
+      : listingOwnerUuid;
 
   logger.info("Resolved Zyprus UUIDs for land listing", {
     category: LogCategory.ZYPRUS,

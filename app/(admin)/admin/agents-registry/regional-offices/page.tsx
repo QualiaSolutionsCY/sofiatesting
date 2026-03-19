@@ -48,8 +48,8 @@ const EXPECTED_OFFICES = [
   {
     region: "Paphos",
     email: "requestpaphos@zyprus.com",
-    expectedUuid: "c8e05e2a-56e6-4d1f-9a20-31235feaec54",
-    note: "Uses Azinas's UUID",
+    expectedUuid: "ce23963b-ea29-4d42-933e-d0cd60bac5c7",
+    note: "Separate account from Azinas",
   },
   {
     region: "Limassol",

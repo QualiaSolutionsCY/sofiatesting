@@ -42,7 +42,7 @@ export const USER_FALLBACKS: Record<string, string> = {
   "charalambos@zyprus.com": CHARALAMBOS_UUID,
   "csc@zyprus.com": CHARALAMBOS_UUID,
   // Regional request accounts - actual Zyprus user UUIDs (verified from Zyprus API)
-  "requestpaphos@zyprus.com": "c8e05e2a-56e6-4d1f-9a20-31235feaec54",
+  "requestpaphos@zyprus.com": "ce23963b-ea29-4d42-933e-d0cd60bac5c7",
   "requestlimassol@zyprus.com": "c82d28cd-8167-4a2a-9ae8-8168015869c3",
   "requestlarnaca@zyprus.com": "f889a6dc-0973-44b2-b10c-0d681f84f560",
   "requestnicosia@zyprus.com": "630cc4fd-d2c7-410a-821d-b0a9adfae4ea",

@@ -66,10 +66,6 @@ export function initSentry(): void {
       debug: false, // No debug logs in production
       // Attach stack traces for error events
       attachStacktrace: true,
-      // Capture unhandled rejections
-      integrations: [
-        Sentry.denoIntegration(),
-      ],
     });
 
     sentryInitialized = true;

@@ -346,6 +346,134 @@ export function extractAttachments(parsed: ParsedMail): EmailAttachment[] {
 }
 
 /**
+ * Extract inline/embedded image URLs from the HTML body.
+ * Gmail sometimes converts attached images to inline CID references or
+ * Google-hosted URLs (googleusercontent, Google Drive, lh3.google.com, etc.)
+ * instead of keeping them as MIME attachments.
+ *
+ * Returns direct image URLs that can be downloaded.
+ */
+export function extractInlineImageUrls(htmlBody: string): string[] {
+  if (!htmlBody) return [];
+
+  const urls: string[] = [];
+  const seen = new Set<string>();
+
+  // Match <img src="..."> tags
+  const imgRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+  let match;
+  while ((match = imgRegex.exec(htmlBody)) !== null) {
+    const url = match[1];
+    // Skip CID references (handled separately), data URIs, and tracking pixels
+    if (url.startsWith("cid:")) continue;
+    if (url.startsWith("data:")) continue;
+    if (url.includes("tracking") || url.includes("beacon") || url.includes("pixel")) continue;
+    // Skip tiny tracking images (1x1 pixels often have width/height in the tag)
+    const tagStr = match[0];
+    if (/width=["']1["']|height=["']1["']/.test(tagStr)) continue;
+
+    if (!seen.has(url)) {
+      seen.add(url);
+      urls.push(url);
+    }
+  }
+
+  // Match Google Drive sharing links in the body text/HTML
+  // e.g., https://drive.google.com/file/d/XXXXX/view
+  const driveRegex = /https:\/\/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/gi;
+  while ((match = driveRegex.exec(htmlBody)) !== null) {
+    const fileId = match[1];
+    // Convert to direct download URL
+    const directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    if (!seen.has(directUrl)) {
+      seen.add(directUrl);
+      urls.push(directUrl);
+    }
+  }
+
+  return urls;
+}
+
+/**
+ * Download an image from a URL and return it as an EmailAttachment.
+ * Handles Google Drive's confirm-download interstitial page.
+ * Returns null on failure (non-image content type, timeout, etc.)
+ */
+export async function downloadImageUrl(url: string): Promise<EmailAttachment | null> {
+  try {
+    // For Google Drive URLs, use the direct export endpoint with confirm bypass
+    let fetchUrl = url;
+    const driveFileIdMatch = url.match(/drive\.google\.com\/(?:uc\?.*id=|file\/d\/)([a-zA-Z0-9_-]+)/);
+    if (driveFileIdMatch) {
+      const fileId = driveFileIdMatch[1];
+      // Use the thumbnail endpoint which doesn't require confirmation
+      // sz=w2048 gives us a high-res version
+      fetchUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w2048`;
+    }
+
+    const response = await fetch(fetchUrl, {
+      signal: AbortSignal.timeout(30_000),
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; SophiaBot/1.0)",
+      },
+      redirect: "follow",
+    });
+
+    if (!response.ok) {
+      console.warn(`[Sophia] Failed to download image ${fetchUrl}: ${response.status}`);
+      return null;
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.startsWith("image/")) {
+      // For Google Drive, try the lh3 export as fallback
+      if (driveFileIdMatch) {
+        const fileId = driveFileIdMatch[1];
+        const fallbackUrl = `https://lh3.googleusercontent.com/d/${fileId}=w2048`;
+        console.log(`[Sophia] Drive thumbnail failed, trying lh3 fallback for ${fileId}`);
+        const fallbackResp = await fetch(fallbackUrl, {
+          signal: AbortSignal.timeout(30_000),
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; SophiaBot/1.0)" },
+          redirect: "follow",
+        });
+        if (fallbackResp.ok) {
+          const fbContentType = fallbackResp.headers.get("content-type") || "";
+          if (fbContentType.startsWith("image/")) {
+            const buffer = Buffer.from(await fallbackResp.arrayBuffer());
+            if (buffer.length < 1000) return null;
+            const ext = fbContentType.split("/")[1]?.split(";")[0] || "jpg";
+            return {
+              content: buffer,
+              contentType: fbContentType,
+              filename: `drive-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`,
+            };
+          }
+        }
+      }
+      console.warn(`[Sophia] URL is not an image (${contentType}): ${fetchUrl.substring(0, 100)}`);
+      return null;
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    // Skip tiny images (likely tracking pixels)
+    if (buffer.length < 1000) {
+      console.warn(`[Sophia] Skipping tiny image (${buffer.length} bytes): ${fetchUrl.substring(0, 80)}`);
+      return null;
+    }
+
+    const ext = contentType.split("/")[1]?.split(";")[0] || "jpg";
+    return {
+      content: buffer,
+      contentType,
+      filename: `inline-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`,
+    };
+  } catch (err) {
+    console.warn(`[Sophia] Error downloading image ${url.substring(0, 80)}:`, err);
+    return null;
+  }
+}
+
+/**
  * Create an IMAP client for sophia@zyprus.com
  */
 export function createSophiaImapClient(): ImapFlow {

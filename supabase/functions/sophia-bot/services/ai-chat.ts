@@ -33,8 +33,10 @@ const OPENROUTER_CIRCUIT = {
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-const PRIMARY_MODEL = "google/gemini-3-flash-preview";
-const FALLBACK_MODEL = "google/gemini-2.0-flash";
+// Switched to Gemini 3.1 Pro 2026-03-19 — Flash preview was causing regressions
+const PRIMARY_MODEL = "google/gemini-3.1-pro-preview-customtools";
+const PRO_MODEL = "google/gemini-3.1-pro-preview-customtools";
+const FALLBACK_MODEL = "google/gemini-2.5-flash";
 
 interface AIResponse {
   response: string;
@@ -317,7 +319,9 @@ async function callOpenRouter(
     while (retries <= maxRetries) {
       // Create fresh AbortController for each retry
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30_000); // 30 seconds
+      // Pro model needs more time (larger context, slower inference)
+      const timeoutMs = model === PRO_MODEL ? 60_000 : 30_000;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       try {
         const aiRes = await fetch(OPENROUTER_URL, {
@@ -404,14 +408,15 @@ async function callOpenRouter(
     return { message: null, usage: null, error: "Max retries exceeded" };
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      logger.error("OpenRouter request timeout (30s)", error, {
+      const timeoutMs = model === PRO_MODEL ? 60_000 : 30_000;
+      logger.error(`OpenRouter request timeout (${timeoutMs / 1000}s) for model ${model}`, error, {
         category: LogCategory.GENERAL,
       });
       recordFailure(OPENROUTER_CIRCUIT);
       return {
         message: null,
         usage: null,
-        error: "OpenRouter request timeout (30s)",
+        error: `OpenRouter request timeout (${timeoutMs / 1000}s)`,
       };
     }
     recordFailure(OPENROUTER_CIRCUIT);
@@ -471,6 +476,7 @@ export async function chat(
 
   // Detect if user wants to upload a property - force tool usage in this case
   const lowerMessage = userMessage.toLowerCase();
+  const isBazarakiLink = lowerMessage.includes("bazaraki.com/");
   const isPropertyUploadIntent =
     (lowerMessage.includes("upload") && lowerMessage.includes("property")) ||
     (lowerMessage.includes("create") && lowerMessage.includes("listing")) ||
@@ -561,13 +567,24 @@ export async function chat(
             ? "required"
             : "auto";
 
+    // Use Pro model for property uploads, email uploads, and Bazaraki extraction (better at structured extraction)
+    const useProModel = isPropertyUploadIntent || isBazarakiLink || hasPreExtractedFields || isEmailWithStructuredData;
+    const modelForCall = useProModel ? PRO_MODEL : PRIMARY_MODEL;
+
     const openRouterResult = await callOpenRouter(
       currentMessages,
       tools,
-      toolChoiceForCall
+      toolChoiceForCall,
+      modelForCall
     );
     let { message, error } = openRouterResult;
     const { usage } = openRouterResult;
+
+    if (useProModel && !error) {
+      logger.info(`[OpenRouter] Used Pro model for ${isBazarakiLink ? "Bazaraki extraction" : hasPreExtractedFields || isEmailWithStructuredData ? "email upload" : "property upload"}`, {
+        category: LogCategory.GENERAL,
+      });
+    }
 
     // Accumulate token usage
     if (usage?.totalTokens) {
@@ -585,9 +602,11 @@ export async function chat(
     }
     if (error || !message) {
       logger.warn(
-        `[Fallback] Primary model failed (${error}), trying ${FALLBACK_MODEL}`,
+        `[Fallback] ${modelForCall} failed (${error}), trying ${FALLBACK_MODEL}`,
         { category: LogCategory.GENERAL }
       );
+      // Reset circuit breaker before fallback — Pro failures should NOT block Flash fallback
+      recordSuccess(OPENROUTER_CIRCUIT);
       const fallback = await callOpenRouter(
         currentMessages,
         tools,
@@ -930,7 +949,7 @@ export async function chat(
       const {
         message: retryMessage,
         usage: retryUsage,
-      } = await callOpenRouter(currentMessages, tools, "required");
+      } = await callOpenRouter(currentMessages, tools, "required", PRO_MODEL);
 
       // Accumulate retry token usage
       if (retryUsage?.totalTokens) {

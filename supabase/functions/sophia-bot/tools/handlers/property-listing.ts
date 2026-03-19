@@ -292,6 +292,7 @@ export async function handleCreatePropertyListing(
     poolType = "provisions";
   }
   if (poolType) {
+    // Always strip any existing pool-related features first
     const poolKeywords = [
       "pool",
       "swimming pool",
@@ -309,6 +310,7 @@ export async function handleCreatePropertyListing(
     effectiveFeatures.length = 0;
     effectiveFeatures.push(...nonPoolFeatures);
 
+    // Only add pool feature for actual pool types (NOT "none")
     switch (poolType) {
       case "private":
         effectiveFeatures.push("private pool");
@@ -318,6 +320,9 @@ export async function handleCreatePropertyListing(
         break;
       case "provisions":
         effectiveFeatures.push("provisions for swimming pool");
+        break;
+      case "none":
+        // Explicitly no pool — don't add anything
         break;
     }
     logger.info("Auto-injected pool feature based on poolType", {
