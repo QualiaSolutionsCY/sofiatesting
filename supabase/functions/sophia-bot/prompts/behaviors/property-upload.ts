@@ -517,7 +517,7 @@ Before uploading, system checks for duplicates by:
 
 If potential duplicate found:
 - The system will warn the agent and ask them to confirm with "upload anyway"
-- **When agent says "upload anyway" or confirms re-upload:** You MUST call createPropertyListing again with **confirmDuplicate: true** added to the tool arguments. This tells the system to skip the duplicate check and proceed with upload.
+- **When agent says "upload anyway" or confirms re-upload:** You MUST call createPropertyListing (or createLandListing) again with ALL THE SAME ARGUMENTS from the original attempt PLUS **confirmDuplicate: true**. You must include listingType, propertyType, price, location, bedrooms, coveredArea, ownerName, ownerPhone, titleDeedStatus — every single field from the original message. Do NOT call the tool with only confirmDuplicate. Re-read the chat history to find all the original property details.
 - Flag listing with "POTENTIAL DUPLICATE"
 - Include duplicate warning in AI notes
 

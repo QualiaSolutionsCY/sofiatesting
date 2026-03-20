@@ -60,15 +60,8 @@ async function resolveShortUrl(shortUrl: string): Promise<string | null> {
   }
 }
 
-export interface ToolResult {
-  success?: boolean;
-  error?: string;
-  needsInput?: boolean;
-  question?: string;
-  message?: string;
-  data?: unknown;
-  retryable?: boolean;
-}
+import type { ToolResult } from "../executor.ts";
+export type { ToolResult };
 
 export interface ValidatedFields {
   location: string;
@@ -132,6 +125,9 @@ export async function validateAndPrepareFields(
       question: `I'm already processing an upload for this property. Please wait ${lockResult.remainingSeconds} seconds before trying again.`,
     };
   }
+
+  // Helper: release lock on early-return paths (fire-and-forget)
+  const releaseLock = () => releaseUploadLock(propertyLockKey).catch(() => {});
 
   // 1.6 Check listing_uploads for recent duplicates — BLOCKS upload if match found within 24 hours
   // Skip if agent already confirmed duplicate with "upload anyway" (confirmDuplicate=true)
@@ -234,6 +230,20 @@ export async function validateAndPrepareFields(
   // 2. Validate required fields
   const validation = validateRequiredFields(args);
   if (!validation.valid) {
+    // If confirmDuplicate is true but fields are missing, tell the AI to re-read chat history
+    if (args.confirmDuplicate) {
+      logger.warn("confirmDuplicate=true but required fields missing — asking AI to re-send all fields", {
+        category: LogCategory.TOOL,
+        operation: "validateAndPrepareFields",
+        missingFields: validation.missing,
+      });
+      await releaseLock();
+      return {
+        needsInput: true,
+        retryable: true,
+        question: `To proceed with the duplicate upload, I need you to call createPropertyListing again with ALL the original property details (listingType, propertyType, price, location, bedrooms, coveredArea, ownerName, ownerPhone, titleDeedStatus) plus confirmDuplicate: true. Re-read the conversation above to find all the property information the agent provided.`,
+      };
+    }
     // Mark as retryable so ai-chat.ts feeds this back to the AI loop
     // instead of showing the generic "I still need..." message to the user.
     // The AI already has the data in conversation context — it just failed to extract it.
@@ -245,6 +255,7 @@ export async function validateAndPrepareFields(
         (k) => args[k] !== undefined && args[k] !== null
       ),
     });
+    await releaseLock();
     return {
       needsInput: true,
       retryable: true,
@@ -309,6 +320,7 @@ export async function validateAndPrepareFields(
           googleMapsUrl: locationUrl.substring(0, 100),
         }
       );
+      await releaseLock();
       return {
         needsInput: true,
         question: `I've captured the pin location from the Google Maps link, but "${location}" appears to be a street name. What is the area/neighborhood? (e.g., Agios Athanasios, Kato Paphos, Germasogeia, Mesa Geitonia)`,
@@ -324,6 +336,7 @@ export async function validateAndPrepareFields(
         location,
       }
     );
+    await releaseLock();
     return {
       needsInput: true,
       question: `"${location}" appears to be a street address. I need the area/neighborhood name for the listing (e.g., Agios Athanasios, Kato Paphos, Germasogeia). What area is this property in?`,
@@ -338,6 +351,7 @@ export async function validateAndPrepareFields(
       operation: "validateAndPrepareFields",
       location,
     });
+    await releaseLock();
     return {
       needsInput: true,
       question: `"${location}" is too general — I need the specific area or neighborhood name (e.g., Agios Athanasios, Kato Paphos, Germasogeia, Mesa Geitonia). What is the exact area/neighborhood for this property?`,
@@ -388,6 +402,7 @@ export async function validateAndPrepareFields(
   // 3. Validate regional access
   const regionResult = validateRegionalAccess(agent, location);
   if (!regionResult.allowed) {
+    await releaseLock();
     return { error: regionResult.message };
   }
 
@@ -406,15 +421,28 @@ export async function validateAndPrepareFields(
   );
 
   if (specialCase.rejected) {
+    await releaseLock();
     return { error: specialCase.message };
   }
 
   if (specialCase.needsInput) {
+    await releaseLock();
     return { needsInput: true, question: specialCase.question };
+  }
+
+  // 4b. Apply any modifications from special cases (e.g., Michelle rentals → Demetra)
+  if (specialCase.modifiedRequest) {
+    Object.assign(args, specialCase.modifiedRequest);
+    logger.info("Applied modifiedRequest from special case", {
+      category: LogCategory.TOOL,
+      operation: "validateAndPrepareFields",
+      modifications: Object.keys(specialCase.modifiedRequest),
+    });
   }
 
   // 5. Check if management needs to specify assignment
   if (needsAssignmentInput(agent, listingType) && !args.assignTo) {
+    await releaseLock();
     return {
       needsInput: true,
       question:
@@ -444,6 +472,7 @@ export async function validateAndPrepareFields(
     const emailParts = assignToEmail.split("@");
     // Must have exactly one @ and domain must be exactly zyprus.com (not a subdomain)
     if (emailParts.length !== 2 || emailParts[1] !== "zyprus.com") {
+      await releaseLock();
       return {
         error: "Assignments must be to a @zyprus.com email address.",
       };
@@ -480,6 +509,7 @@ export async function validateAndPrepareFields(
             assigneeRegion: assigneeAgent.region,
             propertyRegion,
           });
+          await releaseLock();
           return {
             error: `This property is in ${propertyRegion}, but ${assigneeAgent.fullName} is a ${assigneeAgent.region} agent. Agents can only be assigned properties in their region. Would you like me to assign it to a ${propertyRegion}-based agent instead?`,
           };

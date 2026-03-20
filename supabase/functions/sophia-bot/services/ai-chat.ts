@@ -16,7 +16,7 @@ import type {
 import { getToolDefinitions } from "../tools/definitions.ts";
 import { executeTool } from "../tools/executor.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
-import { clearPendingImages, getPendingImages } from "./pending-images.ts";
+import { getPendingImages } from "./pending-images.ts";
 import { loadSystemPrompt } from "./prompt-loader.ts";
 import {
   canRequest,
@@ -758,7 +758,7 @@ export async function chat(
             }
           }
           // Null out optional fields the AI hallucinated that weren't in the email
-          const nullableFields = ["coveredVeranda", "uncoveredVeranda", "plotSize", "yearBuilt", "yearRenovated", "floor", "energyClass", "buildingName", "areaDescription", "bedrooms"];
+          const nullableFields = ["coveredVeranda", "uncoveredVeranda", "plotSize", "yearBuilt", "yearRenovated", "floor", "energyClass", "buildingName", "areaDescription"];
           // ALWAYS strip AI-fabricated imageUrls for email uploads
           // Email images come from pending_images (stored by email-webhook.ts), not from AI args
           // Set to empty array (not delete) because the tool schema requires imageUrls
@@ -859,8 +859,13 @@ export async function chat(
             // Break out of the for loop so the while loop makes a new AI call
             break;
           }
+          // If retries exhausted for a retryable error, show a user-friendly message
+          // instead of raw validation details
+          const userMessage2 = toolResult.retryable
+            ? "I'm having trouble processing the upload. Could you please resend the property details so I can try again?"
+            : toolResult.question;
           return {
-            response: toolResult.question,
+            response: userMessage2,
             success: true,
             toolsUsed,
             tokenCount: totalTokens > 0 ? totalTokens : undefined,
@@ -875,18 +880,8 @@ export async function chat(
             { category: LogCategory.TOOL }
           );
 
-          // Clear pending images after successful upload
-          if (
-            toolName === "createPropertyListing" ||
-            toolName === "createLandListing"
-          ) {
-            const cleanPhone = phoneNumber.replace(/\D/g, "");
-            await clearPendingImages(cleanPhone);
-            logger.info(
-              `[Images] Cleared pending images for ${cleanPhone} after successful upload`,
-              { category: LogCategory.IMAGE }
-            );
-          }
+          // Note: pending images are cleared by property-listing.ts on successful upload
+          // No need to clear again here
 
           return {
             response: toolResult.message,
@@ -1025,14 +1020,7 @@ export async function chat(
           }
 
           if (toolResult.success && toolResult.message) {
-            // Clear pending images after successful upload
-            if (
-              toolName === "createPropertyListing" ||
-              toolName === "createLandListing"
-            ) {
-              const cleanPhone = phoneNumber.replace(/\D/g, "");
-              await clearPendingImages(cleanPhone);
-            }
+            // Note: pending images are cleared by property-listing.ts on successful upload
             return {
               response: toolResult.message,
               success: true,
@@ -1100,8 +1088,14 @@ function parsePreExtractedFields(userMessage: string): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
   // Extract the PRE-EXTRACTED FIELDS block
-  const blockMatch = userMessage.match(/PRE-EXTRACTED FIELDS[^\n]*\n([\s\S]*?)(?:\n\nRULES:|\n\n\[Subject:)/);
-  if (!blockMatch) return result;
+  const blockMatch = userMessage.match(/PRE-EXTRACTED FIELDS[^\n]*\n([\s\S]*?)(?:\n\n(?:RULES:|MANDATORY|\[Subject:)|\n\[Subject:)/);
+  if (!blockMatch) {
+    logger.warn("[Email] parsePreExtractedFields: Failed to match PRE-EXTRACTED FIELDS block — AI will use its own extraction", {
+      category: LogCategory.TOOL,
+      messagePreview: userMessage.substring(0, 200),
+    });
+    return result;
+  }
 
   const block = blockMatch[1];
   const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -1119,9 +1113,10 @@ function parsePreExtractedFields(userMessage: string): Record<string, unknown> {
 
     // Parse typed values
     const strVal = value as string;
-    if (strVal.startsWith('"') && strVal.endsWith('"')) {
-      // String value
-      value = strVal.slice(1, -1);
+    if (strVal.startsWith('"')) {
+      // String value — find closing quote (handles trailing text like: "none" [warning])
+      const closingQuoteIdx = strVal.indexOf('"', 1);
+      value = closingQuoteIdx > 0 ? strVal.slice(1, closingQuoteIdx) : strVal.slice(1);
     } else if (strVal === "true") {
       value = true;
     } else if (strVal === "false") {

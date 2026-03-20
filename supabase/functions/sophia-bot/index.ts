@@ -108,6 +108,32 @@ serve(async (req) => {
     return await handleHealthCheck(supabase);
   }
 
+  // Taxonomy debug endpoint (temporary, unauthenticated, read-only)
+  if (url.pathname.endsWith("/taxonomy-debug") && req.method === "GET") {
+    const { loadTaxonomy } = await import("./zyprus/taxonomy-cache.ts");
+    const query = (url.searchParams.get("q") || "").toLowerCase().trim();
+    if (!query) {
+      return new Response(JSON.stringify({ error: "Missing ?q= param" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const taxonomy = await loadTaxonomy();
+    const parentMap = new Map(taxonomy.locations.map((l) => [l.id, l.name]));
+    const matches = taxonomy.locations
+      .filter((loc) => loc.name.toLowerCase().includes(query))
+      .map((loc) => ({
+        id: loc.id,
+        name: loc.name,
+        parentId: loc.parentId || null,
+        parentName: loc.parentId ? parentMap.get(loc.parentId) || "UNKNOWN" : null,
+      }));
+    return new Response(
+      JSON.stringify({ query, matches, total: taxonomy.locations.length }, null, 2),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   // Admin endpoints
   if (url.pathname.startsWith("/sophia-bot/admin/")) {
     return handleAdminRequest(req, url, supabase);

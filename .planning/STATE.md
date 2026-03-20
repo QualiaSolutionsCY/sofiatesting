@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Agents can trust SOPHIA to do the right thing every time
-**Current focus:** Planning next milestone
+**Current focus:** v1.6 Upload Pipeline Production Hardening
 
 ## Current Position
 
-Milestone: v1.5 Audit Excellence — SHIPPED
-Phase: 25 of 25 (all complete)
-Plan: Not started (next milestone)
-Status: Ready to plan next milestone
-Last activity: 2026-03-16 — Completed quick task 25: Email upload retest (8/10 pass)
+Milestone: v1.6 Upload Pipeline Production Hardening — IN PROGRESS
+Phase: 27 (Business Rules & Cleanup) — EXECUTED
+Plan: 27-01-PLAN.md (5 steps, 4 FRs + 1 false positive) — all complete
+Status: Ready to deploy and verify
+Last activity: 2026-03-20 — Phases 26+27 executed (11 FRs total across both phases)
 
-Progress: [█████████████████████████] 100% (6 milestones shipped)
+Progress: [                         ] 0% (2 phases planned)
 
 ## Performance Metrics
 
@@ -34,12 +34,21 @@ Progress: [███████████████████████
 | v1.3 Audit Fixes | 15-17 | 8 plans | Shipped 2026-02-28 |
 | v1.4 Hardening | 18-20 | 10 plans | Shipped 2026-03-01 |
 | v1.5 Audit Excellence | 21-25 | 14 plans | Shipped 2026-03-02 |
+| v1.6 Upload Hardening | 26-27 | TBD | In Progress |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
+
+### Review Findings (v1.6 source)
+
+17 issues from 2026-03-20 `/review --ai`:
+- 4 CRITICAL: lock leak, listingType missing, email follow-up broken, parser regex fragile
+- 6 HIGH: double clearImages, bedrooms deleted, poolType parse corruption, Michelle reassignment dropped, bedrooms Zod default, titleDeedStatus double default
+- 4 MEDIUM: broad upload intent detection, missing email patterns, 47KB prompt size, condition field dropped
+- 3 LOW: dedup copy-paste, ToolResult interface duplication, random taxonomy fallback
 
 ### Pending Todos
 
@@ -48,10 +57,6 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - **OPERATIONAL:** Set SENTRY_DSN secret via `supabase secrets set`
 - **OPERATIONAL:** Verify Sentry dashboard captures errors with context
 - **OPERATIONAL:** Sync identity prompt Security Boundaries section to sophia_prompts DB table
-- Enable WhatsApp agent identification
-- Enable web agent authentication
-- Database maintenance (VACUUM FULL, REINDEX)
-- Index optimization (upload_locks, sophia_user_profiles)
 
 ### Blockers/Concerns
 
@@ -69,10 +74,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-11
-Stopped at: Quick task 23 complete
-Next step: Set Railway env vars SOPHIA_GMAIL_EMAIL + SOPHIA_GMAIL_APP_PASSWORD to activate sophia@ polling
+Last session: 2026-03-20
+Stopped at: v1.6 milestone created from review findings
+Next step: Run `/qualia-plan-phase 26` to create execution plan for Phase 26
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-03-02 — v1.5 Audit Excellence milestone archived*
+*Last updated: 2026-03-20 — v1.6 milestone initialized*

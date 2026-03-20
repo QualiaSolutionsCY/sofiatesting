@@ -27,6 +27,7 @@ import { LogCategory, logger } from "../utils/logger.ts";
 import { constantTimeCompare } from "../utils/webhook-auth.ts";
 import { handleCreatePropertyListing } from "../tools/handlers/property-listing.ts";
 import { getAgentByEmail } from "../agents/identifier.ts";
+import { loadTaxonomy } from "../zyprus/taxonomy-cache.ts";
 
 const ADMIN_SECRET = Deno.env.get("SOPHIA_ADMIN_SECRET");
 
@@ -135,6 +136,14 @@ export async function handleAdminRequest(
     req.method === "POST"
   ) {
     return handleDirectCreateListing(req);
+  }
+
+  // Taxonomy debug endpoint — search locations
+  if (
+    url.pathname === "/sophia-bot/admin/taxonomy/search" &&
+    req.method === "GET"
+  ) {
+    return handleTaxonomySearch(url);
   }
 
   // Unknown admin endpoint
@@ -817,4 +826,56 @@ async function handleDirectCreateListing(req: Request): Promise<Response> {
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
+}
+
+/**
+ * GET /admin/taxonomy/search?q=episkopi
+ * Debug endpoint to inspect taxonomy location nodes
+ */
+async function handleTaxonomySearch(url: URL): Promise<Response> {
+  const query = (url.searchParams.get("q") || "").toLowerCase().trim();
+  if (!query) {
+    return new Response(
+      JSON.stringify({ error: "Missing ?q= parameter" }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  const taxonomy = await loadTaxonomy();
+
+  // Find matching locations
+  const matches = taxonomy.locations.filter(
+    (loc) => loc.name.toLowerCase().includes(query)
+  );
+
+  // For each match, resolve parent name
+  const parentMap = new Map(taxonomy.locations.map((l) => [l.id, l.name]));
+  const results = matches.map((loc) => ({
+    id: loc.id,
+    name: loc.name,
+    parentId: loc.parentId || null,
+    parentName: loc.parentId ? parentMap.get(loc.parentId) || "UNKNOWN" : null,
+  }));
+
+  // Also show all district parent nodes
+  const districtTerms = ["paphos", "pafos", "limassol", "lemesos", "larnaca", "larnaka", "nicosia", "lefkosia", "famagusta"];
+  const districtNodes = taxonomy.locations
+    .filter((loc) => districtTerms.some((t) => loc.name.toLowerCase().includes(t)))
+    .map((loc) => ({
+      id: loc.id,
+      name: loc.name,
+      parentId: loc.parentId || null,
+      parentName: loc.parentId ? parentMap.get(loc.parentId) || "UNKNOWN" : null,
+    }));
+
+  return new Response(
+    JSON.stringify({
+      query,
+      matchCount: results.length,
+      matches: results,
+      totalLocations: taxonomy.locations.length,
+      districtNodes,
+    }, null, 2),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
 }

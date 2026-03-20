@@ -257,9 +257,35 @@ RULES:
         history = [];
       }
     } else {
-      logger.info("[Email] New email — using empty history (isolation mode)", {
-        category: LogCategory.GENERAL,
-      });
+      // New email — default to empty history (isolation mode)
+      // BUT: check if there's a pending "waiting for Google Maps link" response
+      // from a previous email. If so, load recent history so the AI has context
+      // to complete the upload when the agent sends the link.
+      try {
+        const recentHistory = await getHistory(userId);
+        if (recentHistory.length > 0) {
+          const lastModel = recentHistory.filter((m: { role: string }) => m.role === "model").pop();
+          const lastText = lastModel?.parts?.[0]?.text || "";
+          if (lastText.includes("Google Maps") || lastText.includes("pin location")) {
+            history = recentHistory.slice(-4);
+            logger.info(`[Email] Non-reply but detected pending Google Maps request — loading ${history.length} recent messages`, {
+              category: LogCategory.GENERAL,
+            });
+          } else {
+            logger.info("[Email] New email — using empty history (isolation mode)", {
+              category: LogCategory.GENERAL,
+            });
+          }
+        } else {
+          logger.info("[Email] New email — no history exists (isolation mode)", {
+            category: LogCategory.GENERAL,
+          });
+        }
+      } catch {
+        logger.info("[Email] New email — using empty history (isolation mode)", {
+          category: LogCategory.GENERAL,
+        });
+      }
     }
 
     // Store user message AFTER loading history
@@ -413,8 +439,8 @@ function extractAssignmentFromEmail(text: string): string | null {
 
   const lower = text.toLowerCase();
 
-  // Pattern 1: "assign to email@zyprus.com" or "assign it to email@zyprus.com"
-  const emailMatch = lower.match(/assign(?:\s+it)?\s+to\s+(\S+@\S+)/);
+  // Pattern 1: "assign to email@zyprus.com" or "assign it/this/listing to email@zyprus.com"
+  const emailMatch = lower.match(/assign(?:\s+(?:it|this|listing))?\s+to\s+(\S+@\S+)/);
   if (emailMatch) {
     let email = emailMatch[1].replace(/[.,;:!?)]+$/, ""); // strip trailing punctuation
     if (!email.includes(".")) {
@@ -426,13 +452,13 @@ function extractAssignmentFromEmail(text: string): string | null {
 
   // Pattern 2: "assign to [office name]"
   for (const [office, email] of Object.entries(OFFICE_TO_EMAIL)) {
-    if (lower.includes(`assign to ${office}`) || lower.includes(`assign it to ${office}`)) {
+    if (lower.includes(`assign to ${office}`) || lower.includes(`assign it to ${office}`) || lower.includes(`assign this to ${office}`) || lower.includes(`assign listing to ${office}`)) {
       return email;
     }
   }
 
   // Pattern 3: "assign to [agent name]"
-  const nameMatch = lower.match(/assign(?:\s+it)?\s+to\s+([a-z]+(?:\s+[a-z]+)?)/);
+  const nameMatch = lower.match(/assign(?:\s+(?:it|this|listing))?\s+to\s+([a-z]+(?:\s+[a-z]+)?)/);
   if (nameMatch) {
     const name = nameMatch[1].trim();
     if (NAME_TO_EMAIL[name]) {

@@ -153,6 +153,7 @@ export function validateRequiredFields(data: Record<string, unknown>): {
   missing: string[];
 } {
   const required = [
+    "listingType",
     "price",
     "propertyType",
     "location",
@@ -188,6 +189,7 @@ export function validateRequiredFields(data: Record<string, unknown>): {
  */
 export function getMissingFieldsMessage(missing: string[]): string {
   const fieldNames: Record<string, string> = {
+    listingType: "whether this is for sale or rent",
     price: "the price",
     propertyType: "the property type (apartment, house, villa, etc.)",
     location: "the location/area",

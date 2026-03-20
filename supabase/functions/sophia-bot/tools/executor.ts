@@ -74,9 +74,12 @@ export async function executeTool(
     const detail = validation.issues?.length
       ? ` [${validation.issues.slice(0, 3).join("; ")}]`
       : "";
+    // Use needsInput+question format so ai-chat.ts retry loop catches this
+    // and gives the AI another chance to extract the fields from conversation context
     return {
-      error: `Invalid arguments for ${tool.name}: ${validation.error}${detail}`,
+      needsInput: true,
       retryable: true,
+      question: `Tool validation failed for ${tool.name}: ${validation.error}${detail}. Re-read the conversation above carefully and call the tool again with ALL required fields filled in.`,
     };
   }
 

@@ -59,15 +59,16 @@ export const createPropertyListingSchema = z.object({
     "hotel",
     "flat",
     "entire floor apartment",
-  ]),
-  price: z.number().positive().max(100_000_000, "Price must be under 100M EUR"),
-  location: z.string().min(2).max(200),
-  bedrooms: z.number().int().min(0).max(50).optional().default(0),
+  ]).optional(),
+  price: z.number().positive().max(100_000_000, "Price must be under 100M EUR").optional(),
+  location: z.string().min(2).max(200).optional(),
+  bedrooms: z.number().int().min(0).max(50).optional(),
   bathrooms: z.number().int().min(0).max(50).optional(),
   coveredArea: z
     .number()
     .positive()
-    .max(1_000_000, "Covered area must be under 1,000,000 sqm"),
+    .max(1_000_000, "Covered area must be under 1,000,000 sqm")
+    .optional(),
   plotSize: z
     .number()
     .positive()
@@ -141,8 +142,8 @@ export const createPropertyListingSchema = z.object({
   poolType: z.enum(["private", "communal", "provisions", "none"]).optional(),
   features: z.array(z.string().max(100)).max(100).optional(),
   energyClass: optionalString(10),
-  yearBuilt: z.number().int().min(1800).max(2100).optional(),
-  yearRenovated: z.number().int().min(1800).max(2100).optional(),
+  yearBuilt: z.number().int().min(0).max(2100).optional().transform((v) => (v && v < 1800 ? undefined : v)),
+  yearRenovated: z.number().int().min(0).max(2100).optional().transform((v) => (v && v < 1800 ? undefined : v)),
   floor: optionalString(20),
   basementRooms: z.number().int().min(0).max(20).optional(),
   roofRooms: z.number().int().min(0).max(20).optional(),

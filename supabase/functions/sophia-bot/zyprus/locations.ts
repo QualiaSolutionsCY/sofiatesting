@@ -140,15 +140,22 @@ export async function findLocationUuid(
       district,
     });
 
-    // Try exact match first
-    const exact = taxonomy.locations.find(
+    // Try exact match first — but ONLY if there's exactly ONE match
+    // If multiple locations share the same name (e.g., two "Episkopi" nodes),
+    // fall through to scored matching which uses district detection
+    const exactMatches = taxonomy.locations.filter(
       (loc) => loc.name.toLowerCase() === normalized
     );
-    if (exact) {
+    if (exactMatches.length === 1) {
       logger.debug(
-        `[Taxonomy] Exact match for "${locationName}": ${exact.name}`
+        `[Taxonomy] Exact match for "${locationName}": ${exactMatches[0].name}`
       );
-      return buildResult(exact, null);
+      return buildResult(exactMatches[0], null);
+    }
+    if (exactMatches.length > 1) {
+      logger.debug(
+        `[Taxonomy] Multiple exact matches for "${locationName}" (${exactMatches.length}) — using scored matching with district detection`
+      );
     }
 
     // Extract words from input (filter short words)
@@ -167,25 +174,11 @@ export async function findLocationUuid(
     }
 
     // CRITICAL: Detect the EXPLICITLY SPECIFIED district from input
-    // This is the district name that appears AFTER the comma or as one of the words
-    // MUST use EXACT word match — substring matching causes disasters:
-    //   "neapolis".includes("polis") → wrong match to Paphos instead of Limassol
-    for (const [region, locationsList] of Object.entries(REGION_LOCATIONS)) {
-      const regionAliases = [region, ...locationsList];
-      if (words.some((w) => regionAliases.some((alias) => w === alias))) {
-        specifiedDistrict = region;
-        logger.debug(
-          `[Taxonomy] Explicitly specified district "${region}" in input: ${locationName}`
-        );
-        break;
-      }
-    }
-
-    // The FIRST word is usually the specific location (e.g., "Neapoli" in "Neapoli, Limassol")
-    const firstWord = words[0];
-
-    // District terms for parent name matching
-    const regionParentTerms: Record<string, string[]> = {
+    // Priority 1: Direct district name match (e.g., "limassol" in "Mandria, Limassol")
+    // Priority 2: Location in a district's area list (e.g., "mandria" in paphos list)
+    // Direct district names ALWAYS win — "Mandria, Limassol" is Limassol even though
+    // "mandria" also appears in the Paphos area list.
+    const districtNames: Record<string, string[]> = {
       paphos: ["paphos", "pafos"],
       limassol: ["limassol", "lemesos"],
       larnaca: ["larnaca", "larnaka"],
@@ -193,40 +186,79 @@ export async function findLocationUuid(
       famagusta: ["famagusta", "ammochostos"],
     };
 
-    // Build a parentId→name map for direct parent lookups during scoring
-    // This lets us check each location's ACTUAL parent name (what the Zyprus dropdown shows)
-    const parentIdToName = new Map<string, string>();
-    for (const loc of taxonomy.locations) {
-      parentIdToName.set(loc.id, loc.name.toLowerCase());
+    // Priority 1: Check if any word IS a district name
+    for (const [region, aliases] of Object.entries(districtNames)) {
+      if (words.some((w) => aliases.includes(w))) {
+        specifiedDistrict = region;
+        logger.debug(
+          `[Taxonomy] Explicitly specified district "${region}" (direct name match) in: ${locationName}`
+        );
+        break;
+      }
     }
 
-    // Helper: check which district a location belongs to by looking at its parent's name
-    const getLocationDistrict = (loc: TaxonomyCache["locations"][0]): string | null => {
-      if (!loc.parentId) return null;
-      const parentName = parentIdToName.get(loc.parentId);
-      if (!parentName) return null;
-      for (const [district, terms] of Object.entries(regionParentTerms)) {
-        if (terms.some((t) => parentName.includes(t))) return district;
+    // Priority 2: Only if no direct district name found, check area lists
+    if (!specifiedDistrict) {
+      for (const [region, locationsList] of Object.entries(REGION_LOCATIONS)) {
+        if (words.some((w) => locationsList.some((alias) => w === alias))) {
+          specifiedDistrict = region;
+          logger.debug(
+            `[Taxonomy] Inferred district "${region}" (area list match) in: ${locationName}`
+          );
+          break;
+        }
       }
-      return null;
+    }
+
+    // The FIRST word is usually the specific location (e.g., "Neapoli" in "Neapoli, Limassol")
+    const firstWord = words[0];
+
+    // Build parentId→district map by finding which parentId is shared by
+    // known-district locations. The parentIds are taxonomy term UUIDs (NOT in
+    // the locations array), so we can't look up their names directly.
+    // Instead: "Limassol City Centre" has parentId X → X = limassol district.
+    const regionNameTerms: Record<string, string[]> = {
+      paphos: ["paphos", "pafos"],
+      limassol: ["limassol", "lemesos"],
+      larnaca: ["larnaca", "larnaka"],
+      nicosia: ["nicosia", "lefkosia", "strovolos", "lakatamia", "engomi"],
+      famagusta: ["famagusta", "ammochostos", "paralimni", "protaras", "ayia napa"],
     };
 
-    // Find district parent node for fallback
-    let districtParentNodeId: string | null = null;
+    const parentIdToDistrict = new Map<string, string>();
+    for (const loc of taxonomy.locations) {
+      if (!loc.parentId) continue;
+      if (parentIdToDistrict.has(loc.parentId)) continue; // Already mapped
+      const locName = loc.name.toLowerCase();
+      for (const [district, terms] of Object.entries(regionNameTerms)) {
+        if (terms.some((t) => locName.includes(t))) {
+          parentIdToDistrict.set(loc.parentId, district);
+          break;
+        }
+      }
+    }
+
+    logger.debug(
+      `[Taxonomy] parentId→district map: ${parentIdToDistrict.size} entries (${[...parentIdToDistrict.entries()].map(([k, v]) => `${k.slice(0, 8)}=${v}`).join(", ")})`,
+      { category: LogCategory.ZYPRUS }
+    );
+
+    // Helper: get district for a location via its parentId
+    const getLocationDistrict = (loc: TaxonomyCache["locations"][0]): string | null => {
+      if (!loc.parentId) return null;
+      return parentIdToDistrict.get(loc.parentId) || null;
+    };
+
+    // Find a location node that can serve as district fallback
+    let districtFallbackNode: TaxonomyCache["locations"][0] | null = null;
     if (specifiedDistrict) {
-      const parentTerms = regionParentTerms[specifiedDistrict] || [];
-      const parentNode = taxonomy.locations.find((loc) =>
-        parentTerms.some((term) => loc.name.toLowerCase().includes(term))
-      );
-      if (parentNode) {
-        districtParentNodeId = parentNode.id;
+      const terms = regionNameTerms[specifiedDistrict] || [];
+      districtFallbackNode = taxonomy.locations.find((loc) =>
+        terms.some((t) => loc.name.toLowerCase().includes(t))
+      ) || null;
+      if (districtFallbackNode) {
         logger.debug(
-          `[Taxonomy] District parent for ${specifiedDistrict}: "${parentNode.name}" (${parentNode.id})`,
-          { category: LogCategory.ZYPRUS }
-        );
-      } else {
-        logger.warn(
-          `[Taxonomy] No parent node found for district "${specifiedDistrict}" — parent name matching will be unavailable`,
+          `[Taxonomy] District fallback for ${specifiedDistrict}: "${districtFallbackNode.name}"`,
           { category: LogCategory.ZYPRUS }
         );
       }
@@ -399,19 +431,13 @@ export async function findLocationUuid(
       }
     }
 
-    // Fallback: use the district parent node directly (e.g., the "Limassol" node)
-    // This is the most reliable fallback since we already identified it above
-    if (specifiedDistrict && districtParentNodeId) {
-      const parentNode = taxonomy.locations.find(
-        (loc) => loc.id === districtParentNodeId
+    // Fallback: use a known district location node (e.g., "Limassol" or "Limassol City Centre")
+    if (specifiedDistrict && districtFallbackNode) {
+      logger.warn(
+        `[Taxonomy] "${locationName}" not available in ${specifiedDistrict} dropdown — using "${districtFallbackNode.name}" as fallback. Agent should update manually.`,
+        { category: LogCategory.ZYPRUS }
       );
-      if (parentNode) {
-        logger.warn(
-          `[Taxonomy] "${locationName}" not available in ${specifiedDistrict} dropdown — using "${parentNode.name}" as fallback. Agent should update manually.`,
-          { category: LogCategory.ZYPRUS }
-        );
-        return buildResult(parentNode, specifiedDistrict);
-      }
+      return buildResult(districtFallbackNode, specifiedDistrict);
     }
 
     // Secondary fallback: search by name

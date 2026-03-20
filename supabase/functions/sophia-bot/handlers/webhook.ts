@@ -820,6 +820,18 @@ export async function handleWebhook(
         error: String(err),
       })
     );
+    // Send a quick acknowledgment so the agent knows the image was received
+    // Only if images were actually persisted (not failed decryption)
+    if (imageUrls.length > 0) {
+      const { getPendingImageCount } = await import("../services/pending-images.ts");
+      const totalImages = await getPendingImageCount(phoneNumber);
+      const ack = totalImages === 1
+        ? `Got it — 1 photo received. Send more or say "done" when you're ready.`
+        : `Got it — ${totalImages} photos received so far. Send more or say "done" when you're ready.`;
+      await sendTextMessage(phoneNumber, ack);
+      // Save the ack to chat_history so AI knows what was said
+      await addMessage(remoteJid, "model", ack).catch(() => {});
+    }
     return new Response("OK", { status: 200 });
   }
 
