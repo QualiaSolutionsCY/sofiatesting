@@ -33,6 +33,7 @@ export const CHARALAMBOS_UUID = "71ac4784-238f-45b2-ac15-5f74200601ce";
  * Used when API user lookup fails
  */
 export const USER_FALLBACKS: Record<string, string> = {
+  "zyprus@zyprus.com": LAUREN_UUID,
   "listings@zyprus.com": LAUREN_UUID,
   "michelle@zyprus.com": MICHELLE_UUID,
   "limassol@zyprus.com": MICHELLE_UUID,
@@ -89,6 +90,7 @@ export const AGENT_NAME_MAP: Record<string, string[]> = {
   "olga@zyprus.com": ["olga", "olga matushkina"],
   // Management
   "csc@zyprus.com": ["charalambos", "csc"],
+  "zyprus@zyprus.com": ["lauren", "zyprus"],
   "listings@zyprus.com": ["lauren", "listings"],
 };
 
@@ -97,6 +99,7 @@ export const AGENT_NAME_MAP: Record<string, string[]> = {
  * Used by my-notes-generator.ts to show names instead of raw emails
  */
 export const EMAIL_DISPLAY_NAMES: Record<string, string> = {
+  "zyprus@zyprus.com": "Lauren",
   "listings@zyprus.com": "Lauren",
   "requestpaphos@zyprus.com": "Paphos Office",
   "requestlimassol@zyprus.com": "Limassol Office",

@@ -400,7 +400,7 @@ function extractAssignmentFromEmail(text: string): string | null {
     diana: "diana@zyprus.com",
     michelle: "michelle@zyprus.com",
     demetra: "demetra@zyprus.com",
-    lauren: "listings@zyprus.com",
+    lauren: "zyprus@zyprus.com",
     charalambos: "csc@zyprus.com",
     azinas: "azinas@zyprus.com",
     "marios azinas": "azinas@zyprus.com",

@@ -25,7 +25,7 @@ export class RejectionError extends Error {
  *
  * Rules from documentation:
  * - FOR SALE (Paphos/Limassol/Larnaca/Nicosia):
- *   - Reviewer 1: listings@zyprus.com (Lauren)
+ *   - Reviewer 1: zyprus@zyprus.com (Lauren's main account)
  *   - Reviewer 2: request{region}@zyprus.com
  *
  * - FOR SALE (Famagusta only):
@@ -100,7 +100,7 @@ export function assignReviewers(
       : agent.listingOwnerEmail);
 
   return {
-    reviewer1: "listings@zyprus.com",
+    reviewer1: "zyprus@zyprus.com",
     reviewer2: REGIONAL_EMAILS[propertyRegion] || null,
     listingOwner,
     listingInstructor: listingOwner, // Always same as listingOwner

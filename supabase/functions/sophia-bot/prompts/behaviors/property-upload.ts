@@ -91,7 +91,7 @@ When user says "create listing", "upload property", "I want to add a property":
     - Diana → diana@zyprus.com (Limassol)
     - Michelle → michelle@zyprus.com (Limassol)
     - Demetra → demetra@zyprus.com (Limassol)
-    - Lauren → listings@zyprus.com (All regions)
+    - Lauren → zyprus@zyprus.com (All regions)
     - Charalambos → csc@zyprus.com (All regions)
     - Azinas/Marios Azinas → azinas@zyprus.com (Paphos)
     - Marios Polyviou → marios@zyprus.com (Paphos)
@@ -414,7 +414,7 @@ Agents can ONLY upload properties in their assigned region:
 
 **For SALE Properties:**
 - Standard regions (Paphos, Limassol, Larnaca, Nicosia):
-  - Reviewer 1: listings@zyprus.com (Lauren)
+  - Reviewer 1: zyprus@zyprus.com (Lauren)
   - Reviewer 2: request{region}@zyprus.com
 - Famagusta (special):
   - Reviewer 1: requestfamagusta@zyprus.com

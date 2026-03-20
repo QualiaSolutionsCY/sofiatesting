@@ -140,5 +140,5 @@ export function getRegionalOfficeEmail(region: string): string {
     famagusta: "requestfamagusta@zyprus.com",
   };
 
-  return officeEmails[region] || "listings@zyprus.com";
+  return officeEmails[region] || "zyprus@zyprus.com";
 }
