@@ -80,13 +80,13 @@ supabase secrets set SOPHIA_TELEGRAM_ENABLED=false --project-ref vceeheaxcrhmpqu
 
 | Channel | AI Provider | Implementation |
 |---------|-------------|----------------|
-| **WhatsApp (sophia-bot)** | OpenRouter -> Gemini | `supabase/functions/sophia-bot/` calls OpenRouter directly |
-| **Email (sophia-bot /email)** | OpenRouter -> Gemini | Same AI pipeline, triggered by email-router on Railway |
+| **WhatsApp (sophia-bot)** | OpenRouter -> Claude Sonnet 4.6 | `supabase/functions/sophia-bot/` calls OpenRouter directly |
+| **Email (sophia-bot /email)** | OpenRouter -> Claude Sonnet 4.6 | Same AI pipeline, triggered by email-router on Railway |
 
-**Primary Model** (via OpenRouter): `google/gemini-3.1-pro-preview`
-**Pro Model** (for uploads): `google/gemini-3.1-pro-preview`
+**Primary Model** (via OpenRouter): `anthropic/claude-sonnet-4-6`
+**Pro Model** (for uploads): `anthropic/claude-sonnet-4-6`
 **Fallback Model**: `google/gemini-2.5-flash`
-**Vision Model** (image classification): `google/gemini-3.1-pro-preview`
+**Vision Model** (image classification): `google/gemini-3.1-pro-preview-customtools`
 
 > The **admin panel** (`app/(admin)/`) is LIVE, and `app/(auth)/` handles NextAuth. Root `/` redirects to `/admin`. All active development is on the WhatsApp bot in `supabase/functions/sophia-bot/`.
 
@@ -178,7 +178,7 @@ For the full 8-step prompt change workflow, see `docs/CLAUDE-REFERENCE.md`.
 ### Key Constants (`config/business-rules.ts`)
 ```
 SOPHIA_AI_UUID = "7026c7a3-1ef0-419f-9957-15a8c161b614"  # NOT "Sophia" user d697ac16
-LAUREN_UUID = "0caa9a75-362a-4156-b11b-b52839243b74"
+LAUREN_UUID = "34a61949-bd34-4a39-b511-bb4fcb1c5cbb"
 MICHELLE_UUID = "dc2688d2-0ea1-4c13-b03d-3309ee8de6a4"
 DEMETRA_UUID = "b72a0f7c-62d8-4f69-89f3-aaebee31676a"
 AZINAS_UUID = "c8e05e2a-56e6-4d1f-9a20-31235feaec54"

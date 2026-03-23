@@ -14,7 +14,7 @@
 export const SOPHIA_AI_UUID = "7026c7a3-1ef0-419f-9957-15a8c161b614";
 
 /** Lauren's UUID - primary listing reviewer */
-export const LAUREN_UUID = "0caa9a75-362a-4156-b11b-b52839243b74";
+export const LAUREN_UUID = "34a61949-bd34-4a39-b511-bb4fcb1c5cbb";
 
 /** Michelle's UUID */
 export const MICHELLE_UUID = "dc2688d2-0ea1-4c13-b03d-3309ee8de6a4";

@@ -49,6 +49,21 @@ export function validateToolArguments(
     };
   }
 
+  // Pre-validation: fix common AI mistakes that cause Zod rejections
+  if (toolName === "createPropertyListing" || toolName === "createLandListing") {
+    // coveredArea: 0 → remove (Zod requires positive)
+    if (args.coveredArea === 0) delete args.coveredArea;
+    // mainPhotoIndex: 0 → remove (Zod requires positive)
+    if (args.mainPhotoIndex === 0) delete args.mainPhotoIndex;
+    // price: reject absurd values (likely phone numbers parsed as price)
+    if (typeof args.price === "number" && args.price > 50_000_000) {
+      return {
+        valid: false,
+        error: `Price €${args.price.toLocaleString()} exceeds €50M limit — this is likely a phone number, not a price`,
+      };
+    }
+  }
+
   // Validate arguments against schema
   const result = schema.safeParse(args);
 
