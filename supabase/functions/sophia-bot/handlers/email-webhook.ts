@@ -26,6 +26,7 @@ import { validateImagesAtIngress } from "../services/image-validator.ts";
 import { addPendingImages, clearPendingImages, getPendingImages } from "../services/pending-images.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
 import { checkRateLimit } from "../utils/rate-limiter.ts";
+import { sanitizeUserInput, sanitizeAiOutput } from "../utils/validation.ts";
 import { constantTimeCompare } from "../utils/webhook-auth.ts";
 
 const ADMIN_SECRET = Deno.env.get("SOPHIA_ADMIN_SECRET");
@@ -80,7 +81,17 @@ export async function handleEmailWebhook(
     return jsonError("Missing required fields: from, subject, textBody", 400);
   }
 
-  // Sanitize email
+  // C1+C3 FIX: Sanitize email input and cap body size (10K chars max)
+  const MAX_EMAIL_BODY = 10_000;
+  let sanitizedBody = textBody || payload.htmlBody || "";
+  try {
+    sanitizedBody = sanitizeUserInput(sanitizedBody, MAX_EMAIL_BODY);
+  } catch (_e) {
+    return jsonError("Email content contains prohibited content", 400);
+  }
+  // Override payload textBody with sanitized version
+  payload.textBody = sanitizedBody;
+
   const senderEmail = from.toLowerCase().trim();
 
   logger.info(`[Email] Processing from ${senderEmail}: "${subject}"`, {
@@ -335,7 +346,7 @@ RULES:
       phoneForImages
     );
 
-    const reply = aiResult.response || "I couldn't process your request. Please try again.";
+    const reply = sanitizeAiOutput(aiResult.response || "I couldn't process your request. Please try again.");
 
     // Store AI response in chat history
     await addMessage(userId, "model", reply).catch((err) => {

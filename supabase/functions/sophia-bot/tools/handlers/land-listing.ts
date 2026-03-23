@@ -101,8 +101,12 @@ export async function handleCreateLandListing(
   });
 
   // 1.5 CRITICAL: Acquire DB-based upload lock to prevent duplicate uploads
+  // C5 FIX: Use per-property fingerprint (not per-agent) so different plots can upload in parallel
   const agentPhone = agent.mobile?.replace(/\D/g, "") || "";
-  const propertyLockKey = `upload:${agentPhone}`;
+  const locationStr = ((args.location as string) || "").toLowerCase().trim();
+  const priceStr = String(args.price || "");
+  const ownerPhoneStr = ((args.ownerPhone as string) || "").replace(/\D/g, "");
+  const propertyLockKey = `upload:${agentPhone}:${locationStr}:${priceStr}:${ownerPhoneStr}`;
   const lockResult = await acquireUploadLock(propertyLockKey, agentPhone);
   if (!lockResult.acquired) {
     logger.warn("Upload blocked by DB lock - duplicate upload in progress", {
@@ -509,6 +513,8 @@ export async function handleCreateLandListing(
   // Check minimum images
   const imageCheck = hasEnoughImages(processedImages, "land");
   if (!imageCheck.enough) {
+    // C6 FIX: Release upload lock before returning — otherwise agent is locked out for 30s
+    await releaseUploadLock(propertyLockKey);
     return {
       needsInput: true,
       question: `I need at least ${imageCheck.required} ${imageCheck.required === 1 ? "image" : "images"} for land. You've provided ${imageCheck.provided}. Please send more photos.`,
@@ -652,6 +658,9 @@ export async function handleCreateLandListing(
 
   // 9c. Check we have at least 1 valid image
   if (validImages.length === 0) {
+    // C6 FIX: Release upload lock on image validation failure
+    await releaseUploadLock(propertyLockKey);
+
     const invalidDetails =
       invalidImages.length > 0
         ? invalidImages

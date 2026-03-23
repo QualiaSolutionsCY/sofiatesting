@@ -113,7 +113,7 @@ async function searchByPhone(
 
   try {
     const response = await fetch(
-      `${zyprusApiUrl}/jsonapi/node/property?filter[field_my_notes][operator]=CONTAINS&filter[field_my_notes][value]=${searchPhone}&page[limit]=5`,
+      `${zyprusApiUrl}/jsonapi/node/property?filter[field_property_notes][operator]=CONTAINS&filter[field_property_notes][value]=${searchPhone}&page[limit]=5`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -155,7 +155,7 @@ async function searchByPhone(
 
 /**
  * Search Zyprus for properties with matching owner name and location.
- * Uses owner phone (in my_notes) + location as a more reliable signal than name + location.
+ * Uses owner phone (in property_notes) + location as a more reliable signal than name + location.
  */
 async function searchByNameAndLocation(
   name: string,
@@ -172,9 +172,9 @@ async function searchByNameAndLocation(
   }
 
   try {
-    // Search in My Notes field for owner name
+    // Search in Property Notes field for owner name
     const response = await fetch(
-      `${zyprusApiUrl}/jsonapi/node/property?filter[field_my_notes][operator]=CONTAINS&filter[field_my_notes][value]=${encodeURIComponent(name)}&page[limit]=10`,
+      `${zyprusApiUrl}/jsonapi/node/property?filter[field_property_notes][operator]=CONTAINS&filter[field_property_notes][value]=${encodeURIComponent(name)}&page[limit]=10`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,

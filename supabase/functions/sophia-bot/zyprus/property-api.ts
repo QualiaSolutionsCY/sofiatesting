@@ -609,12 +609,14 @@ async function uploadImages(
     imageCount: imageUrls.length,
   });
 
-  // Upload all images in parallel
+  // Upload all images in parallel but PRESERVE ORDER
+  // Promise.all returns results in the same order as the input array,
+  // so the vision-classified sort order is maintained
   const results = await Promise.all(
     imageUrls.map((url, index) => uploadSingleImage(url, index, token, config))
   );
 
-  // Filter out failed uploads (nulls)
+  // Filter out failed uploads while preserving order of successful ones
   const fileIds = results.filter((id): id is string => id !== null);
 
   logger.info("Image upload to Zyprus completed", {
@@ -643,6 +645,18 @@ async function uploadFloorPlans(
   const results = await Promise.all(
     floorPlanUrls.map(async (url, index) => {
       try {
+        // H1 FIX: Validate URL before fetching (SSRF prevention)
+        const urlCheck = validateImageUrl(url);
+        if (!urlCheck.valid) {
+          logger.warn("Floor plan URL blocked by SSRF validator", {
+            category: LogCategory.ZYPRUS,
+            operation: "uploadFloorPlan",
+            imageIndex: index,
+            error: urlCheck.error,
+          });
+          return null;
+        }
+
         // Download the floor plan image
         const imageResponse = await fetch(url, {
           signal: AbortSignal.timeout(30_000),
@@ -765,6 +779,18 @@ async function uploadTitleDeedFiles(
   const results = await Promise.all(
     fileUrls.map(async (url, index) => {
       try {
+        // H1 FIX: Validate URL before fetching (SSRF prevention)
+        const urlCheck = validateImageUrl(url);
+        if (!urlCheck.valid) {
+          logger.warn("Title deed URL blocked by SSRF validator", {
+            category: LogCategory.ZYPRUS,
+            operation: "uploadTitleDeedFile",
+            imageIndex: index,
+            error: urlCheck.error,
+          });
+          return null;
+        }
+
         const fileResponse = await fetch(url, {
           signal: AbortSignal.timeout(30_000),
         });

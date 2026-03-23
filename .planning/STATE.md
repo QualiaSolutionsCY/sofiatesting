@@ -71,13 +71,14 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | 23 | Email listing upload via sophia@zyprus.com — full AI pipeline via email | 2026-03-11 | ebfeead | [23-email-listing-upload-replicate-whatsapp-](./quick/23-email-listing-upload-replicate-whatsapp-/) |
 | 24 | Fix email upload parity — HTML replies, image validation, sender guard, rate limiting | 2026-03-12 | 5b9ef56 | [24-fix-email-upload-parity-markdown-to-html](./quick/24-fix-email-upload-parity-markdown-to-html/) |
 | 25 | Email upload retest — 10 scenarios, server-side parser, arg override, 8/10 pass | 2026-03-16 | pending | [25-email-upload-retest-10-scenarios-with-au](./quick/25-email-upload-retest-10-scenarios-with-au/) |
+| 26 | Upload pipeline deep audit — 5 critical fixes (email sanitization, land lock, SSRF, dedup field) | 2026-03-23 | pending | — |
 
 ## Session Continuity
 
-Last session: 2026-03-20
-Stopped at: v1.6 milestone created from review findings
-Next step: Run `/qualia-plan-phase 26` to create execution plan for Phase 26
+Last session: 2026-03-23
+Stopped at: Applied 5 critical/high fixes from deep upload pipeline audit
+Next step: Deploy sophia-bot + verify, then tackle remaining HIGH findings
 
 ---
 *STATE.md initialized: 2026-02-26*
-*Last updated: 2026-03-20 — v1.6 milestone initialized*
+*Last updated: 2026-03-23 — 5 critical/high upload fixes applied*

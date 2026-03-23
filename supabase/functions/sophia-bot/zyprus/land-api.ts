@@ -509,6 +509,18 @@ async function uploadLandTitleDeedFiles(
   const results = await Promise.all(
     fileUrls.map(async (url, index) => {
       try {
+        // H1 FIX: Validate URL before fetching (SSRF prevention)
+        const urlCheck = validateImageUrl(url);
+        if (!urlCheck.valid) {
+          logger.warn("Land title deed URL blocked by SSRF validator", {
+            category: LogCategory.ZYPRUS,
+            operation: "uploadLandTitleDeedFile",
+            imageIndex: index,
+            error: urlCheck.error,
+          });
+          return null;
+        }
+
         const fileResponse = await fetch(url, {
           signal: AbortSignal.timeout(30_000),
         });
