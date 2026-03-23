@@ -78,12 +78,21 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
   }
 
   // --- Is this a land listing? ---
-  // Matches: "land for sale", "plot for sale", "land listing", "land area", "of land area",
-  // "m2 of land", "sqm land", "agricultural land", standalone "plot" with no property-type context
-  const isLand = /\bland\b.*\bfor\s+(sale|rent)\b|\bplot\b.*\bfor\s+(sale|rent)\b/i.test(text) ||
+  // CRITICAL: If there's a property type keyword (house, apartment, villa, etc.), this is NOT a land listing
+  // even if "land area" or "m2 of land" appears (houses have plots too).
+  const hasPropertyType = /\b(?:house|apartment|flat|villa|bungalow|townhouse|penthouse|maisonette|studio|semi[- ]?detached|office|shop|warehouse|hotel)\b/i.test(text);
+  // Strong land signals: "land for sale", "plot for sale", "land listing", "agricultural land"
+  const strongLandSignals = /\bland\b.*\bfor\s+(sale|rent)\b|\bplot\b.*\bfor\s+(sale|rent)\b/i.test(text) ||
     /\bland\s+(listing|upload)\b|\bplot\s+(listing|upload)\b/i.test(subjectLower) ||
-    /\b(?:of\s+)?land\s+area\b|\bm[²2]?\s+(?:of\s+)?land\b|\bsqm?\s+(?:of\s+)?land\b/i.test(text) ||
-    /\bagricultural\s+land\b|\bbuilding\s+density\b|\bsite\s+coverage\b/i.test(text);
+    /\bagricultural\s+land\b/i.test(text);
+  // Weak land signals: "building density", "site coverage", "land area" — these indicate land
+  // ONLY when there's no property type keyword (houses can have these in their descriptions)
+  const weakLandSignals = !hasPropertyType &&
+    (/\bbuilding\s+density\b|\bsite\s+coverage\b/i.test(text) ||
+     /\b(?:of\s+)?land\s+area\b|\bm[²2]?\s+(?:of\s+)?land\b|\bsqm?\s+(?:of\s+)?land\b/i.test(text));
+  // Strong signals override property type (e.g., "land for sale" even with "building" keyword)
+  // Weak signals only count when no property type is present
+  const isLand = strongLandSignals || weakLandSignals;
   if (isLand) {
     result.isLand = true;
     // Land type
@@ -235,7 +244,7 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
 
   // "76m2 covered area" or "covered area: 76m2" or "76m² indoor" or "interior 76sqm"
   const coveredPatterns = [
-    new RegExp(`(\\d+)\\s*${M2}\\s*(?:covered\\s+area|indoor\\s+area|indoor|net\\s+indoor|interior)`, "i"),
+    new RegExp(`(\\d+)\\s*${M2}\\s*(?:of\\s+)?(?:covered\\s+area|indoor\\s+area|indoor|net\\s+indoor|interior)`, "i"),
     new RegExp(`(?:covered\\s+area|indoor\\s+area|indoor|net\\s+indoor|interior)\\s*:?\\s*(\\d+)\\s*${M2}`, "i"),
   ];
   for (const pat of coveredPatterns) {
@@ -276,10 +285,13 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
       break;
     }
   }
-  // Also check "X of land area" for land
-  if (isLand && !result.landSize) {
+  // Also check "X of land area" — for land listings it's landSize, for houses it's plotSize
+  if (!result.landSize && !result.plotSize) {
     const landAreaMatch = text.match(new RegExp(`([\\d,]+)\\s*${M2}\\s*(?:of\\s+)?land\\s*area`, "i"));
-    if (landAreaMatch) result.landSize = parseInt(landAreaMatch[1].replace(/,/g, ""));
+    if (landAreaMatch) {
+      const size = parseInt(landAreaMatch[1].replace(/,/g, ""));
+      if (isLand) { result.landSize = size; } else { result.plotSize = size; }
+    }
   }
 
   // --- Title deeds ---
@@ -305,31 +317,36 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
   }
 
   // --- Owner ---
-  // Separator: dash, colon, en-dash, or just whitespace
-  const SEP = `[-:–\\s]`;
-  // Pattern 1: "Owner - Name - Phone - email" or "Owner Name Phone email" (full)
-  // Pattern 2: "Owner - Name - Phone" or "Owner Name Phone" (no email)
-  const ownerWithPhone = text.match(
-    new RegExp(`owner\\s*${SEP}+\\s*(.+?)\\s+(?:${SEP}\\s*)?(\\d[\\d\\s]{5,}?)(?:\\s*${SEP}\\s*(\\S+@\\S+))?$`, "im")
-  );
-  if (ownerWithPhone) {
-    result.ownerName = ownerWithPhone[1].replace(/[-–]+$/, "").trim();
-    result.ownerPhone = ownerWithPhone[2].trim();
-    if (ownerWithPhone[3]) result.ownerEmail = ownerWithPhone[3].trim();
-  } else {
-    // Pattern 3: "Owner - Name - email@domain.com" (no phone number)
-    const ownerWithEmail = text.match(
-      new RegExp(`owner\\s*${SEP}+\\s*(.+?)\\s*[-–\\s]\\s*(\\S+@\\S+)`, "im")
-    );
-    if (ownerWithEmail) {
-      result.ownerName = ownerWithEmail[1].replace(/[-–]+$/, "").trim();
-      result.ownerEmail = ownerWithEmail[2].trim();
-    } else {
-      // Pattern 4: "Owner - Name" or "Owner Name" (just name, nothing else)
-      const ownerNameOnly = text.match(/owner\s*[-:–\s]+\s*([A-Z][a-zA-Z\s'-]+)/m);
-      if (ownerNameOnly) {
-        result.ownerName = ownerNameOnly[1].trim();
+  // Strategy: Find the "Owner" line, then parse it in stages.
+  // Handles: "Owner - Rachel Adams - 94 123456 - joey@gmail.com"
+  //          "Owner - Rachel Adams - 94 123456 - Reg No.0/7903 - Parcel 1081"
+  //          "Owner - Rachel Adams - joey@gmail.com"
+  //          "OWNER- Chris Martin - 97 653298"
+  const ownerLine = lines.find((l) => /^owner\s*[-:–\s]/i.test(l));
+  if (ownerLine) {
+    // Strip "Owner" prefix and leading separators
+    let rest = ownerLine.replace(/^owner\s*[-:–\s]+\s*/i, "").trim();
+
+    // Extract email if present (must be a real email, not a URL)
+    const emailInLine = rest.match(/\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/);
+    if (emailInLine && !emailInLine[1].includes("google.com") && !emailInLine[1].includes("zyprus.com")) {
+      result.ownerEmail = emailInLine[1].trim();
+      rest = rest.replace(emailInLine[1], "").trim();
+    }
+
+    // Extract phone number: first sequence of digits+spaces that's 6+ chars (e.g., "94 123456")
+    const phoneMatch = rest.match(/(\d[\d\s]{5,}\d)/);
+    if (phoneMatch) {
+      result.ownerPhone = phoneMatch[1].trim();
+      // Name is everything before the phone number
+      const phoneIdx = rest.indexOf(phoneMatch[0]);
+      const namePart = rest.substring(0, phoneIdx).replace(/[-–:,\s]+$/, "").trim();
+      if (namePart.length >= 2) {
+        result.ownerName = namePart;
       }
+    } else {
+      // No phone — name is everything left (strip trailing separators and junk)
+      result.ownerName = rest.replace(/[-–:,\s]+$/, "").trim() || undefined;
     }
   }
 
@@ -397,7 +414,7 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
 
   // --- Land-specific fields ---
   if (isLand) {
-    const densityMatch = text.match(/(\d+)\s*%?\s*(?:build(?:ing)?\s+)?density/i);
+    const densityMatch = text.match(/(\d+)\s*%?\s*(?:of\s+)?(?:build(?:ing)?\s+)?density/i);
     if (densityMatch) result.buildingDensity = parseInt(densityMatch[1]);
 
     const coverageMatch = text.match(/(\d+)\s*%?\s*coverage/i);
