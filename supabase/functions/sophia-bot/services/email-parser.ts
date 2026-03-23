@@ -62,7 +62,11 @@ export interface ParsedEmailFields {
  * Returns only fields that were confidently extracted — missing fields are omitted.
  */
 export function parsePropertyEmail(textBody: string, subject: string): ParsedEmailFields {
-  const text = textBody || "";
+  // Strip email signature and quoted replies BEFORE parsing
+  // This prevents "Office 21" in signatures from matching as propertyType,
+  // phone numbers in signatures from matching as prices, etc.
+  const strippedBody = stripEmailSignatureAndQuotes(textBody || "");
+  const text = strippedBody;
   const subjectLower = (subject || "").toLowerCase();
   const lines = text.split(/\n/).map((l) => l.trim()).filter(Boolean);
 
@@ -156,14 +160,18 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
     }
     const fullMatch = line.match(/^(?:€\s*)?([\d,]{4,})\s*(?:€|eur)?\s*(?:not\s+negotiable)?/i);
     if (fullMatch) {
-      result.price = parseInt(fullMatch[1].replace(/,/g, ""));
-      if (/not\s+negotiable|fixed\s+price/i.test(line)) result.priceNegotiable = false;
-      break;
+      const candidate = parseInt(fullMatch[1].replace(/,/g, ""));
+      // Sanity: reject values over €50M — likely a phone number or registration number
+      if (candidate <= 50_000_000) {
+        result.price = candidate;
+        if (/not\s+negotiable|fixed\s+price/i.test(line)) result.priceNegotiable = false;
+        break;
+      }
     }
   }
 
-  // Fallback: search first line for price (skip if it looks like a registration/plot number or URL)
-  if (!result.price && lines.length > 0 && !/https?:\/\//i.test(lines[0])) {
+  // Fallback: search first line for price (skip if it looks like a registration/plot number, URL, or owner info)
+  if (!result.price && lines.length > 0 && !/https?:\/\//i.test(lines[0]) && !/owner|kind\s+regards/i.test(lines[0])) {
     const firstLine = lines[0];
     const mMatch = firstLine.match(/(\d+(?:\.\d+)?)\s*m\b/i);
     if (mMatch && parseFloat(mMatch[1]) < 100) {
@@ -173,10 +181,14 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
       if (kMatch) {
         result.price = parseInt(kMatch[1]) * 1000;
       } else {
-        // Only match bare numbers if the line doesn't look like a reg/plot number
+        // Only match bare numbers if the line doesn't look like a reg/plot number or phone number
         const numMatch = firstLine.match(/(?:€\s*)?([\d,]{5,})/);
-        if (numMatch && !/\b(?:plot|reg|no|property|registration)\s*\.?\s*#?\s*\d/i.test(firstLine)) {
-          result.price = parseInt(numMatch[1].replace(/,/g, ""));
+        if (numMatch && !/\b(?:plot|reg|no|property|registration|number|phone|mobile|tel)\s*\.?\s*#?\s*\d/i.test(firstLine)) {
+          const candidate = parseInt(numMatch[1].replace(/,/g, ""));
+          // Sanity check: reject prices over €50M (likely a phone number)
+          if (candidate <= 50_000_000) {
+            result.price = candidate;
+          }
         }
       }
     }
@@ -250,6 +262,23 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
   for (const pat of coveredPatterns) {
     const m = text.match(pat);
     if (m) { result.coveredArea = parseInt(m[1]); break; }
+  }
+
+  // Fallback: standalone "76m2" or "76sqm" on a line by itself (no qualifier)
+  // Only match if coveredArea wasn't already found AND it's not a veranda/plot/land line
+  if (!result.coveredArea) {
+    for (const line of lines) {
+      // Skip lines that are clearly veranda, plot, land, or other non-covered-area values
+      if (/veranda|plot|land|parking|garage|basement|garden|balcon/i.test(line)) continue;
+      // Skip lines that are phone numbers, prices, URLs, owner info
+      if (/owner|price|€|http|@|kind\s+regards/i.test(line)) continue;
+      // Match a standalone size like "76m2", "120 sqm", "85 m²"
+      const bareMatch = line.match(/^(\d{2,4})\s*(?:m[²2]|sq\.?\s*m)\s*$/i);
+      if (bareMatch) {
+        result.coveredArea = parseInt(bareMatch[1]);
+        break;
+      }
+    }
   }
 
   // "20m2 covered veranda" or "covered veranda: 20m2"
@@ -334,15 +363,23 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
       rest = rest.replace(emailInLine[1], "").trim();
     }
 
-    // Extract phone number: first sequence of digits+spaces that's 6+ chars (e.g., "94 123456")
-    const phoneMatch = rest.match(/(\d[\d\s]{5,}\d)/);
+    // Extract phone number: digits+spaces, at least 6 digits total
+    // Matches both "94 123456" (spaced) and "07985211311" (no spaces)
+    const phoneMatch = rest.match(/(\+?\d[\d\s]{4,}\d)/);
     if (phoneMatch) {
-      result.ownerPhone = phoneMatch[1].trim();
-      // Name is everything before the phone number
-      const phoneIdx = rest.indexOf(phoneMatch[0]);
-      const namePart = rest.substring(0, phoneIdx).replace(/[-–:,\s]+$/, "").trim();
-      if (namePart.length >= 2) {
-        result.ownerName = namePart;
+      // Verify it has at least 6 actual digits (not just spaces)
+      const digitCount = phoneMatch[1].replace(/\D/g, "").length;
+      if (digitCount >= 6) {
+        result.ownerPhone = phoneMatch[1].trim();
+        // Name is everything before the phone number
+        const phoneIdx = rest.indexOf(phoneMatch[0]);
+        const namePart = rest.substring(0, phoneIdx).replace(/[-–:,\s]+$/, "").trim();
+        if (namePart.length >= 2) {
+          result.ownerName = namePart;
+        }
+      } else {
+        // Too few digits — treat as name
+        result.ownerName = rest.replace(/[-–:,\s]+$/, "").trim() || undefined;
       }
     } else {
       // No phone — name is everything left (strip trailing separators and junk)
@@ -508,6 +545,38 @@ export function parsePropertyEmail(textBody: string, subject: string): ParsedEma
   }
 
   return result;
+}
+
+/**
+ * Strip email signatures and quoted replies from the email body.
+ * This MUST run before parsing to prevent signature content
+ * (e.g., "Office 21" in address, phone numbers, URLs) from
+ * being misinterpreted as property fields.
+ */
+function stripEmailSignatureAndQuotes(text: string): string {
+  const lines = text.split("\n");
+  const result: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+
+    // Stop at common email signature markers
+    if (/^kind\s+regards/i.test(trimmed)) break;
+    if (/^best\s+regards/i.test(trimmed)) break;
+    if (/^regards\s*,?\s*$/i.test(trimmed)) break;
+    if (/^thank\s+you\s*,?\s*$/i.test(trimmed)) break;
+    if (/^thanks\s*,?\s*$/i.test(trimmed)) break;
+    if (/^sent\s+from\s+(my\s+)?(iphone|ipad|samsung|android)/i.test(trimmed)) break;
+
+    // Stop at quoted reply markers
+    if (/^on\s+.+wrote:\s*$/i.test(trimmed)) break;
+    if (/^>\s/.test(trimmed)) break;
+    if (/^-{3,}\s*(original|forwarded)\s+message/i.test(trimmed)) break;
+
+    result.push(lines[i]);
+  }
+
+  return result.join("\n");
 }
 
 /**

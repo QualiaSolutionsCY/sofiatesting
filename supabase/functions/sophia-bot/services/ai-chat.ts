@@ -33,9 +33,9 @@ const OPENROUTER_CIRCUIT = {
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Switched to Gemini 3.1 Pro 2026-03-19 — Flash preview was causing regressions
-const PRIMARY_MODEL = "google/gemini-3.1-pro-preview-customtools";
-const PRO_MODEL = "google/gemini-3.1-pro-preview-customtools";
+// Sonnet 4.6 for everything — fast, reliable tool calling, consistent behavior
+const PRIMARY_MODEL = "anthropic/claude-sonnet-4-6";
+const PRO_MODEL = "anthropic/claude-sonnet-4-6";
 const FALLBACK_MODEL = "google/gemini-2.5-flash";
 
 interface AIResponse {
@@ -190,7 +190,16 @@ ${
     lowerMessage.includes("done") ||
     lowerMessage.includes("that's all") ||
     lowerMessage.includes("assign") ||
-    lowerMessage.includes("@zyprus.com");
+    lowerMessage.includes("@zyprus.com") ||
+    lowerMessage.includes("bedroom") ||
+    lowerMessage.includes("bathroom") ||
+    lowerMessage.includes("sqm") ||
+    lowerMessage.includes("m2") ||
+    lowerMessage.includes("covered area") ||
+    lowerMessage.includes("owner") ||
+    lowerMessage.includes("title deed") ||
+    /\d{2,4}\s*k\b/.test(lowerMessage) ||
+    /€\d/.test(lowerMessage);
   // Also check if agent can upload — short replies during upload flow need image context
   const isUploadCapableAgent = context.agentCanUpload === true;
   // Short messages (< 30 chars) from upload-capable agents are likely replies in upload flow
@@ -527,8 +536,8 @@ export async function chat(
   const toolsUsed: string[] = [];
   let totalTokens = 0; // Accumulate tokens from all OpenRouter calls
 
-  // Edge Function timeout is 120s - use 90s budget with 30s buffer for response generation
-  const TIME_BUDGET_MS = 90_000;
+  // Edge Function timeout is 120s - use 110s budget with 10s buffer for response delivery
+  const TIME_BUDGET_MS = 110_000;
   const startTime = Date.now();
 
   while (toolCallCount < maxToolCalls) {
@@ -982,6 +991,41 @@ export async function chat(
           } catch (_e) {
             toolArgs = {};
           }
+          // CRITICAL: For email uploads in retry path, apply same overrides as main path
+          if (
+            (toolName === "createPropertyListing" || toolName === "createLandListing") &&
+            userMessage.includes("PRE-EXTRACTED FIELDS")
+          ) {
+            const overrides = parsePreExtractedFields(userMessage);
+            for (const [key, value] of Object.entries(overrides)) {
+              if (value !== undefined && value !== null && value !== "") {
+                toolArgs[key] = value;
+              }
+            }
+            // Strip AI-fabricated imageUrls for email uploads (same as main path)
+            toolArgs.imageUrls = [];
+            const nullableFields = ["coveredVeranda", "uncoveredVeranda", "plotSize", "yearBuilt", "yearRenovated", "floor", "energyClass", "buildingName", "areaDescription"];
+            for (const field of nullableFields) {
+              if (!(field in overrides) && toolArgs[field] !== undefined) {
+                delete toolArgs[field];
+              }
+            }
+            // Block if no Google Maps link from email
+            if (!("locationUrl" in overrides)) {
+              delete toolArgs.locationUrl;
+              delete toolArgs.coordinates;
+              return {
+                response: "Thank you for the property details! Before I upload the draft, I need one more thing:\n\nCould you please send me the **Google Maps link** (pin location) for this property? This is required so the reviewer knows the exact location.\n\nOnce you reply with the link, I'll complete the upload right away.",
+                success: true,
+                toolsUsed,
+                tokenCount: totalTokens > 0 ? totalTokens : undefined,
+              };
+            }
+            logger.info("[FORCE TOOL] Applied email override logic (retry path)", {
+              category: LogCategory.TOOL,
+            });
+          }
+
           // Inject server-side extracted assignTo if the AI omitted it (retry path)
           if (
             (toolName === "createPropertyListing" || toolName === "createLandListing") &&

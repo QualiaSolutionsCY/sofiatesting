@@ -136,7 +136,8 @@ export const REGION_LOCATIONS: Record<string, string[]> = {
     "kamares", "mandria", "kouklia", "letymvou", "tsada", "mesogi", "koloni",
     "universal", "anavargos", "konia", "tomb of kings", "sea caves",
     "kallepia", "peristerona", "letymbou", "letymvou", "stroumbi", "kathikas",
-    "polemi", "choulou", "simou", "drouseia", "ineia", "arodes", "akourdaleia"
+    "polemi", "choulou", "simou", "drouseia", "ineia", "arodes", "akourdaleia",
+    "prodromi"
   ],
   limassol: [
     "limassol", "lemesos", "germasogeia", "agios tychonas", "potamos", "mesa geitonia",
@@ -197,6 +198,7 @@ export const DEFAULT_COORDINATES: Record<string, { lat: number; lon: number }> =
   "paphos town": { lat: 34.7750, lon: 32.4220 },
   "coral bay": { lat: 34.8409, lon: 32.3547 },
   "polis": { lat: 35.0347, lon: 32.4275 },
+  "prodromi": { lat: 35.0264, lon: 32.4168 },
   "kissonerga": { lat: 34.8178, lon: 32.3897 },
   "geroskipou": { lat: 34.7589, lon: 32.4542 },
   "emba": { lat: 34.8039, lon: 32.4339 },

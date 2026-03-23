@@ -3,6 +3,8 @@
  * Provides functions for validating and parsing location data from various sources.
  */
 
+import { REGION_LOCATIONS } from "../../config/business-rules.ts";
+
 /**
  * Extract area/neighborhood name from a Google Maps URL.
  * Google Maps encodes place names in the !2s... proto buffer segments.
@@ -91,13 +93,19 @@ export function extractAreaFromGoogleMapsUrl(url: string): string | null {
 
     // Strategy 2: Parse the /place/ segment from the URL path
     // e.g., /place/Michali+Sougioul+21,+Lemesos+3046,+Cyprus/
-    // This often contains the street address, but we can extract the district
+    // or /place/Agiou+Panteleimonos,+Erimi+4630,+Cyprus/
+    // This often contains the street address, but we can extract the area/district
     const placeSegmentMatch = decoded.match(/\/place\/([^/]+)/);
     if (placeSegmentMatch) {
       const placeText = placeSegmentMatch[1].replace(/\+/g, " ").trim();
       const parts = placeText.split(",").map((p) => p.trim());
 
-      // Find the district part (skip street name and "Cyprus")
+      // Use known areas from business rules to match area names (not just districts)
+      const allKnownAreas = Object.values(REGION_LOCATIONS).flat();
+
+      // Find area or district parts (skip street name, postcode, and "Cyprus")
+      let foundArea: string | null = null;
+      let foundDistrict: string | null = null;
       for (const part of parts) {
         const cleaned = part
           .toLowerCase()
@@ -105,10 +113,26 @@ export function extractAreaFromGoogleMapsUrl(url: string): string | null {
           .trim(); // Remove postcodes
         if (cleaned === "cyprus") continue;
         if (cyprusDistricts.includes(cleaned)) {
-          // Found a district — but we only have the district, not the area
-          // Return null to force asking the user (district-only is too vague)
-          return null;
+          foundDistrict = normalizeDistrict(part);
+          continue;
         }
+        // Check if this part is a known area (e.g., "Erimi", "Prodromi", "Tala")
+        if (allKnownAreas.includes(cleaned)) {
+          foundArea = part.replace(/\s*\d+\s*$/, "").trim(); // Remove postcode, keep original case
+        }
+      }
+
+      // If we found a known area + district, return "Area, District"
+      if (foundArea && foundDistrict) {
+        return `${foundArea}, ${foundDistrict}`;
+      }
+      // If we found only a known area (no district), return it
+      if (foundArea) {
+        return foundArea;
+      }
+      // If we found only a district, it's too vague — return null to ask user
+      if (foundDistrict) {
+        return null;
       }
     }
 

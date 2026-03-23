@@ -37,7 +37,7 @@ export const REGIONAL_ACCOUNTS: Record<string, string> = {
 // Reviewer assignments based on meeting notes
 export const REVIEWER_RULES = {
   // For sale properties (Paphos, Limassol, Larnaca, Nicosia)
-  SALE_PRIMARY_REVIEWER: "listings@zyprus.com", // Lauren's account
+  SALE_PRIMARY_REVIEWER: "zyprus@zyprus.com", // Lauren's account
   SALE_SECONDARY_REVIEWER: "regional_manager", // Regional manager email
 
   // For sale properties (Famagusta only)

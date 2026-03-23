@@ -311,7 +311,7 @@ async function processRequest(
 
     // Add breadcrumb before AI call
     addBreadcrumb("Calling OpenRouter", "ai", {
-      model: "google/gemini-3.1-pro-preview-customtools",
+      model: "google/gemini-3.1-pro-preview",
     });
 
     // Call AI
@@ -813,24 +813,22 @@ export async function handleWebhook(
       category: LogCategory.IMAGE,
       phoneNumber,
     });
-    // Save to chat_history so AI context isn't lost (fixes zero-history issue for image-heavy users)
-    await addMessage(remoteJid, "user", sanitizedMessage).catch((err) =>
-      logger.warn("Failed to save image-only message to chat_history", {
-        category: LogCategory.IMAGE,
-        error: String(err),
-      })
-    );
-    // Send a quick acknowledgment so the agent knows the image was received
-    // Only if images were actually persisted (not failed decryption)
+    // DO NOT save each "[User sent image(s)]" to chat_history!
+    // With 6+ photos, these entries push real messages out of the 10-message history window,
+    // causing the AI to lose context (property details, user instructions) and loop.
+    // The AI gets the image count from the ACCUMULATED PROPERTY PHOTOS context injection instead.
+
+    // Send ONE acknowledgment for the first image only.
     if (imageUrls.length > 0) {
       const { getPendingImageCount } = await import("../services/pending-images.ts");
-      const totalImages = await getPendingImageCount(phoneNumber);
-      const ack = totalImages === 1
-        ? `Got it — 1 photo received. Send more or say "done" when you're ready.`
-        : `Got it — ${totalImages} photos received so far. Send more or say "done" when you're ready.`;
-      await sendTextMessage(phoneNumber, ack);
-      // Save the ack to chat_history so AI knows what was said
-      await addMessage(remoteJid, "model", ack).catch(() => {});
+      const digitsPhone = phoneNumber.replace(/\D/g, "");
+      const totalImages = await getPendingImageCount(digitsPhone);
+      if (totalImages === 1) {
+        const ack = `Got it — photo received. Send more or say "done" when you're ready.`;
+        await sendTextMessage(phoneNumber, ack);
+        // Save ONLY the first ack to chat_history (1 entry, not 6+)
+        await addMessage(remoteJid, "model", ack).catch(() => {});
+      }
     }
     return new Response("OK", { status: 200 });
   }

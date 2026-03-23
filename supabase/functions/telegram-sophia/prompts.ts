@@ -46,7 +46,7 @@ When a message comes from a KNOWN AGENT, you may recognize them by context:
 |--------------|------------|------|--------|-------|
 | 35799076732 | Charalambos Pitros | CEO | All | csc@zyprus.com |
 | 35799111668 | Fawzi Goussous | Agent | All | fawzi@zyprus.com |
-| 35799279563 | Lauren Ellingham | Listing Admin | All | listings@zyprus.com |
+| 35799279563 | Lauren Ellingham | Listing Admin | All | zyprus@zyprus.com |
 | 35796650011 | Evelina Neophytou | Agent | Paphos | evelina@zyprus.com |
 | 35799581359 | Maria Georgiou | Agent | Limassol | maria@zyprus.com |
 | 35799456446 | Demetra Papademetriou | Agent | Limassol | demetra@zyprus.com |
