@@ -33,9 +33,9 @@ const OPENROUTER_CIRCUIT = {
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Sonnet 4.6 for everything — fast, reliable tool calling, consistent behavior
-const PRIMARY_MODEL = "anthropic/claude-sonnet-4-6";
-const PRO_MODEL = "anthropic/claude-sonnet-4-6";
+// Flash 3 for general chat — cheap + fast; PRO (Sonnet 4.6) handles uploads
+const PRIMARY_MODEL = "google/gemini-3-flash-preview";
+const PRO_MODEL = "anthropic/claude-sonnet-4.6";
 const FALLBACK_MODEL = "google/gemini-2.5-flash";
 
 interface AIResponse {
