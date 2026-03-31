@@ -5,6 +5,7 @@
 
 import { LogCategory, logger } from "../utils/logger.ts";
 import { getSupabaseAdmin } from "../../_shared/db.ts";
+import { USER_FALLBACKS } from "../config/business-rules.ts";
 
 export interface Agent {
   id: string;
@@ -153,6 +154,26 @@ export async function getAgentByEmail(
 
   if (!ownerError && ownerData) {
     return mapAgentData(ownerData);
+  }
+
+  // Fallback: check USER_FALLBACKS alias map (e.g. listings@zyprus.com → Lauren's UUID)
+  // Some agents use multiple email addresses not stored in the agents table
+  const fallbackUuid = USER_FALLBACKS[sanitizedEmail];
+  if (fallbackUuid) {
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from("agents")
+      .select("*")
+      .eq("zyprus_user_id", fallbackUuid)
+      .limit(1)
+      .maybeSingle();
+
+    if (!fallbackError && fallbackData) {
+      logger.info(`[AgentIdentifier] Found agent via USER_FALLBACKS alias: ${fallbackData.full_name}`, {
+        category: LogCategory.DATABASE,
+        aliasEmail: sanitizedEmail,
+      });
+      return mapAgentData(fallbackData);
+    }
   }
 
   return null;

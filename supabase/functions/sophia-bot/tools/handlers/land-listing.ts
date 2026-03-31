@@ -486,19 +486,33 @@ export async function handleCreateLandListing(
     });
   }
 
-  // 7b. Retrieve pending documents
+  // 7b. Retrieve pending documents (with filename-based dedup)
   let titleDeedFileUrls: string[] = [...titleDeedImageUrls];
   if (agentPhone) {
     const pendingDocs = await getPendingDocuments(agentPhone);
     if (pendingDocs.length > 0) {
-      titleDeedFileUrls = [
-        ...titleDeedFileUrls,
-        ...pendingDocs.map((d) => d.document_url),
-      ];
+      // Deduplicate by normalized filename (strip wa_doc_{timestamp}_ prefix)
+      const seen = new Map<string, string>();
+      for (const doc of pendingDocs) {
+        const name = (doc.filename || doc.document_url)
+          .split("/").pop()?.split("?")[0] || doc.document_url;
+        const normalized = name.replace(/^wa_doc_\d+_/, "").toLowerCase().trim();
+        if (!seen.has(normalized)) {
+          seen.set(normalized, doc.document_url);
+        } else {
+          logger.info("Deduplicated document by filename", {
+            category: LogCategory.GENERAL,
+            operation: "createLandListing",
+            duplicate: doc.filename,
+          });
+        }
+      }
+      titleDeedFileUrls = [...titleDeedFileUrls, ...seen.values()];
       logger.info("Retrieved pending documents for upload", {
         category: LogCategory.GENERAL,
         operation: "createLandListing",
-        documentCount: pendingDocs.length,
+        rawCount: pendingDocs.length,
+        dedupedCount: seen.size,
         filenames: pendingDocs.map((d) => d.filename).filter(Boolean),
       });
     }

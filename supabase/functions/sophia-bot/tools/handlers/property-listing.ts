@@ -68,7 +68,7 @@ export async function handleCreatePropertyListing(
   const agentPhone = agent!.mobile?.replace(/\D/g, "") || "";
 
   // Step 7-7b: Process images
-  const { imageUrls, titleDeedImageUrls, floorPlanUrls, documentUrls } =
+  const { imageUrls, titleDeedImageUrls, floorPlanUrls, documentUrls, otherDocumentUrls } =
     await processListingImages(args, agentPhone);
 
   const processedImages = await processImages(imageUrls);
@@ -499,6 +499,8 @@ export async function handleCreatePropertyListing(
           : undefined,
       titleDeedFileUrls:
         documentUrls.length > 0 ? documentUrls : undefined,
+      otherDocumentUrls:
+        otherDocumentUrls.length > 0 ? otherDocumentUrls : undefined,
       agentName: listingOwnerName,
       ownerName: args.ownerName as string,
       ownerPhone: args.ownerPhone as string,
@@ -590,10 +592,13 @@ export async function handleCreatePropertyListing(
   message += `• Images: ${validImages.length} uploaded\n`;
   if (documentUrls.length > 0) {
     if (result.titleDeedAttached === false) {
-      message += `• Title deed documents: ${documentUrls.length} uploaded but ⚠️ FAILED to attach to listing — please add manually\n`;
+      message += `• Title deed docs: ${documentUrls.length} uploaded but ⚠️ FAILED to attach — please add manually\n`;
     } else {
-      message += `• Title deed documents: ${documentUrls.length} attached\n`;
+      message += `• Title deed docs: ${documentUrls.length} attached\n`;
     }
+  }
+  if (otherDocumentUrls.length > 0) {
+    message += `• Other documents: ${otherDocumentUrls.length} attached\n`;
   }
   message += `• Listing Owner: ${listingOwnerName}\n`;
   message += `• Reviewer: ${reviewers.reviewer1Uuid}\n`;

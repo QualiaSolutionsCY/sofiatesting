@@ -53,6 +53,7 @@ export interface ListingData {
   priceModifier?: "no_vat" | "plus_vat" | "vat_included";
   floorPlanUrls?: string[]; // Floor plan images (uploaded to field_floor_plan)
   titleDeedFileUrls?: string[]; // Title deed documents (uploaded to field_title_deed_file)
+  otherDocumentUrls?: string[]; // Other documents (uploaded to field_other_document)
   energyClass?: string; // Energy rating (A, B, C, D) - goes to field_energy_class
   // For Own Reference ID format: Owner - {Agent} - {Seller} - {Phone} - {Email}
   agentName?: string;
@@ -185,7 +186,8 @@ function buildJsonApiPayload(
   outdoorFeatureUuids: string[],
   viewUuids: string[],
   floorPlanFileIds: string[] = [],
-  titleDeedFileIds: string[] = []
+  titleDeedFileIds: string[] = [],
+  otherDocFileIds: string[] = []
 ): Record<string, unknown> {
   // Generate Own Reference ID for quick reviewer reference
   // Format: Owner - {Agent Name} - {Seller Name} - {Seller Phone} - {Email}
@@ -387,6 +389,16 @@ function buildJsonApiPayload(
   if (titleDeedFileIds.length > 0) {
     relationships.field_title_deed_file = {
       data: titleDeedFileIds.map((id) => ({
+        type: "file--file",
+        id,
+      })),
+    };
+  }
+
+  // Other documents (non-title-deed PDFs: valuation reports, permits, etc.)
+  if (otherDocFileIds.length > 0) {
+    relationships.field_other_document = {
+      data: otherDocFileIds.map((id) => ({
         type: "file--file",
         id,
       })),
@@ -912,6 +924,144 @@ async function uploadTitleDeedFiles(
 }
 
 /**
+ * Upload other documents (non-title-deed) to Zyprus via field_other_document endpoint.
+ * Files go to private:// storage (same as title deeds).
+ */
+async function uploadOtherDocuments(
+  fileUrls: string[],
+  token: string,
+  config: ZyprusConfig
+): Promise<string[]> {
+  logger.info("Uploading other documents to Zyprus", {
+    category: LogCategory.ZYPRUS,
+    operation: "uploadOtherDocuments",
+    count: fileUrls.length,
+  });
+
+  const results = await Promise.all(
+    fileUrls.map(async (url, index) => {
+      try {
+        const urlCheck = validateImageUrl(url);
+        if (!urlCheck.valid) {
+          logger.warn("Other document URL blocked by SSRF validator", {
+            category: LogCategory.ZYPRUS,
+            operation: "uploadOtherDocument",
+            imageIndex: index,
+            error: urlCheck.error,
+          });
+          return null;
+        }
+
+        const fileResponse = await fetch(url, {
+          signal: AbortSignal.timeout(30_000),
+        });
+        if (!fileResponse.ok) {
+          logger.warn("Failed to download other document", {
+            category: LogCategory.ZYPRUS,
+            operation: "uploadOtherDocument",
+            imageIndex: index,
+            status: fileResponse.status,
+          });
+          return null;
+        }
+
+        const fileBlob = await fileResponse.blob();
+        const fileBuffer = await fileBlob.arrayBuffer();
+        const contentType =
+          fileResponse.headers.get("content-type") || fileBlob.type || "";
+        const extFromMime: Record<string, string> = {
+          "image/jpeg": ".jpg",
+          "image/png": ".png",
+          "application/pdf": ".pdf",
+          "application/msword": ".doc",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            ".docx",
+        };
+        const detectedExt =
+          extFromMime[contentType.split(";")[0].trim().toLowerCase()];
+        let filename =
+          url.split("/").pop()?.split("?")[0] || `document_${index + 1}`;
+        if (!filename.match(/\.(jpg|jpeg|png|pdf|doc|docx)$/i)) {
+          filename = `document_${index + 1}${detectedExt || ".pdf"}`;
+        }
+
+        const response = await withRetry(
+          async () => {
+            const res = await fetch(
+              `${config.apiUrl}/jsonapi/node/property/field_other_document`,
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/octet-stream",
+                  "Content-Disposition": `file; filename="${filename}"`,
+                  "User-Agent": "SophiaAI",
+                },
+                body: fileBuffer,
+                signal: AbortSignal.timeout(30_000),
+              }
+            );
+            if (!res.ok && res.status >= 500) {
+              throw new Error(`Other document upload failed: ${res.status}`);
+            }
+            return res;
+          },
+          { maxRetries: 2, baseDelayMs: 500 },
+          "uploadOtherDocument"
+        );
+
+        if (!response.ok) {
+          let errorBody = "";
+          try {
+            errorBody = await response.text();
+          } catch {
+            /* ignore */
+          }
+          logger.warn("Other document upload to Zyprus failed", {
+            category: LogCategory.ZYPRUS,
+            operation: "uploadOtherDocument",
+            status: response.status,
+            filename,
+            errorBody: errorBody.substring(0, 500),
+          });
+          return null;
+        }
+
+        const result = await response.json();
+        const fileId = result.data?.id || null;
+        if (fileId) {
+          logger.info("Other document uploaded successfully", {
+            category: LogCategory.ZYPRUS,
+            operation: "uploadOtherDocument",
+            imageIndex: index,
+            fileId,
+            filename,
+          });
+        }
+        return fileId;
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        logger.error("Other document upload error", err, {
+          category: LogCategory.ZYPRUS,
+          operation: "uploadOtherDocument",
+          imageIndex: index,
+        });
+        return null;
+      }
+    })
+  );
+
+  const successfulIds = results.filter((id): id is string => id !== null);
+  logger.info("Other document uploads complete", {
+    category: LogCategory.ZYPRUS,
+    operation: "uploadOtherDocuments",
+    successful: successfulIds.length,
+    failed: fileUrls.length - successfulIds.length,
+  });
+  return successfulIds;
+}
+
+/**
  * Create a property listing draft
  */
 export async function createDraftListing(
@@ -992,14 +1142,17 @@ export async function createDraftListing(
     viewCount: viewUuids.length,
   });
 
-  // Upload all file types in parallel (gallery, floor plans, title deeds)
-  const [imageFileIds, floorPlanFileIds, titleDeedFileIds] = await Promise.all([
+  // Upload all file types in parallel (gallery, floor plans, title deeds, other docs)
+  const [imageFileIds, floorPlanFileIds, titleDeedFileIds, otherDocFileIds] = await Promise.all([
     uploadImages(listing.images, token, config),
     listing.floorPlanUrls && listing.floorPlanUrls.length > 0
       ? uploadFloorPlans(listing.floorPlanUrls, token, config)
       : Promise.resolve([] as string[]),
     listing.titleDeedFileUrls && listing.titleDeedFileUrls.length > 0
       ? uploadTitleDeedFiles(listing.titleDeedFileUrls, token, config)
+      : Promise.resolve([] as string[]),
+    listing.otherDocumentUrls && listing.otherDocumentUrls.length > 0
+      ? uploadOtherDocuments(listing.otherDocumentUrls, token, config)
       : Promise.resolve([] as string[]),
   ]);
 
@@ -1010,6 +1163,7 @@ export async function createDraftListing(
     galleryTotal: listing.images.length,
     floorPlansUploaded: floorPlanFileIds.length,
     titleDeedsUploaded: titleDeedFileIds.length,
+    otherDocsUploaded: otherDocFileIds.length,
   });
 
   // Build and send listing payload
@@ -1027,7 +1181,8 @@ export async function createDraftListing(
     outdoorFeatureUuids,
     viewUuids,
     floorPlanFileIds,
-    titleDeedFileIds
+    titleDeedFileIds,
+    otherDocFileIds
   );
 
   const response = await withRetry(

@@ -24,7 +24,8 @@ export interface ProcessedImages {
   imageUrls: string[];
   titleDeedImageUrls: string[];
   floorPlanUrls: string[];
-  documentUrls: string[];
+  documentUrls: string[];       // Title deed documents → field_title_deed_file
+  otherDocumentUrls: string[];  // Other documents → field_other_document
 }
 
 export async function processListingImages(
@@ -308,18 +309,33 @@ export async function processListingImages(
   }
 
   // 7b. Retrieve pending documents (title deeds, PDFs sent via WhatsApp)
-  let titleDeedFileUrls: string[] = [...titleDeedImageUrls];
+  let allDocumentUrls: string[] = [];
   if (agentPhone) {
     const pendingDocs = await getPendingDocuments(agentPhone);
     if (pendingDocs.length > 0) {
-      titleDeedFileUrls = [
-        ...titleDeedFileUrls,
-        ...pendingDocs.map((d) => d.document_url),
-      ];
+      // Deduplicate documents by normalized filename
+      // WhatsApp sends docs with different timestamps: wa_doc_1774948888426_file.pdf vs wa_doc_1774948888383_file.pdf
+      // Strip the wa_doc_{timestamp}_ prefix to compare base filenames
+      const seen = new Map<string, string>(); // normalized filename → first URL
+      for (const doc of pendingDocs) {
+        const normalizedName = normalizeDocFilename(doc.filename || doc.document_url);
+        if (!seen.has(normalizedName)) {
+          seen.set(normalizedName, doc.document_url);
+        } else {
+          logger.info("Deduplicated document by filename", {
+            category: LogCategory.GENERAL,
+            operation: "processListingImages",
+            duplicate: doc.filename,
+            normalizedName,
+          });
+        }
+      }
+      allDocumentUrls = [...seen.values()];
       logger.info("Retrieved pending documents for upload", {
         category: LogCategory.GENERAL,
         operation: "processListingImages",
-        documentCount: pendingDocs.length,
+        rawCount: pendingDocs.length,
+        dedupedCount: allDocumentUrls.length,
         filenames: pendingDocs.map((d) => d.filename).filter(Boolean),
       });
     }
@@ -327,7 +343,26 @@ export async function processListingImages(
   // Also include any document URLs the AI explicitly passed
   const aiTitleDeedUrls = (args.titleDeedFileUrls as string[]) || [];
   if (aiTitleDeedUrls.length > 0) {
-    titleDeedFileUrls = [...titleDeedFileUrls, ...aiTitleDeedUrls];
+    allDocumentUrls = [...allDocumentUrls, ...aiTitleDeedUrls];
+  }
+
+  // Classify documents: title deeds go to field_title_deed_file, others to field_other_document
+  const titleDeedDocUrls: string[] = [...titleDeedImageUrls]; // vision-classified title deed images
+  const otherDocUrls: string[] = [];
+  for (const url of allDocumentUrls) {
+    if (isTitleDeedDocument(url)) {
+      titleDeedDocUrls.push(url);
+    } else {
+      otherDocUrls.push(url);
+    }
+  }
+  if (titleDeedDocUrls.length > 0 || otherDocUrls.length > 0) {
+    logger.info("Classified documents by type", {
+      category: LogCategory.IMAGE,
+      operation: "processListingImages",
+      titleDeedCount: titleDeedDocUrls.length,
+      otherDocCount: otherDocUrls.length,
+    });
   }
 
   logger.info("Image processing completed", {
@@ -336,13 +371,46 @@ export async function processListingImages(
     imageCount: imageUrls.length,
     titleDeedCount: titleDeedImageUrls.length,
     floorPlanCount: floorPlanImageUrls.length,
-    documentCount: titleDeedFileUrls.length,
+    titleDeedDocCount: titleDeedDocUrls.length,
+    otherDocCount: otherDocUrls.length,
   });
 
   return {
     imageUrls,
     titleDeedImageUrls,
     floorPlanUrls: floorPlanImageUrls,
-    documentUrls: titleDeedFileUrls,
+    documentUrls: titleDeedDocUrls,
+    otherDocumentUrls: otherDocUrls,
   };
+}
+
+/**
+ * Normalize a WhatsApp document filename for deduplication.
+ * Strips the wa_doc_{timestamp}_ prefix so the same file sent twice is detected.
+ * Example: "wa_doc_1774948888426_Pafos501_AX2081_23_Model.pdf" → "pafos501_ax2081_23_model.pdf"
+ */
+function normalizeDocFilename(filenameOrUrl: string): string {
+  // Extract filename from URL if needed
+  let name = filenameOrUrl.includes("/")
+    ? filenameOrUrl.split("/").pop()?.split("?")[0] || filenameOrUrl
+    : filenameOrUrl;
+
+  // Strip wa_doc_{timestamp}_ prefix (13-digit WhatsApp message timestamp)
+  name = name.replace(/^wa_doc_\d+_/, "");
+
+  return name.toLowerCase().trim();
+}
+
+/**
+ * Check if a document is likely a title deed based on filename patterns.
+ * Title deeds → field_title_deed_file, everything else → field_other_document.
+ */
+function isTitleDeedDocument(url: string): boolean {
+  const filename = (url.split("/").pop()?.split("?")[0] || "").toLowerCase();
+  const titleDeedPatterns = [
+    "title_deed", "title deed", "titledeed",
+    "td_", "_td.", "_td_",
+    "deed_", "_deed.",
+  ];
+  return titleDeedPatterns.some((p) => filename.includes(p));
 }
