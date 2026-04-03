@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { checkAdminAuth } from "@/lib/auth/admin";
 import { db } from "@/lib/db/client";
@@ -26,9 +26,19 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const status = url.searchParams.get("status");
     const limit = Math.min(
-      Number.parseInt(url.searchParams.get("limit") || "50", 10),
-      200
+      Number.parseInt(url.searchParams.get("limit") || "200", 10),
+      500
     );
+
+    // Get real counts from DB (not capped by limit)
+    const [statsResult] = await db
+      .select({
+        total: count(),
+        draft: count(sql`CASE WHEN ${listingUpload.status} = 'draft' THEN 1 END`),
+        published: count(sql`CASE WHEN ${listingUpload.status} = 'published' THEN 1 END`),
+        expired: count(sql`CASE WHEN ${listingUpload.status} = 'expired' THEN 1 END`),
+      })
+      .from(listingUpload);
 
     let query = db
       .select()
@@ -46,6 +56,12 @@ export async function GET(req: Request) {
       success: true,
       listings,
       count: listings.length,
+      stats: {
+        total: statsResult.total,
+        draft: statsResult.draft,
+        published: statsResult.published,
+        expired: statsResult.expired,
+      },
     });
   } catch (error) {
     logger.error("Failed to get admin listings", error);

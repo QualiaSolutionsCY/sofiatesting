@@ -53,6 +53,7 @@ type Listing = {
 
 export default function AdminListingsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
+  const [stats, setStats] = useState({ total: 0, draft: 0, published: 0, expired: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -74,6 +75,7 @@ export default function AdminListingsPage() {
 
       const data = await response.json();
       setListings(data.listings || []);
+      if (data.stats) setStats(data.stats);
     } catch (error) {
       console.error("Error fetching listings:", error);
       toast.error("Failed to fetch listings");
@@ -112,10 +114,8 @@ export default function AdminListingsPage() {
     }
   };
 
-  const draftCount = listings.filter((l) => l.status === "draft").length;
-  const publishedCount = listings.filter(
-    (l) => l.status === "published"
-  ).length;
+  const draftCount = stats.draft;
+  const publishedCount = stats.published;
 
   return (
     <div className="mx-auto max-w-7xl space-y-4 md:space-y-6">
@@ -185,7 +185,7 @@ export default function AdminListingsPage() {
             <div className="flex items-center">
               <Building2 className="mr-2 h-5 w-5 text-blue-500 md:h-8 md:w-8" />
               <span className="font-bold text-xl md:text-3xl">
-                {listings.length}
+                {stats.total}
               </span>
             </div>
           </CardContent>

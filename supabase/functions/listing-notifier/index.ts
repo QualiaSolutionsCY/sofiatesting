@@ -87,13 +87,13 @@ function getNodeType(listingUrl: string): "land" | "property" {
 /**
  * Check if a specific listing is published on Zyprus
  */
-async function isListingPublished(
+async function checkListingStatus(
   listingId: string,
   listingUrl: string,
   token: string
-): Promise<boolean> {
+): Promise<{ published: boolean; publicUrl?: string }> {
   const nodeType = getNodeType(listingUrl);
-  const url = `${ZYPRUS_API_URL}/jsonapi/node/${nodeType}/${listingId}?fields[node--${nodeType}]=status`;
+  const url = `${ZYPRUS_API_URL}/jsonapi/node/${nodeType}/${listingId}?fields[node--${nodeType}]=status,path,drupal_internal__nid`;
 
   const response = await fetch(url, {
     headers: {
@@ -104,16 +104,21 @@ async function isListingPublished(
   });
 
   if (!response.ok) {
-    // 404 means listing was deleted — treat as expired
     if (response.status === 404) {
-      return false;
+      return { published: false };
     }
     throw new Error(`Zyprus API error: ${response.status}`);
   }
 
   const data = await response.json();
-  // status: true means published, false means still draft
-  return data.data?.attributes?.status === true;
+  const published = data.data?.attributes?.status === true;
+  // Get the public path alias (e.g. /properties-for-sale/paphos/my-property)
+  const pathAlias = data.data?.attributes?.path?.alias;
+  const publicUrl = published && pathAlias
+    ? `${ZYPRUS_API_URL}${pathAlias}`
+    : undefined;
+
+  return { published, publicUrl };
 }
 
 Deno.serve(async (req: Request) => {
@@ -159,19 +164,20 @@ Deno.serve(async (req: Request) => {
           results.checked++;
 
           try {
-            const published = await isListingPublished(
+            const status = await checkListingStatus(
               listing.zyprus_listing_id,
               listing.listing_url,
               token
             );
 
-            if (published) {
-              // Send WhatsApp notification to the agent
+            if (status.published) {
+              // Send WhatsApp notification to the agent with the public URL
               const phone = formatPhoneNumber(listing.agent_phone);
               if (phone) {
+                const viewUrl = status.publicUrl || listing.listing_url;
                 const message =
                   `Your listing "${listing.property_title}" has been published and is now live on Zyprus.com.\n\n` +
-                  `View it here: ${listing.listing_url}\n\n` +
+                  `View it here: ${viewUrl}\n\n` +
                   "If you need any changes, please contact the office.";
 
                 await sendTextMessage(phone, message);
