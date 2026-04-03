@@ -56,6 +56,22 @@ console.log(`[Startup] Sentry enabled: ${isSentryEnabled()}`);
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const AI_MODEL = "google/gemini-3.1-pro-preview-customtools";
 
+// Indexer URL - forward all updates so telegram-indexer keeps working
+const INDEXER_URL = "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/telegram-indexer";
+
+/**
+ * Forward update payload to telegram-indexer (fire-and-forget)
+ */
+const forwardToIndexer = (body: string): void => {
+  fetch(INDEXER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+  }).catch((err) => {
+    console.error("[Webhook] Failed to forward to indexer:", err);
+  });
+};
+
 /**
  * Main webhook handler
  */
@@ -65,9 +81,45 @@ serve(async (req: Request): Promise<Response> => {
     return new Response(null, {
       headers: {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST",
+        "Access-Control-Allow-Methods": "GET, POST",
         "Access-Control-Allow-Headers": "Content-Type, X-Telegram-Bot-Api-Secret-Token",
       },
+    });
+  }
+
+  // GET ?setup — set Telegram webhook to point here
+  if (req.method === "GET") {
+    const url = new URL(req.url);
+    if (url.searchParams.has("setup")) {
+      const secret = url.searchParams.get("secret");
+      if (!secret || secret !== TELEGRAM_WEBHOOK_SECRET) {
+        return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
+      }
+      if (!TELEGRAM_BOT_TOKEN) {
+        return new Response(JSON.stringify({ error: "TELEGRAM_BOT_TOKEN not set" }), { status: 500 });
+      }
+      const webhookUrl = "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/telegram-sophia";
+      const res = await fetch(
+        `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: webhookUrl,
+            allowed_updates: ["message", "edited_message"],
+          }),
+        }
+      );
+      const data = await res.json();
+      // Also get current webhook info
+      const infoRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo`);
+      const info = await infoRes.json();
+      return new Response(JSON.stringify({ set: data, info }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ ok: true, function: "telegram-sophia" }), {
+      headers: { "Content-Type": "application/json" },
     });
   }
 
@@ -77,8 +129,13 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
+    // 0. Read raw body so we can forward to indexer
+    const rawBody = await req.text();
+
+    // Forward to telegram-indexer (fire-and-forget, non-blocking)
+    forwardToIndexer(rawBody);
+
     // 1. Validate webhook secret - if configured
-    // For now, make validation optional while debugging secret sync issues
     const token = req.headers.get("x-telegram-bot-api-secret-token");
     if (TELEGRAM_WEBHOOK_SECRET && token !== TELEGRAM_WEBHOOK_SECRET) {
       console.error("[Webhook] Invalid secret token", {
@@ -95,7 +152,7 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // 2. Parse update
-    const update: TelegramUpdate = await req.json();
+    const update: TelegramUpdate = JSON.parse(rawBody);
     const message = update.message;
 
     // 3. Validate message
