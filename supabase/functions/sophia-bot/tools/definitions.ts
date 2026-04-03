@@ -341,9 +341,9 @@ export const TOOLS: ToolDefinition[] = [
           },
           landType: {
             type: "string",
-            enum: ["plot", "field", "agricultural"],
+            enum: ["plot", "field", "agricultural", "commercial", "industrial"],
             description:
-              "The type of land (plot for building plots, field for undeveloped land, agricultural for farming land)",
+              "The type of land (plot for residential building plots, field for undeveloped land, agricultural for farming land, commercial for commercial plots, industrial for industrial plots)",
           },
           price: {
             type: "number",

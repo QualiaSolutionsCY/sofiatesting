@@ -168,7 +168,7 @@ export const createPropertyListingSchema = z.object({
  */
 export const createLandListingSchema = z.object({
   listingType: z.enum(["sale", "rent"]),
-  landType: z.enum(["plot", "field", "agricultural"]),
+  landType: z.enum(["plot", "field", "agricultural", "commercial", "industrial"]),
   price: z.number().positive().max(100_000_000, "Price must be under 100M EUR"),
   location: z.string().min(2).max(200),
   landSize: z
