@@ -502,26 +502,9 @@ export async function chat(
 
   // Detect if email contains structured property data (has key required fields)
   // When core fields are present, force createPropertyListing specifically
-  // Relaxed detection: agents don't always use formal labels like "price:" or "location:"
-  // e.g. "500k not negotiable" contains price, "Kapsalos, Limassol" contains location implicitly
-  const isEmailWithStructuredData =
-    lowerMessage.includes("this message is via email") &&
-    isPropertyUploadIntent &&
-    // Price indicator: explicit "price" label OR a number pattern (500k, €185,000, etc.)
-    (lowerMessage.includes("price") || /\d{3,}k|\d{4,}|€\d/.test(lowerMessage)) &&
-    // Location indicator: explicit "location" label OR a Cyprus city/district name
-    (lowerMessage.includes("location") || /paphos|limassol|larnaca|nicosia|famagusta|lemesos|pafos/.test(lowerMessage)) &&
-    // Owner indicator
-    (lowerMessage.includes("owner") || lowerMessage.includes("seller") || lowerMessage.includes("assign to"));
-
-  // Detect if this is a LAND listing (not a property listing)
-  // Land emails typically contain "land for sale", "plot for sale", "land listing", etc.
-  const isLandListing = isEmailWithStructuredData &&
-    (/\bland\b.*\bfor\s+sale\b|\bplot\b.*\bfor\s+sale\b|\bland\s+listing\b|\bplot\s+listing\b|\bagricultural\b.*\bfor\s+sale\b/.test(lowerMessage));
-
   if (isPropertyUploadIntent) {
     logger.info(
-      `[OpenRouter] Property upload intent detected - will force tool usage${isEmailWithStructuredData ? (isLandListing ? " (EMAIL with structured data → forcing createLandListing)" : " (EMAIL with structured data → forcing createPropertyListing)") : ""}`,
+      `[OpenRouter] Property upload intent detected - will encourage tool usage`,
       { category: LogCategory.ZYPRUS }
     );
   }
@@ -557,27 +540,16 @@ export async function chat(
       };
     }
 
-    // For emails with pre-extracted fields, ALWAYS force the correct tool
-    // This is more reliable than isEmailWithStructuredData which has strict pattern matching
-    // Check on EVERY iteration, not just first — retries after validation failure need override too
-    const hasPreExtractedFields = lowerMessage.includes("pre-extracted fields");
-    // Detect land from pre-extracted block — more reliable than isLandListing regex
-    const preExtractedIsLand = hasPreExtractedFields && lowerMessage.includes("tool: createlandlisting");
-
-    // For structured email data, force the right tool (land vs property)
-    // For other upload intents, force any tool ("required")
-    // Otherwise, let AI decide ("auto")
+    // For property uploads, force any tool ("required") so AI doesn't just chat
+    // Otherwise let AI decide naturally
+    const isEmailMessage = lowerMessage.includes("this message is via email");
     const toolChoiceForCall: "auto" | "required" | { type: "function"; function: { name: string } } =
-      hasPreExtractedFields && toolCallCount === 0
-        ? { type: "function", function: { name: (preExtractedIsLand || isLandListing) ? "createLandListing" : "createPropertyListing" } }
-        : isEmailWithStructuredData && toolCallCount === 0
-          ? { type: "function", function: { name: isLandListing ? "createLandListing" : "createPropertyListing" } }
-          : isPropertyUploadIntent && toolCallCount === 0
-            ? "required"
-            : "auto";
+      (isPropertyUploadIntent || isEmailMessage) && toolCallCount === 0
+        ? "required"
+        : "auto";
 
-    // Use Pro model for property uploads, email uploads, and Bazaraki extraction (better at structured extraction)
-    const useProModel = isPropertyUploadIntent || isBazarakiLink || hasPreExtractedFields || isEmailWithStructuredData;
+    // Use Pro model for property uploads and Bazaraki extraction (better at structured extraction)
+    const useProModel = isPropertyUploadIntent || isBazarakiLink || isEmailMessage;
     const modelForCall = useProModel ? PRO_MODEL : PRIMARY_MODEL;
 
     const openRouterResult = await callOpenRouter(
@@ -590,7 +562,7 @@ export async function chat(
     const { usage } = openRouterResult;
 
     if (useProModel && !error) {
-      logger.info(`[OpenRouter] Used Pro model for ${isBazarakiLink ? "Bazaraki extraction" : hasPreExtractedFields || isEmailWithStructuredData ? "email upload" : "property upload"}`, {
+      logger.info(`[OpenRouter] Used Pro model for ${isBazarakiLink ? "Bazaraki extraction" : "property upload"}`, {
         category: LogCategory.GENERAL,
       });
     }
@@ -598,16 +570,6 @@ export async function chat(
     // Accumulate token usage
     if (usage?.totalTokens) {
       totalTokens += usage.totalTokens;
-    }
-
-    // Fallback: if primary model fails OR returns no tool_calls when we forced a tool, try fallback model
-    if (hasPreExtractedFields && message && (!message.tool_calls || message.tool_calls.length === 0) && !message.content) {
-      // Primary model returned empty with no tool_calls — treat as failure for email uploads
-      logger.warn("[Email] Primary model returned empty (no tool_calls, no content) — triggering fallback", {
-        category: LogCategory.GENERAL,
-      });
-      error = "Empty response with forced tool_choice";
-      message = null;
     }
     if (error || !message) {
       logger.warn(
@@ -748,73 +710,12 @@ export async function chat(
           { category: LogCategory.TOOL }
         );
 
-        // CRITICAL: For email uploads, OVERRIDE the AI's tool args with server-side parsed values
-        // Gemini hallucnates values even when pre-extracted fields are in the prompt
-        // So we force-inject the correct values parsed by email-parser.ts
+        // For email uploads: strip AI-fabricated imageUrls — images come from pending_images table
         if (
           (toolName === "createPropertyListing" || toolName === "createLandListing") &&
-          userMessage.includes("PRE-EXTRACTED FIELDS")
+          userMessage.includes("THIS MESSAGE IS VIA EMAIL")
         ) {
-          const overrides = parsePreExtractedFields(userMessage);
-          // Apply overrides from server-side parsed fields
-          const overridden: string[] = [];
-          for (const [key, value] of Object.entries(overrides)) {
-            if (value !== undefined && value !== null && value !== "") {
-              if (JSON.stringify(toolArgs[key]) !== JSON.stringify(value)) {
-                overridden.push(key);
-              }
-              toolArgs[key] = value;
-            }
-          }
-          // Null out optional fields the AI hallucinated that weren't in the email
-          const nullableFields = ["coveredVeranda", "uncoveredVeranda", "plotSize", "yearBuilt", "yearRenovated", "floor", "energyClass", "buildingName", "areaDescription"];
-          // ALWAYS strip AI-fabricated imageUrls for email uploads
-          // Email images come from pending_images (stored by email-webhook.ts), not from AI args
-          // Set to empty array (not delete) because the tool schema requires imageUrls
-          // The handler will fetch actual images from pending_images internally
           toolArgs.imageUrls = [];
-          for (const field of nullableFields) {
-            if (!(field in overrides) && toolArgs[field] !== undefined) {
-              logger.info(`[Email] Removing AI-hallucinated field "${field}" (not in email)`, {
-                category: LogCategory.TOOL,
-              });
-              delete toolArgs[field];
-            }
-          }
-          if (overridden.length > 0) {
-            logger.warn(`[Email] Overrode ${overridden.length} AI-hallucinated args with server-parsed values: ${overridden.join(", ")}`, {
-              category: LogCategory.TOOL,
-            });
-          }
-
-          // BLOCK upload if no Google Maps link from the EMAIL (not AI-fabricated)
-          if (!("locationUrl" in overrides)) {
-            delete toolArgs.locationUrl;
-            delete toolArgs.coordinates;
-            logger.info("[Email] No locationUrl found — blocking upload, asking agent for Google Maps link", {
-              category: LogCategory.TOOL,
-            });
-            return {
-              response: "Thank you for the property details! Before I upload the draft, I need one more thing:\n\nCould you please send me the **Google Maps link** (pin location) for this property? This is required so the reviewer knows the exact location.\n\nOnce you reply with the link, I'll complete the upload right away.",
-              success: true,
-              toolsUsed,
-              tokenCount: totalTokens > 0 ? totalTokens : undefined,
-            };
-          }
-        }
-
-        // Inject server-side extracted assignTo if the AI omitted it
-        if (
-          (toolName === "createPropertyListing" || toolName === "createLandListing") &&
-          !toolArgs.assignTo
-        ) {
-          const assignMatch = userMessage.match(/assignTo:\s*"([^"]+)"/) || userMessage.match(/MANDATORY ASSIGNMENT:.*?assignTo="([^"]+)"/);
-          if (assignMatch) {
-            toolArgs.assignTo = assignMatch[1];
-            logger.info(`[Email] Injected assignTo="${assignMatch[1]}" into ${toolName} (AI omitted it)`, {
-              category: LogCategory.TOOL,
-            });
-          }
         }
 
         toolsUsed.push(toolName);
@@ -991,53 +892,12 @@ export async function chat(
           } catch (_e) {
             toolArgs = {};
           }
-          // CRITICAL: For email uploads in retry path, apply same overrides as main path
+          // For email uploads in retry path: strip AI-fabricated imageUrls
           if (
             (toolName === "createPropertyListing" || toolName === "createLandListing") &&
-            userMessage.includes("PRE-EXTRACTED FIELDS")
+            userMessage.includes("THIS MESSAGE IS VIA EMAIL")
           ) {
-            const overrides = parsePreExtractedFields(userMessage);
-            for (const [key, value] of Object.entries(overrides)) {
-              if (value !== undefined && value !== null && value !== "") {
-                toolArgs[key] = value;
-              }
-            }
-            // Strip AI-fabricated imageUrls for email uploads (same as main path)
             toolArgs.imageUrls = [];
-            const nullableFields = ["coveredVeranda", "uncoveredVeranda", "plotSize", "yearBuilt", "yearRenovated", "floor", "energyClass", "buildingName", "areaDescription"];
-            for (const field of nullableFields) {
-              if (!(field in overrides) && toolArgs[field] !== undefined) {
-                delete toolArgs[field];
-              }
-            }
-            // Block if no Google Maps link from email
-            if (!("locationUrl" in overrides)) {
-              delete toolArgs.locationUrl;
-              delete toolArgs.coordinates;
-              return {
-                response: "Thank you for the property details! Before I upload the draft, I need one more thing:\n\nCould you please send me the **Google Maps link** (pin location) for this property? This is required so the reviewer knows the exact location.\n\nOnce you reply with the link, I'll complete the upload right away.",
-                success: true,
-                toolsUsed,
-                tokenCount: totalTokens > 0 ? totalTokens : undefined,
-              };
-            }
-            logger.info("[FORCE TOOL] Applied email override logic (retry path)", {
-              category: LogCategory.TOOL,
-            });
-          }
-
-          // Inject server-side extracted assignTo if the AI omitted it (retry path)
-          if (
-            (toolName === "createPropertyListing" || toolName === "createLandListing") &&
-            !toolArgs.assignTo
-          ) {
-            const assignMatch = userMessage.match(/assignTo:\s*"([^"]+)"/) || userMessage.match(/MANDATORY ASSIGNMENT:.*?assignTo="([^"]+)"/);
-            if (assignMatch) {
-              toolArgs.assignTo = assignMatch[1];
-              logger.info(`[Email] Injected assignTo="${assignMatch[1]}" into ${toolName} (retry path)`, {
-                category: LogCategory.TOOL,
-              });
-            }
           }
 
           logger.info(`[FORCE TOOL] Executing: ${toolName}`, {
@@ -1122,67 +982,3 @@ export async function chat(
   };
 }
 
-/**
- * Parse PRE-EXTRACTED FIELDS block from the email prefix in userMessage.
- * Returns a Record of field→value to override AI's hallucinated tool args.
- * This is the nuclear option: Gemini proved unable to copy values from the prompt,
- * so we extract them server-side and force-inject them into the tool call.
- */
-function parsePreExtractedFields(userMessage: string): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-
-  // Extract the PRE-EXTRACTED FIELDS block
-  const blockMatch = userMessage.match(/PRE-EXTRACTED FIELDS[^\n]*\n([\s\S]*?)(?:\n\n(?:RULES:|MANDATORY|\[Subject:)|\n\[Subject:)/);
-  if (!blockMatch) {
-    logger.warn("[Email] parsePreExtractedFields: Failed to match PRE-EXTRACTED FIELDS block — AI will use its own extraction", {
-      category: LogCategory.TOOL,
-      messagePreview: userMessage.substring(0, 200),
-    });
-    return result;
-  }
-
-  const block = blockMatch[1];
-  const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
-
-  for (const line of lines) {
-    // Parse "key: value" or 'key: "value"' patterns
-    const match = line.match(/^(\w+):\s*(.+)$/);
-    if (!match) continue;
-
-    const key = match[1];
-    let value: unknown = match[2].trim();
-
-    // Skip non-field lines
-    if (key === "Tool") continue;
-
-    // Parse typed values
-    const strVal = value as string;
-    if (strVal.startsWith('"')) {
-      // String value — find closing quote (handles trailing text like: "none" [warning])
-      const closingQuoteIdx = strVal.indexOf('"', 1);
-      value = closingQuoteIdx > 0 ? strVal.slice(1, closingQuoteIdx) : strVal.slice(1);
-    } else if (strVal === "true") {
-      value = true;
-    } else if (strVal === "false") {
-      value = false;
-    } else if (strVal.startsWith("[")) {
-      // JSON array (features)
-      try { value = JSON.parse(strVal); } catch { /* keep as string */ }
-    } else if (strVal.startsWith("{")) {
-      // JSON object (coordinates)
-      try {
-        // Convert "{ lat: 34.83, lon: 32.42 }" to proper JSON
-        const jsonStr = strVal.replace(/(\w+):/g, '"$1":');
-        value = JSON.parse(jsonStr);
-      } catch { /* keep as string */ }
-    } else if (/^\d+$/.test(strVal)) {
-      value = parseInt(strVal);
-    } else if (/^\d+\.\d+$/.test(strVal)) {
-      value = parseFloat(strVal);
-    }
-
-    result[key] = value;
-  }
-
-  return result;
-}
