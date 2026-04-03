@@ -2,24 +2,29 @@
  * Email Webhook Handler
  *
  * Accepts inbound email content from the email-router (Railway service)
- * and processes it through the same AI pipeline as WhatsApp messages.
+ * and processes it through the SAME AI pipeline as WhatsApp messages.
  *
  * Endpoint: POST /sophia-bot/email
  * Auth: X-Admin-Secret header (same as admin endpoints)
  *
- * Flow:
+ * Flow (mirrors WhatsApp exactly):
  * 1. Authenticate via admin secret
  * 2. Identify agent by sender email
- * 3. Load chat history (keyed by sender email)
- * 4. Build system prompt with agent context
- * 5. Run AI chat with all tools enabled
- * 6. Store messages in chat_history
- * 7. Return { reply, success }
+ * 3. Store images/documents in pending_images/pending_documents
+ * 4. Load chat history, personalization, last document (same as WhatsApp)
+ * 5. Build system prompt with full agent context
+ * 6. Run AI chat with all tools enabled (AI decides what to do)
+ * 7. Store messages in chat_history
+ * 8. Return { reply, success }
  */
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { addMessage, getHistory } from "../../_shared/db.ts";
+import { addMessage, getHistory, getLastDocument } from "../../_shared/db.ts";
 import { getAgentByEmail } from "../agents/identifier.ts";
+import {
+  buildUserContext,
+  formatContextForPrompt,
+} from "../memory/sophia-memory.ts";
 import { buildSystemPrompt, chat } from "../services/ai-chat.ts";
 import { validateImagesAtIngress } from "../services/image-validator.ts";
 import { addPendingDocument, clearPendingDocuments, getPendingDocuments } from "../services/pending-documents.ts";
@@ -30,8 +35,6 @@ import { sanitizeUserInput, sanitizeAiOutput } from "../utils/validation.ts";
 import { constantTimeCompare } from "../utils/webhook-auth.ts";
 
 const ADMIN_SECRET = Deno.env.get("SOPHIA_ADMIN_SECRET");
-
-// No alias mapping needed — agents table uses communication_email directly
 
 export interface EmailWebhookPayload {
   from: string;        // Sender email address (used as userId)
@@ -82,7 +85,7 @@ export async function handleEmailWebhook(
     return jsonError("Missing required fields: from, subject, textBody", 400);
   }
 
-  // C1+C3 FIX: Sanitize email input and cap body size (10K chars max)
+  // Sanitize email input and cap body size (10K chars max)
   const MAX_EMAIL_BODY = 10_000;
   let sanitizedBody = textBody || payload.htmlBody || "";
   try {
@@ -93,20 +96,18 @@ export async function handleEmailWebhook(
 
   // Strip quoted email content from replies — email clients quote the entire
   // previous conversation which bloats the message and can exceed token limits.
-  // The agent's actual reply is usually just a few lines at the top.
   const isReply = /^re:/i.test((subject || "").trim());
   if (isReply) {
-    // Cut at common quote markers
     const quoteMarkers = [
-      /^\s*-{3,}\s*On .+ wrote\s*-{3,}/im,    // " ---- On Fri, 03 Apr 2026 ... wrote ----"
-      /^On .+ wrote:\s*$/m,                    // "On Mon, Apr 3, 2026, Sophia wrote:"
-      /^\s*-{3,}\s*Original Message\s*-{3,}/im,// "--- Original Message ---"
-      /^\s*_{3,}/m,                            // "___" separator
-      /^From:\s+/m,                            // "From: sophia@zyprus.com"
-      /^Sent:\s+/m,                            // "Sent: Thursday, April 3..."
-      /^\*From:\*/m,                           // "*From:*" (bold in plaintext)
-      /^>{2,}/m,                               // ">>" deep quoting
-      /^\s*-{4,}\s*$/m,                        // "----" standalone separator
+      /^\s*-{3,}\s*On .+ wrote\s*-{3,}/im,
+      /^On .+ wrote:\s*$/m,
+      /^\s*-{3,}\s*Original Message\s*-{3,}/im,
+      /^\s*_{3,}/m,
+      /^From:\s+/m,
+      /^Sent:\s+/m,
+      /^\*From:\*/m,
+      /^>{2,}/m,
+      /^\s*-{4,}\s*$/m,
     ];
     for (const marker of quoteMarkers) {
       const match = sanitizedBody.match(marker);
@@ -121,15 +122,10 @@ export async function handleEmailWebhook(
     // Hard cap replies at 2K chars — agent answers are short
     if (sanitizedBody.length > 2000) {
       sanitizedBody = sanitizedBody.substring(0, 2000);
-      logger.info("[Email] Reply text truncated to 2000 chars", {
-        category: LogCategory.GENERAL,
-      });
     }
   }
 
-  // Override payload textBody with sanitized version
   payload.textBody = sanitizedBody;
-
   const senderEmail = from.toLowerCase().trim();
 
   logger.info(`[Email] Processing from ${senderEmail}: "${subject}"`, {
@@ -137,7 +133,7 @@ export async function handleEmailWebhook(
   });
 
   try {
-    // Identify agent by resolved email
+    // Identify agent by email
     const identifiedAgent = await getAgentByEmail(senderEmail).catch((err) => {
       logger.warn("[Email] Failed to identify agent by email (non-critical)", {
         category: LogCategory.GENERAL,
@@ -146,11 +142,7 @@ export async function handleEmailWebhook(
       return null;
     });
 
-    if (identifiedAgent) {
-      logger.info(`[Email] Identified agent: ${identifiedAgent.fullName} (${identifiedAgent.region})`, {
-        category: LogCategory.GENERAL,
-      });
-    } else {
+    if (!identifiedAgent) {
       logger.warn(`[Email] Unknown sender rejected: ${senderEmail}`, {
         category: LogCategory.GENERAL,
       });
@@ -163,6 +155,10 @@ export async function handleEmailWebhook(
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
+
+    logger.info(`[Email] Identified agent: ${identifiedAgent.fullName} (${identifiedAgent.region})`, {
+      category: LogCategory.GENERAL,
+    });
 
     // Rate limiting (keyed by sender email)
     const withinRateLimit = await checkRateLimit(supabase, senderEmail).catch(() => true);
@@ -180,159 +176,115 @@ export async function handleEmailWebhook(
       );
     }
 
-    // Use sender email as userId for chat_history (keeps email threads separate from WhatsApp)
+    // Use sender email as userId for chat_history
     const userId = senderEmail;
 
-    // Build user message: subject + body + email channel context
-    // CRITICAL: Tell AI this is EMAIL so it never mentions WhatsApp
+    // Extract key fields from email text to help the AI populate tool parameters.
+    // The AI can't reliably extract from natural text + 47KB system prompt,
+    // but it CAN copy pre-extracted key-value pairs into tool args.
+    const hints = extractFieldHints(sanitizedBody, subject || "");
 
-    // Detect if this is a reply (follow-up answer) vs a new property submission
-    const isReplyEmail = /^re:/i.test((subject || "").trim());
+    // Build user message with extracted hints so the AI can fill tool params
+    const emailPrefix = `[Channel: email. Do NOT mention WhatsApp or ask to send photos via WhatsApp.
+Use these extracted fields for the tool call — only ask about fields marked "?" or missing entirely:
+${hints}]`;
+    const userMessage = subject
+      ? `${emailPrefix}\n\nSubject: ${subject}\n\n${sanitizedBody}`
+      : `${emailPrefix}\n\n${sanitizedBody}`;
 
-    // Server-side assignment extraction — deterministic, the AI often misses "assign to X" patterns
-    const extractedAssignTo = !isReplyEmail ? extractAssignmentFromEmail(textBody || "") : null;
-    if (extractedAssignTo) {
-      logger.info(`[Email] Server-side extracted assignTo: ${extractedAssignTo}`, {
-        category: LogCategory.GENERAL,
-      });
-    }
-
-    // Build user message — simple channel prefix + raw email text
-    // Trust Sonnet 4.6 to extract all property fields naturally (no regex parser, no forced overrides)
-    let userMessage: string;
-
-    if (isReplyEmail) {
-      userMessage = `[THIS MESSAGE IS VIA EMAIL — NOT WHATSAPP. Reply as email, never mention WhatsApp.
-This is a REPLY to your previous question. Use the answer below with our conversation history to complete the upload.
-Images are already stored — pass imageUrls as []. Do NOT call extractFromBazaraki.]
-
-${textBody || ""}`;
-    } else {
-      const assignContext = extractedAssignTo ? `\nThe agent wants this listing assigned to: ${extractedAssignTo}` : "";
-      userMessage = `[THIS MESSAGE IS VIA EMAIL — NOT WHATSAPP. Reply as email, never mention WhatsApp.
-This is a single-shot email with property details. Read it carefully, extract ALL fields, and call createPropertyListing or createLandListing IMMEDIATELY with whatever you have.
-DO NOT ask the agent for information before attempting the upload. Call the tool first — if any required fields are missing, the tool will tell you exactly which ones, and THEN you ask the agent only for those specific missing fields.
-Images are already stored — pass imageUrls as []. Do NOT call extractFromBazaraki.${assignContext}]
-
-${subject ? `Subject: ${subject}\n\n` : ""}${textBody || ""}`;
-    }
-
-    const rawImageUrls = payload.imageUrls || [];
-
-    // Use agent's mobile number for pending_images (same key as WhatsApp)
-    // Cross-contamination prevented by clearing images on each new email
+    // Use agent's mobile number as pending_images key (same key WhatsApp uses)
     const agentPhone = identifiedAgent.mobile?.replace(/\D/g, "") || senderEmail;
-    const imageKey = agentPhone;
 
-    // CRITICAL: Clear old pending images BEFORE adding new ones — but ONLY for new emails
-    // Reply emails should keep the original email's images (the upload hasn't happened yet)
-    if (!isReplyEmail) {
+    // Clear old pending images for new emails (prevent cross-email contamination)
+    // Reply emails keep the original email's images
+    if (!isReply) {
       try {
-        await clearPendingImages(imageKey);
-        logger.info(`[Email] Cleared old pending images for ${imageKey} (email isolation)`, {
+        await clearPendingImages(agentPhone);
+        logger.info(`[Email] Cleared old pending images for ${agentPhone}`, {
           category: LogCategory.GENERAL,
         });
       } catch (err) {
-        logger.error("[Email] FAILED to clear old pending images — aborting to prevent contamination", err instanceof Error ? err : undefined, {
+        logger.error("[Email] FAILED to clear old pending images — aborting", err instanceof Error ? err : undefined, {
           category: LogCategory.GENERAL,
-          imageKey,
         });
         return new Response(
           JSON.stringify({ success: false, reply: "I had a temporary issue processing your email. Please resend it." }),
           { status: 200, headers: { "Content-Type": "application/json" } }
         );
       }
-    } else {
-      logger.info("[Email] Reply email — preserving existing pending images", {
-        category: LogCategory.GENERAL,
-      });
     }
 
-    // Validate images before storing (parity with WhatsApp path)
-    let imageUrls: string[] = [];
+    // Validate and store images (same as WhatsApp image ingress)
+    const rawImageUrls = payload.imageUrls || [];
     if (rawImageUrls.length > 0) {
       const validation = await validateImagesAtIngress(rawImageUrls);
-      imageUrls = validation.valid.map((i) => i.url);
+      const validUrls = validation.valid.map((i) => i.url);
 
       if (validation.invalid.length > 0) {
         logger.warn("[Email] Some images failed validation", {
           category: LogCategory.GENERAL,
           validCount: validation.valid.length,
           invalidCount: validation.invalid.length,
-          invalidReasons: validation.invalid.map((i) => i.error),
         });
       }
 
-      if (imageUrls.length > 0) {
+      if (validUrls.length > 0) {
         await addPendingImages(
-          imageKey,
-          imageUrls.map((url) => ({ url, contentHash: url }))
+          agentPhone,
+          validUrls.map((url) => ({ url, contentHash: url }))
         ).catch((err) => {
           logger.warn("[Email] Failed to store pending images (non-critical)", {
             category: LogCategory.GENERAL,
             error: String(err),
           });
         });
-        logger.info(`[Email] Stored ${imageUrls.length} validated images in pending_images for ${imageKey}`, {
+        logger.info(`[Email] Stored ${validUrls.length} validated images for ${agentPhone}`, {
           category: LogCategory.GENERAL,
         });
       }
     }
 
-    // Store document attachments (PDFs, DOCX, KMZ) as pending documents
+    // Store document attachments (PDFs, DOCX, KMZ)
     const rawDocumentUrls = payload.documentUrls || [];
     if (rawDocumentUrls.length > 0) {
-      // Clear old pending docs for new emails (same as images)
-      if (!isReplyEmail) {
-        await clearPendingDocuments(imageKey).catch(() => {});
+      if (!isReply) {
+        await clearPendingDocuments(agentPhone).catch(() => {});
       }
       for (const docUrl of rawDocumentUrls) {
         const filename = docUrl.split("/").pop()?.split("?")[0] || "document";
-        await addPendingDocument(imageKey, docUrl, filename).catch((err) => {
+        await addPendingDocument(agentPhone, docUrl, filename).catch((err) => {
           logger.warn("[Email] Failed to store pending document (non-critical)", {
             category: LogCategory.GENERAL,
             error: String(err),
           });
         });
       }
-      logger.info(`[Email] Stored ${rawDocumentUrls.length} documents in pending_documents for ${imageKey}`, {
+      logger.info(`[Email] Stored ${rawDocumentUrls.length} documents for ${agentPhone}`, {
         category: LogCategory.GENERAL,
       });
     }
 
-    // Email history strategy:
-    // - NEW emails (no "Re:" prefix): Empty history to prevent cross-email contamination
-    //   (see bug history: Drafts 40366-40369 where data leaked between property emails)
-    // - REPLY emails ("Re:" prefix): Load last 2 messages so SOPHIA has context
-    //   for follow-up answers (e.g., "I said to assign to Susan")
-    const isReply = /^re:/i.test(subject.trim());
+    // Load chat history — same strategy as before:
+    // New emails: empty (prevent cross-email contamination), unless Sophia was waiting for info
+    // Reply emails: last 6 messages for context
     let history: Array<{ role: string; parts: Array<{ text: string }> }> = [];
 
     if (isReply) {
       try {
         const fullHistory = await getHistory(userId);
-        // Load last 6 messages for replies — enough context for follow-ups
         history = fullHistory.slice(-6);
-        logger.info(`[Email] Reply detected — loaded ${history.length} recent messages for context`, {
+        logger.info(`[Email] Reply — loaded ${history.length} recent messages`, {
           category: LogCategory.GENERAL,
         });
-      } catch (err) {
-        logger.warn("[Email] Failed to load history for reply (falling back to empty)", {
-          category: LogCategory.GENERAL,
-          error: String(err),
-        });
+      } catch {
         history = [];
       }
     } else {
-      // New email — load last 4 messages if there's an active conversation
-      // (e.g., Sophia asked for Google Maps link, agent sends a new email with it)
-      // Otherwise start fresh
       try {
         const recentHistory = await getHistory(userId);
         if (recentHistory.length > 0) {
           const lastModel = recentHistory.filter((m: { role: string }) => m.role === "model").pop();
           const lastText = lastModel?.parts?.[0]?.text || "";
-          // Check if Sophia is waiting for more info from the agent
           const isWaitingForInfo = lastText.includes("Google Maps") ||
             lastText.includes("pin location") ||
             lastText.includes("I need") ||
@@ -344,20 +296,14 @@ ${subject ? `Subject: ${subject}\n\n` : ""}${textBody || ""}`;
             logger.info(`[Email] New email but Sophia was waiting for info — loaded ${history.length} messages`, {
               category: LogCategory.GENERAL,
             });
-          } else {
-            logger.info("[Email] New email — fresh start (no pending questions)", {
-              category: LogCategory.GENERAL,
-            });
           }
         }
       } catch {
-        logger.info("[Email] New email — using empty history", {
-          category: LogCategory.GENERAL,
-        });
+        // Fresh start
       }
     }
 
-    // Store user message AFTER loading history
+    // Store user message
     await addMessage(userId, "user", userMessage).catch((err) => {
       logger.warn("[Email] Failed to store user message (non-critical)", {
         category: LogCategory.GENERAL,
@@ -365,43 +311,56 @@ ${subject ? `Subject: ${subject}\n\n` : ""}${textBody || ""}`;
       });
     });
 
-    // Use same phone key for image lookups (matches tool handler lookups)
-    const phoneForImages = agentPhone;
-
-    // Fetch ALL pending images for this agent (includes any previously stored from email)
-    // This is critical: chat() uses imageUrls for upload intent detection
-    const allPendingImages = await getPendingImages(phoneForImages).catch(() => [] as string[]);
+    // Fetch ALL pending images (same as WhatsApp — used for upload intent detection)
+    const allPendingImages = await getPendingImages(agentPhone).catch(() => [] as string[]);
     if (allPendingImages.length > 0) {
-      logger.info(`[Email] Found ${allPendingImages.length} pending images for ${phoneForImages}`, {
+      logger.info(`[Email] Found ${allPendingImages.length} pending images for ${agentPhone}`, {
         category: LogCategory.GENERAL,
       });
     }
 
-    // Build system prompt — pass agent's mobile as phoneNumber so pending_images lookup works
+    // Load personalization context (same as WhatsApp)
+    let personalizationContext = "";
+    const userContext = await buildUserContext(agentPhone, userMessage).catch((err) => {
+      logger.warn("[Email] Failed to build user context (non-critical)", {
+        category: LogCategory.GENERAL,
+        error: String(err),
+      });
+      return null;
+    });
+    if (userContext) {
+      personalizationContext = formatContextForPrompt(userContext);
+    }
+
+    // Load last document (same as WhatsApp — enables "email me the document")
+    const lastDocument = await getLastDocument(userId).catch(() => null);
+
+    // Build system prompt — IDENTICAL to WhatsApp
     const systemPrompt = await buildSystemPrompt(
       supabase,
       {
         userId,
-        phoneNumber: phoneForImages, // agent mobile for pending_images lookup
+        phoneNumber: agentPhone,
         agentName: identifiedAgent.fullName,
         agentEmail: identifiedAgent.communicationEmail,
         agentRegion: identifiedAgent.region,
         agentCanUpload: identifiedAgent.canUpload,
-        imageUrls: allPendingImages, // pass ALL pending images so AI sees them
+        personalizationContext,
+        imageUrls: allPendingImages,
         userMessage,
-        lastDocument: null,
+        lastDocument,
       },
       identifiedAgent
     );
 
-    // Run AI chat — pass agent's mobile + all pending images for intent detection & tool execution
+    // Run AI chat — IDENTICAL to WhatsApp
     const aiResult = await chat(
       history,
       systemPrompt,
       userMessage,
-      allPendingImages, // pass pending images so isPropertyUploadIntent triggers
+      allPendingImages,
       identifiedAgent,
-      phoneForImages
+      agentPhone
     );
 
     const reply = sanitizeAiOutput(aiResult.response || "I couldn't process your request. Please try again.");
@@ -458,87 +417,73 @@ function jsonError(message: string, status: number): Response {
 }
 
 /**
- * Server-side extraction of "assign to X" from email body.
- * Returns a @zyprus.com email or null if no assignment found.
- * This is deterministic — we don't rely on the AI to parse it.
+ * Minimal field extractor for email text.
+ * Scans for common key-value patterns and returns them as hints for the AI.
+ * NOT a full parser — just enough to help the AI fill tool parameters.
  */
-function extractAssignmentFromEmail(text: string): string | null {
-  // Agent name → email mapping (must stay in sync with property-upload.ts)
-  const NAME_TO_EMAIL: Record<string, string> = {
-    evelina: "evelina@zyprus.com",
-    diana: "diana@zyprus.com",
-    michelle: "michelle@zyprus.com",
-    demetra: "demetra@zyprus.com",
-    lauren: "zyprus@zyprus.com",
-    charalambos: "csc@zyprus.com",
-    azinas: "azinas@zyprus.com",
-    "marios azinas": "azinas@zyprus.com",
-    "marios polyviou": "marios@zyprus.com",
-    marios: "marios@zyprus.com",
-    maria: "maria@zyprus.com",
-    christos: "christos@zyprus.com",
-    dimitris: "dimitris@zyprus.com",
-    susan: "susan@zyprus.com",
-    victoria: "victoria@zyprus.com",
-    brendan: "brendan@zyprus.com",
-    natalia: "natalia.larnaca@zyprus.com",
-    lysandros: "larnaca@zyprus.com",
-    ivan: "nicosia@zyprus.com",
-    narine: "famagusta@zyprus.com",
-    nick: "nick@zyprus.com",
-    olga: "olga@zyprus.com",
-    philippos: "philippos@zyprus.com",
-    olha: "olha@zyprus.com",
-    danae: "danae@zyprus.com",
-    daga: "daga@zyprus.com",
-    olesya: "oz@zyprus.com",
-    eleni: "eleni@zyprus.com",
-    niki: "niki@zyprus.com",
-    mir: "niki@zyprus.com",
-  };
-
-  // Regional office mapping
-  const OFFICE_TO_EMAIL: Record<string, string> = {
-    "paphos office": "requestpaphos@zyprus.com",
-    "limassol office": "requestlimassol@zyprus.com",
-    "larnaca office": "requestlarnaca@zyprus.com",
-    "nicosia office": "requestnicosia@zyprus.com",
-    "famagusta office": "requestfamagusta@zyprus.com",
-  };
-
+function extractFieldHints(body: string, subject: string): string {
+  const text = `${subject}\n${body}`;
   const lower = text.toLowerCase();
+  const lines: string[] = [];
 
-  // Pattern 1: "assign to email@zyprus.com" or "assign it/this/listing to email@zyprus.com"
-  const emailMatch = lower.match(/assign(?:\s+(?:it|this|listing))?\s+to\s+(\S+@\S+)/);
-  if (emailMatch) {
-    let email = emailMatch[1].replace(/[.,;:!?)]+$/, ""); // strip trailing punctuation
-    if (!email.includes(".")) {
-      // Handle "demetra@zyprus" → "demetra@zyprus.com"
-      email = email + ".com";
-    }
-    return email;
+  // Listing type
+  if (lower.includes("for sale") || lower.includes("sale")) lines.push('listingType: "sale"');
+  else if (lower.includes("for rent") || lower.includes("rental")) lines.push('listingType: "rent"');
+
+  // Property type
+  const typeMatch = lower.match(/\b(apartment|house|villa|maisonette|bungalow|penthouse|townhouse|studio|land|plot|building|office|shop|warehouse)\b/);
+  if (typeMatch) lines.push(`propertyType: "${typeMatch[1]}"`);
+
+  // Price
+  const priceMatch = text.match(/(?:price|€|eur)\s*:?\s*(\d[\d,.']*)/i) || text.match(/(\d[\d,.']*)\s*(?:€|eur)/i);
+  if (priceMatch) {
+    const price = priceMatch[1].replace(/[,.']/g, "");
+    lines.push(`price: ${price}`);
   }
 
-  // Pattern 2: "assign to [office name]"
-  for (const [office, email] of Object.entries(OFFICE_TO_EMAIL)) {
-    if (lower.includes(`assign to ${office}`) || lower.includes(`assign it to ${office}`) || lower.includes(`assign this to ${office}`) || lower.includes(`assign listing to ${office}`)) {
-      return email;
-    }
+  // Location — grab the value after "Location:" or "Area:"
+  const locMatch = text.match(/(?:location|area)\s*:\s*(.+)/i);
+  if (locMatch) lines.push(`location: "${locMatch[1].trim()}"`);
+
+  // Bedrooms
+  const bedMatch = text.match(/(?:bedrooms?|beds?)\s*:?\s*(\d+)/i) || text.match(/(\d+)\s*(?:bedrooms?|beds?|br)\b/i);
+  if (bedMatch) lines.push(`bedrooms: ${bedMatch[1]}`);
+
+  // Bathrooms
+  const bathMatch = text.match(/(?:bathrooms?|baths?)\s*:?\s*(\d+)/i) || text.match(/(\d+)\s*(?:bathrooms?|baths?)\b/i);
+  if (bathMatch) lines.push(`bathrooms: ${bathMatch[1]}`);
+
+  // Covered area
+  const areaMatch = text.match(/(?:covered\s*area|indoor\s*area|net\s*area|size)\s*:?\s*(\d+)/i) || text.match(/(\d+)\s*(?:sqm|m2|m²)/i);
+  if (areaMatch) lines.push(`coveredArea: ${areaMatch[1]}`);
+
+  // Owner name + phone — handle "Owner: Name, +Phone" and "Owner: Name \n Phone: +xxx"
+  const ownerLineMatch = text.match(/(?:owner|seller)\s*:?\s*([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)+)/);
+  if (ownerLineMatch) lines.push(`ownerName: "${ownerLineMatch[1].split(",")[0].trim()}"`);
+  const phoneMatch = text.match(/(?:owner|seller|phone|tel|mobile)\s*:?\s*.*?(\+?\d[\d\s()-]{7,})/i) ||
+    text.match(/,\s*(\+?\d[\d\s()-]{7,})/);
+  if (phoneMatch) {
+    const phone = phoneMatch[1].replace(/[\s()-]+/g, "").trim();
+    if (/\+?\d{8,}/.test(phone)) lines.push(`ownerPhone: "${phone}"`);
   }
 
-  // Pattern 3: "assign to [agent name]"
-  const nameMatch = lower.match(/assign(?:\s+(?:it|this|listing))?\s+to\s+([a-z]+(?:\s+[a-z]+)?)/);
-  if (nameMatch) {
-    const name = nameMatch[1].trim();
-    if (NAME_TO_EMAIL[name]) {
-      return NAME_TO_EMAIL[name];
-    }
-    // Try first word only (e.g., "assign to susan note" → "susan")
-    const firstName = name.split(/\s+/)[0];
-    if (NAME_TO_EMAIL[firstName]) {
-      return NAME_TO_EMAIL[firstName];
-    }
+  // Title deed status
+  const deedMatch = lower.match(/title\s*deed\s*:?\s*(separate|in.process|pending|permits?\s*only|final.approval|share.of.land|unknown|yes|no)/);
+  if (deedMatch) {
+    let status = deedMatch[1].replace(/\s+/g, "_");
+    if (status === "yes") status = "separate";
+    lines.push(`titleDeedStatus: "${status}"`);
   }
 
-  return null;
+  // Assign to
+  const assignMatch = lower.match(/assign(?:\s+(?:it|this|listing))?\s+to\s+(\S+@\S+)/);
+  if (assignMatch) {
+    lines.push(`assignTo: "${assignMatch[1].replace(/[.,;:!?)]+$/, "")}"`);
+  } else {
+    // Try agent name
+    const nameAssign = lower.match(/assign(?:\s+(?:it|this|listing))?\s+to\s+([a-z]+)/);
+    if (nameAssign) lines.push(`assignTo: "${nameAssign[1]}" (resolve to email)`);
+  }
+
+  return lines.length > 0 ? lines.join("\n") : "No fields could be auto-extracted — ask the agent.";
 }
