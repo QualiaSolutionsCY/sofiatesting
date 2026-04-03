@@ -1,15 +1,5 @@
 {
   "mcpServers": {
-    "postman": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@anthropic-ai/mcp-server-postman@latest"
-      ],
-      "env": {
-        "POSTMAN_API_KEY": ""
-      }
-    },
     "railway": {
       "command": "npx",
       "args": [

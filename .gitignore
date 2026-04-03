@@ -61,3 +61,4 @@ mcp.json
 # Disabled features (kept for reference)
 app/api.admin.disabled/
 app/(admin.disabled)/
+.vercel
