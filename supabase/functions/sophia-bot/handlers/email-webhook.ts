@@ -211,7 +211,8 @@ ${textBody || ""}`;
       const assignContext = extractedAssignTo ? `\nThe agent wants this listing assigned to: ${extractedAssignTo}` : "";
       userMessage = `[THIS MESSAGE IS VIA EMAIL — NOT WHATSAPP. Reply as email, never mention WhatsApp.
 This is a single-shot email with property details. Read it carefully, extract ALL fields, and create the listing immediately using createPropertyListing or createLandListing.
-Only ask a follow-up question if truly critical info is missing (e.g., no price AND no location AND no property type).
+IMPORTANT: Upload with whatever info is provided. For any missing fields, use "Unknown" for owner name, "0000" for owner phone, "unknown" for title deed status. Do NOT ask for fields that are missing — just upload with defaults and only mention what was missing in your confirmation message.
+Only ask a follow-up question if there is NO price AND NO location AND NO property type — i.e. you truly cannot tell what property this is.
 Images are already stored — pass imageUrls as []. Do NOT call extractFromBazaraki.${assignContext}]
 
 ${subject ? `Subject: ${subject}\n\n` : ""}${textBody || ""}`;
