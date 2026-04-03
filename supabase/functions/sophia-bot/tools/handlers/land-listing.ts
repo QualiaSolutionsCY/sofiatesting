@@ -486,19 +486,20 @@ export async function handleCreateLandListing(
     });
   }
 
-  // 7b. Retrieve pending documents (with filename-based dedup)
+  // 7b. Retrieve pending documents (with filename-based dedup + classification)
   let titleDeedFileUrls: string[] = [...titleDeedImageUrls];
+  let otherDocumentUrls: string[] = [];
   if (agentPhone) {
     const pendingDocs = await getPendingDocuments(agentPhone);
     if (pendingDocs.length > 0) {
       // Deduplicate by normalized filename (strip wa_doc_{timestamp}_ prefix)
-      const seen = new Map<string, string>();
+      const seen = new Map<string, { url: string; filename: string }>();
       for (const doc of pendingDocs) {
         const name = (doc.filename || doc.document_url)
           .split("/").pop()?.split("?")[0] || doc.document_url;
         const normalized = name.replace(/^wa_doc_\d+_/, "").toLowerCase().trim();
         if (!seen.has(normalized)) {
-          seen.set(normalized, doc.document_url);
+          seen.set(normalized, { url: doc.document_url, filename: normalized });
         } else {
           logger.info("Deduplicated document by filename", {
             category: LogCategory.GENERAL,
@@ -507,12 +508,29 @@ export async function handleCreateLandListing(
           });
         }
       }
-      titleDeedFileUrls = [...titleDeedFileUrls, ...seen.values()];
-      logger.info("Retrieved pending documents for upload", {
+
+      // Classify: title deeds vs other documents (KMZ, general PDFs, etc.)
+      const titleDeedPatterns = [
+        "title_deed", "title deed", "titledeed",
+        "td_", "_td.", "_td_",
+        "deed_", "_deed.",
+      ];
+      for (const { url, filename } of seen.values()) {
+        const isTitleDeed = titleDeedPatterns.some((p) => filename.includes(p));
+        if (isTitleDeed) {
+          titleDeedFileUrls.push(url);
+        } else {
+          otherDocumentUrls.push(url);
+        }
+      }
+
+      logger.info("Retrieved and classified pending documents for land upload", {
         category: LogCategory.GENERAL,
         operation: "createLandListing",
         rawCount: pendingDocs.length,
         dedupedCount: seen.size,
+        titleDeedCount: titleDeedFileUrls.length,
+        otherDocCount: otherDocumentUrls.length,
         filenames: pendingDocs.map((d) => d.filename).filter(Boolean),
       });
     }
@@ -784,6 +802,8 @@ export async function handleCreateLandListing(
         | undefined,
       titleDeedFileUrls:
         titleDeedFileUrls.length > 0 ? titleDeedFileUrls : undefined,
+      otherDocumentUrls:
+        otherDocumentUrls.length > 0 ? otherDocumentUrls : undefined,
       buildingDensity: args.buildingDensity as number | undefined,
       siteCoverage: args.siteCoverage as number | undefined,
       maxFloors: args.maxFloors as number | undefined,
@@ -798,11 +818,23 @@ export async function handleCreateLandListing(
     });
 
     // Track listing for publication notification (non-blocking, fire-and-forget)
+    // Notify the listing OWNER (assignee), not the uploader, when assignTo is used
+    let notifyPhone = agentPhone;
+    let notifyName = agent.fullName;
+    if (args.assignTo && reviewers.listingOwner !== agent.communicationEmail) {
+      try {
+        const assignedAgent = await getAgentByEmail(reviewers.listingOwner);
+        if (assignedAgent?.mobile) {
+          notifyPhone = assignedAgent.mobile.replace(/\D/g, "");
+          notifyName = assignedAgent.fullName;
+        }
+      } catch { /* fall back to uploader */ }
+    }
     const listingTitle = `Plot (${args.landSize}m²) For ${listingType === "rent" ? "Rent" : "Sale"} in ${descriptionLocation}`;
     trackListingUpload(
       result.listingId,
-      agentPhone,
-      agent.fullName,
+      notifyPhone,
+      notifyName,
       listingTitle,
       result.listingUrl,
       Number(args.price) || undefined

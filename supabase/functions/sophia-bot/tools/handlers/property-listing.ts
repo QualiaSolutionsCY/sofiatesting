@@ -4,7 +4,7 @@
  */
 
 import { trackListingUpload } from "../../../_shared/db.ts";
-import { type Agent } from "../../agents/identifier.ts";
+import { type Agent, getAgentByEmail } from "../../agents/identifier.ts";
 import { DEFAULT_COORDINATES } from "../../config/business-rules.ts";
 import { classifyError, ErrorType } from "../../utils/error-mapper.ts";
 import { LogCategory, logger } from "../../utils/logger.ts";
@@ -528,14 +528,26 @@ export async function handleCreatePropertyListing(
       }
     );
 
+    // Notify the listing OWNER (assignee), not the uploader, when assignTo is used
+    let notifyPhone = agentPhone;
+    let notifyName = agent!.fullName;
+    if (reviewers.listingOwner !== agent!.communicationEmail) {
+      try {
+        const assignedAgent = await getAgentByEmail(reviewers.listingOwner);
+        if (assignedAgent?.mobile) {
+          notifyPhone = assignedAgent.mobile.replace(/\D/g, "");
+          notifyName = assignedAgent.fullName;
+        }
+      } catch { /* fall back to uploader */ }
+    }
     const bedrooms = args.bedrooms as number;
     const propertyTitle = bedrooms > 0
       ? `${bedrooms} bed ${args.propertyType} in ${location}`
       : `${args.propertyType} in ${location}`;
     trackListingUpload(
       result.listingId,
-      agentPhone,
-      agent!.fullName,
+      notifyPhone,
+      notifyName,
       propertyTitle,
       result.listingUrl,
       Number(args.price) || undefined,
@@ -611,11 +623,16 @@ export async function handleCreatePropertyListing(
     message += `\n📍 **Google Maps:** ${mapsUrl}\n`;
   }
 
+  // Location dropdown mismatch — logged internally, not shown to agent
   if (
     locationResult.matchedName &&
     locationResult.matchedName.toLowerCase() !== location.toLowerCase()
   ) {
-    message += `\n⚠️ **Location dropdown:** I couldn't find "${location}" in the Zyprus locations dropdown, so I set it to "${locationResult.matchedName}". Please update the location dropdown on the listing if needed.\n`;
+    logger.info("Location dropdown mismatch (silent)", {
+      category: LogCategory.TOOL,
+      requested: location,
+      matched: locationResult.matchedName,
+    });
   }
 
   const imageWarnings = generateImageWarnings(validImages);

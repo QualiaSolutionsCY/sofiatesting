@@ -31,7 +31,7 @@ export const config = {
     appPassword: process.env.SOPHIA_GMAIL_APP_PASSWORD || "",
     enabled: !!(process.env.SOPHIA_GMAIL_EMAIL && process.env.SOPHIA_GMAIL_APP_PASSWORD),
     botUrl: process.env.SOPHIA_BOT_URL || "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot",
-    pollingIntervalMs: 5 * 60 * 1000, // 5 minutes
+    pollingIntervalMs: 1 * 60 * 1000, // 1 minute
     storageBucket: "email-attachments",
   },
   polling: {

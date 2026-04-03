@@ -319,13 +319,23 @@ export async function createDraft(
 }
 
 /**
- * Extracted image attachment from a parsed email
+ * Extracted attachment from a parsed email
  */
 export interface EmailAttachment {
   content: Buffer;
   contentType: string;
   filename: string;
 }
+
+/** Supported document MIME types for property uploads */
+const DOCUMENT_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.google-earth.kmz",
+  "application/vnd.google-earth.kml+xml",
+  "application/octet-stream", // Catch-all for KMZ/other files with generic MIME
+];
 
 /**
  * Extract image attachments from a parsed email
@@ -342,6 +352,32 @@ export function extractAttachments(parsed: ParsedMail): EmailAttachment[] {
       content: att.content as Buffer,
       contentType: att.contentType,
       filename: att.filename || `image-${Date.now()}.jpg`,
+    }));
+}
+
+/**
+ * Extract document attachments from a parsed email (PDFs, DOCX, KMZ, etc.)
+ * Returns non-image file attachments
+ */
+export function extractDocumentAttachments(parsed: ParsedMail): EmailAttachment[] {
+  if (!parsed.attachments || parsed.attachments.length === 0) {
+    return [];
+  }
+
+  return parsed.attachments
+    .filter((att) => {
+      // Skip images (handled by extractAttachments)
+      if (att.contentType.startsWith("image/")) return false;
+      // Accept known document types
+      if (DOCUMENT_MIME_TYPES.some((m) => att.contentType.startsWith(m))) return true;
+      // Accept by file extension for generic MIME types
+      const ext = (att.filename || "").split(".").pop()?.toLowerCase();
+      return ["pdf", "doc", "docx", "kmz", "kml"].includes(ext || "");
+    })
+    .map((att) => ({
+      content: att.content as Buffer,
+      contentType: att.contentType,
+      filename: att.filename || `document-${Date.now()}.pdf`,
     }));
 }
 
@@ -494,9 +530,9 @@ export function createSophiaImapClient(): ImapFlow {
  * Fetch unread emails from sophia@zyprus.com inbox
  * Returns emails with their parsed attachments for image extraction
  */
-export async function fetchSophiaUnreadEmails(): Promise<Array<EmailMessage & { parsedAttachments: EmailAttachment[] }>> {
+export async function fetchSophiaUnreadEmails(): Promise<Array<EmailMessage & { parsedAttachments: EmailAttachment[]; documentAttachments: EmailAttachment[] }>> {
   const client = createSophiaImapClient();
-  const emails: Array<EmailMessage & { parsedAttachments: EmailAttachment[] }> = [];
+  const emails: Array<EmailMessage & { parsedAttachments: EmailAttachment[]; documentAttachments: EmailAttachment[] }> = [];
 
   try {
     await client.connect();
@@ -520,6 +556,7 @@ export async function fetchSophiaUnreadEmails(): Promise<Array<EmailMessage & { 
           const parsed = await simpleParser(source) as ParsedMail;
           const fromAddr = parsed.from?.value?.[0];
           const attachments = extractAttachments(parsed);
+          const docAttachments = extractDocumentAttachments(parsed);
 
           emails.push({
             messageId: parsed.messageId || `uid-${msg.uid}`,
@@ -535,6 +572,7 @@ export async function fetchSophiaUnreadEmails(): Promise<Array<EmailMessage & { 
             date: parsed.date || new Date(),
             raw: source,
             parsedAttachments: attachments,
+            documentAttachments: docAttachments,
           });
         } catch (parseErr) {
           console.error(`[Sophia] Failed to parse email uid=${msg.uid}:`, parseErr);

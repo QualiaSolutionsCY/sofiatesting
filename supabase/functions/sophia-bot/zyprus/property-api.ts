@@ -1246,11 +1246,13 @@ export async function createDraftListing(
 
   const result = await response.json();
   const listingId = result.data.id;
+  const nodeId = result.data.attributes?.drupal_internal__nid;
 
   logger.info("Zyprus listing created successfully", {
     category: LogCategory.ZYPRUS,
     operation: "createDraftListing",
     listingId,
+    nodeId,
   });
 
   // Title deed files: Check if they were included in the initial POST payload.
@@ -1382,7 +1384,10 @@ export async function createDraftListing(
 
   return {
     listingId,
-    listingUrl: `${config.siteUrl}/property/${listingId}`,
+    nodeId,
+    listingUrl: nodeId
+      ? `${config.siteUrl}/node/${nodeId}/edit`
+      : `${config.siteUrl}/property/${listingId}`,
     titleDeedAttached: titleDeedFileIds.length > 0 ? titleDeedAttached : undefined,
   };
 }

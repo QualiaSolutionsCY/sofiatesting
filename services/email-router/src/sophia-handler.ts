@@ -19,6 +19,7 @@ import {
   sendSophiaReply,
   extractInlineImageUrls,
   downloadImageUrl,
+  extractDocumentAttachments,
   type EmailAttachment,
 } from "./gmail.js";
 
@@ -85,6 +86,7 @@ async function callSophiaBot(payload: {
   textBody: string;
   htmlBody?: string;
   imageUrls?: string[];
+  documentUrls?: string[];
 }): Promise<{ success: boolean; reply: string }> {
   const url = `${config.sophia.botUrl}/email`;
 
@@ -167,6 +169,25 @@ export async function processSophiaEmails(): Promise<void> {
           }
         }
 
+        // Upload document attachments (PDFs, DOCX, KMZ, etc.)
+        const documentUrls: string[] = [];
+        const docAttachments = extractDocumentAttachments(email as any);
+        if (docAttachments.length > 0) {
+          process.stdout.write(`[Sophia] Uploading ${docAttachments.length} document attachment(s)...\n`);
+          for (const doc of docAttachments) {
+            const publicUrl = await uploadAttachmentToStorage(
+              doc,
+              config.supabase.url,
+              config.supabase.serviceRoleKey,
+              config.sophia.storageBucket
+            );
+            if (publicUrl) {
+              documentUrls.push(publicUrl);
+              process.stdout.write(`[Sophia] Uploaded doc ${doc.filename} → ${publicUrl}\n`);
+            }
+          }
+        }
+
         // If no MIME attachments, check for inline/embedded images in HTML body
         // (Gmail often converts attached images to inline googleusercontent URLs
         // or Google Drive links instead of keeping them as MIME attachments)
@@ -200,6 +221,7 @@ export async function processSophiaEmails(): Promise<void> {
           textBody: email.textBody,
           htmlBody: email.htmlBody || undefined,
           imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+          documentUrls: documentUrls.length > 0 ? documentUrls : undefined,
         });
 
         // Send AI reply back to sender

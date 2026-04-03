@@ -38,6 +38,7 @@ export interface LandListingData {
   coordinates?: { lat: number; lon: number };
   priceModifier?: "no_vat" | "plus_vat" | "vat_included";
   titleDeedFileUrls?: string[];
+  otherDocumentUrls?: string[]; // Other documents (KMZ, PDFs, etc.) uploaded to field_other_document
   // Land-specific:
   buildingDensity?: number;
   siteCoverage?: number;
@@ -166,7 +167,8 @@ function buildJsonApiPayloadLand(
   listingOwnerUuid: string,
   infrastructureUuids: string[],
   viewUuids: string[],
-  titleDeedFileIds: string[] = []
+  titleDeedFileIds: string[] = [],
+  otherDocumentFileIds: string[] = []
 ): Record<string, unknown> {
   // Generate Own Reference ID for quick reviewer reference
   const ownReferenceId = generateOwnReferenceId(
@@ -296,6 +298,16 @@ function buildJsonApiPayloadLand(
   if (titleDeedFileIds.length > 0) {
     relationships.field_title_deed_file = {
       data: titleDeedFileIds.map((id) => ({
+        type: "file--file",
+        id,
+      })),
+    };
+  }
+
+  // Other documents (KMZ, non-title-deed PDFs, etc.)
+  if (otherDocumentFileIds.length > 0) {
+    relationships.field_other_document = {
+      data: otherDocumentFileIds.map((id) => ({
         type: "file--file",
         id,
       })),
@@ -642,6 +654,138 @@ async function uploadLandTitleDeedFiles(
 }
 
 /**
+ * Upload other documents (non-title-deed: KMZ, PDFs, etc.) to Zyprus via field_other_document.
+ * Files go to private:// storage.
+ */
+async function uploadLandOtherDocuments(
+  fileUrls: string[],
+  token: string,
+  config: ZyprusConfig
+): Promise<string[]> {
+  logger.info("Uploading other documents for land listing", {
+    category: LogCategory.ZYPRUS,
+    operation: "uploadLandOtherDocuments",
+    count: fileUrls.length,
+  });
+
+  const results = await Promise.all(
+    fileUrls.map(async (url, index) => {
+      try {
+        const urlCheck = validateImageUrl(url);
+        if (!urlCheck.valid) {
+          logger.warn("Land other document URL blocked by SSRF validator", {
+            category: LogCategory.ZYPRUS,
+            operation: "uploadLandOtherDocument",
+            imageIndex: index,
+            error: urlCheck.error,
+          });
+          return null;
+        }
+
+        const fileResponse = await fetch(url, {
+          signal: AbortSignal.timeout(30_000),
+        });
+        if (!fileResponse.ok) {
+          logger.warn("Failed to download other document for land", {
+            category: LogCategory.ZYPRUS,
+            operation: "uploadLandOtherDocument",
+            imageIndex: index,
+            status: fileResponse.status,
+          });
+          return null;
+        }
+
+        const fileBlob = await fileResponse.blob();
+        const fileBuffer = await fileBlob.arrayBuffer();
+        const contentType =
+          fileResponse.headers.get("content-type") || fileBlob.type || "";
+        const extFromMime: Record<string, string> = {
+          "image/jpeg": ".jpg",
+          "image/png": ".png",
+          "application/pdf": ".pdf",
+          "application/msword": ".doc",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+          "application/vnd.google-earth.kmz": ".kmz",
+          "application/vnd.google-earth.kml+xml": ".kml",
+        };
+        const detectedExt =
+          extFromMime[contentType.split(";")[0].trim().toLowerCase()];
+        let filename =
+          url.split("/").pop()?.split("?")[0] || `document_${index + 1}`;
+        if (!filename.match(/\.(jpg|jpeg|png|pdf|doc|docx|kmz|kml)$/i)) {
+          filename = `document_${index + 1}${detectedExt || ".pdf"}`;
+        }
+
+        const response = await withRetry(
+          async () => {
+            const res = await fetch(
+              `${config.apiUrl}/jsonapi/node/land/field_other_document`,
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/octet-stream",
+                  "Content-Disposition": `file; filename="${filename}"`,
+                  "User-Agent": "SophiaAI",
+                },
+                body: fileBuffer,
+                signal: AbortSignal.timeout(30_000),
+              }
+            );
+            if (!res.ok && res.status >= 500) {
+              throw new Error(`Land other document upload failed: ${res.status}`);
+            }
+            return res;
+          },
+          { maxRetries: 2, baseDelayMs: 500 },
+          "uploadLandOtherDocument"
+        );
+
+        if (!response.ok) {
+          logger.error("Failed to upload other document for land", undefined, {
+            category: LogCategory.ZYPRUS,
+            operation: "uploadLandOtherDocument",
+            imageIndex: index,
+            status: response.status,
+          });
+          return null;
+        }
+
+        const result = await response.json();
+        const fileId = result.data?.id || null;
+        if (fileId) {
+          logger.info("Other document uploaded successfully for land", {
+            category: LogCategory.ZYPRUS,
+            operation: "uploadLandOtherDocument",
+            imageIndex: index,
+            fileId,
+            filename,
+          });
+        }
+        return fileId;
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        logger.error("Land other document upload error", err, {
+          category: LogCategory.ZYPRUS,
+          operation: "uploadLandOtherDocument",
+          imageIndex: index,
+        });
+        return null;
+      }
+    })
+  );
+
+  const successfulIds = results.filter((id): id is string => id !== null);
+  logger.info("Land other document uploads complete", {
+    category: LogCategory.ZYPRUS,
+    operation: "uploadLandOtherDocuments",
+    successful: successfulIds.length,
+    failed: fileUrls.length - successfulIds.length,
+  });
+  return successfulIds;
+}
+
+/**
  * Create a draft land listing on Zyprus
  */
 export async function createDraftLandListing(
@@ -705,10 +849,13 @@ export async function createDraftLandListing(
   });
 
   // Upload files in parallel
-  const [imageFileIds, titleDeedFileIds] = await Promise.all([
+  const [imageFileIds, titleDeedFileIds, otherDocumentFileIds] = await Promise.all([
     uploadLandImages(listing.images, token, config),
     listing.titleDeedFileUrls && listing.titleDeedFileUrls.length > 0
       ? uploadLandTitleDeedFiles(listing.titleDeedFileUrls, token, config)
+      : Promise.resolve([] as string[]),
+    listing.otherDocumentUrls && listing.otherDocumentUrls.length > 0
+      ? uploadLandOtherDocuments(listing.otherDocumentUrls, token, config)
       : Promise.resolve([] as string[]),
   ]);
 
@@ -718,6 +865,7 @@ export async function createDraftLandListing(
     galleryUploaded: imageFileIds.length,
     galleryTotal: listing.images.length,
     titleDeedsUploaded: titleDeedFileIds.length,
+    otherDocsUploaded: otherDocumentFileIds.length,
   });
 
   // Land gallery is REQUIRED by Zyprus — fail early if no images uploaded
@@ -740,7 +888,8 @@ export async function createDraftLandListing(
     listingOwnerUuid,
     infrastructureUuids,
     viewUuids,
-    titleDeedFileIds
+    titleDeedFileIds,
+    otherDocumentFileIds
   );
 
   const response = await withRetry(
@@ -800,11 +949,13 @@ export async function createDraftLandListing(
 
   const result = await response.json();
   const listingId = result.data.id;
+  const nodeId = result.data.attributes?.drupal_internal__nid;
 
   logger.info("Zyprus land listing created successfully", {
     category: LogCategory.ZYPRUS,
     operation: "createDraftLandListing",
     listingId,
+    nodeId,
   });
 
   // Title deed files: Check if attached via initial POST
@@ -891,6 +1042,9 @@ export async function createDraftLandListing(
 
   return {
     listingId,
-    listingUrl: `${config.siteUrl}/land/${listingId}`,
+    nodeId,
+    listingUrl: nodeId
+      ? `${config.siteUrl}/node/${nodeId}/edit`
+      : `${config.siteUrl}/land/${listingId}`,
   };
 }
