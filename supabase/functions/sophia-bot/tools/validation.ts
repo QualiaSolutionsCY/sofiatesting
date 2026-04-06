@@ -51,8 +51,8 @@ export function validateToolArguments(
 
   // Pre-validation: fix common AI mistakes that cause Zod rejections
   if (toolName === "createPropertyListing" || toolName === "createLandListing") {
-    // coveredArea: 0 → remove (Zod requires positive)
-    if (args.coveredArea === 0) delete args.coveredArea;
+    // coveredArea: < 10 → remove (Zyprus API rejects < 10 sqm, forces AI to ask agent)
+    if (typeof args.coveredArea === "number" && args.coveredArea < 10) delete args.coveredArea;
     // mainPhotoIndex: 0 → remove (Zod requires positive)
     if (args.mainPhotoIndex === 0) delete args.mainPhotoIndex;
     // price: reject absurd values (likely phone numbers parsed as price)
