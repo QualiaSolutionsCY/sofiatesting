@@ -511,13 +511,18 @@ export async function chat(
     (lowerMessage.includes("add") && lowerMessage.includes("property")) ||
     (lowerMessage.includes("want to") && lowerMessage.includes("upload")) ||
     (lowerMessage.includes("i want to") && lowerMessage.includes("property")) ||
+    (lowerMessage.includes("just upload")) ||
+    (lowerMessage.includes("for sale") && (lowerMessage.includes("bedroom") || lowerMessage.includes("villa") || lowerMessage.includes("apartment"))) ||
+    (lowerMessage.includes("for rent") && (lowerMessage.includes("bedroom") || lowerMessage.includes("villa") || lowerMessage.includes("apartment"))) ||
     (imageUrls.length > 0 &&
       (lowerMessage.includes("property") ||
         lowerMessage.includes("listing") ||
         lowerMessage.includes("bedroom") ||
         lowerMessage.includes("apartment") ||
         lowerMessage.includes("villa") ||
-        lowerMessage.includes("house"))));
+        lowerMessage.includes("house") ||
+        lowerMessage.includes("for sale") ||
+        lowerMessage.includes("for rent"))));
 
   if (isPropertyUploadIntent) {
     logger.info(
