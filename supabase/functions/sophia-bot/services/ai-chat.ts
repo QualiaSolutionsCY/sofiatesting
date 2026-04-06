@@ -280,12 +280,35 @@ ${accumulatedImages.map((url, i) => `${i + 1}. ${url}`).join("\n")}
     { category: LogCategory.GENERAL }
   );
 
+  // Email channel: add extraction directive at the END (closest to the user message = highest attention)
+  const isEmail = context.userMessage?.toLowerCase().includes("[channel: email");
+  const emailDirective = isEmail ? `
+
+---
+## EMAIL UPLOAD — CRITICAL INSTRUCTIONS
+
+**This message arrived via email (not WhatsApp). The email body contains ALL the property details already.**
+
+**You MUST carefully read the ENTIRE email body and extract EVERY field before calling a tool.**
+**Pay special attention to:**
+- **location**: Use the EXACT area name from the email (e.g., "Tala" → pass "Tala, Paphos", NOT just "Paphos")
+- **locationUrl**: Pass any Google Maps URL exactly as-is
+- **price**: Extract the number only
+- **ownerName** and **ownerPhone**: Read these from the email
+- **titleDeedStatus**: Map to valid values (separate, in_process, final_approval, etc.)
+
+**Do NOT ask the agent for information that is already in the email.**
+**Do NOT use the sendEmail tool — the reply is sent automatically.**
+---
+` : "";
+
   return (
     baseSystemPrompt +
     dateContext +
     senderContext +
     imageContext +
     documentContext +
+    emailDirective +
     (context.personalizationContext || "")
   );
 }
@@ -471,6 +494,25 @@ export async function chat(
     });
   }
 
+  // For email uploads: add user message + assistant prefill to force the AI to read the email
+  // BEFORE the tool calling loop. The prefill acknowledges the email content and lists key fields,
+  // which dramatically improves tool arg extraction accuracy.
+  const lowerMsg = userMessage.toLowerCase();
+  if (lowerMsg.includes("[channel: email") && history.length === 0) {
+    // Add the email as user message
+    openrouterMessages.push({ role: "user", content: userMessage });
+    // Add assistant prefill that reads the email — the AI continues from here
+    openrouterMessages.push({
+      role: "assistant",
+      content: "I'll read the email carefully and extract all the property details to create the listing. Let me call the appropriate tool with the information provided.",
+    });
+    // Now add a "user" nudge to trigger the tool call
+    openrouterMessages.push({
+      role: "user",
+      content: "Go ahead — use the tool now with the details from the email above. Remember to use the EXACT location/area name from the email.",
+    });
+  }
+
   logger.info(
     `[OpenRouter] Calling with ${openrouterMessages.length} messages`,
     { category: LogCategory.GENERAL }
@@ -484,36 +526,35 @@ export async function chat(
   );
 
   // Detect if user wants to upload a property - force tool usage in this case
+  // Email and WhatsApp use the SAME detection — no channel-specific branching
   const lowerMessage = userMessage.toLowerCase();
   const isBazarakiLink = lowerMessage.includes("bazaraki.com/");
-  // Email messages contain all details in one shot — let the AI read naturally with tool_choice "auto"
-  // instead of forcing "required" which makes the AI rush and skip field extraction.
-  // The anti-hallucination retry at the end still catches cases where AI doesn't call a tool.
   const isEmailChannel = lowerMessage.includes("[channel: email");
-  const isPropertyUploadIntent = !isEmailChannel && (
+  const isPropertyUploadIntent =
     (lowerMessage.includes("upload") && lowerMessage.includes("property")) ||
     (lowerMessage.includes("create") && lowerMessage.includes("listing")) ||
     (lowerMessage.includes("add") && lowerMessage.includes("property")) ||
     (lowerMessage.includes("want to") && lowerMessage.includes("upload")) ||
     (lowerMessage.includes("i want to") && lowerMessage.includes("property")) ||
+    // Email uploads: the body itself has property details (price, bedrooms, location)
+    (isEmailChannel && (
+      lowerMessage.includes("sale") || lowerMessage.includes("rent") ||
+      lowerMessage.includes("bedroom") || lowerMessage.includes("apartment") ||
+      lowerMessage.includes("villa") || lowerMessage.includes("house") ||
+      lowerMessage.includes("property") || lowerMessage.includes("listing") ||
+      /€\d/.test(lowerMessage) || /\d+\s*sqm/.test(lowerMessage))) ||
     (imageUrls.length > 0 &&
       (lowerMessage.includes("property") ||
         lowerMessage.includes("listing") ||
         lowerMessage.includes("bedroom") ||
         lowerMessage.includes("apartment") ||
         lowerMessage.includes("villa") ||
-        lowerMessage.includes("house"))));
+        lowerMessage.includes("house")));
 
   if (isPropertyUploadIntent) {
     logger.info(
       `[OpenRouter] Property upload intent detected - will encourage tool usage`,
       { category: LogCategory.ZYPRUS }
-    );
-  }
-  if (isEmailChannel) {
-    logger.info(
-      `[OpenRouter] Email channel detected - using tool_choice "auto" for natural extraction`,
-      { category: LogCategory.GENERAL }
     );
   }
 
@@ -548,16 +589,12 @@ export async function chat(
       };
     }
 
-    // For email uploads: force the SPECIFIC tool so the AI must fill in parameters.
-    // Detect land vs property from the BODY text only (skip the prefix which mentions both tool names)
-    const emailBodyForDetection = isEmailChannel ? lowerMessage.replace(/\[channel:.*?\]/s, "") : "";
-    const isEmailLand = isEmailChannel && (/\bland\b/.test(emailBodyForDetection) || /\bplot\b/.test(emailBodyForDetection));
+    // Both email and WhatsApp: use "required" when upload intent detected (AI must call a tool).
+    // "required" lets the AI pick WHICH tool — it reads the content and fills args itself.
     const toolChoiceForCall: "auto" | "required" | { type: "function"; function: { name: string } } =
-      isEmailChannel && toolCallCount === 0
-        ? { type: "function", function: { name: isEmailLand ? "createLandListing" : "createPropertyListing" } }
-        : isPropertyUploadIntent && toolCallCount === 0
-          ? "required"
-          : "auto";
+      (isPropertyUploadIntent && toolCallCount === 0)
+        ? "required"
+        : "auto";
 
     // Use Pro model for property uploads, Bazaraki extraction, and email uploads (better at structured extraction)
     const useProModel = isPropertyUploadIntent || isBazarakiLink || isEmailChannel;
@@ -720,30 +757,6 @@ export async function chat(
           `Tool: Arguments: ${JSON.stringify(toolArgs).substring(0, 200)}`,
           { category: LogCategory.TOOL }
         );
-
-        // For email uploads: override AI args with server-side extracted values.
-        // The AI can't reliably extract from email + 47KB system prompt — it hallucinates
-        // values like "Limassol" when the email says "Paphos". Server-side regex is deterministic.
-        if (
-          isEmailChannel &&
-          (toolName === "createPropertyListing" || toolName === "createLandListing")
-        ) {
-          const hints = parseEmailFieldHints(userMessage);
-          const overridden: string[] = [];
-          for (const [key, value] of Object.entries(hints)) {
-            if (value !== undefined && value !== "") {
-              if (JSON.stringify(toolArgs[key]) !== JSON.stringify(value)) {
-                overridden.push(key);
-              }
-              toolArgs[key] = value;
-            }
-          }
-          if (overridden.length > 0) {
-            logger.info(`[Email] Overrode ${overridden.length} fields with email-extracted values: ${overridden.join(", ")}`, {
-              category: LogCategory.TOOL,
-            });
-          }
-        }
 
         toolsUsed.push(toolName);
 
@@ -919,19 +932,6 @@ export async function chat(
           } catch (_e) {
             toolArgs = {};
           }
-          // Email field override in retry path — same as main path
-          if (
-            isEmailChannel &&
-            (toolName === "createPropertyListing" || toolName === "createLandListing")
-          ) {
-            const hints = parseEmailFieldHints(userMessage);
-            for (const [key, value] of Object.entries(hints)) {
-              if (value !== undefined && value !== "") {
-                toolArgs[key] = value;
-              }
-            }
-          }
-
           logger.info(`[FORCE TOOL] Executing: ${toolName}`, {
             category: LogCategory.GENERAL,
           });
@@ -1014,40 +1014,3 @@ export async function chat(
   };
 }
 
-/**
- * Parse field hints from the email prefix in userMessage.
- * Reads the structured "key: value" block injected by email-webhook.ts.
- */
-function parseEmailFieldHints(userMessage: string): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-
-  // Extract the hints block between "[Channel: email..." and "]"
-  const blockMatch = userMessage.match(/\[Channel: email[^\]]*?extracted fields[^\n]*\n([\s\S]*?)\]/i);
-  if (!blockMatch) return result;
-
-  const lines = blockMatch[1].split("\n").map((l) => l.trim()).filter(Boolean);
-  for (const line of lines) {
-    const match = line.match(/^(\w+):\s*(.+)$/);
-    if (!match) continue;
-
-    const key = match[1];
-    let value: unknown = match[2].trim();
-    const strVal = value as string;
-
-    // Skip hint annotations like "(resolve to email)"
-    if (strVal.includes("(resolve to email)")) {
-      value = strVal.replace(/\s*\(resolve to email\)/, "").replace(/^"|"$/g, "");
-    } else if (strVal.startsWith('"') && strVal.endsWith('"')) {
-      value = strVal.slice(1, -1);
-    } else if (/^\d+$/.test(strVal)) {
-      value = parseInt(strVal);
-    }
-
-    // Skip "No fields" messages
-    if (key === "No") continue;
-
-    result[key] = value;
-  }
-
-  return result;
-}
