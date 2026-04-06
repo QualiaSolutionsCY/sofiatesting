@@ -33,6 +33,7 @@ import { LogCategory, logger } from "../utils/logger.ts";
 import { checkRateLimit } from "../utils/rate-limiter.ts";
 import { sanitizeUserInput, sanitizeAiOutput } from "../utils/validation.ts";
 import { constantTimeCompare } from "../utils/webhook-auth.ts";
+import { parseEmailFields, formatPreExtractedBlock } from "../services/email-parser.ts";
 
 const ADMIN_SECRET = Deno.env.get("SOPHIA_ADMIN_SECRET");
 
@@ -179,11 +180,16 @@ export async function handleEmailWebhook(
     // Use sender email as userId for chat_history
     const userId = senderEmail;
 
-    // Build user message with channel indicator (AI handles extraction naturally, same as WhatsApp)
+    // Server-side field extraction BEFORE AI sees the email (prevents hallucination)
+    const preExtracted = parseEmailFields(sanitizedBody, subject);
+    const preExtractedBlock = formatPreExtractedBlock(preExtracted);
+
+    // Build user message with channel indicator + pre-extracted fields
     const emailPrefix = `[Channel: email]`;
+    const preBlock = preExtractedBlock ? `\n\n${preExtractedBlock}\n` : "";
     const userMessage = subject
-      ? `${emailPrefix}\n\nSubject: ${subject}\n\n${sanitizedBody}`
-      : `${emailPrefix}\n\n${sanitizedBody}`;
+      ? `${emailPrefix}${preBlock}\n\nSubject: ${subject}\n\n${sanitizedBody}`
+      : `${emailPrefix}${preBlock}\n\n${sanitizedBody}`;
 
     // Use agent's mobile number as pending_images key (same key WhatsApp uses)
     const agentPhone = identifiedAgent.mobile?.replace(/\D/g, "") || senderEmail;

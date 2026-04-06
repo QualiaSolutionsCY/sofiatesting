@@ -18,6 +18,7 @@ import { executeTool } from "../tools/executor.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
 import { getPendingImages } from "./pending-images.ts";
 import { loadSystemPrompt } from "./prompt-loader.ts";
+import { parsePreExtractedBlock } from "./email-parser.ts";
 import {
   canRequest,
   recordFailure,
@@ -207,9 +208,9 @@ ${
     isUploadCapableAgent && lowerMessage.length < 30 && lowerMessage.length > 0;
 
   if (isImageRelated || isPropertyRelated || isShortReplyFromAgent) {
-    accumulatedImages = await getPendingImages(
-      context.phoneNumber.replace(/\D/g, "")
-    );
+    // Use digits-only phone, but fall back to original value (email) if stripping digits leaves empty
+    const imageKey = context.phoneNumber.replace(/\D/g, "") || context.phoneNumber;
+    accumulatedImages = await getPendingImages(imageKey);
   }
   const totalImageCount = accumulatedImages.length;
 
@@ -286,13 +287,25 @@ ${accumulatedImages.map((url, i) => `${i + 1}. ${url}`).join("\n")}
     channelContext = `
 
 ---
-## CHANNEL: EMAIL
+## CHANNEL: EMAIL — CRITICAL DIFFERENCES FROM WHATSAPP
 
-This message arrived via email, not WhatsApp. Key differences:
-- Do NOT ask the user to "send a WhatsApp message" or "send photos via WhatsApp."
-- The user may have sent all their information (text + photos) in a single email. Read the full email carefully before asking follow-up questions.
-- If you need more information, say "please reply to this email with..." instead of referencing WhatsApp.
-- Your response will be sent as an email reply.
+This message arrived via email, not WhatsApp. You MUST follow these rules:
+
+1. **SINGLE-PASS EXTRACTION:** ALL information is in this single email — extract EVERY field before asking follow-ups. Re-read the entire email carefully. Agents put details in the subject, body, and sometimes spread across multiple lines.
+
+2. **PRE-EXTRACTED FIELDS ARE AUTHORITATIVE:** If you see a [PRE-EXTRACTED FIELDS] block above, those values were extracted by a deterministic server-side parser and are MORE RELIABLE than your own extraction. Use them as-is. Do NOT override them with your own interpretation.
+
+3. **DO NOT RE-ASK for info already in the email.** This is the #1 complaint from agents. If the email says "3 bed villa in Peyia for sale at €400k" — you already have property type, bedrooms, location, listing type, and price. Do NOT ask for any of those.
+
+4. **ONLY ask for TRULY MISSING required fields.** Common fields agents forget: covered area (sqm), covered veranda (sqm), title deed status, owner phone. Ask for ALL missing fields in ONE reply.
+
+5. **If the email has photos + enough required fields → call createPropertyListing immediately.** Do not ask "shall I proceed?" — just do it. The agent sent an email specifically to upload.
+
+6. **NEVER fabricate/hallucinate field values.** If something isn't in the email, ask for it. Do NOT guess prices, locations, or owner details.
+
+7. **Do NOT ask the user to "send a WhatsApp message" or "send photos via WhatsApp."** Say "please reply to this email with..." instead.
+
+8. **Your response will be sent as an email reply.**
 
 ---
 `;
@@ -731,6 +744,32 @@ export async function chat(
 
         toolsUsed.push(toolName);
 
+        // EMAIL OVERRIDE: For property/land listing tools, override AI args with server-parsed values
+        // This prevents the AI from hallucinating field values (wrong price, location, owner, etc.)
+        if (
+          (toolName === "createPropertyListing" || toolName === "createLandListing") &&
+          userMessage.includes("[PRE-EXTRACTED FIELDS")
+        ) {
+          const serverParsed = parsePreExtractedBlock(userMessage);
+          if (Object.keys(serverParsed).length > 0) {
+            const overridden: string[] = [];
+            for (const [key, serverValue] of Object.entries(serverParsed)) {
+              if (serverValue !== undefined && serverValue !== null) {
+                const aiValue = toolArgs[key];
+                if (aiValue !== serverValue) {
+                  overridden.push(`${key}: AI="${aiValue}" → server="${serverValue}"`);
+                }
+                toolArgs[key] = serverValue;
+              }
+            }
+            if (overridden.length > 0) {
+              logger.info(`[Email Override] Overrode ${overridden.length} field(s): ${overridden.join("; ")}`, {
+                category: LogCategory.TOOL,
+              });
+            }
+          }
+        }
+
         // Execute the tool with error handling
         let toolResult;
         try {
@@ -907,6 +946,19 @@ export async function chat(
             category: LogCategory.GENERAL,
           });
           toolsUsed.push(toolName);
+
+          // EMAIL OVERRIDE: Same override as main loop
+          if (
+            (toolName === "createPropertyListing" || toolName === "createLandListing") &&
+            userMessage.includes("[PRE-EXTRACTED FIELDS")
+          ) {
+            const serverParsed = parsePreExtractedBlock(userMessage);
+            for (const [key, serverValue] of Object.entries(serverParsed)) {
+              if (serverValue !== undefined && serverValue !== null) {
+                toolArgs[key] = serverValue;
+              }
+            }
+          }
 
           let toolResult;
           try {

@@ -109,7 +109,7 @@ export async function validateAndPrepareFields(
   // 1.5 CRITICAL: Acquire DB-based upload lock to prevent duplicate uploads
   // Uses property fingerprint (agent+location+price+owner) so different properties can upload in parallel
   // DB lock is atomic — only ONE concurrent Edge Function invocation wins
-  const agentPhone = agent.mobile?.replace(/\D/g, "") || "";
+  const agentPhone = agent.mobile?.replace(/\D/g, "") || agent.communicationEmail || "";
   // Per-property lock — agent+location+price+owner fingerprint so different properties can upload in parallel
   const propertyLockKey = `upload:${agentPhone}:${((args.location as string) || "").toLowerCase()}:${args.price}:${((args.ownerPhone as string) || "").slice(-6)}`;
   const lockResult = await acquireUploadLock(propertyLockKey, agentPhone);

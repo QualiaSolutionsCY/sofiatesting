@@ -65,7 +65,7 @@ export async function handleCreatePropertyListing(
   const { location, listingType, locationUrl, reviewers, listingOwnerName, potentialDuplicateNote, uploadLockKey } =
     validated;
 
-  const agentPhone = agent!.mobile?.replace(/\D/g, "") || "";
+  const agentPhone = agent!.mobile?.replace(/\D/g, "") || agent!.communicationEmail || "";
 
   // Step 7-7b: Process images
   const { imageUrls, titleDeedImageUrls, floorPlanUrls, documentUrls, otherDocumentUrls } =

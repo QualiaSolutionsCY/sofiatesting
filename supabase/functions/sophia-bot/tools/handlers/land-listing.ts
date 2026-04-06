@@ -102,7 +102,7 @@ export async function handleCreateLandListing(
 
   // 1.5 CRITICAL: Acquire DB-based upload lock to prevent duplicate uploads
   // C5 FIX: Use per-property fingerprint (not per-agent) so different plots can upload in parallel
-  const agentPhone = agent.mobile?.replace(/\D/g, "") || "";
+  const agentPhone = agent.mobile?.replace(/\D/g, "") || agent.communicationEmail || "";
   const locationStr = ((args.location as string) || "").toLowerCase().trim();
   const priceStr = String(args.price || "");
   const ownerPhoneStr = ((args.ownerPhone as string) || "").replace(/\D/g, "");
