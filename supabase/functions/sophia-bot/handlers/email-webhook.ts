@@ -179,15 +179,8 @@ export async function handleEmailWebhook(
     // Use sender email as userId for chat_history
     const userId = senderEmail;
 
-    // Extract key fields from email text to help the AI populate tool parameters.
-    // The AI can't reliably extract from natural text + 47KB system prompt,
-    // but it CAN copy pre-extracted key-value pairs into tool args.
-    const hints = extractFieldHints(sanitizedBody, subject || "");
-
-    // Build user message with extracted hints so the AI can fill tool params
-    const emailPrefix = `[Channel: email. Do NOT mention WhatsApp or ask to send photos via WhatsApp.
-Use these extracted fields for the tool call — only ask about fields marked "?" or missing entirely:
-${hints}]`;
+    // Build user message with channel indicator (AI handles extraction naturally, same as WhatsApp)
+    const emailPrefix = `[Channel: email]`;
     const userMessage = subject
       ? `${emailPrefix}\n\nSubject: ${subject}\n\n${sanitizedBody}`
       : `${emailPrefix}\n\n${sanitizedBody}`;
@@ -416,74 +409,3 @@ function jsonError(message: string, status: number): Response {
   );
 }
 
-/**
- * Minimal field extractor for email text.
- * Scans for common key-value patterns and returns them as hints for the AI.
- * NOT a full parser — just enough to help the AI fill tool parameters.
- */
-function extractFieldHints(body: string, subject: string): string {
-  const text = `${subject}\n${body}`;
-  const lower = text.toLowerCase();
-  const lines: string[] = [];
-
-  // Listing type
-  if (lower.includes("for sale") || lower.includes("sale")) lines.push('listingType: "sale"');
-  else if (lower.includes("for rent") || lower.includes("rental")) lines.push('listingType: "rent"');
-
-  // Property type
-  const typeMatch = lower.match(/\b(apartment|house|villa|maisonette|bungalow|penthouse|townhouse|studio|land|plot|building|office|shop|warehouse)\b/);
-  if (typeMatch) lines.push(`propertyType: "${typeMatch[1]}"`);
-
-  // Price
-  const priceMatch = text.match(/(?:price|€|eur)\s*:?\s*(\d[\d,.']*)/i) || text.match(/(\d[\d,.']*)\s*(?:€|eur)/i);
-  if (priceMatch) {
-    const price = priceMatch[1].replace(/[,.']/g, "");
-    lines.push(`price: ${price}`);
-  }
-
-  // Location — grab the value after "Location:" or "Area:"
-  const locMatch = text.match(/(?:location|area)\s*:\s*(.+)/i);
-  if (locMatch) lines.push(`location: "${locMatch[1].trim()}"`);
-
-  // Bedrooms
-  const bedMatch = text.match(/(?:bedrooms?|beds?)\s*:?\s*(\d+)/i) || text.match(/(\d+)\s*(?:bedrooms?|beds?|br)\b/i);
-  if (bedMatch) lines.push(`bedrooms: ${bedMatch[1]}`);
-
-  // Bathrooms
-  const bathMatch = text.match(/(?:bathrooms?|baths?)\s*:?\s*(\d+)/i) || text.match(/(\d+)\s*(?:bathrooms?|baths?)\b/i);
-  if (bathMatch) lines.push(`bathrooms: ${bathMatch[1]}`);
-
-  // Covered area
-  const areaMatch = text.match(/(?:covered\s*area|indoor\s*area|net\s*area|size)\s*:?\s*(\d+)/i) || text.match(/(\d+)\s*(?:sqm|m2|m²)/i);
-  if (areaMatch) lines.push(`coveredArea: ${areaMatch[1]}`);
-
-  // Owner name + phone — handle "Owner: Name, +Phone" and "Owner: Name \n Phone: +xxx"
-  const ownerLineMatch = text.match(/(?:owner|seller)\s*:?\s*([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)+)/);
-  if (ownerLineMatch) lines.push(`ownerName: "${ownerLineMatch[1].split(",")[0].trim()}"`);
-  const phoneMatch = text.match(/(?:owner|seller|phone|tel|mobile)\s*:?\s*.*?(\+?\d[\d\s()-]{7,})/i) ||
-    text.match(/,\s*(\+?\d[\d\s()-]{7,})/);
-  if (phoneMatch) {
-    const phone = phoneMatch[1].replace(/[\s()-]+/g, "").trim();
-    if (/\+?\d{8,}/.test(phone)) lines.push(`ownerPhone: "${phone}"`);
-  }
-
-  // Title deed status
-  const deedMatch = lower.match(/title\s*deed\s*:?\s*(separate|in.process|pending|permits?\s*only|final.approval|share.of.land|unknown|yes|no)/);
-  if (deedMatch) {
-    let status = deedMatch[1].replace(/\s+/g, "_");
-    if (status === "yes") status = "separate";
-    lines.push(`titleDeedStatus: "${status}"`);
-  }
-
-  // Assign to
-  const assignMatch = lower.match(/assign(?:\s+(?:it|this|listing))?\s+to\s+(\S+@\S+)/);
-  if (assignMatch) {
-    lines.push(`assignTo: "${assignMatch[1].replace(/[.,;:!?)]+$/, "")}"`);
-  } else {
-    // Try agent name
-    const nameAssign = lower.match(/assign(?:\s+(?:it|this|listing))?\s+to\s+([a-z]+)/);
-    if (nameAssign) lines.push(`assignTo: "${nameAssign[1]}" (resolve to email)`);
-  }
-
-  return lines.length > 0 ? lines.join("\n") : "No fields could be auto-extracted — ask the agent.";
-}
