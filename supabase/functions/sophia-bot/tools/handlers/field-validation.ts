@@ -339,12 +339,14 @@ export async function validateAndPrepareFields(
     await releaseLock();
     return {
       needsInput: true,
-      question: `"${location}" appears to be a street address. I need the area/neighborhood name for the listing (e.g., Agios Athanasios, Kato Paphos, Germasogeia). What area is this property in?`,
+      retryable: true,
+      question: `"${location}" appears to be a street address. I need the area/neighborhood name (e.g., Agios Athanasios, Kato Paphos, Germasogeia). Re-read the user's message and extract the area name, then call createPropertyListing again with the correct location.`,
     };
   }
 
   // 2.6 CRITICAL: Block city-only locations (e.g., "Limassol, Limassol" or "Paphos")
   // These are too vague — Sophia must ask for the specific area/neighborhood
+  // Mark as retryable so the AI loop can re-read the user message and extract the correct area
   if (isCityOnlyLocation(location)) {
     logger.warn("Location rejected: city-only location without specific area", {
       category: LogCategory.TOOL,
@@ -354,7 +356,8 @@ export async function validateAndPrepareFields(
     await releaseLock();
     return {
       needsInput: true,
-      question: `"${location}" is too general — I need the specific area or neighborhood name (e.g., Agios Athanasios, Kato Paphos, Germasogeia, Mesa Geitonia). What is the exact area/neighborhood for this property?`,
+      retryable: true,
+      question: `"${location}" is too general — I need the specific area or neighborhood name. Re-read the user's message carefully and extract the EXACT area/neighborhood they mentioned (e.g., "Tala", "Kato Paphos", "Germasogeia"). Then call createPropertyListing again with the specific area as the location parameter (format: "Area, District").`,
     };
   }
 
