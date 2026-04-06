@@ -62,3 +62,4 @@ mcp.json
 app/api.admin.disabled/
 app/(admin.disabled)/
 .vercel
+supabase/.temp/
