@@ -351,8 +351,8 @@ async function callOpenRouter(
     while (retries <= maxRetries) {
       // Create fresh AbortController for each retry
       const controller = new AbortController();
-      // Pro model needs more time (larger context, slower inference)
-      const timeoutMs = model === PRO_MODEL ? 60_000 : 30_000;
+      // Generous timeout — email uploads with tool calling can take 40-60s
+      const timeoutMs = model === PRO_MODEL ? 90_000 : 60_000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       try {
@@ -440,7 +440,7 @@ async function callOpenRouter(
     return { message: null, usage: null, error: "Max retries exceeded" };
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      const timeoutMs = model === PRO_MODEL ? 60_000 : 30_000;
+      const timeoutMs = model === PRO_MODEL ? 90_000 : 60_000;
       logger.error(`OpenRouter request timeout (${timeoutMs / 1000}s) for model ${model}`, error, {
         category: LogCategory.GENERAL,
       });
