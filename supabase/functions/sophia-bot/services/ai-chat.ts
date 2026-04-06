@@ -290,9 +290,7 @@ ${accumulatedImages.map((url, i) => `${i + 1}. ${url}`).join("\n")}
 
 This message arrived via email, not WhatsApp. Key differences:
 - Do NOT ask the user to "send a WhatsApp message" or "send photos via WhatsApp."
-- The user sent ALL their information in a single email. You MUST read every line of the email body carefully and extract ALL fields before calling any tool.
-- Pay special attention to: "Assign it to [email]" (use as assignTo), "Owner: [name] - [phone]" (use as ownerName/ownerPhone), location names, price, bedrooms, bathrooms, covered area, plot size, and property features.
-- Do NOT ask follow-up questions for fields that are already in the email. Only ask about genuinely missing required fields.
+- The user may have sent all their information (text + photos) in a single email. Read the full email carefully before asking follow-up questions.
 - If you need more information, say "please reply to this email with..." instead of referencing WhatsApp.
 - Your response will be sent as an email reply.
 
