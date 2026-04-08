@@ -10,7 +10,7 @@
 
 import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
 import { getTelegramBot } from "./telegram.ts";
-import { ALERT_TARGET_CHAT_ID } from "./telegram-search.ts";
+import { ZYPRESS_OTHERS_CHAT_ID } from "./telegram-search.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -126,14 +126,11 @@ export function formatFollowUpReminder(
 export async function sendMissingCallerAlert(
   call: MissingCallerInfo
 ): Promise<{ success: boolean; messageId?: number; error?: string }> {
-  // Guard: skip silently if alert target is disabled (set to 0)
-  if (ALERT_TARGET_CHAT_ID === 0) {
-    logger.info("Alert sending disabled (ALERT_TARGET_CHAT_ID = 0)", {
-      category: LogCategory.GENERAL,
-      operation: "sendMissingCallerAlert",
-      callDate: call.callDate,
-    });
-    return { success: true, messageId: undefined };
+  // Guard: fail loudly if chat ID is unconfigured
+  if (ZYPRESS_OTHERS_CHAT_ID === 0) {
+    throw new Error(
+      "ZYPRESS_OTHERS_CHAT_ID is 0 (unconfigured) — configure before sending alerts"
+    );
   }
 
   try {
@@ -141,7 +138,7 @@ export async function sendMissingCallerAlert(
     const bot = getTelegramBot();
 
     const result = (await bot.sendMessage({
-      chatId: ALERT_TARGET_CHAT_ID,
+      chatId: ZYPRESS_OTHERS_CHAT_ID,
       text: message,
     })) as { message_id: number };
 

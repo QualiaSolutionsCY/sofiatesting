@@ -35,8 +35,6 @@ export const REGIONAL_GROUP_IDS: Record<string, number> = {
 };
 
 export const ZYPRESS_OTHERS_CHAT_ID: number = -1003337263793;
-/** Where 3CX missing-caller alerts are sent. Set to 0 to disable. */
-export const ALERT_TARGET_CHAT_ID: number = 0;
 export const VASYA_TELEGRAM_USER_ID = 0; // Replace with actual Vasya's Telegram user ID
 
 // ---------------------------------------------------------------------------
