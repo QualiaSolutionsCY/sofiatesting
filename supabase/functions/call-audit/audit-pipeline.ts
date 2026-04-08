@@ -24,6 +24,7 @@ import {
   sendMissingCallerAlert,
 } from "../_shared/telegram-alerts.ts";
 import {
+  ALERT_TARGET_CHAT_ID,
   REGIONAL_GROUP_IDS,
   searchPhoneInGroups,
   ZYPRESS_OTHERS_CHAT_ID,
@@ -296,7 +297,7 @@ export async function runDailyAudit(
             await updateAlertStatus(alert.id, {
               status: "alerted",
               alert_message_id: String(result.messageId),
-              chat_id: ZYPRESS_OTHERS_CHAT_ID,
+              chat_id: ALERT_TARGET_CHAT_ID,
             });
 
             alertsSent++;
@@ -324,9 +325,9 @@ export async function runDailyAudit(
               : new Error(String(alertError));
 
           // Check if this is an unconfigured chat ID error
-          if (err.message.includes("ZYPRESS_OTHERS_CHAT_ID is 0")) {
+          if (err.message.includes("ALERT_TARGET_CHAT_ID is 0")) {
             logger.warn(
-              "[Audit Pipeline] Alert sending skipped - ZYPRESS_OTHERS_CHAT_ID not configured",
+              "[Audit Pipeline] Alert sending skipped - ALERT_TARGET_CHAT_ID not configured",
               {
                 category: LogCategory.GENERAL,
                 operation: "runDailyAudit",
