@@ -79,20 +79,22 @@ async function getZyprusToken(): Promise<string> {
 /**
  * Detect node type from listing URL
  * Land listings: /land/{id}, Property listings: /property/{id}
+ * URLs in /node/{id}/edit format are ambiguous — caller must try both.
  */
-function getNodeType(listingUrl: string): "land" | "property" {
-  return listingUrl.includes("/land/") ? "land" : "property";
+function getNodeType(listingUrl: string): "land" | "property" | "unknown" {
+  if (listingUrl.includes("/land/")) return "land";
+  if (listingUrl.includes("/property/")) return "property";
+  return "unknown";
 }
 
 /**
- * Check if a specific listing is published on Zyprus
+ * Fetch listing status from Zyprus JSON:API for a given node type
  */
-async function checkListingStatus(
+async function fetchListingStatus(
   listingId: string,
-  listingUrl: string,
+  nodeType: "land" | "property",
   token: string
-): Promise<{ published: boolean; publicUrl?: string }> {
-  const nodeType = getNodeType(listingUrl);
+): Promise<{ published: boolean; publicUrl?: string } | null> {
   const url = `${ZYPRUS_API_URL}/jsonapi/node/${nodeType}/${listingId}?fields[node--${nodeType}]=status,path,drupal_internal__nid`;
 
   const response = await fetch(url, {
@@ -104,21 +106,44 @@ async function checkListingStatus(
   });
 
   if (!response.ok) {
-    if (response.status === 404) {
-      return { published: false };
-    }
+    if (response.status === 404) return null;
     throw new Error(`Zyprus API error: ${response.status}`);
   }
 
   const data = await response.json();
   const published = data.data?.attributes?.status === true;
-  // Get the public path alias (e.g. /properties-for-sale/paphos/my-property)
   const pathAlias = data.data?.attributes?.path?.alias;
   const publicUrl = published && pathAlias
     ? `${ZYPRUS_API_URL}${pathAlias}`
     : undefined;
 
   return { published, publicUrl };
+}
+
+/**
+ * Check if a specific listing is published on Zyprus.
+ * Tries both property and land endpoints when URL format is ambiguous.
+ */
+async function checkListingStatus(
+  listingId: string,
+  listingUrl: string,
+  token: string
+): Promise<{ published: boolean; publicUrl?: string }> {
+  const nodeType = getNodeType(listingUrl);
+
+  if (nodeType !== "unknown") {
+    const result = await fetchListingStatus(listingId, nodeType, token);
+    return result ?? { published: false };
+  }
+
+  // Ambiguous URL (/node/{id}/edit) — try property first, then land
+  const propertyResult = await fetchListingStatus(listingId, "property", token);
+  if (propertyResult) return propertyResult;
+
+  const landResult = await fetchListingStatus(listingId, "land", token);
+  if (landResult) return landResult;
+
+  return { published: false };
 }
 
 Deno.serve(async (req: Request) => {
