@@ -507,6 +507,7 @@ export function filterExternalCallers(
   const externalCallerSet = new Set<string>();
   const callTimeMap: Record<string, string> = {};
   let internalFiltered = 0;
+  let answeredFiltered = 0;
   const errors: string[] = [];
 
   for (const entry of entries) {
@@ -541,6 +542,18 @@ export function filterExternalCallers(
 
       if (isInternal) {
         internalFiltered++;
+        continue;
+      }
+
+      // Only audit unanswered calls — answered calls have been handled by
+      // definition. Without this filter the audit alerts on EVERY inbound
+      // call whose number isn't yet indexed in Telegram, which produces
+      // false positives for calls the receptionist actually answered and
+      // then posted as a lead (the Telegram message lags behind the call).
+      const wasAnswered =
+        entry.status.toLowerCase() === "answered" && entry.duration > 0;
+      if (wasAnswered) {
+        answeredFiltered++;
         continue;
       }
 
@@ -580,6 +593,7 @@ export function filterExternalCallers(
     totalCalls: entries.length,
     externalCallers: externalCallers.length,
     internalFiltered,
+    answeredFiltered,
     errors: errors.length,
   });
 
