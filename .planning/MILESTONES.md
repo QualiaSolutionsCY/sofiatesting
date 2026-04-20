@@ -1,5 +1,35 @@
 # Project Milestones: SOPHIA Production Hardening
 
+## v1.6 Upload Pipeline Production Hardening (Shipped: 2026-03-20)
+
+**Delivered:** Fixed all 17 issues from the 2026-03-20 deep audit of Sophia's property upload pipeline (WhatsApp + Email). Zero silent data loss, zero lock leaks, zero dropped business rules.
+
+**Phases completed:** 26-27 (2 plans total — 11 fixes across FR-1 through FR-12)
+
+**Key accomplishments:**
+
+- Upload lock released on all 11 early-return paths in field-validation.ts (was: only 1 path)
+- `listingType` now required in both Zod schema and validateRequiredFields (no more silent sale/rent omission)
+- Email Google Maps follow-up now loads last 4 messages so agent reply lands with context
+- `parsePreExtractedFields` regex hardened with MANDATORY alt-delimiter + warn-on-mismatch
+- `poolType: "none" [warning]` format now parses correctly
+- `bedrooms: 0` preserved for email studios (removed from nullableFields + removed Zod default)
+- Michelle rental uploads now correctly inject `assignTo: demetra@zyprus.com` from special-cases
+- Removed duplicate clearPendingImages (property-listing.ts is single source of truth)
+- Email assignment regex now matches "assign this to" / "assign listing to" patterns
+- ToolResult interface deduplicated — single definition in executor.ts, re-exported from field-validation.ts
+
+**Stats:**
+
+- 2 phases, 2 plans, 11 fixes
+- 1 day (2026-03-20)
+
+**Git anchor:** `08c4493` — `fix(v1.6): upload pipeline hardening — 11 fixes across 2 phases`
+
+**What's next:** Maintenance mode — ongoing hotfixes and product features (see commit log post-2026-03-20)
+
+---
+
 ## v1.5 Audit Excellence (Shipped: 2026-03-02)
 
 **Delivered:** Production-grade audit excellence — hardcoded secrets removed, all external API calls timeout-protected with circuit breakers, full type safety on WaSend/OpenRouter interfaces, Sentry error tracking integrated, per-agent AI cost monitoring, and 3 monolith files refactored into modular architecture.

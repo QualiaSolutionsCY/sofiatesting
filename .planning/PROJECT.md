@@ -8,9 +8,9 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 
 **Agents can trust SOPHIA to do the right thing every time** — correct templates, correct routing, correct uploads, user-friendly errors, no manual intervention needed.
 
-## Current State (v1.5 Shipped)
+## Current State (v1.6 Shipped — Maintenance Mode)
 
-**Shipped:** 2026-03-02
+**Shipped:** 2026-03-20 (v1.6) — in maintenance mode since, with ongoing hotfixes and product additions (see git log)
 
 **Infrastructure:**
 - Supabase Edge Functions: `sophia-bot` (WhatsApp), `call-audit` (3CX audit), `listing-notifier`, `draft-cleanup`
@@ -50,7 +50,7 @@ Production-ready AI assistant for Zyprus Property Group agents — handling What
 
 ## Next Milestone
 
-TBD — Run `/gsd:new-milestone` to define next milestone goals.
+None planned. Project is in maintenance mode — new work happens as quick tasks or hotfix commits directly on `main`. If a formal milestone is needed, run `/qualia-new` or `/qualia-milestone` to scope it.
 
 ## Requirements
 
@@ -99,9 +99,33 @@ TBD — Run `/gsd:new-milestone` to define next milestone goals.
 - OBS-01 to OBS-03: Observability (Sentry integration, AI cost tracking, .env.example)
 - CODE-01 to CODE-04: Code quality refactoring (3 monolith splits, Supabase singleton)
 
+**v1.6 (shipped 2026-03-20):**
+- FR-1: Upload lock released on 11 early-return paths in field-validation.ts
+- FR-2: `listingType` required in Zod + validateRequiredFields
+- FR-3: Email Google Maps follow-up loads last 4 messages for context
+- FR-4: parsePreExtractedFields regex hardened (MANDATORY delimiter, warn-on-mismatch)
+- FR-5: `bedrooms` removed from nullableFields (email studios preserve `bedrooms: 0`)
+- FR-6: poolType parsing handles `"none" [warning text]` format
+- FR-7: Michelle rental injects `assignTo: demetra@zyprus.com` from special-cases
+- FR-8: Removed `.default(0)` from bedrooms Zod schema
+- FR-9: Redundant clearPendingImages removed (property-listing.ts is single source)
+- FR-10: `condition` field — FALSE POSITIVE (already captured via description-generator)
+- FR-11: Email `extractAssignmentFromEmail` matches "assign this/listing to"
+- FR-12: ToolResult interface deduplicated (executor.ts canonical, re-exported)
+
+**Maintenance (ongoing, post-2026-03-20):**
+- Email upload pipeline rebuild (parity with WhatsApp)
+- Document upload support
+- Commercial + industrial land types
+- Listing notifier public URL + admin panel stats
+- Telegram-sophia webhook + indexer forwarding
+- Land listing /node/{id}/edit URL disambiguation
+- call-audit: only alert on missed calls
+- Lifetime tracking (v3.4.1)
+
 ### Active
 
-No active requirements — run `/gsd:new-milestone` to define next milestone.
+No active requirements. Maintenance hotfixes land directly on `main`. Use `/qualia-quick` for small tasks or `/qualia-new`/`qualia-milestone` for the next formal milestone.
 
 ### Out of Scope
 
@@ -174,4 +198,4 @@ No active requirements — run `/gsd:new-milestone` to define next milestone.
 - **Backwards Compatible**: Changes must not break existing functionality
 
 ---
-*Last updated: 2026-03-02 after v1.5 milestone*
+*Last updated: 2026-04-18 — v1.6 archived, planning folder synced with reality (maintenance mode)*

@@ -8,6 +8,8 @@
 - ✅ **v1.3 Production Audit Fixes** - Phases 15-17 (shipped 2026-02-28)
 - ✅ **v1.4 Security & Performance Hardening** - Phases 18-20 (shipped 2026-03-01)
 - ✅ **v1.5 Audit Excellence** - Phases 21-25 (shipped 2026-03-02)
+- ✅ **v1.6 Upload Pipeline Production Hardening** - Phases 26-27 (shipped 2026-03-20)
+- 🔧 **Maintenance / Hotfixes** - ongoing (post-2026-03-20) — email upload rebuild, document uploads, land types, call-audit fixes, listing-notifier land URL handling, telegram-sophia indexer, lifetime tracking
 
 ## Phases
 
@@ -149,6 +151,38 @@ See: `.planning/milestones/v1.5-ROADMAP.md` for full details.
 
 </details>
 
+<details>
+<summary>✅ v1.6 Upload Pipeline Production Hardening (Phases 26-27) - SHIPPED 2026-03-20</summary>
+
+See: `.planning/milestones/v1.6-ROADMAP.md` for full details. Git anchor: `08c4493`.
+
+### Phase 26: Upload Data Integrity Fixes
+**Goal**: Zero silent data loss, zero lock leaks, zero broken email follow-ups
+**Scope**: FR-1, FR-2, FR-3, FR-4, FR-5, FR-6, FR-8
+
+- [x] 26-01: Lock release on 11 paths + listingType required + bedrooms fixes + parsePreExtractedFields + poolType + email Google Maps follow-up
+
+### Phase 27: Business Rules & Cleanup
+**Goal**: All business rules enforced, no redundant code, no dropped fields
+**Scope**: FR-7, FR-9, FR-10, FR-11, FR-12
+
+- [x] 27-01: Apply modifiedRequest.assignTo + remove redundant clearPendingImages + email assign patterns + ToolResult dedup (FR-10 was false positive — already handled via description-generator)
+
+</details>
+
+## Post-v1.6 Maintenance (ongoing)
+
+Not grouped as a formal milestone. Commit history (git log) is the source of truth. Highlights since 2026-03-20:
+
+- Email upload pipeline rebuild to match WhatsApp flow (f2804f4, 233bfdb, cfade25)
+- Document upload support + property listing fixes (192e8cc)
+- Commercial and industrial land types (3add4c4)
+- Listing notifier returns public URL + admin panel stats from DB (46c77c7)
+- Telegram-sophia webhook setup + indexer forwarding (c27cc94)
+- Handle ambiguous /node/{id}/edit URLs for land listings (9f3e764)
+- call-audit: only alert on missed calls, not answered (9c8bd95)
+- Lifetime tracking v3.4.1 (a6bacd8)
+
 ## Progress
 
 | Milestone | Phases | Plans | Status | Shipped |
@@ -159,9 +193,11 @@ See: `.planning/milestones/v1.5-ROADMAP.md` for full details.
 | v1.3 Audit Fixes | 15-17 | 8 | Complete | 2026-02-28 |
 | v1.4 Security Hardening | 18-20 | 10 | Complete | 2026-03-01 |
 | v1.5 Audit Excellence | 21-25 | 14 | Complete | 2026-03-02 |
+| v1.6 Upload Hardening | 26-27 | 2 | Complete | 2026-03-20 |
+| Maintenance | — | — | Ongoing | post-2026-03-20 |
 
-**Total: 72 plans across 25 phases (6 milestones shipped)**
+**Total: 74 plans across 27 phases (7 milestones shipped)**
 
 ---
 *Roadmap created: 2026-01-27*
-*Last updated: 2026-03-02 — v1.5 Audit Excellence milestone archived*
+*Last updated: 2026-04-18 — v1.6 Upload Pipeline Hardening archived, maintenance mode*
