@@ -15,8 +15,8 @@
   "verification": "pass",
   "gap_cycles": {},
   "blockers": [],
-  "last_updated": "2026-04-20T11:17:06Z",
-  "last_commit": "f58be42",
+  "last_updated": "2026-04-20T11:17:39Z",
+  "last_commit": "6d774be",
   "deployed_url": "https://sofiatesting.vercel.app",
   "notes": "Maintenance mode. All 7 milestones shipped (v1.0 → v1.6). No active phase.",
   "lifetime": {
@@ -25,7 +25,7 @@
     "milestones_completed": 7,
     "total_phases": 27
   },
-  "last_pushed_at": "2026-04-20T11:17:06Z",
+  "last_pushed_at": "2026-04-20T11:17:39Z",
   "milestones": [],
   "report_seq": 1
 }
