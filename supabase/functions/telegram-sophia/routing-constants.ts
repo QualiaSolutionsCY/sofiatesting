@@ -234,6 +234,73 @@ export const extractRequestedAgent = (text: string): string | null => {
 };
 
 /**
+ * Normalise a phone number into search variants.
+ *
+ * Examples:
+ *   00447748700937 -> ["00447748700937", "447748700937"]
+ *   +35796565606   -> ["+35796565606", "35796565606", "96565606"]
+ *   96565606       -> ["96565606", "35796565606", "+35796565606"]
+ */
+export const normalizePhoneForSearch = (phone: string): string[] => {
+  const cleaned = phone.replace(/[\s\-()]/g, "");
+  const variants = new Set<string>();
+  variants.add(cleaned);
+
+  if (cleaned.startsWith("+")) {
+    const noPlus = cleaned.slice(1);
+    variants.add(noPlus);
+    if (noPlus.startsWith("357") && noPlus.length > 3) variants.add(noPlus.slice(3));
+  }
+  if (cleaned.startsWith("00")) {
+    const no00 = cleaned.slice(2);
+    variants.add(no00);
+    if (no00.startsWith("357") && no00.length > 3) variants.add(no00.slice(3));
+  }
+  if (/^357\d+/.test(cleaned) && cleaned.length > 3) {
+    variants.add(cleaned.slice(3));
+  }
+  // Cyprus local number -> add 357 and +357 variants
+  if (/^9\d{7}$/.test(cleaned)) {
+    variants.add(`357${cleaned}`);
+    variants.add(`+357${cleaned}`);
+  }
+
+  return [...variants];
+};
+
+/**
+ * Extract the caller's phone number from a forwarded lead message.
+ *
+ * Prefers international-format numbers (+XX... or 00XX...) because those are
+ * what the call-tracker pastes into Telegram (e.g. "00447748700937").
+ * Falls back to 8-digit Cyprus local numbers only when the digits aren't
+ * part of a Zyprus property ID (`ID: 39777`, `zyprus.com/property/12345`).
+ *
+ * Returns the digits-only canonical form. Leading `+` is dropped; leading
+ * `00` is kept (the normalizer strips it later when building search variants).
+ * `null` if nothing reliable was found.
+ */
+export const extractCallerPhone = (text: string): string | null => {
+  if (!text) return null;
+
+  const masked = text
+    .replace(/https?:\/\/\S+/gi, " ")
+    .replace(/\bID[:\s]+\d{3,}/gi, " ")
+    .replace(PROPERTY_REF_PATTERN_GLOBAL, " ");
+
+  const international = masked.match(/(?:\+|00)\s?\d[\d\s().-]{8,18}/);
+  if (international) {
+    const digits = international[0].replace(/\D/g, "");
+    if (digits.length >= 10 && digits.length <= 15) return digits;
+  }
+
+  const cyLocal = masked.match(/(?<!\d)(9[5-9]\d{6})(?!\d)/);
+  if (cyLocal) return cyLocal[1];
+
+  return null;
+};
+
+/**
  * Pattern to extract full Zyprus URLs for API lookup
  * Matches: www.zyprus.com/land/32417/... or zyprus.com/property/12345/...
  */

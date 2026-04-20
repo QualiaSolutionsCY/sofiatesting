@@ -26,6 +26,7 @@ import {
   extractPropertyIds,
   isLeadMessage,
   extractRequestedAgent,
+  extractCallerPhone,
   extractZyprusUrls,
 } from "./routing-constants.ts";
 import { getOwnerFromUrls } from "./zyprus-api.ts";
@@ -34,6 +35,7 @@ import {
   getAgentsByNames,
   getAgentsByRegion,
   findAgentByName,
+  findPreviousAgentForCaller,
   checkRecentDuplicatesBatch,
   logLead,
   selectNextAgentAtomic,
@@ -53,7 +55,8 @@ const forwardLeadToAgent = async (
   group: TelegramGroup,
   agent: Agent,
   propertyIds: string[],
-  clientLanguage: "russian" | "english" | "unknown"
+  clientLanguage: "russian" | "english" | "unknown",
+  callerPhone: string | null = null
 ): Promise<ForwardResult> => {
   const chatId = message.chat.id;
   const agentTelegramId = agent.telegram_user_id;
@@ -102,6 +105,7 @@ const forwardLeadToAgent = async (
     group_ack_message_id: ackMessageId,
     client_language: clientLanguage,
     status: "forwarded",
+    caller_phone: callerPhone,
   });
 
   // 4. Update rotation state
@@ -238,7 +242,8 @@ const handlePaphosOwnerRouting = async (
   group: TelegramGroup,
   text: string,
   propertyIds: string[],
-  isRussian: boolean
+  isRussian: boolean,
+  callerPhone: string | null
 ): Promise<ForwardResult | null> => {
   // Extract Zyprus URLs from message
   const zyprusUrls = extractZyprusUrls(text);
@@ -321,7 +326,8 @@ const handlePaphosOwnerRouting = async (
       group,
       targetAgent,
       propertyIds,
-      isRussian ? "russian" : "english"
+      isRussian ? "russian" : "english",
+      callerPhone
     );
   } catch (error) {
     console.error("[LeadRouter] Error in owner-based routing:", error);
@@ -387,15 +393,39 @@ export const handleGroupMessage = async (
   const isRussian = detectRussianLanguage(text) || detectRussianLanguage(senderName);
   console.log("[LeadRouter] Russian detected:", isRussian);
 
-  // 6. Check if client requested specific agent
+  // 5b. Extract caller phone once for repeat-caller lookup + persistence
+  const callerPhone = extractCallerPhone(text);
+  if (callerPhone) {
+    console.log(`[LeadRouter] Caller phone extracted: ${callerPhone}`);
+  }
+
+  // 6. Check if client requested specific agent (highest priority)
   const requestedAgentName = extractRequestedAgent(text);
   if (requestedAgentName) {
     console.log(`[LeadRouter] Client requested agent: ${requestedAgentName}`);
     const agent = await findAgentByName(requestedAgentName);
     if (agent && agent.telegram_user_id) {
-      return await forwardLeadToAgent(message, group, agent, propertyIds, isRussian ? "russian" : "english");
+      return await forwardLeadToAgent(message, group, agent, propertyIds, isRussian ? "russian" : "english", callerPhone);
     }
     console.log("[LeadRouter] Requested agent not found or not registered");
+  }
+
+  // 6b. Repeat caller: keep the caller with the agent who handled their last lead
+  //     in this group. Wins over owner-based and round-robin because the caller
+  //     relationship matters more than listing ownership.
+  if (callerPhone) {
+    const previousAgent = await findPreviousAgentForCaller(callerPhone, chatId);
+    if (previousAgent) {
+      console.log(`[LeadRouter] Repeat caller ${callerPhone} → ${previousAgent.full_name} (previous handler)`);
+      return await forwardLeadToAgent(
+        message,
+        group,
+        previousAgent,
+        propertyIds,
+        isRussian ? "russian" : "english",
+        callerPhone
+      );
+    }
   }
 
   // 7. PAPHOS-SPECIFIC: Check Zyprus API for listing ownership
@@ -405,7 +435,8 @@ export const handleGroupMessage = async (
       group,
       text,
       propertyIds,
-      isRussian
+      isRussian,
+      callerPhone
     );
     if (ownerBasedResult) {
       return ownerBasedResult;
@@ -440,7 +471,8 @@ export const handleGroupMessage = async (
     group,
     selectedAgent,
     propertyIds,
-    isRussian ? "russian" : "english"
+    isRussian ? "russian" : "english",
+    callerPhone
   );
 };
 

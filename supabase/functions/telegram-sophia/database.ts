@@ -5,7 +5,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import type { Agent, TelegramGroup, TelegramLead, LeadForwardingRotation } from "./types.ts";
-import { detectGroupType, detectRegionFromName } from "./routing-constants.ts";
+import { detectGroupType, detectRegionFromName, normalizePhoneForSearch } from "./routing-constants.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -295,6 +295,62 @@ export const findAgentByName = async (name: string): Promise<Agent | null> => {
 };
 
 /**
+ * Find the agent who handled a previous forwarded lead from this caller in the
+ * same Telegram group. Used to keep repeat callers with their original agent
+ * instead of letting round-robin send them to a different person.
+ *
+ * Returns null if there's no prior record, or if the original agent is no
+ * longer eligible to receive leads (inactive / can_receive_leads=false /
+ * missing telegram_user_id). Caller should then fall through to normal routing.
+ */
+export const findPreviousAgentForCaller = async (
+  callerPhone: string,
+  sourceGroupId: number
+): Promise<Agent | null> => {
+  try {
+    const variants = normalizePhoneForSearch(callerPhone);
+    if (variants.length === 0) return null;
+
+    // ASC = first-assignment wins. Repeat callers should go back to the agent
+    // who handled the ORIGINAL lead, not whoever got the most recent one
+    // (which may itself have been a routing mistake we're trying to fix).
+    // The is_active / can_receive_leads / telegram_user_id guards below
+    // handle departed agents by returning null → fall through to normal routing.
+    const { data: lead, error: leadError } = await supabase
+      .from("telegram_leads")
+      .select("forwarded_to_agent_id")
+      .eq("source_group_id", sourceGroupId)
+      .in("caller_phone", variants)
+      .not("forwarded_to_agent_id", "is", null)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (leadError || !lead?.forwarded_to_agent_id) {
+      return null;
+    }
+
+    const { data: agent, error: agentError } = await supabase
+      .from("agents")
+      .select("*")
+      .eq("id", lead.forwarded_to_agent_id)
+      .eq("is_active", true)
+      .eq("can_receive_leads", true)
+      .not("telegram_user_id", "is", null)
+      .maybeSingle();
+
+    if (agentError || !agent) {
+      return null;
+    }
+
+    return agent as Agent;
+  } catch (error) {
+    console.error("[DB] findPreviousAgentForCaller exception:", error);
+    return null;
+  }
+};
+
+/**
  * Find agent by phone number (for /register command)
  */
 export const findAgentByPhone = async (phone: string): Promise<Agent | null> => {
@@ -409,7 +465,9 @@ export const isRecentDuplicate = async (
 /**
  * Log a forwarded lead to the database
  */
-export const logLead = async (lead: Omit<TelegramLead, "id" | "created_at">): Promise<string | null> => {
+export const logLead = async (
+  lead: Omit<TelegramLead, "id" | "created_at"> & { caller_phone?: string | null }
+): Promise<string | null> => {
   try {
     const { data, error } = await supabase
       .from("telegram_leads")
