@@ -208,9 +208,41 @@ export const extractPropertyIds = (text: string): string[] => {
 };
 
 /**
+ * Rental intent in forwarded lead messages.
+ * Matches "rent", "rental", "renting", "lease", "for rent", "to let" as whole
+ * words so it doesn't fire on "rentier", "parent", etc.
+ */
+export const RENTAL_PATTERN = /\b(rent|rental|renting|renter|lease|leasing|to\s+let|for\s+rent)\b/i;
+
+/**
+ * Whether the lead is about a rental (not a purchase).
+ */
+export const detectRentalIntent = (text: string): boolean => {
+  if (!text) return false;
+  return RENTAL_PATTERN.test(text);
+};
+
+/**
+ * Detect the Cyprus region mentioned in the message body (as opposed to the
+ * group name it was posted in). Used by the "Others" group so Vasia can
+ * forward leads about any region there and Sophia can route them to the
+ * correct regional agent.
+ */
+export const detectRegionFromText = (text: string): string | null => {
+  if (!text) return null;
+  const t = text.toLowerCase();
+  if (/\bpaphos\b|\bpafos\b/.test(t)) return "paphos";
+  if (/\blimassol\b|\blemesos\b/.test(t)) return "limassol";
+  if (/\blarnaca\b|\blarnaka\b/.test(t)) return "larnaca";
+  if (/\bnicosia\b|\blefkosia\b/.test(t)) return "nicosia";
+  if (/\bfamagusta\b|\bammochostos\b|\bayia\s+napa\b|\bprotaras\b|\bparalimni\b/.test(t)) return "famagusta";
+  return null;
+};
+
+/**
  * Check if message is lead-related
- * ONLY triggers on: zyprus.com URL or property ID
- * Does NOT trigger on generic keywords like "lead", "client", etc.
+ * Triggers on: zyprus.com URL, property ID, or an explicit region+intent
+ * phrase so "rental in paphos" messages with no listing link still route.
  */
 export const isLeadMessage = (text: string): boolean => {
   // Has zyprus.com URL (property or land)
@@ -221,6 +253,15 @@ export const isLeadMessage = (text: string): boolean => {
 
   // Has numeric ID pattern like "ID: 32417" or "ID:32417"
   if (/\bID[:\s]+\d{4,}/i.test(text)) return true;
+
+  // Mentions a Cyprus region + an intent keyword (rental/buying/interested)
+  // Lets Vasia forward enquiries like "wants a rental in Paphos" even when
+  // she has no listing link to include.
+  const region = detectRegionFromText(text);
+  if (region) {
+    if (RENTAL_PATTERN.test(text)) return true;
+    if (/\b(buy|buying|purchase|purchasing|interested|viewing|enquir)/i.test(text)) return true;
+  }
 
   return false;
 };

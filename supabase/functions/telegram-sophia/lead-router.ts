@@ -28,6 +28,8 @@ import {
   extractRequestedAgent,
   extractCallerPhone,
   extractZyprusUrls,
+  detectRegionFromText,
+  detectRentalIntent,
 } from "./routing-constants.ts";
 import { getOwnerFromUrls } from "./zyprus-api.ts";
 import {
@@ -42,6 +44,17 @@ import {
   updateRotationState,
 } from "./database.ts";
 import { forwardMessage, sendMessage } from "./telegram-client.ts";
+
+// Full-name overrides for region-based routing. A missing agent (inactive,
+// no telegram_user_id, etc.) falls through to the group's normal routing.
+const REGION_PRIMARY_AGENT: Record<string, string> = {
+  famagusta: "Narine Akopyan",
+  nicosia: "Ivan Kazakov",
+  larnaca: "Lysandros Ioanni",
+  limassol: "Michelle Longridge",
+};
+
+const PAPHOS_RENTAL_AGENT = "Evelina Neophytou";
 
 // ==========================================
 // FORWARDING HELPER
@@ -428,8 +441,46 @@ export const handleGroupMessage = async (
     }
   }
 
-  // 7. PAPHOS-SPECIFIC: Check Zyprus API for listing ownership
-  if (group.region?.toLowerCase() === "paphos") {
+  // 6c. Determine the effective region. In the Paphos/Limassol/Larnaca groups
+  //     the group itself is authoritative. In the "Others" group we infer from
+  //     the message body — Vasia forwards leads for every region there.
+  const groupRegion = group.region?.toLowerCase() || null;
+  const mentionedRegion = detectRegionFromText(text);
+  const isOthers = isOthersGroup(group.group_type);
+  const effectiveRegion = isOthers ? (mentionedRegion || groupRegion) : groupRegion;
+
+  // 6d. Paphos rental rule: "wants a rental in Paphos" with no listing link
+  //     and no explicit agent goes to Evelina. If there IS a listing link,
+  //     owner-based routing takes over below (rental may be owned by someone
+  //     else in the Paphos team).
+  const hasListingReference = propertyIds.length > 0 || text.includes("zyprus.com");
+  if (effectiveRegion === "paphos" && detectRentalIntent(text) && !hasListingReference) {
+    const evelina = await findAgentByName(PAPHOS_RENTAL_AGENT);
+    if (evelina && evelina.telegram_user_id) {
+      console.log(`[LeadRouter] Paphos rental (no listing ref) → ${evelina.full_name}`);
+      return await forwardLeadToAgent(message, group, evelina, propertyIds, isRussian ? "russian" : "english", callerPhone);
+    }
+  }
+
+  // 6e. "Others" group region override: route by the region mentioned in the
+  //     message. Paphos falls through so the full Paphos logic (owner lookup,
+  //     50/50 Azinas/Dimitris) can run below.
+  if (isOthers && mentionedRegion && mentionedRegion !== "paphos") {
+    const primaryName = REGION_PRIMARY_AGENT[mentionedRegion];
+    if (primaryName) {
+      const primary = await findAgentByName(primaryName);
+      if (primary && primary.telegram_user_id) {
+        console.log(`[LeadRouter] Others-group ${mentionedRegion} → ${primary.full_name}`);
+        return await forwardLeadToAgent(message, group, primary, propertyIds, isRussian ? "russian" : "english", callerPhone);
+      }
+      console.log(`[LeadRouter] ${primaryName} unavailable (no telegram_user_id) — falling through`);
+    }
+  }
+
+  // 7. PAPHOS-SPECIFIC: Check Zyprus API for listing ownership.
+  //     Runs when the group IS Paphos, or when the Others group message
+  //     mentions Paphos (so a Paphos-owned listing still routes correctly).
+  if (effectiveRegion === "paphos") {
     const ownerBasedResult = await handlePaphosOwnerRouting(
       message,
       group,
