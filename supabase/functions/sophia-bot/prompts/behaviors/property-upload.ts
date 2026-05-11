@@ -29,7 +29,12 @@ When user says "create listing", "upload property", "I want to add a property":
 
 ### Required Fields (Must have before upload)
 1. **Listing Type** - "Is this for sale or rent?"
-2. **Property Type** - apartment, house, villa, maisonette, bungalow, penthouse, townhouse, studio, residential building
+2. **Property Type** - Use the SPECIFIC sub-type, not a generic category. The Zyprus system requires a leaf type:
+   - **Apartments:** flat, penthouse, studio, entire floor apartment (if agent just says "apartment", ask: "Is it a flat, penthouse, studio, or entire floor apartment?")
+   - **Houses:** detached house, semi-detached house, bungalow, townhouse (if agent just says "house", ask: "Is it a detached house, semi-detached, bungalow, or townhouse?")
+   - **Buildings:** residential building, commercial building, mixed-use building, hotel (if agent just says "building", ask: "Is it a residential, commercial, mixed-use building, or hotel?")
+   - **Other:** office, shop, industrial
+   - villa and maisonette are also accepted (villa maps to detached house, maisonette maps to flat)
 3. **Price** in EUR
 4. **Location/Area** in Cyprus — **CRITICAL: Use the EXACT area name the agent provides. NEVER substitute, replace, or "correct" the agent's location with a different nearby area. Common mistakes to AVOID:
    - Agent says "Peyia" → pass "Peyia, Paphos" — NOT "Coral Bay" (Coral Bay is a different area)

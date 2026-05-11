@@ -14,8 +14,53 @@ import { LogCategory, logger } from "../utils/logger.ts";
 import { loadTaxonomy } from "./taxonomy-cache.ts";
 
 /**
+ * Known parent UUIDs that must NEVER be returned — they are category headers,
+ * not selectable leaf radios on the Zyprus edit page.
+ */
+const PARENT_UUIDS = new Set([
+  "e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44", // Apartment (parent)
+  "ddb5ac70-4464-40f8-9f3e-2d06c1e684f4", // House (parent)
+  "caad7ee6-ed6d-4f40-87cc-2429e75c73f2", // Building (parent)
+]);
+
+/**
+ * Aliases that map user-facing terms to leaf taxonomy names.
+ * Every canonical target here is a LEAF name (e.g. "flat", not "apartment").
+ */
+const LEAF_ALIASES: Record<string, string[]> = {
+  flat: ["apartment", "apt"],
+  "detached house": [
+    "villa",
+    "detached",
+    "detached villa",
+    "standalone house",
+    "independent house",
+  ],
+  "semi detached house": ["semi-detached", "semi-detached house"],
+  bungalow: ["single-story", "single storey"],
+  penthouse: ["penthouse apartment"],
+  townhouse: ["town house", "terraced house"],
+  "commercial building": ["building"],
+  industrial: ["warehouse"],
+};
+
+/**
+ * Check whether a taxonomy item is a leaf (not a parent category).
+ * Uses both the static PARENT_UUIDS set and runtime parentId data from the taxonomy.
+ */
+function isLeaf(
+  item: { id: string; parentId?: string },
+  allTypes: { id: string; parentId?: string }[]
+): boolean {
+  if (PARENT_UUIDS.has(item.id)) return false;
+  // A type is a parent if any other type references it as parentId
+  return !allTypes.some((t) => t.parentId === item.id);
+}
+
+/**
  * Find property type UUID by name
- * Uses hardcoded fallbacks from config for common types if API lookup fails
+ * Guarantees a LEAF UUID is returned — never a parent category.
+ * Uses hardcoded fallbacks from config for common types if API lookup fails.
  */
 export async function findPropertyTypeUuid(typeName: string): Promise<string> {
   const normalized = typeName.toLowerCase().trim();
@@ -24,12 +69,24 @@ export async function findPropertyTypeUuid(typeName: string): Promise<string> {
   );
 
   // FIRST: Check if we have a hardcoded fallback for this type
-  // This ensures common types like "villa" always get the correct UUID
+  // All values in PROPERTY_TYPE_FALLBACKS are verified leaf UUIDs
   if (PROPERTY_TYPE_FALLBACKS[normalized]) {
     logger.debug(
       `[Taxonomy] Using hardcoded fallback for "${typeName}": ${PROPERTY_TYPE_FALLBACKS[normalized]}`
     );
     return PROPERTY_TYPE_FALLBACKS[normalized];
+  }
+
+  // Check aliases — resolve to canonical leaf name, then use fallback
+  for (const [leafName, aliasList] of Object.entries(LEAF_ALIASES)) {
+    if (aliasList.includes(normalized)) {
+      if (PROPERTY_TYPE_FALLBACKS[leafName]) {
+        logger.debug(
+          `[Taxonomy] Alias resolved: "${typeName}" -> "${leafName}" -> ${PROPERTY_TYPE_FALLBACKS[leafName]}`
+        );
+        return PROPERTY_TYPE_FALLBACKS[leafName];
+      }
+    }
   }
 
   try {
@@ -38,74 +95,69 @@ export async function findPropertyTypeUuid(typeName: string): Promise<string> {
       `[Taxonomy] Available property types: ${taxonomy.propertyTypes.map((pt) => pt.name).join(", ")}`
     );
 
-    // Common aliases - maps user input to taxonomy names
-    const aliases: Record<string, string[]> = {
-      apartment: ["flat", "apt"],
-      villa: [
-        "detached",
-        "detached house",
-        "standalone house",
-        "independent house",
-      ],
-      house: ["home", "detached house"],
-      maisonette: ["maisonette", "split-level"],
-      bungalow: ["single-story", "single storey"],
-      penthouse: ["penthouse apartment"],
-      townhouse: ["town house", "terraced house", "semi-detached"],
-    };
-
-    // Try exact match
+    // Try exact match — but only accept leaves
     const exact = taxonomy.propertyTypes.find(
       (pt) => pt.name.toLowerCase() === normalized
     );
-    if (exact) {
+    if (exact && isLeaf(exact, taxonomy.propertyTypes)) {
       logger.debug(
-        `[Taxonomy] Exact match for "${typeName}": ${exact.name} (${exact.id})`
+        `[Taxonomy] Exact leaf match for "${typeName}": ${exact.name} (${exact.id})`
       );
       return exact.id;
     }
 
-    // Try aliases - find what canonical type this alias maps to
-    for (const [canonical, aliasList] of Object.entries(aliases)) {
+    // If exact match was a parent, resolve to its first leaf child
+    if (exact && !isLeaf(exact, taxonomy.propertyTypes)) {
+      const firstChild = taxonomy.propertyTypes.find(
+        (pt) => pt.parentId === exact.id && isLeaf(pt, taxonomy.propertyTypes)
+      );
+      if (firstChild) {
+        logger.debug(
+          `[Taxonomy] Parent "${exact.name}" resolved to first leaf child "${firstChild.name}" (${firstChild.id})`
+        );
+        return firstChild.id;
+      }
+    }
+
+    // Try aliases against live taxonomy
+    for (const [leafName, aliasList] of Object.entries(LEAF_ALIASES)) {
       if (aliasList.includes(normalized)) {
-        // User used an alias, find the canonical type in taxonomy
         const match = taxonomy.propertyTypes.find(
-          (pt) => pt.name.toLowerCase() === canonical
+          (pt) =>
+            pt.name.toLowerCase() === leafName &&
+            isLeaf(pt, taxonomy.propertyTypes)
         );
         if (match) {
           logger.debug(
-            `[Taxonomy] Alias match: "${typeName}" -> "${canonical}" -> ${match.id}`
+            `[Taxonomy] Live alias match: "${typeName}" -> "${leafName}" -> ${match.id}`
           );
           return match.id;
-        }
-        // If canonical not in taxonomy, use hardcoded fallback
-        if (PROPERTY_TYPE_FALLBACKS[canonical]) {
-          logger.debug(
-            `[Taxonomy] Alias fallback: "${typeName}" -> "${canonical}" -> ${PROPERTY_TYPE_FALLBACKS[canonical]}`
-          );
-          return PROPERTY_TYPE_FALLBACKS[canonical];
         }
       }
     }
 
-    // Try partial match - but be careful not to match too broadly
-    // Only match if the property type is contained in the taxonomy name
-    const partial = taxonomy.propertyTypes.find((pt) =>
-      pt.name.toLowerCase().includes(normalized)
+    // Try partial match — only on leaves
+    const partial = taxonomy.propertyTypes.find(
+      (pt) =>
+        pt.name.toLowerCase().includes(normalized) &&
+        isLeaf(pt, taxonomy.propertyTypes)
     );
     if (partial) {
       logger.debug(
-        `[Taxonomy] Partial match for "${typeName}": ${partial.name} (${partial.id})`
+        `[Taxonomy] Partial leaf match for "${typeName}": ${partial.name} (${partial.id})`
       );
       return partial.id;
     }
 
-    // Last resort: return first property type if available
-    if (taxonomy.propertyTypes.length > 0) {
+    // Last resort: return first leaf property type if available
+    const firstLeaf = taxonomy.propertyTypes.find((pt) =>
+      isLeaf(pt, taxonomy.propertyTypes)
+    );
+    if (firstLeaf) {
       logger.debug(
-        `[Taxonomy] WARNING: Using first available property type: ${taxonomy.propertyTypes[0].name}`
+        `[Taxonomy] WARNING: Using first available leaf property type: ${firstLeaf.name}`
       );
-      return taxonomy.propertyTypes[0].id;
+      return firstLeaf.id;
     }
   } catch (error) {
     logger.error(
@@ -115,7 +167,7 @@ export async function findPropertyTypeUuid(typeName: string): Promise<string> {
     );
   }
 
-  // Ultimate fallback: use default UUID
+  // Ultimate fallback: use default UUID (Flat — a verified leaf)
   logger.debug(`[Taxonomy] Using default property type UUID for: ${typeName}`);
   return DEFAULT_PROPERTY_TYPE_UUID;
 }

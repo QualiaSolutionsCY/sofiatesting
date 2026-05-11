@@ -263,8 +263,8 @@ export const DEFAULT_COORDINATES: Record<string, { lat: number; lon: number }> =
 // TAXONOMY DEFAULTS
 // =============================================================================
 
-/** Default property type UUID - Apartment */
-export const DEFAULT_PROPERTY_TYPE_UUID = "e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44";
+/** Default property type UUID - Flat (leaf under Apartment) */
+export const DEFAULT_PROPERTY_TYPE_UUID = "47dba0ae-f01c-46ae-999e-5ccb48e53033";
 
 /** Default listing type UUID - For Sale */
 export const DEFAULT_LISTING_TYPE_UUID = "8f187816-a888-4cda-a937-1cee84b9c0ee";
@@ -277,27 +277,44 @@ export const DEFAULT_TITLE_DEED_UUID = "5c553db1-e53d-46a2-b609-093d17e75a7a";
 
 /**
  * Hardcoded fallback UUIDs for common property types
- * Verified against dev9.zyprus.com live API (Feb 2026)
+ * ALL values are LEAF UUIDs verified against dev9.zyprus.com live API (May 2026)
+ *
+ * Parent UUIDs (NOT selectable on the Zyprus edit page):
+ *   Apartment: e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44
+ *   House:     ddb5ac70-4464-40f8-9f3e-2d06c1e684f4
+ *   Building:  caad7ee6-ed6d-4f40-87cc-2429e75c73f2
  */
 export const PROPERTY_TYPE_FALLBACKS: Record<string, string> = {
-  apartment: "e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44",
-  villa: "76b4fa8e-de7e-4232-85ac-869dca3620f4",            // Detached House
-  house: "76b4fa8e-de7e-4232-85ac-869dca3620f4",             // Detached House
-  "detached house": "76b4fa8e-de7e-4232-85ac-869dca3620f4",
-  "detached villa": "76b4fa8e-de7e-4232-85ac-869dca3620f4",  // Detached House
-  "semi-detached": "d9ab36df-b3ab-4fd0-b618-797784457fe9",   // Semi Detached House
-  "semi-detached house": "d9ab36df-b3ab-4fd0-b618-797784457fe9",
-  studio: "bff4e856-9888-4c4a-94c5-9fc6a6dfb6f3",            // Studio
+  // --- Apartment children (leaf) ---
+  apartment: "47dba0ae-f01c-46ae-999e-5ccb48e53033",          // -> Flat (leaf under Apartment)
+  flat: "47dba0ae-f01c-46ae-999e-5ccb48e53033",               // Flat
   penthouse: "cf2d6939-a757-4036-912f-6fda39a6d5fb",          // Penthouse
+  "entire floor apartment": "763e048f-f2da-42d2-b33a-8f7e333817cb", // Entire Floor Apartment
+  studio: "bff4e856-9888-4c4a-94c5-9fc6a6dfb6f3",            // Studio
+  maisonette: "47dba0ae-f01c-46ae-999e-5ccb48e53033",         // -> Flat (no maisonette leaf exists)
+
+  // --- House children (leaf) ---
+  house: "76b4fa8e-de7e-4232-85ac-869dca3620f4",              // -> Detached House
+  "detached house": "76b4fa8e-de7e-4232-85ac-869dca3620f4",   // Detached House
+  villa: "76b4fa8e-de7e-4232-85ac-869dca3620f4",              // -> Detached House
+  "detached villa": "76b4fa8e-de7e-4232-85ac-869dca3620f4",   // -> Detached House
+  "semi-detached": "d9ab36df-b3ab-4fd0-b618-797784457fe9",    // Semi Detached House
+  "semi-detached house": "d9ab36df-b3ab-4fd0-b618-797784457fe9", // Semi Detached House
   bungalow: "8a3b5196-0068-4c56-b7bd-8f419a0884cc",           // Bungalow
-  maisonette: "e3c4bd56-f8c4-4672-b4a2-23d6afe6ca44",        // Apartment (no maisonette type)
   townhouse: "74f0a039-fff8-4f7e-ae6d-6bda4c656b68",          // Townhouse
-  flat: "1cc0bfae-8773-4f8b-93f2-e4ee7e5c7cc7",               // Flat
-  "entire floor apartment": "59e8e5b9-14a8-450b-ab95-f5f9b25e3f3d",
-  // NOTE: "mixed-use building" and "residential building" removed
-  // The UUID was invalid on Zyprus API (404). These will fall through
-  // to the default property type (Apartment) via DEFAULT_PROPERTY_TYPE_UUID
-  // If Zyprus adds these types later, fetch them from the live taxonomy.
+
+  // --- Building children (leaf) ---
+  building: "5b6b4dcd-0e62-4548-b9cd-ca0d2df794c9",           // -> Commercial Building
+  "commercial building": "5b6b4dcd-0e62-4548-b9cd-ca0d2df794c9", // Commercial Building
+  "residential building": "6c7500ba-2ffa-4d4e-88b8-b7f647bdce41", // Residential Building
+  "mixed-use building": "4f7972ae-78c7-422d-944e-a628bba4948e",   // Mixed-use Building
+  hotel: "de3a8c24-824b-4bc7-9cc0-27b9e337f209",              // Hotel
+
+  // --- Top-level leaves (no parent) ---
+  office: "2528fe73-b53d-403f-b9b4-05f6efc2370b",             // Office
+  shop: "71953022-20cf-4f9c-be4a-8aad699a8a47",               // Shop
+  industrial: "06c87769-b0d3-4388-9c50-9c7d3dbdccb3",         // Industrial
+  warehouse: "06c87769-b0d3-4388-9c50-9c7d3dbdccb3",          // -> Industrial (nearest leaf)
 };
 
 /** Property status UUIDs - verified from live API (Feb 2026) */
