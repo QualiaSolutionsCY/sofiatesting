@@ -181,7 +181,9 @@ serve(async (req: Request): Promise<Response> => {
 
     // 4. Handle group chats - route to lead router
     if (isGroupChat(message.chat.type)) {
-      console.log(`[Webhook] Group message from "${message.chat.title}"`);
+      console.log(
+        `[Webhook] Group message chat_id=${message.chat.id} title=${JSON.stringify(message.chat.title)} type=${message.chat.type} from=${JSON.stringify(message.from?.first_name)}`
+      );
       // Process group message for lead routing (fire-and-forget)
       handleGroupMessage(message).catch((error) => {
         console.error("[Webhook] handleGroupMessage error:", error);

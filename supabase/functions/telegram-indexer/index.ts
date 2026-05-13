@@ -8,7 +8,10 @@
  *
  * Setup:
  *   1. Deploy: supabase functions deploy telegram-indexer --no-verify-jwt --project-ref vceeheaxcrhmpqueudqx
- *   2. Set webhook: curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/telegram-indexer"
+ *   2. The webhook is owned by telegram-sophia, which forwards every update
+ *      here fire-and-forget. Do NOT register this function as the Telegram
+ *      webhook directly — it will steal updates from telegram-sophia and
+ *      lead routing will silently break.
  *   3. Disable privacy mode: BotFather -> /setprivacy -> Disable
  *   4. Add bot to each regional group
  */
@@ -44,25 +47,6 @@ interface TelegramUpdate {
 }
 
 Deno.serve(async (req: Request) => {
-  const url = new URL(req.url);
-
-  // GET ?setup — registers this function as the Telegram webhook (requires secret)
-  if (req.method === "GET" && url.searchParams.has("setup")) {
-    const secret = url.searchParams.get("secret");
-    const expected = Deno.env.get("TELEGRAM_WEBHOOK_SECRET");
-    if (!secret || secret !== expected) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
-    }
-    const token = Deno.env.get("TELEGRAM_BOT_TOKEN");
-    if (!token) {
-      return new Response(JSON.stringify({ error: "TELEGRAM_BOT_TOKEN not set" }), { status: 500 });
-    }
-    const webhookUrl = `https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/telegram-indexer`;
-    const res = await fetch(`https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}`);
-    const data = await res.json();
-    return new Response(JSON.stringify(data), { status: 200 });
-  }
-
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ ok: true }), { status: 200 });
   }
@@ -71,8 +55,21 @@ Deno.serve(async (req: Request) => {
     const update: TelegramUpdate = await req.json();
     const msg = update.message;
 
-    // Only index text messages from monitored groups
-    if (!msg || !INDEXED_GROUP_IDS.has(msg.chat.id)) {
+    if (!msg) {
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }
+
+    // Log every group/supergroup message we see so unknown chat IDs
+    // (e.g. after a basic-group → supergroup migration) are discoverable
+    // in edge function logs instead of silently dropped.
+    if (msg.chat.type !== "private") {
+      const known = INDEXED_GROUP_IDS.has(msg.chat.id);
+      console.log(
+        `[indexer] chat_id=${msg.chat.id} title=${JSON.stringify(msg.chat.title)} type=${msg.chat.type} known=${known}`
+      );
+    }
+
+    if (!INDEXED_GROUP_IDS.has(msg.chat.id)) {
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     }
 

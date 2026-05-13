@@ -89,7 +89,34 @@ const forwardLeadToAgent = async (
   );
 
   if (!forwardedMessageId) {
-    console.error("[LeadRouter] Failed to forward message");
+    console.error(
+      `[LeadRouter] Failed to forward to ${agent.full_name} (${agentTelegramId}) — likely needs /start`
+    );
+
+    // Log the failed attempt so audit shows the lead exists, even though
+    // delivery failed. Caller decides whether to fall through to a fallback.
+    const senderName = message.from
+      ? `${message.from.first_name || ""} ${message.from.last_name || ""}`.trim()
+      : null;
+
+    await logLead({
+      source_group_id: chatId,
+      source_group_name: group.group_name,
+      original_message_id: String(message.message_id),
+      original_message_text: message.text || null,
+      sender_telegram_id: message.from?.id || null,
+      sender_name: senderName,
+      property_reference_id: propertyIds[0] || null,
+      property_region: group.region,
+      forwarded_to_agent_id: agent.id,
+      forwarded_to_telegram_id: agentTelegramId,
+      forwarded_message_id: null,
+      group_ack_message_id: null,
+      client_language: clientLanguage,
+      status: "forward_failed",
+      caller_phone: callerPhone,
+    });
+
     return { success: false, error: "forward_failed" };
   }
 
@@ -480,6 +507,9 @@ export const handleGroupMessage = async (
   // 7. PAPHOS-SPECIFIC: Check Zyprus API for listing ownership.
   //     Runs when the group IS Paphos, or when the Others group message
   //     mentions Paphos (so a Paphos-owned listing still routes correctly).
+  //     Only RETURN on success — on any failure (no owner, owner not
+  //     registered, Telegram refused the forward) fall through to regular
+  //     routing so the lead still reaches Marios A or Dimitris.
   if (effectiveRegion === "paphos") {
     const ownerBasedResult = await handlePaphosOwnerRouting(
       message,
@@ -489,10 +519,9 @@ export const handleGroupMessage = async (
       isRussian,
       callerPhone
     );
-    if (ownerBasedResult) {
+    if (ownerBasedResult?.success) {
       return ownerBasedResult;
     }
-    // If owner routing failed or no owner found, fall through to regular routing
   }
 
   // 8. Get target agents based on routing rules
