@@ -15,8 +15,8 @@
   "verification": "pass",
   "gap_cycles": {},
   "blockers": [],
-  "last_updated": "2026-05-18T06:39:39Z",
-  "last_commit": "a54676c",
+  "last_updated": "2026-05-18T06:41:09Z",
+  "last_commit": "3ab3815",
   "deployed_url": "https://sofiatesting.vercel.app",
   "notes": "Fixed Zyprus property type radio: rewrote PROPERTY_TYPE_FALLBACKS with 15 verified leaf UUIDs, blocked parent UUIDs, deployed sophia-bot. Edit page now ticks correct radio.",
   "lifetime": {
@@ -25,7 +25,7 @@
     "milestones_completed": 7,
     "total_phases": 27
   },
-  "last_pushed_at": "2026-05-18T06:39:39Z",
+  "last_pushed_at": "2026-05-18T06:41:09Z",
   "milestones": [],
   "report_seq": 1
 }
