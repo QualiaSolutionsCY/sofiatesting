@@ -4,7 +4,7 @@ import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
 
-import { MailQuestion, Users, UserCheck } from "lucide-react";
+import { MailQuestion, UserCheck, Users } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAdminSupabase } from "@/lib/supabase/admin";
