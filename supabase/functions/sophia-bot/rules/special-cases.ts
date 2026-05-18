@@ -49,21 +49,12 @@ export async function handleSpecialCases(
     };
   }
 
-  // 2. Management trying to do rentals
-  if (agent.role === "management" && request.listingType === "rent") {
-    return {
-      rejected: true,
-      message:
-        "Unfortunately you cannot use my services for adding rental properties. " +
-        "Please send it to a normal regional agent.",
-    };
-  }
-
-  // 3. Management must specify assignment for sales
+  // 2. Management must specify assignment for both sales and rentals — they
+  //    can't be their own listing owner. The "assign to <agent>" they include
+  //    (e.g. "assign to evelina@zyprus.com") satisfies this.
   if (
     agent.role === "management" &&
     agent.listingOwnerEmail === "ASK" &&
-    request.listingType === "sale" &&
     !request.assignTo
   ) {
     return {

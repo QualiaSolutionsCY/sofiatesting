@@ -42,14 +42,6 @@ export function assignReviewers(
   propertyRegion: string,
   assignTo?: string
 ): ReviewerAssignment {
-  // SPECIAL CASE: Charalambos/Lauren (management) cannot do rentals via AI
-  if (agent.role === "management" && propertyType === "rent") {
-    throw new RejectionError(
-      "Unfortunately you cannot use my services for adding rental properties. " +
-        "Please send it to a normal regional agent."
-    );
-  }
-
   // SPECIAL CASE: Michelle rentals → Demetra as owner, Michelle as instructor
   // Michelle's communication email is limassol@zyprus.com
   // Owner = Demetra, Reviewers = Demetra + requestlimassol, Instructor = Michelle
@@ -65,13 +57,20 @@ export function assignReviewers(
     };
   }
 
-  // FOR RENT: Agent reviews their own listings
+  // FOR RENT: Agent reviews their own listings.
+  // Management agents have listingOwnerEmail = "ASK" — for them, the assigned
+  // agent (assignTo) becomes the listing owner / reviewer / instructor.
   if (propertyType === "rent") {
+    const listingOwner =
+      assignTo ||
+      (agent.listingOwnerEmail === "ASK"
+        ? agent.communicationEmail
+        : agent.listingOwnerEmail);
     return {
-      reviewer1: agent.listingOwnerEmail,
+      reviewer1: listingOwner,
       reviewer2: null,
-      listingOwner: agent.listingOwnerEmail,
-      listingInstructor: agent.listingOwnerEmail, // CRITICAL: Must be same as listingOwner
+      listingOwner,
+      listingInstructor: listingOwner, // CRITICAL: Must be same as listingOwner
     };
   }
 
@@ -112,13 +111,13 @@ export function assignReviewers(
  */
 export function needsAssignmentInput(
   agent: Agent,
-  propertyType: "sale" | "rent"
+  _propertyType: "sale" | "rent"
 ): boolean {
-  // Management selling properties need to specify who to assign to
+  // Management needs to specify who to assign to — applies to both sale and
+  // rent because the listing owner can't be the management user themselves.
   return (
     agent.role === "management" &&
-    agent.listingOwnerEmail === "ASK" &&
-    propertyType === "sale"
+    agent.listingOwnerEmail === "ASK"
   );
 }
 
