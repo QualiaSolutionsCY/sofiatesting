@@ -173,10 +173,11 @@ export function AgentsRegistryClient({
   return (
     <div className="space-y-4">
       <AgentsFilterBar
+        onClearSelection={() => setSelectedAgents(new Set())}
         onExportCSV={handleExportCSV}
         onRefresh={handleRefresh}
         searchParams={searchParams}
-        selectedCount={selectedAgents.size}
+        selectedIds={Array.from(selectedAgents)}
       />
 
       <AgentsTable

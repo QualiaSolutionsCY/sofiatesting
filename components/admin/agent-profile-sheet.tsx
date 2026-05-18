@@ -4,18 +4,32 @@ import { format } from "date-fns";
 import {
   CheckCircle2,
   Edit,
+  Loader2,
   Mail,
   MapPin,
   Phone,
-  Trash2,
+  Power,
+  PowerOff,
+  Send,
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { AgentEditModal } from "@/components/admin/agent-edit-modal";
 import {
   LinkTelegramModal,
   LinkWhatsAppModal,
 } from "@/components/admin/platform-link-modals";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -82,6 +96,77 @@ export function AgentProfileSheet({
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [telegramModalOpen, setTelegramModalOpen] = useState(false);
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
+  const [inviteSending, setInviteSending] = useState(false);
+  const [toggleConfirmOpen, setToggleConfirmOpen] = useState(false);
+  const [togglePending, setTogglePending] = useState(false);
+
+  const handleSendInvite = async () => {
+    if (agent.userId) {
+      toast.error(`${agent.fullName} already has a registered account.`);
+      return;
+    }
+    if (!agent.email) {
+      toast.error("Agent has no email address.");
+      return;
+    }
+    setInviteSending(true);
+    try {
+      const response = await fetch(`/api/admin/agents/${agent.id}/invite`, {
+        method: "POST",
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          payload.error || payload.message || `Request failed (${response.status})`
+        );
+      }
+      if (payload.emailed === false && payload.signupUrl) {
+        toast.message("Email not configured — share this link manually", {
+          description: payload.signupUrl,
+        });
+      } else {
+        toast.success(`Invite sent to ${agent.email}`);
+      }
+      onRefresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to send invite"
+      );
+    } finally {
+      setInviteSending(false);
+    }
+  };
+
+  const handleToggleActive = async () => {
+    setTogglePending(true);
+    try {
+      const nextActive = !agent.isActive;
+      const response = await fetch(`/api/admin/agents/${agent.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: nextActive }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          payload.error || payload.message || `Request failed (${response.status})`
+        );
+      }
+      toast.success(
+        nextActive
+          ? `Activated ${agent.fullName}`
+          : `Deactivated ${agent.fullName}`
+      );
+      setToggleConfirmOpen(false);
+      onRefresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update agent"
+      );
+    } finally {
+      setTogglePending(false);
+    }
+  };
 
   const fetchAgentStats = useCallback(async () => {
     setLoading(true);
@@ -304,21 +389,83 @@ export function AgentProfileSheet({
 
           {/* Actions */}
           <Separator />
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button className="flex-1" onClick={() => setEditModalOpen(true)}>
               <Edit className="mr-2 h-4 w-4" />
-              Edit Agent
+              Edit agent
             </Button>
-            <Button variant="outline">
-              <Mail className="mr-2 h-4 w-4" />
-              Send Invite
+            <Button
+              disabled={
+                inviteSending || !!agent.userId || !agent.email
+              }
+              onClick={handleSendInvite}
+              variant="outline"
+            >
+              {inviteSending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              {agent.inviteSentAt ? "Resend invite" : "Send invite"}
             </Button>
-            <Button className="text-red-600" variant="outline">
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            {agent.isActive ? (
+              <Button
+                className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                onClick={() => setToggleConfirmOpen(true)}
+                variant="outline"
+              >
+                <PowerOff className="mr-2 h-4 w-4" />
+                Deactivate
+              </Button>
+            ) : (
+              <Button
+                className="text-emerald-700 hover:bg-emerald-50 hover:text-emerald-700"
+                onClick={() => setToggleConfirmOpen(true)}
+                variant="outline"
+              >
+                <Power className="mr-2 h-4 w-4" />
+                Activate
+              </Button>
+            )}
           </div>
         </div>
       </SheetContent>
+
+      {/* Activate/Deactivate confirmation */}
+      <AlertDialog
+        onOpenChange={setToggleConfirmOpen}
+        open={toggleConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {agent.isActive ? "Deactivate" : "Activate"} {agent.fullName}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {agent.isActive
+                ? "This agent will lose access to SOPHIA, lead routing and the admin panel until reactivated."
+                : "This agent will regain access to SOPHIA, lead routing and the admin panel."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={togglePending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className={
+                agent.isActive
+                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  : ""
+              }
+              disabled={togglePending}
+              onClick={handleToggleActive}
+            >
+              {togglePending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {agent.isActive ? "Deactivate" : "Activate"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Agent Edit Modal */}
       <AgentEditModal
