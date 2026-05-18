@@ -1,12 +1,21 @@
 "use client";
 
 import debounce from "lodash/debounce";
-import { Download, Mail, RefreshCw, Search, UserPlus } from "lucide-react";
+import {
+  CheckCircle2,
+  Download,
+  Mail,
+  RefreshCw,
+  Search,
+  UserPlus,
+  XCircle,
+} from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AgentCreateModal } from "@/components/admin/agent-create-modal";
 import {
+  BulkActivateDialog,
   BulkDeactivateDialog,
   BulkSendInvitesDialog,
 } from "@/components/admin/bulk-action-dialogs";
@@ -39,8 +48,9 @@ type AgentsFilterBarProps = {
     search?: string;
   };
   onRefresh: () => void;
-  selectedCount: number;
+  selectedIds: string[];
   onExportCSV?: () => void;
+  onClearSelection?: () => void;
 };
 
 const REGIONS = [
@@ -66,15 +76,23 @@ const STATUS_OPTIONS = [
 export function AgentsFilterBar({
   searchParams,
   onRefresh,
-  selectedCount,
+  selectedIds,
   onExportCSV,
+  onClearSelection,
 }: AgentsFilterBarProps) {
   const router = useRouter();
+  const selectedCount = selectedIds.length;
   const [searchValue, setSearchValue] = useState(searchParams.search || "");
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [sendInvitesDialogOpen, setSendInvitesDialogOpen] = useState(false);
   const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+  const [activateDialogOpen, setActivateDialogOpen] = useState(false);
+
+  const handleBulkSuccess = () => {
+    onRefresh();
+    onClearSelection?.();
+  };
 
   // Debounced search function
   const debouncedSearch = useCallback(
@@ -113,20 +131,43 @@ export function AgentsFilterBar({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
+      {/* Top action bar: primary CTAs */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => setCreateModalOpen(true)} size="sm">
+            <UserPlus className="mr-2 h-4 w-4" />
+            Add agent
+          </Button>
+          <Button
+            onClick={() => setImportModalOpen(true)}
+            size="sm"
+            variant="outline"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Import from Excel
+          </Button>
+        </div>
+        <Button
+          aria-label="Refresh"
+          onClick={onRefresh}
+          size="sm"
+          variant="outline"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="space-y-3 rounded-lg border bg-card/40 p-3">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-4 w-4 text-muted-foreground" />
             <Input
               className="pl-9"
               onChange={(e) => setSearchValue(e.target.value)}
-              placeholder="Search by name or email..."
+              placeholder="Search by name or email…"
               value={searchValue}
             />
           </div>
-          <Button onClick={onRefresh} size="sm" variant="outline">
-            <RefreshCw className="h-4 w-4" />
-          </Button>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -186,9 +227,23 @@ export function AgentsFilterBar({
 
       {/* Bulk Actions Bar */}
       {selectedCount > 0 && (
-        <div className="flex flex-col gap-3 rounded-lg border bg-muted/50 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
-          <div className="font-medium text-sm">
-            {selectedCount} agent{selectedCount > 1 ? "s" : ""} selected
+        <div className="flex flex-col gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 font-semibold text-primary text-xs">
+              {selectedCount}
+            </div>
+            <div className="font-medium text-sm">
+              agent{selectedCount === 1 ? "" : "s"} selected
+            </div>
+            {onClearSelection && (
+              <button
+                className="text-muted-foreground text-xs underline-offset-2 hover:text-foreground hover:underline"
+                onClick={onClearSelection}
+                type="button"
+              >
+                Clear
+              </button>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -197,35 +252,32 @@ export function AgentsFilterBar({
               variant="outline"
             >
               <Mail className="mr-2 h-4 w-4" />
-              Send Invites
+              Send invites
             </Button>
             <Button onClick={onExportCSV} size="sm" variant="outline">
               <Download className="mr-2 h-4 w-4" />
               Export CSV
             </Button>
             <Button
-              className="text-red-600"
+              onClick={() => setActivateDialogOpen(true)}
+              size="sm"
+              variant="outline"
+            >
+              <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
+              Activate
+            </Button>
+            <Button
+              className="text-red-600 hover:text-red-700"
               onClick={() => setDeactivateDialogOpen(true)}
               size="sm"
               variant="outline"
             >
+              <XCircle className="mr-2 h-4 w-4" />
               Deactivate
             </Button>
           </div>
         </div>
       )}
-
-      {/* Action Buttons */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={() => setCreateModalOpen(true)}>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Add New Agent
-        </Button>
-        <Button onClick={() => setImportModalOpen(true)} variant="outline">
-          <Download className="mr-2 h-4 w-4" />
-          Import from Excel
-        </Button>
-      </div>
 
       {/* Import Modal */}
       <ImportAgentsModal
@@ -244,16 +296,23 @@ export function AgentsFilterBar({
       {/* Bulk Action Dialogs */}
       <BulkSendInvitesDialog
         onOpenChange={setSendInvitesDialogOpen}
-        onSuccess={onRefresh}
+        onSuccess={handleBulkSuccess}
         open={sendInvitesDialogOpen}
-        selectedCount={selectedCount}
+        selectedIds={selectedIds}
       />
 
       <BulkDeactivateDialog
         onOpenChange={setDeactivateDialogOpen}
-        onSuccess={onRefresh}
+        onSuccess={handleBulkSuccess}
         open={deactivateDialogOpen}
-        selectedCount={selectedCount}
+        selectedIds={selectedIds}
+      />
+
+      <BulkActivateDialog
+        onOpenChange={setActivateDialogOpen}
+        onSuccess={handleBulkSuccess}
+        open={activateDialogOpen}
+        selectedIds={selectedIds}
       />
     </div>
   );

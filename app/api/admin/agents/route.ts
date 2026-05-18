@@ -160,6 +160,7 @@ const createAgentSchema = z.object({
   canUpload: z.boolean().optional().default(true),
   canReceiveLeads: z.boolean().optional().default(true),
   zyprusUserId: z.string().optional().or(z.literal("")),
+  landline: z.string().optional().or(z.literal("")),
   notes: z.string().optional().or(z.literal("")),
 });
 
@@ -227,6 +228,8 @@ export async function POST(request: NextRequest) {
         can_upload: validatedData.canUpload ?? true,
         can_receive_leads: validatedData.canReceiveLeads ?? true,
         zyprus_user_id: validatedData.zyprusUserId || null,
+        landline: validatedData.landline || null,
+        notes: validatedData.notes || null,
       })
       .select()
       .single();
