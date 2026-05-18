@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
 
+import { MailQuestion, Users, UserCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAdminSupabase } from "@/lib/supabase/admin";
@@ -59,7 +60,7 @@ async function getAgentsData(searchParams: SearchParams) {
 
   const supabase = getAdminSupabase();
 
-  // Build query
+  // Build query for the table (respects filters)
   let query = supabase
     .from("agents")
     .select("*", { count: "exact" })
@@ -69,11 +70,39 @@ async function getAgentsData(searchParams: SearchParams) {
   if (searchParams.region) {
     query = query.eq("region", searchParams.region.toLowerCase());
   }
+  if (searchParams.role) {
+    query = query.eq("role", searchParams.role);
+  }
   if (searchParams.isActive !== undefined) {
     query = query.eq("is_active", searchParams.isActive === "true");
   }
+  if (searchParams.search) {
+    query = query.or(
+      `full_name.ilike.%${searchParams.search}%,communication_email.ilike.%${searchParams.search}%`
+    );
+  }
 
-  const { data: agents, count, error } = await query;
+  // Metric counts are registry-wide and independent of the table filters
+  // so the cards don't silently change when the operator filters the table.
+  const [
+    listResult,
+    { count: totalCount },
+    { count: activeCount },
+    { count: telegramLinkedCount },
+  ] = await Promise.all([
+    query,
+    supabase.from("agents").select("*", { count: "exact", head: true }),
+    supabase
+      .from("agents")
+      .select("*", { count: "exact", head: true })
+      .eq("is_active", true),
+    supabase
+      .from("agents")
+      .select("*", { count: "exact", head: true })
+      .not("telegram_user_id", "is", null),
+  ]);
+
+  const { data: agents, count, error } = listResult;
 
   if (error) {
     throw new Error(
@@ -105,16 +134,8 @@ async function getAgentsData(searchParams: SearchParams) {
     updatedAt: a.updated_at ? new Date(a.updated_at) : new Date(a.created_at),
   }));
 
-  // Get metrics
-  const { count: activeCount } = await supabase
-    .from("agents")
-    .select("*", { count: "exact", head: true })
-    .eq("is_active", true);
-
-  const { count: pendingCount } = await supabase
-    .from("agents")
-    .select("*", { count: "exact", head: true })
-    .is("telegram_user_id", null);
+  const total = totalCount ?? 0;
+  const telegramLinked = telegramLinkedCount ?? 0;
 
   return {
     agents: transformedAgents,
@@ -125,9 +146,10 @@ async function getAgentsData(searchParams: SearchParams) {
       totalPages: Math.ceil((count || 0) / limit),
     },
     metrics: {
-      total: count || 0,
-      active: activeCount || 0,
-      pending: pendingCount || 0,
+      total,
+      active: activeCount ?? 0,
+      telegramLinked,
+      pendingTelegram: Math.max(0, total - telegramLinked),
     },
     error: null,
   };
@@ -143,52 +165,56 @@ export default async function AgentsRegistryPage({ searchParams }: PageProps) {
     data = {
       agents: [],
       pagination: { page: 1, limit: 50, total: 0, totalPages: 0 },
-      metrics: { total: 0, active: 0, pending: 0 },
+      metrics: { total: 0, active: 0, telegramLinked: 0, pendingTelegram: 0 },
       error: null,
     };
   }
 
+  const inactiveCount = Math.max(
+    0,
+    (data.metrics.total || 0) - (data.metrics.active || 0)
+  );
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-bold text-3xl tracking-tight">Agents Registry</h1>
-          <p className="text-muted-foreground">
-            Manage Zyprus real estate agents across all platforms
-          </p>
-        </div>
+      <div className="flex flex-col gap-1">
+        <h1 className="font-semibold text-2xl tracking-tight md:text-3xl">
+          Agents
+        </h1>
+        <p className="text-muted-foreground text-sm">
+          Manage Zyprus agents across web, WhatsApp and Telegram.
+        </p>
       </div>
 
       <Suspense fallback={<MetricsSkeleton />}>
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="p-6">
-            <div className="flex flex-col gap-2">
-              <span className="font-medium text-muted-foreground text-sm">
-                Total Agents
-              </span>
-              <span className="font-bold text-3xl">{data.metrics.total}</span>
-            </div>
-          </Card>
-          <Card className="p-6">
-            <div className="flex flex-col gap-2">
-              <span className="font-medium text-muted-foreground text-sm">
-                Active Agents
-              </span>
-              <span className="font-bold text-3xl text-green-600">
-                {data.metrics.active}
-              </span>
-            </div>
-          </Card>
-          <Card className="p-6">
-            <div className="flex flex-col gap-2">
-              <span className="font-medium text-muted-foreground text-sm">
-                Pending Registration
-              </span>
-              <span className="font-bold text-3xl text-orange-600">
-                {data.metrics.pending}
-              </span>
-            </div>
-          </Card>
+        <div className="grid gap-3 md:grid-cols-3">
+          <MetricCard
+            accent="from-slate-500/15 to-slate-500/0"
+            icon={<Users className="h-4 w-4 text-slate-600" />}
+            label="Total agents"
+            tone="text-foreground"
+            value={data.metrics.total}
+          />
+          <MetricCard
+            accent="from-emerald-500/20 to-emerald-500/0"
+            icon={<UserCheck className="h-4 w-4 text-emerald-600" />}
+            label="Active"
+            sublabel={
+              inactiveCount > 0
+                ? `${inactiveCount} inactive`
+                : `of ${data.metrics.total}`
+            }
+            tone="text-emerald-700"
+            value={data.metrics.active}
+          />
+          <MetricCard
+            accent="from-amber-500/20 to-amber-500/0"
+            icon={<MailQuestion className="h-4 w-4 text-amber-600" />}
+            label="Pending Telegram link"
+            sublabel={`${data.metrics.telegramLinked} linked`}
+            tone="text-amber-700"
+            value={data.metrics.pendingTelegram}
+          />
         </div>
       </Suspense>
 
@@ -201,14 +227,58 @@ export default async function AgentsRegistryPage({ searchParams }: PageProps) {
   );
 }
 
+function MetricCard({
+  label,
+  value,
+  icon,
+  accent,
+  tone,
+  sublabel,
+}: {
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+  accent: string;
+  tone: string;
+  sublabel?: string;
+}) {
+  return (
+    <Card className="relative overflow-hidden">
+      <div
+        aria-hidden
+        className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${accent}`}
+      />
+      <div className="relative flex items-center justify-between gap-3 p-5">
+        <div className="flex flex-col gap-1">
+          <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+            {label}
+          </span>
+          <div className="flex items-baseline gap-2">
+            <span className={`font-semibold text-3xl ${tone}`}>{value}</span>
+            {sublabel && (
+              <span className="text-muted-foreground text-xs">{sublabel}</span>
+            )}
+          </div>
+        </div>
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-background/80 ring-1 ring-border">
+          {icon}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function MetricsSkeleton() {
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-3 md:grid-cols-3">
       {[1, 2, 3].map((i) => (
-        <Card className="p-6" key={i}>
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-8 w-16" />
+        <Card className="p-5" key={i}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-8 w-16" />
+            </div>
+            <Skeleton className="h-9 w-9 rounded-full" />
           </div>
         </Card>
       ))}
