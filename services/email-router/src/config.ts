@@ -36,6 +36,11 @@ export const config = {
   },
   polling: {
     intervalMs: 30 * 60 * 1000, // 30 minutes
+    // info@ inbox lead-routing is opt-out via env. Defaults ON for backwards
+    // compatibility; set INFO_POLLING_ENABLED=false in Railway when the
+    // inbox is intentionally disabled (avoids periodic AUTHENTICATIONFAILED
+    // log spam from invalid credentials).
+    enabled: process.env.INFO_POLLING_ENABLED !== "false",
   },
   port: parseInt(process.env.PORT || "3000", 10),
 } as const;

@@ -221,13 +221,17 @@ const server = http.createServer((req, res) => {
 // Start server
 server.listen(config.port, () => {
   console.log(`SOPHIA Email Router listening on port ${config.port}`);
-  console.log(`info@ polling interval: ${config.polling.intervalMs / 1000}s`);
 
-  // Run info@ immediately on startup, then on interval
-  processEmails().catch(console.error);
-  setInterval(() => {
+  if (config.polling.enabled) {
+    console.log(`info@ polling interval: ${config.polling.intervalMs / 1000}s`);
+    // Run info@ immediately on startup, then on interval
     processEmails().catch(console.error);
-  }, config.polling.intervalMs);
+    setInterval(() => {
+      processEmails().catch(console.error);
+    }, config.polling.intervalMs);
+  } else {
+    console.log("info@ polling disabled (INFO_POLLING_ENABLED=false)");
+  }
 
   // Run sophia@ polling if configured
   if (config.sophia.enabled) {
