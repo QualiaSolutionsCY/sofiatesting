@@ -56,7 +56,7 @@ export interface EmailMessage {
  * Create an IMAP client connection
  */
 function createImapClient(): ImapFlow {
-  return new ImapFlow({
+  const client = new ImapFlow({
     host: config.gmail.imapHost,
     port: config.gmail.imapPort,
     secure: true,
@@ -67,6 +67,14 @@ function createImapClient(): ImapFlow {
     logger: false,
     socketTimeout: 30_000,
   });
+  // Without a listener, ImapFlow's emitted 'error' event crashes the process
+  // on transient socket timeouts (the per-call try/catch doesn't catch the
+  // synchronous EventEmitter throw). Swallow it here — fetch loop already
+  // handles the failure mode by returning an empty result.
+  client.on("error", (err: unknown) => {
+    console.error("[IMAP] client error (info inbox):", err instanceof Error ? err.message : err);
+  });
+  return client;
 }
 
 
@@ -513,7 +521,7 @@ export async function downloadImageUrl(url: string): Promise<EmailAttachment | n
  * Create an IMAP client for sophia@zyprus.com
  */
 export function createSophiaImapClient(): ImapFlow {
-  return new ImapFlow({
+  const client = new ImapFlow({
     host: "imap.gmail.com",
     port: 993,
     secure: true,
@@ -524,6 +532,10 @@ export function createSophiaImapClient(): ImapFlow {
     logger: false,
     socketTimeout: 30_000,
   });
+  client.on("error", (err: unknown) => {
+    console.error("[IMAP] client error (sophia inbox):", err instanceof Error ? err.message : err);
+  });
+  return client;
 }
 
 /**

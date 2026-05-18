@@ -15,6 +15,17 @@ import { routeEmail } from "./router.js";
 import { getActiveAgents, isEmailProcessed, logEmailForward, updateRotation } from "./db.js";
 import { processSophiaEmails, getSophiaStatus } from "./sophia-handler.js";
 
+// Last-resort safety net so a stray async error in any library (e.g. an
+// ImapFlow socket timeout that escapes our handlers) can't kill the service.
+// Railway's auto-restart bails after restartPolicyMaxRetries and the service
+// stays down — keeping the process alive is preferable to a silent outage.
+process.on("uncaughtException", (err) => {
+  console.error("[Process] uncaughtException:", err);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("[Process] unhandledRejection:", reason);
+});
+
 let lastRunAt: Date | null = null;
 let lastRunStats = { processed: 0, forwarded: 0, skipped: 0, drafts: 0 };
 let isRunning = false;
