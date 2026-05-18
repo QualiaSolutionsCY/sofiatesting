@@ -227,6 +227,15 @@ export async function validateAndPrepareFields(
     });
   }
 
+  // 2a. Rentals don't show title deed status on the listing — force it to
+  // "do_not_display" before validation so Sophia never has to ask the agent.
+  if (
+    (args.listingType as string)?.toLowerCase() === "rent" &&
+    (!args.titleDeedStatus || args.titleDeedStatus === "unknown")
+  ) {
+    args.titleDeedStatus = "do_not_display";
+  }
+
   // 2. Validate required fields
   const validation = validateRequiredFields(args);
   if (!validation.valid) {

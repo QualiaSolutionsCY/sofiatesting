@@ -161,8 +161,15 @@ export function validateRequiredFields(data: Record<string, unknown>): {
     "coveredArea",
     "ownerName",
     "ownerPhone",
-    "titleDeedStatus",
   ];
+
+  // Title deed status is required for SALE only.
+  // For RENT, the handler auto-sets titleDeedStatus = "do_not_display"
+  // (rentals don't show deed status on the listing).
+  const listingType = ((data.listingType as string) || "").toLowerCase();
+  if (listingType !== "rent") {
+    required.push("titleDeedStatus");
+  }
 
   // Bathrooms are required for residential types only
   // Commercial types (office, shop, warehouse, hotel) and buildings are exempt

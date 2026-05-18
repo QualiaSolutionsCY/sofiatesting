@@ -335,6 +335,15 @@ export async function findTitleDeedUuid(status?: string): Promise<string> {
         "in_process",
       ],
       "share of land": ["share of land", "shared", "fractional"],
+      "not display": [
+        "not display",
+        "do_not_display",
+        "do not display",
+        "don't display",
+        "dont display",
+        "hidden",
+        "hide",
+      ],
     };
 
     // Default search terms

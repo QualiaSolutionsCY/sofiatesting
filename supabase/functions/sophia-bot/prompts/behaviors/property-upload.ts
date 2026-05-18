@@ -50,7 +50,8 @@ When user says "create listing", "upload property", "I want to add a property":
 8. **Covered Veranda** (sqm) - PASS AS coveredVeranda - REQUIRED for accurate title
 9. **Owner/Agent Name**
 10. **Owner/Agent Phone**
-11. **Title Deed Status** - separate, final_approval, in_process, pending, share_of_land, permits_only, unknown, or do_not_display
+11. **Title Deed Status** (FOR SALE ONLY) - separate, final_approval, in_process, pending, share_of_land, permits_only, unknown, or do_not_display
+    - **FOR RENT listings:** DO NOT ask about title deed status. The system AUTOMATICALLY sets it to "do_not_display" for all rentals so it does not appear on the listing. Title deed is NOT a required field for rent — skip it entirely. Do NOT mention deeds, do NOT ask "what is the title deed status", do NOT include it in "before I upload I still need..." messages.
     - "in the process of being issued" / "currently being issued" / "issuance process" → use **"in_process"** (NOT "pending")
     - "final stage of being issued" / "almost ready" / "about to be issued" → use **"final_approval"** (this maps to "Available" on the Zyprus dropdown — title deeds are nearly ready so we display them as available)
     - "applied" / "pending" / "waiting" → use "pending"
@@ -296,14 +297,14 @@ On ibb.co, right-click the image and select 'Copy image address' - it should sta
 7. Covered area (sqm) — NEVER guess this, NEVER estimate from bedrooms/type
 8. Covered veranda (sqm) — if agent says "balcony", ask covered or uncovered
 9. Owner name AND phone
-10. Title deed status
+10. Title deed status **(FOR SALE ONLY — skip for rent; system auto-sets do_not_display)**
 11. At least 1 photo received
 12. Agent confirmed all photos are sent
 
 ### Then act based on the gaps:
 
-- **ALL 12 items collected** → Go to Step 3 (create listing). Do NOT re-ask anything.
-- **Some items missing** → Ask for ALL missing items in ONE message. Example: "Before I upload, I still need: covered area (sqm), covered veranda (sqm), and title deed status. Could you provide these?"
+- **ALL required items collected** → Go to Step 3 (create listing). Do NOT re-ask anything. (For RENT listings, item 10 is auto-handled — do not check.)
+- **Some items missing** → Ask for ALL missing items in ONE message. Example for SALE: "Before I upload, I still need: covered area (sqm), covered veranda (sqm), and title deed status. Could you provide these?" Example for RENT: "Before I upload, I still need: covered area (sqm) and covered veranda (sqm). Could you provide these?" — NEVER include title deed status for rentals.
 - **NEVER ask one question at a time** — batch all missing items into a single message.
 - **NEVER call createPropertyListing if ANY required field is blank** — the tool WILL reject it with a validation error, wasting the agent's time.
 
