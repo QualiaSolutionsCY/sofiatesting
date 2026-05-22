@@ -315,6 +315,24 @@ export const extractFromBazarakiSchema = z.object({
 });
 
 /**
+ * Schema for extractFromBank tool
+ * Validates bank listing extraction inputs (Altia / Altamira / Remu / Gogordian)
+ */
+export const extractFromBankSchema = z.object({
+  url: z
+    .string()
+    .url()
+    .refine(
+      (url) =>
+        url.includes("altia.com.cy") ||
+        url.includes("altamirarealestate.com.cy") ||
+        url.includes("remuproperties.com") ||
+        url.includes("gogordian.com"),
+      "URL must be an Altia, Altamira, Remu, or Gogordian listing",
+    ),
+});
+
+/**
  * Schema for sendEmail tool
  * Validates email sending inputs
  */
@@ -338,5 +356,6 @@ export const TOOL_SCHEMAS: Record<string, z.ZodSchema> = {
   getZyprusData: getZyprusDataSchema,
   getRegionalAgents: getRegionalAgentsSchema,
   extractFromBazaraki: extractFromBazarakiSchema,
+  extractFromBank: extractFromBankSchema,
   sendEmail: sendEmailSchema,
 };

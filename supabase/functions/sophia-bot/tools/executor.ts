@@ -22,6 +22,7 @@ import {
   handleCalculateVAT,
 } from "./handlers/calculators.ts";
 import {
+  handleExtractFromBank,
   handleExtractFromBazaraki,
   handleGetRegionalAgents,
   handleGetZyprusData,
@@ -140,6 +141,10 @@ export async function executeTool(
 
       case "extractFromBazaraki":
         result = await handleExtractFromBazaraki(validArgs);
+        break;
+
+      case "extractFromBank":
+        result = await handleExtractFromBank(validArgs, agent);
         break;
 
       case "sendEmail":

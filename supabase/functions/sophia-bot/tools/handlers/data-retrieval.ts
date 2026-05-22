@@ -3,12 +3,18 @@
  * Handles Zyprus data retrieval, regional agents, and Bazaraki extraction
  */
 
+import type { Agent } from "../../agents/identifier.ts";
 import { getAgentsByRegion } from "../../agents/identifier.ts";
 import {
   extractFromBazaraki as extractBazarakiListing,
   formatBazarakiSummary,
   isBazarakiUrl,
 } from "../../services/bazaraki-scraper.ts";
+import {
+  extractFromBank as extractBankListing,
+  formatBankSummary,
+  isBankUrl,
+} from "../../services/bank-scraper.ts";
 import { LogCategory, logger } from "../../utils/logger.ts";
 import {
   getLocationsByRegion,
@@ -187,6 +193,84 @@ export async function handleExtractFromBazaraki(
     return {
       error:
         "I couldn't extract details from that Bazaraki link. Could you please provide the property details directly?",
+    };
+  }
+}
+
+/**
+ * Handle bank listing extraction (Altia / Altamira / Remu / Gogordian).
+ *
+ * ADMIN-ONLY: restricted to agents who can upload listings (Lauren, Fawzi).
+ * Bank-sourced photos are publicly hotlinkable, so the real image URLs are
+ * returned for the AI to pass straight into createPropertyListing.
+ */
+export async function handleExtractFromBank(
+  args: Record<string, unknown>,
+  agent: Agent | null,
+): Promise<ToolResult> {
+  const url = args.url as string;
+
+  if (!url || !isBankUrl(url)) {
+    return {
+      error:
+        "Please provide a valid bank listing URL from Altia, Altamira, Remu, or Gogordian.",
+    };
+  }
+
+  // Admin gate — only Lauren and Fawzi (can_upload = true) may use bank links.
+  if (!agent || !agent.canUpload) {
+    logger.warn("Non-admin agent attempted bank extraction", {
+      category: LogCategory.TOOL,
+      agentName: agent?.fullName,
+    });
+    return {
+      error:
+        "Extracting properties from bank listings is only available to admins (Lauren and Fawzi). Please ask one of them to upload this property.",
+    };
+  }
+
+  try {
+    const listing = await extractBankListing(url);
+    const summary = formatBankSummary(listing);
+
+    // NOTE: Do NOT set `message` — keep everything in `data` so the AI
+    // composes the reply and pre-fills createPropertyListing itself.
+    return {
+      success: true,
+      data: {
+        summary,
+        bank: listing.bank,
+        // Bank photos ARE usable (publicly accessible), unlike Bazaraki's.
+        imageUrls: listing.imageUrls,
+        imageCount: listing.imageUrls.length,
+        extractedFields: {
+          listingType: listing.listingType,
+          propertyType: listing.propertyType,
+          price: listing.price,
+          location: listing.location,
+          bedrooms: listing.bedrooms,
+          bathrooms: listing.bathrooms,
+          coveredArea: listing.coveredArea,
+          plotSize: listing.plotSize,
+          coveredVeranda: listing.coveredVeranda,
+          uncoveredVeranda: listing.uncoveredVeranda,
+          yearBuilt: listing.yearBuilt,
+          energyClass: listing.energyClass,
+          registrationNumber: listing.registrationNumber,
+          description: listing.description,
+          features: listing.features,
+          warnings: listing.warnings,
+        },
+      },
+    };
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error("Bank extraction failed", err, {
+      category: LogCategory.TOOL,
+    });
+    return {
+      error:
+        "I couldn't extract details from that bank link. Could you please provide the property details directly?",
     };
   }
 }

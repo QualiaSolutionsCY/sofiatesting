@@ -674,6 +674,27 @@ export const TOOLS: ToolDefinition[] = [
     },
   },
 
+  // Extract Property from a Bank Listing (Altia / Altamira / Remu / Gogordian)
+  {
+    type: "function",
+    function: {
+      name: "extractFromBank",
+      description:
+        "Extract property details from one of the four bank / REO marketplace listing URLs: ALTIA (altia.com.cy), ALTAMIRA (altamirarealestate.com.cy), REMU (remuproperties.com), or GOGORDIAN (gogordian.com). Use this when an admin agent (Lauren or Fawzi) sends a link from one of these four banks. Extracts photos, price, location, property type, bedrooms, bathrooms, covered area, plot size and description so the listing can be uploaded to Zyprus. This tool is restricted to admins who can upload listings — if a non-admin agent sends a bank link, it will be rejected. Always confirm the extracted data with the agent before calling createPropertyListing.",
+      parameters: {
+        type: "object",
+        properties: {
+          url: {
+            type: "string",
+            description:
+              "The full bank listing URL (e.g., https://www.remuproperties.com/cyprus/listing-28513 or https://marketplace.altia.com.cy/en/listings/2893)",
+          },
+        },
+        required: ["url"],
+      },
+    },
+  },
+
   // Send Email Tool
   {
     type: "function",
