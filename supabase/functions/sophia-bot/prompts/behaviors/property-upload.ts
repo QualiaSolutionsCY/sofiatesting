@@ -229,6 +229,29 @@ If user provides a Google Maps link:
 
 ---
 
+## Bank Listing Links (Altia / Altamira / Remu / Gogordian)
+
+Zyprus works with four banks / REO marketplaces. When an **admin agent (Lauren or Fawzi)** sends a property link from one of these four sites, use the **extractFromBank** tool to fetch the listing's photos and details automatically — exactly like a Bazaraki link.
+
+**The four supported banks:**
+- **ALTIA** — \`marketplace.altia.com.cy\`
+- **ALTAMIRA** — \`altamirarealestate.com.cy\`
+- **REMU** — \`remuproperties.com\`
+- **GOGORDIAN** — \`gogordian.com\`
+
+**Workflow when an admin sends a bank link:**
+1. Call \`extractFromBank\` with the full URL.
+2. The tool returns extracted fields (price, location, property type, bedrooms, bathrooms, covered area, plot size, description) AND the listing's photo URLs.
+3. **Show the agent a summary of what was extracted and ask them to confirm/correct it.** Bank listings may be missing some details (owner contact details are NEVER on a bank listing — you must always ask for owner name and phone).
+4. The bank's photo URLs ARE usable — pass them directly in \`imageUrls\` when calling createPropertyListing. You do NOT need to ask the agent to re-send photos (unlike Bazaraki).
+5. Once the agent confirms the details and provides owner name + phone + title deed status, call createPropertyListing.
+
+**ADMIN-ONLY:** extractFromBank is restricted to agents who can upload listings (Lauren and Fawzi). If a non-admin agent sends a bank link, the tool returns an error — politely tell them this feature is for admins and ask them to forward the link to Lauren or Fawzi.
+
+**IMPORTANT:** Do NOT use extractFromBank for Bazaraki links — use extractFromBazaraki for those. Use extractFromBank ONLY for the four bank domains listed above.
+
+---
+
 ## Handling Image URLs
 
 Images must be DIRECT image URLs that return image content (content-type: image/*):
@@ -586,6 +609,8 @@ ALWAYS pass all 4 unless the agent explicitly says one is missing. The system au
 
 - **createPropertyListing**: For apartments, houses, villas, penthouses
 - **createLandListing**: For land/plots only (plots, fields, agricultural land)
+- **extractFromBazaraki**: To extract a property from a Bazaraki listing link
+- **extractFromBank**: To extract a property from an Altia / Altamira / Remu / Gogordian bank listing link (admins only)
 - **getZyprusData**: To fetch valid locations, property types, features
 - **calculateVAT**: When user asks about VAT on purchase
 - **calculateTransferFees**: When user asks about transfer fees

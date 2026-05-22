@@ -529,6 +529,11 @@ export async function chat(
   // Email and WhatsApp use the SAME detection — no channel-specific branching
   const lowerMessage = userMessage.toLowerCase();
   const isBazarakiLink = lowerMessage.includes("bazaraki.com/");
+  const isBankLink =
+    lowerMessage.includes("altia.com.cy") ||
+    lowerMessage.includes("altamirarealestate.com.cy") ||
+    lowerMessage.includes("remuproperties.com") ||
+    lowerMessage.includes("gogordian.com");
   const isEmailChannel = lowerMessage.includes("[channel: email");
   const isPropertyUploadIntent =
     (lowerMessage.includes("upload") && lowerMessage.includes("property")) ||
@@ -597,7 +602,8 @@ export async function chat(
         : "auto";
 
     // Use Pro model for property uploads, Bazaraki extraction, and email uploads (better at structured extraction)
-    const useProModel = isPropertyUploadIntent || isBazarakiLink || isEmailChannel;
+    const useProModel = isPropertyUploadIntent || isBazarakiLink ||
+      isBankLink || isEmailChannel;
     const modelForCall = useProModel ? PRO_MODEL : PRIMARY_MODEL;
 
     const openRouterResult = await callOpenRouter(
@@ -610,7 +616,7 @@ export async function chat(
     const { usage } = openRouterResult;
 
     if (useProModel && !error) {
-      logger.info(`[OpenRouter] Used Pro model for ${isBazarakiLink ? "Bazaraki extraction" : "property upload"}`, {
+      logger.info(`[OpenRouter] Used Pro model for ${isBazarakiLink ? "Bazaraki extraction" : isBankLink ? "bank extraction" : "property upload"}`, {
         category: LogCategory.GENERAL,
       });
     }

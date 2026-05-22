@@ -422,6 +422,76 @@ async function scrapeBazaraki(url) {
   }
 }
 
+/**
+ * Generic page renderer — loads ANY url in a real browser and returns the
+ * fully-rendered HTML. Used by the Edge Function bank-scraper to bypass the
+ * F5 / Cloudflare WAF on Altia and Remu (which reject plain server fetches).
+ */
+async function renderPage(url) {
+  const b = await getBrowser();
+  const context = await b.newContext({
+    userAgent:
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    locale: "en-US",
+    viewport: { width: 1920, height: 1080 },
+    javaScriptEnabled: true,
+    bypassCSP: true,
+    extraHTTPHeaders: {
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept-Encoding": "gzip, deflate, br",
+      "Sec-Fetch-Dest": "document",
+      "Sec-Fetch-Mode": "navigate",
+      "Sec-Fetch-Site": "none",
+      "Sec-Fetch-User": "?1",
+      "Upgrade-Insecure-Requests": "1",
+    },
+  });
+
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "webdriver", { get: () => false });
+    Object.defineProperty(navigator, "plugins", { get: () => [1, 2, 3, 4, 5] });
+    Object.defineProperty(navigator, "languages", { get: () => ["en-US", "en"] });
+  });
+
+  try {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+
+    // Handle Cloudflare / WAF challenge — wait for real content to appear
+    let pageText = await page.textContent("body").catch(() => "");
+    const isChallenge = (t) =>
+      t &&
+      (t.includes("security service") ||
+        t.includes("Checking your browser") ||
+        t.includes("Request Rejected"));
+    if (isChallenge(pageText)) {
+      console.log("[Render] WAF/challenge detected, waiting up to 20s...");
+      for (let i = 0; i < 10; i++) {
+        await page.waitForTimeout(2000);
+        pageText = await page.textContent("body").catch(() => "");
+        if (!isChallenge(pageText)) {
+          console.log(`[Render] Challenge resolved after ${(i + 1) * 2}s`);
+          break;
+        }
+      }
+    }
+
+    // Give client-rendered listing content a moment to populate
+    await page
+      .waitForSelector("h1, [class*=price], [class*=descrip]", { timeout: 8000 })
+      .catch(() => {});
+
+    const html = await page.content();
+    const finalUrl = page.url();
+    return { success: true, html, finalUrl };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    await context.close();
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
@@ -448,9 +518,9 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.method !== "POST" || req.url !== "/scrape") {
+  if (req.method !== "POST" || (req.url !== "/scrape" && req.url !== "/render")) {
     res.writeHead(404, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: "POST /scrape only" }));
+    res.end(JSON.stringify({ error: "POST /scrape or POST /render only" }));
     return;
   }
 
@@ -466,7 +536,30 @@ const server = http.createServer(async (req, res) => {
   }
 
   const { url } = body;
-  if (!url || !url.includes("bazaraki.com")) {
+  if (!url || !/^https?:\/\//i.test(url)) {
+    res.writeHead(400, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "A valid http(s) URL is required" }));
+    return;
+  }
+
+  // Generic renderer — returns fully rendered HTML for any URL.
+  if (req.url === "/render") {
+    console.log(`[Render] ${url}`);
+    const start = Date.now();
+    const result = await renderPage(url);
+    const elapsed = Date.now() - start;
+    console.log(
+      `[Render] ${result.success ? "OK" : "FAIL"} in ${elapsed}ms — ${result.html?.length || 0} bytes — ${result.error || ""}`
+    );
+    res.writeHead(result.success ? 200 : 500, {
+      "Content-Type": "application/json",
+    });
+    res.end(JSON.stringify(result));
+    return;
+  }
+
+  // Bazaraki-specific structured scrape
+  if (!url.includes("bazaraki.com")) {
     res.writeHead(400, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: "URL must be a bazaraki.com link" }));
     return;
