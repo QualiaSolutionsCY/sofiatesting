@@ -3,12 +3,18 @@
  * Handles Zyprus data retrieval, regional agents, and Bazaraki extraction
  */
 
+import type { Agent } from "../../agents/identifier.ts";
 import { getAgentsByRegion } from "../../agents/identifier.ts";
 import {
   extractFromBazaraki as extractBazarakiListing,
   formatBazarakiSummary,
   isBazarakiUrl,
 } from "../../services/bazaraki-scraper.ts";
+import {
+  detectPortal,
+  extractFromBankPortal,
+  formatPortalSummary,
+} from "../../services/portal-scraper.ts";
 import { LogCategory, logger } from "../../utils/logger.ts";
 import {
   getLocationsByRegion,
@@ -134,36 +140,95 @@ export async function handleGetRegionalAgents(
 }
 
 /**
- * Handle Bazaraki link extraction
+ * Handle property portal link extraction (Bazaraki + bank portals)
  */
 export async function handleExtractFromBazaraki(
-  args: Record<string, unknown>
+  args: Record<string, unknown>,
+  agent?: Agent | null
 ): Promise<ToolResult> {
   const url = args.url as string;
 
-  if (!url || !isBazarakiUrl(url)) {
+  // Detect which portal the URL belongs to
+  const portal = url ? detectPortal(url) : null;
+
+  if (!portal) {
     return {
       error:
-        "Please provide a valid Bazaraki URL (bazaraki.com or bazaraki.cy)",
+        "Please provide a valid property portal URL (Bazaraki, Altia, Altamira, REMU, or Gordian)",
+    };
+  }
+
+  // Bazaraki — unchanged path, works for all users
+  if (portal === "bazaraki") {
+    if (!isBazarakiUrl(url)) {
+      return {
+        error:
+          "Please provide a valid Bazaraki URL (bazaraki.com or bazaraki.cy)",
+      };
+    }
+
+    try {
+      const listing = await extractBazarakiListing(url);
+      const summary = formatBazarakiSummary(listing);
+
+      // NOTE: Do NOT set `message` here — that would bypass the AI and send
+      // the raw summary directly to the user. Instead, put everything in `data`
+      // so the AI processes it and composes a human-friendly response.
+      return {
+        success: true,
+        data: {
+          summary,
+          // Strip Bazaraki image URLs — CDN blocks external access, they always fail.
+          // The prompt tells the AI to ask the agent for photos via WhatsApp instead.
+          imageUrls: [],
+          imageCount: listing.imageUrls.length,
+          // Pass extracted data so AI can pre-fill createPropertyListing
+          extractedFields: {
+            listingType: listing.listingType,
+            propertyType: listing.propertyType,
+            price: listing.price,
+            location: listing.location,
+            bedrooms: listing.bedrooms,
+            bathrooms: listing.bathrooms,
+            coveredArea: listing.coveredArea,
+            plotSize: listing.plotSize,
+            description: listing.description,
+            features: listing.features,
+            warnings: listing.warnings,
+          },
+        },
+      };
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error("Bazaraki extraction failed", err, {
+        category: LogCategory.TOOL,
+      });
+      return {
+        error:
+          "I couldn't extract details from that Bazaraki link. Could you please provide the property details directly?",
+      };
+    }
+  }
+
+  // Bank portal (Altia, Altamira, REMU, Gordian) — management only
+  if (agent?.role !== "management") {
+    return {
+      error:
+        "Bank portal extraction (Altia, Altamira, REMU, Gordian) is only available to management. Please ask Lauren or Charalambos to extract this listing for you.",
     };
   }
 
   try {
-    const listing = await extractBazarakiListing(url);
-    const summary = formatBazarakiSummary(listing);
+    const listing = await extractFromBankPortal(url);
+    const summary = formatPortalSummary(listing);
 
-    // NOTE: Do NOT set `message` here — that would bypass the AI and send
-    // the raw summary directly to the user. Instead, put everything in `data`
-    // so the AI processes it and composes a human-friendly response.
     return {
       success: true,
       data: {
         summary,
-        // Strip Bazaraki image URLs — CDN blocks external access, they always fail.
-        // The prompt tells the AI to ask the agent for photos via WhatsApp instead.
-        imageUrls: [],
+        // Bank portals don't have CDN blocks — keep the image URLs
+        imageUrls: listing.imageUrls,
         imageCount: listing.imageUrls.length,
-        // Pass extracted data so AI can pre-fill createPropertyListing
         extractedFields: {
           listingType: listing.listingType,
           propertyType: listing.propertyType,
@@ -181,12 +246,12 @@ export async function handleExtractFromBazaraki(
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    logger.error("Bazaraki extraction failed", err, {
+    logger.error(`Bank portal extraction failed (${portal})`, err, {
       category: LogCategory.TOOL,
     });
     return {
       error:
-        "I couldn't extract details from that Bazaraki link. Could you please provide the property details directly?",
+        "I couldn't extract details from that listing. Could you please provide the property details directly?",
     };
   }
 }

@@ -538,7 +538,15 @@ export async function chat(
   // Detect if user wants to upload a property - force tool usage in this case
   // Email and WhatsApp use the SAME detection — no channel-specific branching
   const lowerMessage = userMessage.toLowerCase();
-  const isBazarakiLink = lowerMessage.includes("bazaraki.com/");
+  // Detect any supported property portal link (Bazaraki + bank portals)
+  const isPropertyPortalLink =
+    lowerMessage.includes("bazaraki.com/") ||
+    lowerMessage.includes("bazaraki.cy/") ||
+    lowerMessage.includes("marketplace.altia.com.cy/") ||
+    lowerMessage.includes("altia.com.cy/") ||
+    lowerMessage.includes("altamirarealestate.com.cy/") ||
+    lowerMessage.includes("remuproperties.com/") ||
+    lowerMessage.includes("gogordian.com/");
   const isEmailChannel = lowerMessage.includes("[channel: email");
   const isPropertyUploadIntent =
     (lowerMessage.includes("upload") && lowerMessage.includes("property")) ||
@@ -612,9 +620,9 @@ export async function chat(
       | { type: "function"; function: { name: string } } =
       isPropertyUploadIntent && toolCallCount === 0 ? "required" : "auto";
 
-    // Use Pro model for property uploads, Bazaraki extraction, and email uploads (better at structured extraction)
+    // Use Pro model for property uploads, portal extraction, and email uploads (better at structured extraction)
     const useProModel =
-      isPropertyUploadIntent || isBazarakiLink || isEmailChannel;
+      isPropertyUploadIntent || isPropertyPortalLink || isEmailChannel;
     const modelForCall = useProModel ? PRO_MODEL : PRIMARY_MODEL;
 
     const openRouterResult = await callOpenRouter(
@@ -628,7 +636,7 @@ export async function chat(
 
     if (useProModel && !error) {
       logger.info(
-        `[OpenRouter] Used Pro model for ${isBazarakiLink ? "Bazaraki extraction" : "property upload"}`,
+        `[OpenRouter] Used Pro model for ${isPropertyPortalLink ? "portal extraction" : "property upload"}`,
         {
           category: LogCategory.GENERAL,
         }

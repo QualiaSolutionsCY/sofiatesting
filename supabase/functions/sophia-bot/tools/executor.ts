@@ -133,7 +133,7 @@ export async function executeTool(
         break;
 
       case "extractFromBazaraki":
-        result = await handleExtractFromBazaraki(validArgs);
+        result = await handleExtractFromBazaraki(validArgs, agent);
         break;
 
       case "sendEmail":

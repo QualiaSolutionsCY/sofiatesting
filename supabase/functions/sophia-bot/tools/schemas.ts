@@ -332,10 +332,22 @@ export const extractFromBazarakiSchema = z.object({
   url: z
     .string()
     .url()
-    .refine(
-      (url) => url.includes("bazaraki.com") || url.includes("bazaraki.cy"),
-      "URL must be a Bazaraki listing"
-    ),
+    .refine((url) => {
+      try {
+        const host = new URL(url).hostname.replace(/^www\./, "");
+        return (
+          host.includes("bazaraki.com") ||
+          host.includes("bazaraki.cy") ||
+          host === "marketplace.altia.com.cy" ||
+          host.endsWith("altia.com.cy") ||
+          host.includes("altamirarealestate.com.cy") ||
+          host.includes("remuproperties.com") ||
+          host.includes("gogordian.com")
+        );
+      } catch {
+        return false;
+      }
+    }, "URL must be a supported property portal (Bazaraki, Altia, Altamira, REMU, or Gordian)"),
 });
 
 /**

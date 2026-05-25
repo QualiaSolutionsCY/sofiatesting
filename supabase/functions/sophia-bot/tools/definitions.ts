@@ -653,20 +653,20 @@ export const TOOLS: ToolDefinition[] = [
     },
   },
 
-  // Extract Property from Bazaraki
+  // Extract Property from Supported Portals
   {
     type: "function",
     function: {
       name: "extractFromBazaraki",
       description:
-        "Extract property details from a Bazaraki listing URL. Use this when an agent sends a Bazaraki link (bazaraki.com or bazaraki.cy). Extracts photos, price, location, property type, bedrooms, bathrooms, and area. The agent must still provide owner details and title deed status. Always confirm extracted data with the agent before uploading.",
+        "Extract property details from a property listing URL. Supports: Bazaraki (bazaraki.com, bazaraki.cy), Altia Marketplace (marketplace.altia.com.cy), Altamira (altamirarealestate.com.cy), REMU (remuproperties.com), and Gordian (gogordian.com). NOTE: The 4 bank portals (Altia, Altamira, REMU, Gordian) are only available to management users (Lauren, Charalambos, and similar). Other users only get Bazaraki extraction. Extracts photos, price, location, property type, bedrooms, bathrooms, and area. The agent must still provide owner details and title deed status. Always confirm extracted data with the agent before uploading. Use whenever an agent sends a listing URL from any supported portal.",
       parameters: {
         type: "object",
         properties: {
           url: {
             type: "string",
             description:
-              "The full Bazaraki listing URL (e.g., https://www.bazaraki.com/adv/12345678_...)",
+              "The full property listing URL from any supported portal (Bazaraki, Altia, Altamira, REMU, or Gordian)",
           },
         },
         required: ["url"],
