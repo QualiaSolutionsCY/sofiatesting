@@ -260,6 +260,15 @@ export async function POST(request: NextRequest) {
       ? normalizeCyprusPhone(validatedData.phoneNumber)
       : "";
 
+    // Only accept a Zyprus user id that's a valid UUID — the column is typed
+    // `uuid`, so any other value would 500 the insert.
+    const zyprusUserId = validatedData.zyprusUserId?.trim() || "";
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const validZyprusUserId = uuidRegex.test(zyprusUserId)
+      ? zyprusUserId
+      : null;
+
     // Create agent
     const insertPayload = {
       full_name: validatedData.fullName,
@@ -272,9 +281,8 @@ export async function POST(request: NextRequest) {
       is_active: validatedData.isActive ?? true,
       can_upload: validatedData.canUpload ?? true,
       can_receive_leads: validatedData.canReceiveLeads ?? true,
-      zyprus_user_id: validatedData.zyprusUserId?.trim() || null,
+      zyprus_user_id: validZyprusUserId,
       landline: validatedData.landline?.trim() || null,
-      notes: validatedData.notes?.trim() || null,
     };
 
     const { data: agent, error } = await getAdminSupabase()
