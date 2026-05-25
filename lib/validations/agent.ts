@@ -10,18 +10,26 @@ export const ROLE_OPTIONS = [
 export const DB_ROLES = ["agent", "manager", "management"] as const;
 
 export const agentSchema = z.object({
-  fullName: z.string().min(2, "Name must be at least 2 characters").max(100),
-  email: z.string().email("Invalid email address").toLowerCase(),
+  fullName: z.string().min(1, "Name is required").max(100),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .refine((v) => v === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), {
+      message: "Invalid email address",
+    })
+    .optional()
+    .or(z.literal("")),
   phoneNumber: z.string().optional().or(z.literal("")),
-  region: z.enum(
-    ["Limassol", "Paphos", "Larnaca", "Famagusta", "Nicosia", "All"],
-    {
-      required_error: "Please select a region",
-    }
-  ),
-  role: z.enum(DB_ROLES, {
-    required_error: "Please select a role",
-  }),
+  region: z.enum([
+    "Limassol",
+    "Paphos",
+    "Larnaca",
+    "Famagusta",
+    "Nicosia",
+    "All",
+  ]),
+  role: z.enum(DB_ROLES),
   isActive: z.boolean(),
   notes: z.string().optional().or(z.literal("")),
   canUpload: z.boolean(),

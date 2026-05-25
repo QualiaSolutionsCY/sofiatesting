@@ -35,10 +35,13 @@ export function AgentCreateModal({
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.error || errorData.message || "Failed to create agent"
-        );
+        const errorData = await response.json().catch(() => ({}));
+        const detail =
+          errorData.details ||
+          errorData.error ||
+          errorData.message ||
+          `Server responded ${response.status}`;
+        throw new Error(detail);
       }
 
       toast.success("Agent created successfully");

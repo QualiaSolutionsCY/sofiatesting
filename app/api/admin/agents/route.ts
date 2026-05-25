@@ -145,17 +145,21 @@ export async function GET(request: NextRequest) {
  */
 const createAgentSchema = z.object({
   fullName: z.string().min(1, "Full name is required").max(255),
-  email: z.string().email("Invalid email format").toLowerCase(),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .refine((v) => v === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), {
+      message: "Invalid email format",
+    })
+    .optional()
+    .or(z.literal("")),
   phoneNumber: z.string().optional().or(z.literal("")),
-  region: z.enum(
-    ["Paphos", "Limassol", "Larnaca", "Nicosia", "Famagusta", "All"],
-    {
-      errorMap: () => ({ message: "Invalid region" }),
-    }
-  ),
-  role: z.enum(["agent", "manager", "management"], {
-    errorMap: () => ({ message: "Invalid role" }),
-  }),
+  region: z
+    .enum(["Paphos", "Limassol", "Larnaca", "Nicosia", "Famagusta", "All"])
+    .optional()
+    .default("All"),
+  role: z.enum(["agent", "manager", "management"]).optional().default("agent"),
   isActive: z.boolean().optional().default(true),
   canUpload: z.boolean().optional().default(true),
   canReceiveLeads: z.boolean().optional().default(true),
@@ -163,6 +167,22 @@ const createAgentSchema = z.object({
   landline: z.string().optional().or(z.literal("")),
   notes: z.string().optional().or(z.literal("")),
 });
+
+/**
+ * Build a synthetic email for agents created without one.
+ * The DB requires NOT NULL on communication_email / listing_owner_email,
+ * so we fall back to a deterministic placeholder derived from the name.
+ */
+function fallbackEmail(fullName: string): string {
+  const slug =
+    fullName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40) || "agent";
+  const suffix = Math.random().toString(36).slice(2, 8);
+  return `${slug}-${suffix}@pending.zyprus.local`;
+}
 
 export async function POST(request: NextRequest) {
   // Check admin authentication - require admin role for creating agents
@@ -198,46 +218,62 @@ export async function POST(request: NextRequest) {
     }
     const validatedData = parseResult.data;
 
-    const email = validatedData.email;
+    const email = validatedData.email?.trim()
+      ? validatedData.email.trim()
+      : fallbackEmail(validatedData.fullName);
 
-    // Check if email already exists
-    const { data: existing } = await getAdminSupabase()
-      .from("agents")
-      .select("id")
-      .eq("communication_email", email)
-      .limit(1);
+    // Check if email already exists (only when caller supplied one)
+    if (validatedData.email?.trim()) {
+      const { data: existing } = await getAdminSupabase()
+        .from("agents")
+        .select("id")
+        .eq("communication_email", email)
+        .limit(1);
 
-    if (existing && existing.length > 0) {
-      return NextResponse.json(
-        { error: "Agent with this email already exists" },
-        { status: 409 }
-      );
+      if (existing && existing.length > 0) {
+        return NextResponse.json(
+          { error: "Agent with this email already exists" },
+          { status: 409 }
+        );
+      }
     }
 
     // Create agent
+    const insertPayload = {
+      full_name: validatedData.fullName,
+      communication_email: email,
+      listing_owner_email: email,
+      mobile: validatedData.phoneNumber?.trim() || "",
+      region: (validatedData.region ?? "All").toLowerCase(),
+      role: validatedData.role ?? "agent",
+      is_active: validatedData.isActive ?? true,
+      can_upload: validatedData.canUpload ?? true,
+      can_receive_leads: validatedData.canReceiveLeads ?? true,
+      zyprus_user_id: validatedData.zyprusUserId?.trim() || null,
+      landline: validatedData.landline?.trim() || null,
+      notes: validatedData.notes?.trim() || null,
+    };
+
     const { data: agent, error } = await getAdminSupabase()
       .from("agents")
-      .insert({
-        full_name: validatedData.fullName,
-        communication_email: validatedData.email,
-        listing_owner_email: validatedData.email,
-        mobile: validatedData.phoneNumber || "",
-        region: validatedData.region.toLowerCase(),
-        role: validatedData.role,
-        is_active: validatedData.isActive,
-        can_upload: validatedData.canUpload ?? true,
-        can_receive_leads: validatedData.canReceiveLeads ?? true,
-        zyprus_user_id: validatedData.zyprusUserId || null,
-        landline: validatedData.landline || null,
-        notes: validatedData.notes || null,
-      })
+      .insert(insertPayload)
       .select()
       .single();
 
     if (error) {
-      logger.error("Error creating agent", error);
+      logger.error("Error creating agent", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        payload: insertPayload,
+      });
       return NextResponse.json(
-        { error: "Failed to create agent", details: error.message },
+        {
+          error: "Failed to create agent",
+          details: error.message,
+          code: error.code,
+        },
         { status: 500 }
       );
     }

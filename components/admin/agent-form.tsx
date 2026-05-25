@@ -100,12 +100,12 @@ export function AgentForm({
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email *</FormLabel>
+              <FormLabel>Email</FormLabel>
               <FormControl>
                 <Input placeholder="john@zyprus.com" type="email" {...field} />
               </FormControl>
               <FormDescription>
-                This will be used for login and communication
+                Optional — used for login and communication. Leave blank to add now and fill in later.
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -137,14 +137,14 @@ export function AgentForm({
             name="region"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Region *</FormLabel>
+                <FormLabel>Region</FormLabel>
                 <Select
                   defaultValue={field.value}
                   onValueChange={field.onChange}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select region" />
+                      <SelectValue placeholder="Select region (defaults to All)" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -166,14 +166,14 @@ export function AgentForm({
             name="role"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Role *</FormLabel>
+                <FormLabel>Role</FormLabel>
                 <Select
                   defaultValue={field.value}
                   onValueChange={field.onChange}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
+                      <SelectValue placeholder="Select role (defaults to Agent)" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
