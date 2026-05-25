@@ -4,10 +4,9 @@
  * location correction, regional access validation, special cases, reviewer assignment
  */
 
+import { getSupabaseAdmin } from "../../../_shared/db.ts";
 import { type Agent, getAgentByEmail } from "../../agents/identifier.ts";
-import {
-  REGIONAL_EMAILS,
-} from "../../config/business-rules.ts";
+import { REGIONAL_EMAILS } from "../../config/business-rules.ts";
 import {
   determineRegion,
   validateRegionalAccess,
@@ -29,8 +28,10 @@ import {
   isLocationAStreetInUrl,
   isStreetAddress,
 } from "../validators/location.ts";
-import { acquireUploadLock, releaseUploadLock } from "../validators/upload-lock.ts";
-import { getSupabaseAdmin } from "../../../_shared/db.ts";
+import {
+  acquireUploadLock,
+  releaseUploadLock,
+} from "../validators/upload-lock.ts";
 
 /**
  * Resolve a short URL (maps.app.goo.gl, etc.) by following redirects.
@@ -38,7 +39,7 @@ import { getSupabaseAdmin } from "../../../_shared/db.ts";
  */
 async function resolveShortUrl(shortUrl: string): Promise<string | null> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5_000);
+  const timeout = setTimeout(() => controller.abort(), 5000);
 
   try {
     // Follow redirect but don't download body
@@ -49,7 +50,11 @@ async function resolveShortUrl(shortUrl: string): Promise<string | null> {
     });
     const resolved = response.url;
     // Only return if it resolved to a different, longer URL
-    if (resolved && resolved !== shortUrl && resolved.length > shortUrl.length) {
+    if (
+      resolved &&
+      resolved !== shortUrl &&
+      resolved.length > shortUrl.length
+    ) {
       return resolved;
     }
     return null;
@@ -135,7 +140,13 @@ export async function validateAndPrepareFields(
 
   const sb = getSupabaseAdmin();
 
-  if (!args.confirmDuplicate) {
+  if (args.confirmDuplicate) {
+    logger.info("Duplicate check skipped — agent confirmed upload anyway", {
+      category: LogCategory.TOOL,
+      operation: "validateAndPrepareFields",
+      agentPhone,
+    });
+  } else {
     const twentyFourHoursAgo = new Date(
       Date.now() - 24 * 60 * 60 * 1000
     ).toISOString();
@@ -148,56 +159,78 @@ export async function validateAndPrepareFields(
       .limit(5);
 
     if (recentUploads && recentUploads.length > 0) {
-      const locationLower = ((args.location as string) || "").toLowerCase().trim();
+      const locationLower = ((args.location as string) || "")
+        .toLowerCase()
+        .trim();
       const currentPrice = Number(args.price) || 0;
       // Split location into parts (e.g., "Agios Tychonas, Limassol" → ["agios tychonas", "limassol"])
-      const locationParts = locationLower.split(",").map((p: string) => p.trim()).filter(Boolean);
+      const locationParts = locationLower
+        .split(",")
+        .map((p: string) => p.trim())
+        .filter(Boolean);
       // Use the FIRST part (specific area) for matching, not the city name
       // This prevents "Limassol" matching every Limassol property, or "Paphos" matching every Paphos property
       // Only fall back to full location if it's already specific (single part with 2+ words)
-      const specificArea = locationParts.length > 1
-        ? locationParts[0] // Use "Agios Tychonas" not "Limassol"
-        : (locationLower.split(/\s+/).length >= 2 ? locationLower : null); // Single part needs 2+ words to be specific
-      const match = specificArea ? recentUploads.find(
-        (p: Record<string, unknown>) => {
-          const titleMatch = ((p.property_title as string) || "")
-            .toLowerCase()
-            .includes(specificArea);
-          if (!titleMatch) return false;
-          // Price check: require BOTH prices for reliable comparison
-          const existingPrice = Number(p.price) || 0;
-          if (currentPrice > 0 && existingPrice > 0) {
-            // Both prices exist — reject if they differ by >20%
-            const priceDiff = Math.abs(currentPrice - existingPrice) / Math.max(currentPrice, existingPrice);
-            if (priceDiff > 0.2) {
-              logger.info("Duplicate candidate rejected — price differs by >20%", {
-                category: LogCategory.TOOL,
-                operation: "validateAndPrepareFields",
-                currentPrice,
-                existingPrice,
-                priceDiff: `${(priceDiff * 100).toFixed(0)}%`,
-              });
-              return false;
+      const specificArea =
+        locationParts.length > 1
+          ? locationParts[0] // Use "Agios Tychonas" not "Limassol"
+          : locationLower.split(/\s+/).length >= 2
+            ? locationLower
+            : null; // Single part needs 2+ words to be specific
+      const match = specificArea
+        ? recentUploads.find((p: Record<string, unknown>) => {
+            const titleMatch = ((p.property_title as string) || "")
+              .toLowerCase()
+              .includes(specificArea);
+            if (!titleMatch) return false;
+            // Price check: require BOTH prices for reliable comparison
+            const existingPrice = Number(p.price) || 0;
+            if (currentPrice > 0 && existingPrice > 0) {
+              // Both prices exist — reject if they differ by >20%
+              const priceDiff =
+                Math.abs(currentPrice - existingPrice) /
+                Math.max(currentPrice, existingPrice);
+              if (priceDiff > 0.2) {
+                logger.info(
+                  "Duplicate candidate rejected — price differs by >20%",
+                  {
+                    category: LogCategory.TOOL,
+                    operation: "validateAndPrepareFields",
+                    currentPrice,
+                    existingPrice,
+                    priceDiff: `${(priceDiff * 100).toFixed(0)}%`,
+                  }
+                );
+                return false;
+              }
+            } else if (existingPrice === 0) {
+              // Old record has no price — can't confirm it's the same property
+              // Only match if bedrooms or type also appear in the existing title
+              const currentBeds = Number(args.bedrooms) || 0;
+              const currentType = (
+                (args.propertyType as string) || ""
+              ).toLowerCase();
+              const titleLower = (
+                (p.property_title as string) || ""
+              ).toLowerCase();
+              const bedsMatch =
+                currentBeds > 0 && titleLower.includes(`${currentBeds} bed`);
+              const typeMatch =
+                currentType.length > 2 && titleLower.includes(currentType);
+              if (!bedsMatch && !typeMatch) {
+                logger.info(
+                  "Duplicate candidate rejected — no price on record & beds/type mismatch",
+                  {
+                    category: LogCategory.TOOL,
+                    operation: "validateAndPrepareFields",
+                  }
+                );
+                return false;
+              }
             }
-          } else if (existingPrice === 0) {
-            // Old record has no price — can't confirm it's the same property
-            // Only match if bedrooms or type also appear in the existing title
-            const currentBeds = Number(args.bedrooms) || 0;
-            const currentType = ((args.propertyType as string) || "").toLowerCase();
-            const titleLower = ((p.property_title as string) || "").toLowerCase();
-            const bedsMatch = currentBeds > 0 && titleLower.includes(`${currentBeds} bed`);
-            const typeMatch = currentType.length > 2 && titleLower.includes(currentType);
-            if (!bedsMatch && !typeMatch) {
-              logger.info("Duplicate candidate rejected — no price on record & beds/type mismatch", {
-                category: LogCategory.TOOL,
-                operation: "validateAndPrepareFields",
-              });
-              return false;
-            }
-          }
-          return true;
-        }
-      ) : null;
+            return true;
+          })
+        : null;
       if (match) {
         const minutesAgo = Math.round(
           (Date.now() - new Date(match.created_at as string).getTime()) / 60_000
@@ -219,12 +252,6 @@ export async function validateAndPrepareFields(
         };
       }
     }
-  } else {
-    logger.info("Duplicate check skipped — agent confirmed upload anyway", {
-      category: LogCategory.TOOL,
-      operation: "validateAndPrepareFields",
-      agentPhone,
-    });
   }
 
   // 2a. Rentals don't show title deed status on the listing — force it to
@@ -241,16 +268,20 @@ export async function validateAndPrepareFields(
   if (!validation.valid) {
     // If confirmDuplicate is true but fields are missing, tell the AI to re-read chat history
     if (args.confirmDuplicate) {
-      logger.warn("confirmDuplicate=true but required fields missing — asking AI to re-send all fields", {
-        category: LogCategory.TOOL,
-        operation: "validateAndPrepareFields",
-        missingFields: validation.missing,
-      });
+      logger.warn(
+        "confirmDuplicate=true but required fields missing — asking AI to re-send all fields",
+        {
+          category: LogCategory.TOOL,
+          operation: "validateAndPrepareFields",
+          missingFields: validation.missing,
+        }
+      );
       await releaseLock();
       return {
         needsInput: true,
         retryable: true,
-        question: `To proceed with the duplicate upload, I need you to call createPropertyListing again with ALL the original property details (listingType, propertyType, price, location, bedrooms, coveredArea, ownerName, ownerPhone, titleDeedStatus) plus confirmDuplicate: true. Re-read the conversation above to find all the property information the agent provided.`,
+        question:
+          "To proceed with the duplicate upload, I need you to call createPropertyListing again with ALL the original property details (listingType, propertyType, price, location, bedrooms, coveredArea, ownerName, ownerPhone, titleDeedStatus) plus confirmDuplicate: true. Re-read the conversation above to find all the property information the agent provided.",
       };
     }
     // Mark as retryable so ai-chat.ts feeds this back to the AI loop
@@ -277,21 +308,30 @@ export async function validateAndPrepareFields(
   let locationUrl = args.locationUrl as string | undefined;
 
   // Resolve Google Maps short links (maps.app.goo.gl) to full URLs with coordinates
-  if (locationUrl && (locationUrl.includes("goo.gl") || locationUrl.includes("maps.app"))) {
+  if (
+    locationUrl &&
+    (locationUrl.includes("goo.gl") || locationUrl.includes("maps.app"))
+  ) {
     try {
       const resolved = await resolveShortUrl(locationUrl);
       if (resolved && resolved !== locationUrl) {
-        logger.info(`Resolved short URL: ${locationUrl} → ${resolved.substring(0, 100)}`, {
-          category: LogCategory.TOOL,
-        });
+        logger.info(
+          `Resolved short URL: ${locationUrl} → ${resolved.substring(0, 100)}`,
+          {
+            category: LogCategory.TOOL,
+          }
+        );
         locationUrl = resolved;
         // Update args so downstream code (coordinates, locationUrl field) uses the resolved URL
         args.locationUrl = resolved;
       }
     } catch (error) {
-      logger.warn(`Failed to resolve short URL: ${error instanceof Error ? error.message : error}`, {
-        category: LogCategory.TOOL,
-      });
+      logger.warn(
+        `Failed to resolve short URL: ${error instanceof Error ? error.message : error}`,
+        {
+          category: LogCategory.TOOL,
+        }
+      );
     }
   }
 
@@ -403,7 +443,10 @@ export async function validateAndPrepareFields(
           location = location.replace(regex, correctName);
           logger.warn(
             `Location district corrected: "${oldLocation}" → "${location}" (area is in ${detectedRegion}, not ${wrongRegion})`,
-            { category: LogCategory.TOOL, operation: "validateAndPrepareFields" }
+            {
+              category: LogCategory.TOOL,
+              operation: "validateAndPrepareFields",
+            }
           );
           break;
         }
@@ -503,17 +546,14 @@ export async function validateAndPrepareFields(
       );
     } else {
       const assigneeAgent = await getAgentByEmail(assignToEmail);
-      if (!assigneeAgent) {
-        logger.warn("assignTo email not found in agents database — stripping", {
-          category: LogCategory.TOOL,
-          operation: "validateAndPrepareFields",
-          assignToEmail,
-        });
-        args.assignTo = undefined;
-      } else {
+      if (assigneeAgent) {
         // 5.3 REGION CHECK: Validate assignee's region matches property region
         // Prevents assigning e.g. a Limassol property to a Paphos agent
-        if (assigneeAgent.region !== "all" && propertyRegion && assigneeAgent.region !== propertyRegion) {
+        if (
+          assigneeAgent.region !== "all" &&
+          propertyRegion &&
+          assigneeAgent.region !== propertyRegion
+        ) {
           logger.warn("Assignee region mismatch — blocking assignment", {
             category: LogCategory.TOOL,
             operation: "validateAndPrepareFields",
@@ -526,6 +566,13 @@ export async function validateAndPrepareFields(
             error: `This property is in ${propertyRegion}, but ${assigneeAgent.fullName} is a ${assigneeAgent.region} agent. Agents can only be assigned properties in their region. Would you like me to assign it to a ${propertyRegion}-based agent instead?`,
           };
         }
+      } else {
+        logger.warn("assignTo email not found in agents database — stripping", {
+          category: LogCategory.TOOL,
+          operation: "validateAndPrepareFields",
+          assignToEmail,
+        });
+        args.assignTo = undefined;
       }
     }
   }

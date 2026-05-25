@@ -4,12 +4,12 @@
  * My Notes generation, AI Notes generation
  */
 
-import { type Agent } from "../../agents/identifier.ts";
+import type { Agent } from "../../agents/identifier.ts";
 import { generateDescription } from "../../services/description-generator.ts";
 import {
   createDuplicateNote,
-  generateDuplicateWarning,
   type DuplicateMatch,
+  generateDuplicateWarning,
 } from "../../services/duplicate-checker.ts";
 import {
   generateAIAssistantNotes,
@@ -47,7 +47,7 @@ export async function generateListingContent(
   resolvedCoordinates: { lat: number; lon: number } | undefined,
   effectiveFeatures: string[],
   poolType: string | undefined,
-  safePriceModifier: string | undefined,
+  safePriceModifier: string | undefined
 ): Promise<ListingContent> {
   logger.info("Content generation started", {
     category: LogCategory.TOOL,

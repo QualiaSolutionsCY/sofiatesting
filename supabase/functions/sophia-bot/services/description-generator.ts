@@ -759,7 +759,9 @@ export function generateDescription(details: PropertyDetails): string {
   // Bedroom text for headline — show as "5+1 Bedroom" when basement/roof rooms exist
   // Commercial types (office, shop, warehouse, hotel) skip bedroom text entirely
   const commercialTypes = ["office", "shop", "warehouse", "hotel"];
-  const isCommercialType = commercialTypes.some((t) => details.type.toLowerCase().includes(t));
+  const isCommercialType = commercialTypes.some((t) =>
+    details.type.toLowerCase().includes(t)
+  );
   let bedroomText: string;
   const extraRooms = (details.basementRooms || 0) + (details.roofRooms || 0);
   if (isCommercialType) {
@@ -981,25 +983,25 @@ export function generateDescription(details: PropertyDetails): string {
     // Show basement/roof rooms separately if provided
     // e.g., "5 Bedrooms + 1 Basement Bedroom" or "3 Bedrooms + 1 Roof Garden Room"
     if (!isCommercialType) {
-    const bedroomParts: string[] = [];
-    bedroomParts.push(
-      `${details.bedrooms} ${details.bedrooms === 1 ? "Bedroom" : "Bedrooms"}`
-    );
-    if (details.basementRooms && details.basementRooms > 0) {
+      const bedroomParts: string[] = [];
       bedroomParts.push(
-        details.basementRooms === 1
-          ? "1 Basement Bedroom"
-          : `${details.basementRooms} Basement Bedrooms`
+        `${details.bedrooms} ${details.bedrooms === 1 ? "Bedroom" : "Bedrooms"}`
       );
-    }
-    if (details.roofRooms && details.roofRooms > 0) {
-      bedroomParts.push(
-        details.roofRooms === 1
-          ? "1 Roof Garden Room"
-          : `${details.roofRooms} Roof Garden Rooms`
-      );
-    }
-    lines.push(bedroomParts.join(" + "));
+      if (details.basementRooms && details.basementRooms > 0) {
+        bedroomParts.push(
+          details.basementRooms === 1
+            ? "1 Basement Bedroom"
+            : `${details.basementRooms} Basement Bedrooms`
+        );
+      }
+      if (details.roofRooms && details.roofRooms > 0) {
+        bedroomParts.push(
+          details.roofRooms === 1
+            ? "1 Roof Garden Room"
+            : `${details.roofRooms} Roof Garden Rooms`
+        );
+      }
+      lines.push(bedroomParts.join(" + "));
     } // end if (!isCommercialType) — skip bedrooms for offices/shops/etc.
     // Bathrooms — detect guest W/C in features for precise display
     if (details.bathrooms && details.bathrooms > 0) {
@@ -1564,7 +1566,9 @@ function getClosingSentences(details: PropertyDetails): string[] {
 export function generateTitle(details: PropertyDetails): string {
   // Commercial types skip bedroom prefix entirely
   const commercialTypes = ["office", "shop", "warehouse", "hotel"];
-  const isCommercial = commercialTypes.some((t) => details.type.toLowerCase().includes(t));
+  const isCommercial = commercialTypes.some((t) =>
+    details.type.toLowerCase().includes(t)
+  );
   const bedroomText = isCommercial
     ? ""
     : details.bedrooms === 0
@@ -1623,20 +1627,22 @@ export function generateLandDescription(details: LandDetails): string {
 
   // Map land types to Zyprus display names
   const landTypeDisplay: Record<string, string> = {
-    "plot": "Residential Plot",
-    "residential": "Residential Plot",
-    "field": "Land Parcel",
+    plot: "Residential Plot",
+    residential: "Residential Plot",
+    field: "Land Parcel",
     "land parcel": "Land Parcel",
-    "agricultural": "Agricultural Land",
-    "commercial": "Commercial Plot",
-    "industrial": "Industrial Plot",
+    agricultural: "Agricultural Land",
+    commercial: "Commercial Plot",
+    industrial: "Industrial Plot",
   };
 
   const landTypeKey = details.landType.toLowerCase().trim();
-  const displayType = landTypeDisplay[landTypeKey] || `${capitalize(details.landType)} Plot`;
+  const displayType =
+    landTypeDisplay[landTypeKey] || `${capitalize(details.landType)} Plot`;
   const location = capitalizeLocation(details.location);
   const formattedSize = formatArea(details.landSize);
-  const listingTypeText = details.listingType === "rent" ? "For Rent" : "For Sale";
+  const listingTypeText =
+    details.listingType === "rent" ? "For Rent" : "For Sale";
 
   // Opening: "{Type} For Sale in {Location}, {District}" format
   lines.push(`${displayType} ${listingTypeText} in ${location}`);
@@ -1656,7 +1662,9 @@ export function generateLandDescription(details: LandDetails): string {
     lines.push(`${details.siteCoverage}% of Site Coverage`);
   }
   if (details.maxFloors !== undefined && details.maxHeight !== undefined) {
-    lines.push(`Up to ${details.maxFloors} floors and a height of ${details.maxHeight}m`);
+    lines.push(
+      `Up to ${details.maxFloors} floors and a height of ${details.maxHeight}m`
+    );
   } else if (details.maxFloors !== undefined) {
     lines.push(`Up to ${details.maxFloors} floors`);
   } else if (details.maxHeight !== undefined) {
@@ -1706,9 +1714,7 @@ export function generateLandDescription(details: LandDetails): string {
 
   // Closing
   lines.push("");
-  lines.push(
-    "Contact us for full information and for a private viewing!"
-  );
+  lines.push("Contact us for full information and for a private viewing!");
 
   return lines.join("\n");
 }

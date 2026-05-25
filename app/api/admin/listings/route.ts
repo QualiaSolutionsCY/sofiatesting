@@ -34,9 +34,15 @@ export async function GET(req: Request) {
     const [statsResult] = await db
       .select({
         total: count(),
-        draft: count(sql`CASE WHEN ${listingUpload.status} = 'draft' THEN 1 END`),
-        published: count(sql`CASE WHEN ${listingUpload.status} = 'published' THEN 1 END`),
-        expired: count(sql`CASE WHEN ${listingUpload.status} = 'expired' THEN 1 END`),
+        draft: count(
+          sql`CASE WHEN ${listingUpload.status} = 'draft' THEN 1 END`
+        ),
+        published: count(
+          sql`CASE WHEN ${listingUpload.status} = 'published' THEN 1 END`
+        ),
+        expired: count(
+          sql`CASE WHEN ${listingUpload.status} = 'expired' THEN 1 END`
+        ),
       })
       .from(listingUpload);
 

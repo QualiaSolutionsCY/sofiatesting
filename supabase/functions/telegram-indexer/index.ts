@@ -17,7 +17,10 @@
  */
 
 import { getSupabaseAdmin } from "../_shared/db.ts";
-import { REGIONAL_GROUP_IDS, ZYPRESS_OTHERS_CHAT_ID } from "../_shared/telegram-search.ts";
+import {
+  REGIONAL_GROUP_IDS,
+  ZYPRESS_OTHERS_CHAT_ID,
+} from "../_shared/telegram-search.ts";
 
 // All group IDs we want to index (regional + others)
 const INDEXED_GROUP_IDS = new Set([
@@ -78,9 +81,9 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     }
 
-    const senderName = [msg.from?.first_name, msg.from?.last_name]
-      .filter(Boolean)
-      .join(" ") || null;
+    const senderName =
+      [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") ||
+      null;
 
     const supabase = getSupabaseAdmin();
 

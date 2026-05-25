@@ -53,7 +53,12 @@ type Listing = {
 
 export default function AdminListingsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
-  const [stats, setStats] = useState({ total: 0, draft: 0, published: 0, expired: 0 });
+  const [stats, setStats] = useState({
+    total: 0,
+    draft: 0,
+    published: 0,
+    expired: 0,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -232,7 +237,7 @@ export default function AdminListingsPage() {
               <div className="space-y-3 md:hidden">
                 {listings.map((listing) => (
                   <div
-                    className="rounded-lg border p-3 space-y-2"
+                    className="space-y-2 rounded-lg border p-3"
                     key={listing.id}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -242,9 +247,7 @@ export default function AdminListingsPage() {
                         </div>
                         <div className="mt-0.5 text-muted-foreground text-xs">
                           {[
-                            listing.bedrooms
-                              ? `${listing.bedrooms} BR`
-                              : null,
+                            listing.bedrooms ? `${listing.bedrooms} BR` : null,
                             listing.price
                               ? `\u20AC${listing.price.toLocaleString()}`
                               : null,
@@ -255,7 +258,7 @@ export default function AdminListingsPage() {
                       </div>
                       {getStatusBadge(listing.status)}
                     </div>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex items-center justify-between text-muted-foreground text-xs">
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />
                         {listing.agentName}
@@ -268,9 +271,7 @@ export default function AdminListingsPage() {
                     </div>
                     <Button
                       className="w-full"
-                      onClick={() =>
-                        window.open(listing.listingUrl, "_blank")
-                      }
+                      onClick={() => window.open(listing.listingUrl, "_blank")}
                       size="sm"
                       variant="outline"
                     >
@@ -326,15 +327,12 @@ export default function AdminListingsPage() {
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          {getStatusBadge(listing.status)}
-                        </TableCell>
+                        <TableCell>{getStatusBadge(listing.status)}</TableCell>
                         <TableCell>
                           <div className="text-muted-foreground text-sm">
-                            {formatDistanceToNow(
-                              new Date(listing.createdAt),
-                              { addSuffix: true }
-                            )}
+                            {formatDistanceToNow(new Date(listing.createdAt), {
+                              addSuffix: true,
+                            })}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">

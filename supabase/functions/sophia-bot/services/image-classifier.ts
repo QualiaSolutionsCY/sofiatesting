@@ -243,9 +243,19 @@ export async function classifyImagesWithVision(
     const titleDeedIndices: number[] = [];
     const floorPlanIndices: number[] = [];
     const validRoomTypes: Set<string> = new Set([
-      "exterior_front", "exterior_other", "pool", "garden",
-      "living_room", "kitchen", "additional_room", "bedroom",
-      "bathroom", "other", "title_deed", "floor_plan", "satellite",
+      "exterior_front",
+      "exterior_other",
+      "pool",
+      "garden",
+      "living_room",
+      "kitchen",
+      "additional_room",
+      "bedroom",
+      "bathroom",
+      "other",
+      "title_deed",
+      "floor_plan",
+      "satellite",
     ]);
 
     // Normalize classifications to valid types

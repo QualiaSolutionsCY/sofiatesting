@@ -155,7 +155,7 @@ export default async function AdminDashboardPage() {
     <div className="space-y-4 md:space-y-8">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text font-bold text-xl text-transparent tracking-tight md:text-3xl">
+          <h2 className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text font-bold text-transparent text-xl tracking-tight md:text-3xl">
             Admin Dashboard
           </h2>
           <p className="text-muted-foreground text-sm md:text-base">
@@ -292,19 +292,18 @@ export default async function AdminDashboardPage() {
             </CardContent>
           </Card>
         </Link>
-
       </div>
 
       {/* Charts Section */}
       <div className="grid gap-4 lg:grid-cols-7">
         <OverviewChart
-          className="lg:col-span-4 shadow-sm"
+          className="shadow-sm lg:col-span-4"
           data={stats.activityData}
           description="Daily interactions over the last 7 days"
           title="Agent Activity"
         />
         <DistributionChart
-          className="lg:col-span-3 shadow-sm"
+          className="shadow-sm lg:col-span-3"
           data={stats.regionalStats}
           description="Agents by region"
           title="Regional Distribution"
@@ -313,7 +312,7 @@ export default async function AdminDashboardPage() {
 
       {/* Recent Agents & System Health */}
       <div className="grid gap-4 lg:grid-cols-7">
-        <Card className="lg:col-span-4 shadow-sm">
+        <Card className="shadow-sm lg:col-span-4">
           <CardHeader>
             <CardTitle>Recent Agents</CardTitle>
             <CardDescription>
@@ -359,7 +358,7 @@ export default async function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-3 shadow-sm">
+        <Card className="shadow-sm lg:col-span-3">
           <CardHeader>
             <CardTitle>System Health</CardTitle>
             <CardDescription>Latest system status checks.</CardDescription>

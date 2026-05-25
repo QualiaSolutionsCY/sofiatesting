@@ -16,7 +16,10 @@ const EDGE_FUNCTION_URL = `${config.supabase.url}/functions/v1/listing-owner`;
  * - (ID: 42206)
  * - property/42206
  */
-export function extractPropertyId(subject: string, body: string): string | null {
+export function extractPropertyId(
+  subject: string,
+  body: string
+): string | null {
   const combined = `${subject}\n${body}`;
 
   // Match zyprus.com/node/XXXXX
@@ -37,7 +40,9 @@ export function extractPropertyId(subject: string, body: string): string | null 
 /**
  * Fetch listing owner email via the listing-owner Edge Function proxy
  */
-export async function getListingOwnerEmail(nodeId: string): Promise<string | null> {
+export async function getListingOwnerEmail(
+  nodeId: string
+): Promise<string | null> {
   try {
     const url = `${EDGE_FUNCTION_URL}?nid=${nodeId}`;
     const response = await fetch(url, {
@@ -48,14 +53,18 @@ export async function getListingOwnerEmail(nodeId: string): Promise<string | nul
     });
 
     if (!response.ok) {
-      console.error(`Listing owner proxy error for node ${nodeId}: ${response.status}`);
+      console.error(
+        `Listing owner proxy error for node ${nodeId}: ${response.status}`
+      );
       return null;
     }
 
     const data = await response.json();
 
     if (data.owner_email) {
-      console.log(`Listing ${nodeId} owner: ${data.owner_name} (${data.owner_email})`);
+      console.log(
+        `Listing ${nodeId} owner: ${data.owner_name} (${data.owner_email})`
+      );
       return data.owner_email;
     }
 

@@ -20,7 +20,9 @@ async function testAgentsDatabase() {
   try {
     // Test 1: Count total agents
     console.log("📊 Test 1: Count total agents");
-    const [totalCount] = await db.select({ count: count() }).from(supabaseAgent);
+    const [totalCount] = await db
+      .select({ count: count() })
+      .from(supabaseAgent);
     console.log(`   ✅ Total agents: ${totalCount.count}\n`);
 
     // Test 2: Count by region

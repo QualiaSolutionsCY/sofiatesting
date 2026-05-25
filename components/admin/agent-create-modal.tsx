@@ -36,7 +36,9 @@ export function AgentCreateModal({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || errorData.message || "Failed to create agent");
+        throw new Error(
+          errorData.error || errorData.message || "Failed to create agent"
+        );
       }
 
       toast.success("Agent created successfully");

@@ -79,13 +79,11 @@ export async function findPropertyTypeUuid(typeName: string): Promise<string> {
 
   // Check aliases — resolve to canonical leaf name, then use fallback
   for (const [leafName, aliasList] of Object.entries(LEAF_ALIASES)) {
-    if (aliasList.includes(normalized)) {
-      if (PROPERTY_TYPE_FALLBACKS[leafName]) {
-        logger.debug(
-          `[Taxonomy] Alias resolved: "${typeName}" -> "${leafName}" -> ${PROPERTY_TYPE_FALLBACKS[leafName]}`
-        );
-        return PROPERTY_TYPE_FALLBACKS[leafName];
-      }
+    if (aliasList.includes(normalized) && PROPERTY_TYPE_FALLBACKS[leafName]) {
+      logger.debug(
+        `[Taxonomy] Alias resolved: "${typeName}" -> "${leafName}" -> ${PROPERTY_TYPE_FALLBACKS[leafName]}`
+      );
+      return PROPERTY_TYPE_FALLBACKS[leafName];
     }
   }
 

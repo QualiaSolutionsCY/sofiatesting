@@ -411,7 +411,9 @@ export const listingUpload = pgTable("listing_uploads", {
   listingUrl: text("listing_url").notNull(),
   status: text("status").notNull().default("draft"), // draft, published, expired
   notifiedAt: timestamp("notified_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   price: integer("price"),
   bedrooms: integer("bedrooms"),
 });

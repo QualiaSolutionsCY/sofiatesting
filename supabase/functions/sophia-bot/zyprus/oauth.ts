@@ -3,13 +3,13 @@
  * Handles token management and configuration for Zyprus API
  */
 
-import { LogCategory, logger } from "../utils/logger.ts";
-import { withRetry } from "../utils/retry.ts";
 import {
   canRequest,
-  recordSuccess,
   recordFailure,
+  recordSuccess,
 } from "../utils/circuit-breaker.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
+import { withRetry } from "../utils/retry.ts";
 
 export interface TokenCache {
   token: string;
@@ -72,62 +72,62 @@ export async function getAccessToken(config: ZyprusConfig): Promise<string> {
 
   try {
     const response = await withRetry(
-    async () => {
-      const res = await fetch(`${config.apiUrl}/oauth/token`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "User-Agent": "SophiaAI",
-        },
-        body: new URLSearchParams({
-          grant_type: "client_credentials",
-          client_id: config.clientId,
-          client_secret: config.clientSecret,
-        }),
-        signal: AbortSignal.timeout(30_000),
+      async () => {
+        const res = await fetch(`${config.apiUrl}/oauth/token`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "SophiaAI",
+          },
+          body: new URLSearchParams({
+            grant_type: "client_credentials",
+            client_id: config.clientId,
+            client_secret: config.clientSecret,
+          }),
+          signal: AbortSignal.timeout(30_000),
+        });
+
+        if (!res.ok && [500, 502, 503, 504].includes(res.status)) {
+          throw new Error(`Token request failed: ${res.status}`);
+        }
+        return res;
+      },
+      { maxRetries: 3, baseDelayMs: 500 },
+      "getAccessToken"
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.error("Failed to get Zyprus access token", undefined, {
+        category: LogCategory.ZYPRUS,
+        operation: "getAccessToken",
+        status: response.status,
+        errorPreview: errorText.substring(0, 200),
       });
+      // Record failure in circuit breaker
+      recordFailure(ZYPRUS_BREAKER_CONFIG);
+      // Generic error message - don't expose OAuth token flow details to users
+      throw new Error(
+        "Unable to connect to property system. Please try again later."
+      );
+    }
 
-      if (!res.ok && [500, 502, 503, 504].includes(res.status)) {
-        throw new Error(`Token request failed: ${res.status}`);
-      }
-      return res;
-    },
-    { maxRetries: 3, baseDelayMs: 500 },
-    "getAccessToken"
-  );
+    const data = await response.json();
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    logger.error("Failed to get Zyprus access token", undefined, {
+    cachedToken = {
+      token: data.access_token,
+      expiresAt: Date.now() + data.expires_in * 1000,
+    };
+
+    // Record success in circuit breaker
+    recordSuccess(ZYPRUS_BREAKER_CONFIG);
+
+    logger.info("Zyprus access token obtained successfully", {
       category: LogCategory.ZYPRUS,
       operation: "getAccessToken",
-      status: response.status,
-      errorPreview: errorText.substring(0, 200),
+      expiresIn: data.expires_in,
     });
-    // Record failure in circuit breaker
-    recordFailure(ZYPRUS_BREAKER_CONFIG);
-    // Generic error message - don't expose OAuth token flow details to users
-    throw new Error(
-      "Unable to connect to property system. Please try again later."
-    );
-  }
-
-  const data = await response.json();
-
-  cachedToken = {
-    token: data.access_token,
-    expiresAt: Date.now() + data.expires_in * 1000,
-  };
-
-  // Record success in circuit breaker
-  recordSuccess(ZYPRUS_BREAKER_CONFIG);
-
-  logger.info("Zyprus access token obtained successfully", {
-    category: LogCategory.ZYPRUS,
-    operation: "getAccessToken",
-    expiresIn: data.expires_in,
-  });
-  return data.access_token;
+    return data.access_token;
   } catch (error) {
     // Record failure and re-throw
     recordFailure(ZYPRUS_BREAKER_CONFIG);

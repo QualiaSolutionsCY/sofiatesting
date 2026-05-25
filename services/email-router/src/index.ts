@@ -9,11 +9,16 @@
 
 import http from "node:http";
 import { config } from "./config.js";
-import { fetchUnreadEmails, forwardEmail, markAsRead } from "./gmail.js";
+import {
+  getActiveAgents,
+  isEmailProcessed,
+  logEmailForward,
+  updateRotation,
+} from "./db.js";
 import { shouldSkipEmail } from "./filter.js";
+import { fetchUnreadEmails, forwardEmail, markAsRead } from "./gmail.js";
 import { routeEmail } from "./router.js";
-import { getActiveAgents, isEmailProcessed, logEmailForward, updateRotation } from "./db.js";
-import { processSophiaEmails, getSophiaStatus } from "./sophia-handler.js";
+import { getSophiaStatus, processSophiaEmails } from "./sophia-handler.js";
 
 // Last-resort safety net so a stray async error in any library (e.g. an
 // ImapFlow socket timeout that escapes our handlers) can't kill the service.
@@ -40,7 +45,13 @@ async function processEmails(): Promise<void> {
   }
 
   isRunning = true;
-  const stats = { processed: 0, forwarded: 0, skipped: 0, drafts: 0, errors: 0 };
+  const stats = {
+    processed: 0,
+    forwarded: 0,
+    skipped: 0,
+    drafts: 0,
+    errors: 0,
+  };
 
   try {
     console.log(`[${new Date().toISOString()}] Starting email processing...`);
@@ -66,7 +77,11 @@ async function processEmails(): Promise<void> {
         }
 
         // Filter: skip emails with city names or agent names
-        const filterResult = shouldSkipEmail(email.subject, email.textBody, agents);
+        const filterResult = shouldSkipEmail(
+          email.subject,
+          email.textBody,
+          agents
+        );
 
         if (filterResult.skip) {
           console.log(`Skipping: "${email.subject}" — ${filterResult.reason}`);
@@ -92,7 +107,12 @@ async function processEmails(): Promise<void> {
         }
 
         // Route: determine which agent gets this email
-        const route = await routeEmail(email.subject, email.textBody, email.from, agents);
+        const route = await routeEmail(
+          email.subject,
+          email.textBody,
+          email.from,
+          agents
+        );
 
         if (!route) {
           console.warn(`No route found for: "${email.subject}"`);
@@ -127,7 +147,10 @@ async function processEmails(): Promise<void> {
         }
 
         // Draft creation disabled — forwarding only for now
-        const draftResult = { created: false, templateName: null as string | null };
+        const draftResult = {
+          created: false,
+          templateName: null as string | null,
+        };
 
         // Log to database
         await logEmailForward({
@@ -235,7 +258,9 @@ server.listen(config.port, () => {
 
   // Run sophia@ polling if configured
   if (config.sophia.enabled) {
-    console.log(`sophia@ polling enabled: ${config.sophia.email} every ${config.sophia.pollingIntervalMs / 1000}s`);
+    console.log(
+      `sophia@ polling enabled: ${config.sophia.email} every ${config.sophia.pollingIntervalMs / 1000}s`
+    );
     // Delay sophia@ first run by 30s to avoid startup congestion
     setTimeout(() => {
       processSophiaEmails().catch(console.error);
@@ -244,6 +269,8 @@ server.listen(config.port, () => {
       }, config.sophia.pollingIntervalMs);
     }, 30_000);
   } else {
-    console.log("sophia@ polling disabled (SOPHIA_GMAIL_EMAIL / SOPHIA_GMAIL_APP_PASSWORD not set)");
+    console.log(
+      "sophia@ polling disabled (SOPHIA_GMAIL_EMAIL / SOPHIA_GMAIL_APP_PASSWORD not set)"
+    );
   }
 });

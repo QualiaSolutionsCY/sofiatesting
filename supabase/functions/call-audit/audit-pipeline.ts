@@ -200,7 +200,11 @@ export async function runDailyAudit(
 
       for (const phone of auditResult.externalCallers) {
         try {
-          const searchResults = await searchPhoneInGroups(phone, configuredGroupIds, auditDate);
+          const searchResults = await searchPhoneInGroups(
+            phone,
+            configuredGroupIds,
+            auditDate
+          );
 
           if (searchResults.length > 0) {
             // Found in Telegram - log success

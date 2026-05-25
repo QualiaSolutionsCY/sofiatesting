@@ -23,7 +23,11 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { type AgentFormData, ROLE_OPTIONS, agentSchema } from "@/lib/validations/agent";
+import {
+  type AgentFormData,
+  agentSchema,
+  ROLE_OPTIONS,
+} from "@/lib/validations/agent";
 
 type AgentFormProps = {
   initialData?: Partial<AgentFormData> & { id?: string };

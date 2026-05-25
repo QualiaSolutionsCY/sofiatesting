@@ -11,11 +11,18 @@ import type { Agent } from "./db.js";
 
 // City names and common variants
 const CITY_PATTERNS = [
-  "paphos", "pafos",
-  "limassol", "lemesos",
-  "larnaca", "larnaka",
-  "nicosia", "lefkosia", "lefkosa",
-  "famagusta", "ammochostos", "gazimagusa",
+  "paphos",
+  "pafos",
+  "limassol",
+  "lemesos",
+  "larnaca",
+  "larnaka",
+  "nicosia",
+  "lefkosia",
+  "lefkosa",
+  "famagusta",
+  "ammochostos",
+  "gazimagusa",
 ];
 
 export interface FilterResult {
@@ -72,7 +79,10 @@ export function shouldSkipEmail(
 
     // Only match first name at the end of subject after " - " separator (already-routed format)
     if (subjectLower.includes(` - ${firstName}`)) {
-      return { skip: true, reason: `Subject contains agent first name: ${agent.full_name}` };
+      return {
+        skip: true,
+        reason: `Subject contains agent first name: ${agent.full_name}`,
+      };
     }
   }
 

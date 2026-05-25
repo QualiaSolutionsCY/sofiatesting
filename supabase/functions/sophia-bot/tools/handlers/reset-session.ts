@@ -6,8 +6,8 @@
  */
 
 import { getSupabaseAdmin } from "../../../_shared/db.ts";
-import { clearPendingImages } from "../../services/pending-images.ts";
 import { clearPendingDocuments } from "../../services/pending-documents.ts";
+import { clearPendingImages } from "../../services/pending-images.ts";
 import { LogCategory, logger } from "../../utils/logger.ts";
 import type { ToolResult } from "./property-listing.ts";
 
@@ -60,10 +60,7 @@ export async function handleResetUploadSession(
   // 3. Clear chat history so next listing starts with clean context
   try {
     const supabase = getSupabaseAdmin();
-    await supabase
-      .from("chat_history")
-      .delete()
-      .eq("user_id", phoneNumber);
+    await supabase.from("chat_history").delete().eq("user_id", phoneNumber);
     results.push("conversation history cleared");
   } catch (err) {
     logger.warn("Failed to clear chat history during reset", {

@@ -26,11 +26,16 @@ export function determineRegion(location: string): string | null {
 
   // District name → region mapping
   const districtToRegion: Record<string, string> = {
-    paphos: "paphos", pafos: "paphos",
-    limassol: "limassol", lemesos: "limassol",
-    larnaca: "larnaca", larnaka: "larnaca",
-    nicosia: "nicosia", lefkosia: "nicosia",
-    famagusta: "famagusta", ammochostos: "famagusta",
+    paphos: "paphos",
+    pafos: "paphos",
+    limassol: "limassol",
+    lemesos: "limassol",
+    larnaca: "larnaca",
+    larnaka: "larnaca",
+    nicosia: "nicosia",
+    lefkosia: "nicosia",
+    famagusta: "famagusta",
+    ammochostos: "famagusta",
   };
   const districtNames = new Set(Object.keys(districtToRegion));
 

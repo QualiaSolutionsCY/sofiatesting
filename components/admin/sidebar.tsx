@@ -138,7 +138,7 @@ export function AdminSidebar({ role, permissions }: AdminSidebarProps) {
     <>
       {/* Mobile hamburger */}
       <Button
-        className="fixed left-3 top-3 z-50 md:hidden"
+        className="fixed top-3 left-3 z-50 md:hidden"
         onClick={() => setOpen(true)}
         size="icon"
         variant="outline"

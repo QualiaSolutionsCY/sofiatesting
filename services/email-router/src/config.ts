@@ -29,8 +29,12 @@ export const config = {
   sophia: {
     email: process.env.SOPHIA_GMAIL_EMAIL || "",
     appPassword: process.env.SOPHIA_GMAIL_APP_PASSWORD || "",
-    enabled: !!(process.env.SOPHIA_GMAIL_EMAIL && process.env.SOPHIA_GMAIL_APP_PASSWORD),
-    botUrl: process.env.SOPHIA_BOT_URL || "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot",
+    enabled: !!(
+      process.env.SOPHIA_GMAIL_EMAIL && process.env.SOPHIA_GMAIL_APP_PASSWORD
+    ),
+    botUrl:
+      process.env.SOPHIA_BOT_URL ||
+      "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/sophia-bot",
     pollingIntervalMs: 1 * 60 * 1000, // 1 minute
     storageBucket: "email-attachments",
   },
@@ -42,5 +46,5 @@ export const config = {
     // log spam from invalid credentials).
     enabled: process.env.INFO_POLLING_ENABLED !== "false",
   },
-  port: parseInt(process.env.PORT || "3000", 10),
+  port: Number.parseInt(process.env.PORT || "3000", 10),
 } as const;

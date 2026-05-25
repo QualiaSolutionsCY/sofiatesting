@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Geo } from "@vercel/functions";
 import { unstable_cache } from "next/cache";
+
 type ArtifactKind = "text" | "code" | "image" | "sheet";
+
 import { loadSmartInstructions } from "@/lib/ai/template-loader";
 
 // ARTIFACTS COMPLETELY DISABLED - SOFIA only responds in chat

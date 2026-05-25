@@ -3,9 +3,9 @@
  * Matches WhatsApp phone numbers to agents in the database
  */
 
-import { LogCategory, logger } from "../utils/logger.ts";
 import { getSupabaseAdmin } from "../../_shared/db.ts";
 import { USER_FALLBACKS } from "../config/business-rules.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
 
 export interface Agent {
   id: string;
@@ -117,9 +117,7 @@ function sanitizeEmailForFilter(email: string): string {
  * Get agent by email address
  * Uses separate queries to avoid filter injection vulnerabilities
  */
-export async function getAgentByEmail(
-  email: string
-): Promise<Agent | null> {
+export async function getAgentByEmail(email: string): Promise<Agent | null> {
   const supabase = getSupabaseAdmin();
 
   // Sanitize email to prevent filter injection
@@ -168,10 +166,13 @@ export async function getAgentByEmail(
       .maybeSingle();
 
     if (!fallbackError && fallbackData) {
-      logger.info(`[AgentIdentifier] Found agent via USER_FALLBACKS alias: ${fallbackData.full_name}`, {
-        category: LogCategory.DATABASE,
-        aliasEmail: sanitizedEmail,
-      });
+      logger.info(
+        `[AgentIdentifier] Found agent via USER_FALLBACKS alias: ${fallbackData.full_name}`,
+        {
+          category: LogCategory.DATABASE,
+          aliasEmail: sanitizedEmail,
+        }
+      );
       return mapAgentData(fallbackData);
     }
   }
@@ -199,9 +200,7 @@ function mapAgentData(data: Record<string, unknown>): Agent {
 /**
  * Get all agents in a specific region
  */
-export async function getAgentsByRegion(
-  region: string
-): Promise<Agent[]> {
+export async function getAgentsByRegion(region: string): Promise<Agent[]> {
   const supabase = getSupabaseAdmin();
 
   const { data, error } = await supabase

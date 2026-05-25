@@ -18,50 +18,138 @@ import { getAgentsForRegion, getNextInRotation } from "./db.js";
 // Must include sub-areas — matching sophia-bot's REGION_LOCATIONS in business-rules.ts
 const REGION_MAP: Record<string, string> = {
   // Paphos district
-  paphos: "paphos", pafos: "paphos", tala: "paphos", peyia: "paphos",
-  chloraka: "paphos", "kato paphos": "paphos", "coral bay": "paphos", polis: "paphos",
-  geroskipou: "paphos", pegeia: "paphos", kissonerga: "paphos", emba: "paphos",
-  tremithousa: "paphos", "mesa chorio": "paphos", kamares: "paphos", mandria: "paphos",
-  kouklia: "paphos", letymvou: "paphos", tsada: "paphos", mesogi: "paphos",
-  koloni: "paphos", universal: "paphos", anavargos: "paphos", konia: "paphos",
-  "tomb of kings": "paphos", "sea caves": "paphos", kallepia: "paphos",
-  stroumbi: "paphos", kathikas: "paphos", polemi: "paphos", choulou: "paphos",
-  simou: "paphos", drouseia: "paphos", ineia: "paphos", arodes: "paphos",
-  letymbou: "paphos", peristerona: "paphos", akourdaleia: "paphos",
+  paphos: "paphos",
+  pafos: "paphos",
+  tala: "paphos",
+  peyia: "paphos",
+  chloraka: "paphos",
+  "kato paphos": "paphos",
+  "coral bay": "paphos",
+  polis: "paphos",
+  geroskipou: "paphos",
+  pegeia: "paphos",
+  kissonerga: "paphos",
+  emba: "paphos",
+  tremithousa: "paphos",
+  "mesa chorio": "paphos",
+  kamares: "paphos",
+  mandria: "paphos",
+  kouklia: "paphos",
+  letymvou: "paphos",
+  tsada: "paphos",
+  mesogi: "paphos",
+  koloni: "paphos",
+  universal: "paphos",
+  anavargos: "paphos",
+  konia: "paphos",
+  "tomb of kings": "paphos",
+  "sea caves": "paphos",
+  kallepia: "paphos",
+  stroumbi: "paphos",
+  kathikas: "paphos",
+  polemi: "paphos",
+  choulou: "paphos",
+  simou: "paphos",
+  drouseia: "paphos",
+  ineia: "paphos",
+  arodes: "paphos",
+  letymbou: "paphos",
+  peristerona: "paphos",
+  akourdaleia: "paphos",
   // Limassol district
-  limassol: "limassol", lemesos: "limassol", germasogeia: "limassol",
-  "agios tychonas": "limassol", potamos: "limassol", "mesa geitonia": "limassol",
-  zakaki: "limassol", columbia: "limassol", "tourist area": "limassol",
-  pareklisia: "limassol", pissouri: "limassol", erimi: "limassol",
-  episkopi: "limassol", pyrgos: "limassol", parekklisia: "limassol",
-  mouttagiaka: "limassol", "agios athanasios": "limassol", trachoni: "limassol",
-  panthea: "limassol", ypsonas: "limassol", "kato polemidia": "limassol",
-  polemidia: "limassol", "agios nikolaos": "limassol", "agia fyla": "limassol",
-  omonia: "limassol", neapolis: "limassol", linopetra: "limassol",
-  "agios ioannis": "limassol", "ayios tychonas": "limassol", neapoli: "limassol",
-  "agia zoni": "limassol", kapsalos: "limassol", enaerios: "limassol",
-  pentadromos: "limassol", naafi: "limassol",
+  limassol: "limassol",
+  lemesos: "limassol",
+  germasogeia: "limassol",
+  "agios tychonas": "limassol",
+  potamos: "limassol",
+  "mesa geitonia": "limassol",
+  zakaki: "limassol",
+  columbia: "limassol",
+  "tourist area": "limassol",
+  pareklisia: "limassol",
+  pissouri: "limassol",
+  erimi: "limassol",
+  episkopi: "limassol",
+  pyrgos: "limassol",
+  parekklisia: "limassol",
+  mouttagiaka: "limassol",
+  "agios athanasios": "limassol",
+  trachoni: "limassol",
+  panthea: "limassol",
+  ypsonas: "limassol",
+  "kato polemidia": "limassol",
+  polemidia: "limassol",
+  "agios nikolaos": "limassol",
+  "agia fyla": "limassol",
+  omonia: "limassol",
+  neapolis: "limassol",
+  linopetra: "limassol",
+  "agios ioannis": "limassol",
+  "ayios tychonas": "limassol",
+  neapoli: "limassol",
+  "agia zoni": "limassol",
+  kapsalos: "limassol",
+  enaerios: "limassol",
+  pentadromos: "limassol",
+  naafi: "limassol",
   // Larnaca district
-  larnaca: "larnaca", larnaka: "larnaca", oroklini: "larnaca", pervolia: "larnaca",
-  livadia: "larnaca", dekelia: "larnaca", dhekelia: "larnaca",
-  aradippou: "larnaca", meneou: "larnaca", dromolaxia: "larnaca", kiti: "larnaca",
-  tersefanou: "larnaca", perivolia: "larnaca", chrysopolitissa: "larnaca",
-  pyla: "larnaca", mosfiloti: "larnaca", mosfilioti: "larnaca", softades: "larnaca",
-  kivisili: "larnaca", anglisides: "larnaca", alethriko: "larnaca",
-  klavdia: "larnaca", mazotos: "larnaca", psematismenos: "larnaca",
+  larnaca: "larnaca",
+  larnaka: "larnaca",
+  oroklini: "larnaca",
+  pervolia: "larnaca",
+  livadia: "larnaca",
+  dekelia: "larnaca",
+  dhekelia: "larnaca",
+  aradippou: "larnaca",
+  meneou: "larnaca",
+  dromolaxia: "larnaca",
+  kiti: "larnaca",
+  tersefanou: "larnaca",
+  perivolia: "larnaca",
+  chrysopolitissa: "larnaca",
+  pyla: "larnaca",
+  mosfiloti: "larnaca",
+  mosfilioti: "larnaca",
+  softades: "larnaca",
+  kivisili: "larnaca",
+  anglisides: "larnaca",
+  alethriko: "larnaca",
+  klavdia: "larnaca",
+  mazotos: "larnaca",
+  psematismenos: "larnaca",
   // Nicosia district
-  nicosia: "nicosia", lefkosia: "nicosia", strovolos: "nicosia",
-  lakatamia: "nicosia", engomi: "nicosia", aglantzia: "nicosia",
-  dasoupoli: "nicosia", makedonitissa: "nicosia", kaimakli: "nicosia",
-  pallouriotissa: "nicosia", latsia: "nicosia", geri: "nicosia", dali: "nicosia",
-  tseri: "nicosia", kokkinotrimithia: "nicosia", deftera: "nicosia",
+  nicosia: "nicosia",
+  lefkosia: "nicosia",
+  strovolos: "nicosia",
+  lakatamia: "nicosia",
+  engomi: "nicosia",
+  aglantzia: "nicosia",
+  dasoupoli: "nicosia",
+  makedonitissa: "nicosia",
+  kaimakli: "nicosia",
+  pallouriotissa: "nicosia",
+  latsia: "nicosia",
+  geri: "nicosia",
+  dali: "nicosia",
+  tseri: "nicosia",
+  kokkinotrimithia: "nicosia",
+  deftera: "nicosia",
   acropolis: "nicosia",
   // Famagusta district
-  famagusta: "famagusta", ammochostos: "famagusta", paralimni: "famagusta",
-  protaras: "famagusta", "ayia napa": "famagusta", "agia napa": "famagusta",
-  deryneia: "famagusta", sotira: "famagusta", frenaros: "famagusta",
-  liopetri: "famagusta", xylofagou: "famagusta", vrysoulles: "famagusta",
-  "cape greco": "famagusta", kapparis: "famagusta",
+  famagusta: "famagusta",
+  ammochostos: "famagusta",
+  paralimni: "famagusta",
+  protaras: "famagusta",
+  "ayia napa": "famagusta",
+  "agia napa": "famagusta",
+  deryneia: "famagusta",
+  sotira: "famagusta",
+  frenaros: "famagusta",
+  liopetri: "famagusta",
+  xylofagou: "famagusta",
+  vrysoulles: "famagusta",
+  "cape greco": "famagusta",
+  kapparis: "famagusta",
 };
 
 // Agents for specific region routing (names must match DB exactly)
@@ -83,7 +171,10 @@ export interface RoutingResult {
  * Checks subject + body for area/city names.
  * Tries longer names first so "kato paphos" matches before "paphos".
  */
-export function detectRegionFromContent(subject: string, body: string): string | null {
+export function detectRegionFromContent(
+  subject: string,
+  body: string
+): string | null {
   const combined = `${subject}\n${body}`.toLowerCase();
 
   // Sort by key length descending so multi-word names match first
@@ -119,7 +210,8 @@ export function detectRequestedAgent(
   const combined = `${subject}\n${body}`.toLowerCase();
 
   for (const agent of agents) {
-    if (!agent.full_name || agent.full_name.toLowerCase().includes("office")) continue;
+    if (!agent.full_name || agent.full_name.toLowerCase().includes("office"))
+      continue;
     if (combined.includes(agent.full_name.toLowerCase())) {
       return agent;
     }
@@ -131,7 +223,12 @@ export function detectRequestedAgent(
     const firstName = agent.full_name.split(" ")[0].toLowerCase();
     if (firstName.length < 4) continue; // Skip very short names
     // Look for "for Marios" or "to Marios" patterns
-    const patterns = [`for ${firstName}`, `to ${firstName}`, `@ ${firstName}`, `att: ${firstName}`];
+    const patterns = [
+      `for ${firstName}`,
+      `to ${firstName}`,
+      `@ ${firstName}`,
+      `att: ${firstName}`,
+    ];
     for (const p of patterns) {
       if (combined.includes(p)) return agent;
     }
@@ -143,8 +240,16 @@ export function detectRequestedAgent(
 /**
  * Detect if email content contains Russian/Cyrillic text
  */
-function isRussianContent(subject: string, body: string, fromEmail: string): boolean {
-  return CYRILLIC_PATTERN.test(subject) || CYRILLIC_PATTERN.test(body) || CYRILLIC_PATTERN.test(fromEmail);
+function isRussianContent(
+  subject: string,
+  body: string,
+  fromEmail: string
+): boolean {
+  return (
+    CYRILLIC_PATTERN.test(subject) ||
+    CYRILLIC_PATTERN.test(body) ||
+    CYRILLIC_PATTERN.test(fromEmail)
+  );
 }
 
 /**
@@ -197,7 +302,12 @@ async function routeByRegion(
     );
     if (isRussian) {
       const diana = candidates.find((a) => a.full_name === "Diana Kultaseva");
-      if (diana) return { agent: diana, region, reason: "Limassol + Russian speaker → Diana" };
+      if (diana)
+        return {
+          agent: diana,
+          region,
+          reason: "Limassol + Russian speaker → Diana",
+        };
     }
     const next = await getNextInRotation(region, candidates);
     if (next) return { agent: next, region, reason: "Limassol rotation" };
@@ -218,7 +328,12 @@ async function routeByRegion(
       (a) => PAPHOS_AGENTS.includes(a.full_name) && a.is_active
     );
     const next = await getNextInRotation(region, candidates);
-    if (next) return { agent: next, region, reason: "Paphos rotation (Marios/Dimitris)" };
+    if (next)
+      return {
+        agent: next,
+        region,
+        reason: "Paphos rotation (Marios/Dimitris)",
+      };
   }
 
   // Nicosia / Famagusta / other: get regional agents

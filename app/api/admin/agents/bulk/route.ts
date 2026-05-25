@@ -17,7 +17,8 @@ const APP_URL =
   process.env.NEXTAUTH_URL ||
   "https://sofiatesting.vercel.app";
 
-const INVITE_FROM = process.env.INVITE_FROM_EMAIL || "SOPHIA <sophia@zyprus.com>";
+const INVITE_FROM =
+  process.env.INVITE_FROM_EMAIL || "SOPHIA <sophia@zyprus.com>";
 
 const bulkSchema = z.object({
   action: z.enum(["deactivate", "activate", "send-invite"]),

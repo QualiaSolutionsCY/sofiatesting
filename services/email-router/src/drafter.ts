@@ -6,11 +6,18 @@
  */
 
 import type { EmailMessage } from "./gmail.js";
-import { fetchTemplates, createDraft } from "./gmail.js";
+import { createDraft, fetchTemplates } from "./gmail.js";
 
 // Keywords that help match emails to templates
 const TEMPLATE_KEYWORDS: Record<string, string[]> = {
-  viewing: ["viewing", "visit", "appointment", "schedule", "see the property", "tour"],
+  viewing: [
+    "viewing",
+    "visit",
+    "appointment",
+    "schedule",
+    "see the property",
+    "tour",
+  ],
   inquiry: ["inquiry", "enquiry", "interested", "information", "details about"],
   pricing: ["price", "cost", "how much", "budget", "offer", "negotiat"],
   availability: ["available", "availability", "still on market", "sold"],
@@ -35,7 +42,9 @@ function scoreTemplateMatch(
     const nameMatch = templateName.toLowerCase().includes(category);
 
     // Check if email content matches this category's keywords
-    const contentMatches = keywords.filter((kw) => combined.includes(kw)).length;
+    const contentMatches = keywords.filter((kw) =>
+      combined.includes(kw)
+    ).length;
 
     if (nameMatch && contentMatches > 0) {
       score += 10 + contentMatches * 2; // Strong match: template category matches content
@@ -52,7 +61,12 @@ function scoreTemplateMatch(
  */
 export async function findBestTemplate(
   email: EmailMessage
-): Promise<{ name: string; subject: string; html: string; text: string } | null> {
+): Promise<{
+  name: string;
+  subject: string;
+  html: string;
+  text: string;
+} | null> {
   const templates = await fetchTemplates();
 
   if (templates.size === 0) {
@@ -60,7 +74,12 @@ export async function findBestTemplate(
     return null;
   }
 
-  let bestMatch: { name: string; subject: string; html: string; text: string } | null = null;
+  let bestMatch: {
+    name: string;
+    subject: string;
+    html: string;
+    text: string;
+  } | null = null;
   let bestScore = 0;
 
   for (const [name, template] of templates) {
@@ -73,11 +92,15 @@ export async function findBestTemplate(
 
   // Only use template if score is meaningful (at least one keyword matched)
   if (bestScore < 2) {
-    console.log(`No good template match for "${email.subject}" (best score: ${bestScore})`);
+    console.log(
+      `No good template match for "${email.subject}" (best score: ${bestScore})`
+    );
     return null;
   }
 
-  console.log(`Best template for "${email.subject}": "${bestMatch?.name}" (score: ${bestScore})`);
+  console.log(
+    `Best template for "${email.subject}": "${bestMatch?.name}" (score: ${bestScore})`
+  );
   return bestMatch;
 }
 

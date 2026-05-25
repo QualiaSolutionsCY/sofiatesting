@@ -8,13 +8,9 @@
  */
 
 import type { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { canRequest, recordFailure, recordSuccess } from "./circuit-breaker.ts";
 import { LogCategory, logger } from "./logger.ts";
 import { withRetry } from "./retry.ts";
-import {
-  canRequest,
-  recordSuccess,
-  recordFailure,
-} from "./circuit-breaker.ts";
 
 const WASEND_API_KEY = Deno.env.get("WASEND_API_KEY");
 const WASEND_BASE_URL = "https://www.wasenderapi.com/api";
@@ -499,13 +495,13 @@ export async function sendLogoImage(
       category: LogCategory.GENERAL,
     });
 
-    if (!sendRes.ok) {
+    if (sendRes.ok) {
+      recordSuccess(WASEND_BREAKER_CONFIG);
+    } else {
       logger.error("WaSend image send failed: " + String(responseText), {
         category: LogCategory.GENERAL,
       });
       recordFailure(WASEND_BREAKER_CONFIG);
-    } else {
-      recordSuccess(WASEND_BREAKER_CONFIG);
     }
 
     return new Response(responseText, {

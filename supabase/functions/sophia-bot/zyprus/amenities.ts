@@ -195,10 +195,13 @@ export async function findIndoorFeatureUuids(
         );
         uuids.push(fallbackUuid);
       } else {
-        logger.warn(`[Taxonomy] INDOOR NO MATCH: "${name}" (resolved: "${normalized}")`, {
-          category: LogCategory.ZYPRUS,
-          operation: "findIndoorFeatureUuids",
-        });
+        logger.warn(
+          `[Taxonomy] INDOOR NO MATCH: "${name}" (resolved: "${normalized}")`,
+          {
+            category: LogCategory.ZYPRUS,
+            operation: "findIndoorFeatureUuids",
+          }
+        );
       }
     }
   }
@@ -348,10 +351,13 @@ export async function findOutdoorFeatureUuids(
         );
         uuids.push(fallbackUuid);
       } else {
-        logger.warn(`[Taxonomy] OUTDOOR NO MATCH: "${name}" (resolved: "${normalized}")`, {
-          category: LogCategory.ZYPRUS,
-          operation: "findOutdoorFeatureUuids",
-        });
+        logger.warn(
+          `[Taxonomy] OUTDOOR NO MATCH: "${name}" (resolved: "${normalized}")`,
+          {
+            category: LogCategory.ZYPRUS,
+            operation: "findOutdoorFeatureUuids",
+          }
+        );
       }
     }
   }

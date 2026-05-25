@@ -5,8 +5,8 @@
  * Data stored in whatsapp_analytics table for dashboard visibility.
  */
 
-import { LogCategory, logger } from "../utils/logger.ts";
 import { getSupabaseAdmin } from "../../_shared/db.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
 
 const supabase = getSupabaseAdmin();
 
@@ -47,7 +47,10 @@ export async function getActiveExperiment(): Promise<{
   target_key: string;
 } | null> {
   const now = Date.now();
-  if (cachedExperiment !== undefined && now - experimentCacheTime < EXPERIMENT_CACHE_TTL) {
+  if (
+    cachedExperiment !== undefined &&
+    now - experimentCacheTime < EXPERIMENT_CACHE_TTL
+  ) {
     return cachedExperiment;
   }
 

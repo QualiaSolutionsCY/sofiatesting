@@ -72,7 +72,10 @@ async function harvest(): Promise<number> {
         .select("id", { count: "exact", head: true })
         .is("experiment_id", null)
         .eq("event_type", "message_sent")
-        .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .gte(
+          "created_at",
+          new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+        )
         .lt("created_at", exp.created_at),
       supabase
         .from("whatsapp_analytics")
@@ -114,10 +117,7 @@ async function harvest(): Promise<number> {
     }
 
     // Determine winner
-    const { winner, reason } = determineWinner(
-      metrics,
-      exp.min_improvement
-    );
+    const { winner, reason } = determineWinner(metrics, exp.min_improvement);
 
     // If baseline wins, revert challenger prompt
     if (winner === "baseline") {
@@ -179,7 +179,9 @@ async function calculateMetrics(experimentId: string): Promise<Metrics | null> {
   if (!exp) return null;
 
   // Baseline = messages sent in the 7 days BEFORE experiment started (no experiment_id)
-  const baselineStart = new Date(new Date(exp.created_at).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const baselineStart = new Date(
+    new Date(exp.created_at).getTime() - 7 * 24 * 60 * 60 * 1000
+  ).toISOString();
   const { data: baseline } = await supabase
     .from("whatsapp_analytics")
     .select("event_type, response_time_ms, phone_number")
@@ -194,7 +196,11 @@ async function calculateMetrics(experimentId: string): Promise<Metrics | null> {
     .eq("experiment_id", experimentId)
     .eq("experiment_variant", "challenger");
 
-  if ((!baseline || baseline.length === 0) && (!challenger || challenger.length === 0)) return null;
+  if (
+    (!baseline || baseline.length === 0) &&
+    (!challenger || challenger.length === 0)
+  )
+    return null;
 
   // Primary metric: average response time (lower is better)
   const avgResponseTime = (
@@ -209,9 +215,7 @@ async function calculateMetrics(experimentId: string): Promise<Metrics | null> {
   };
 
   // Secondary metric: error rate (lower is better)
-  const errorRate = (
-    rows: Array<{ event_type: string }>
-  ) => {
+  const errorRate = (rows: Array<{ event_type: string }>) => {
     if (rows.length === 0) return null;
     const errors = rows.filter((r) => r.event_type === "error").length;
     return errors / rows.length;
@@ -402,15 +406,21 @@ async function generate(): Promise<number> {
     { category: LogCategory.GENERAL }
   );
 
-  logger.info(`[Optimizer] Target content length: ${target.content?.length || 0}`, {
-    category: LogCategory.GENERAL,
-  });
+  logger.info(
+    `[Optimizer] Target content length: ${target.content?.length || 0}`,
+    {
+      category: LogCategory.GENERAL,
+    }
+  );
 
   if (!target.content || target.content.length < 50) {
-    logger.warn(`[Optimizer] Target '${target.key}' has no/empty content in DB, skipping`, {
-      category: LogCategory.GENERAL,
-      contentLength: target.content?.length || 0,
-    });
+    logger.warn(
+      `[Optimizer] Target '${target.key}' has no/empty content in DB, skipping`,
+      {
+        category: LogCategory.GENERAL,
+        contentLength: target.content?.length || 0,
+      }
+    );
     return 0;
   }
 
@@ -455,7 +465,7 @@ async function generateChallenger(
   }
 
   // For very large prompts (>15K chars), use a patch-based approach
-  const isLargePrompt = currentContent.length > 15000;
+  const isLargePrompt = currentContent.length > 15_000;
 
   const prompt = isLargePrompt
     ? `You are an AI prompt optimization expert. Your job is to create a SMALL, SURGICAL improvement to a system prompt used by Sophia, a WhatsApp real estate assistant.
@@ -514,20 +524,23 @@ Create a challenger variant with a clear hypothesis. Respond in this EXACT JSON 
 IMPORTANT: The "content" field must contain the COMPLETE prompt text, not just the changed parts. Keep everything that works, only modify what you're testing.`;
 
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: OPTIMIZER_MODEL,
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.7,
-        max_tokens: 65000,
-        response_format: { type: "json_object" },
-      }),
-    });
+    const response = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: OPTIMIZER_MODEL,
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.7,
+          max_tokens: 65_000,
+          response_format: { type: "json_object" },
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errBody = await response.text();
@@ -552,9 +565,12 @@ IMPORTANT: The "content" field must contain the COMPLETE prompt text, not just t
       return null;
     }
 
-    logger.info(`[Optimizer] LLM response received for '${targetKey}' (${text.length} chars)`, {
-      category: LogCategory.GENERAL,
-    });
+    logger.info(
+      `[Optimizer] LLM response received for '${targetKey}' (${text.length} chars)`,
+      {
+        category: LogCategory.GENERAL,
+      }
+    );
 
     const parsed = JSON.parse(text);
 
@@ -567,17 +583,26 @@ IMPORTANT: The "content" field must contain the COMPLETE prompt text, not just t
         return null;
       }
       if (!currentContent.includes(parsed.find)) {
-        logger.warn("[Optimizer] Patch 'find' string not found in current content", {
-          category: LogCategory.GENERAL,
-          findLength: parsed.find.length,
-          findPreview: parsed.find.slice(0, 100),
-        });
+        logger.warn(
+          "[Optimizer] Patch 'find' string not found in current content",
+          {
+            category: LogCategory.GENERAL,
+            findLength: parsed.find.length,
+            findPreview: parsed.find.slice(0, 100),
+          }
+        );
         return null;
       }
-      const patchedContent = currentContent.replace(parsed.find, parsed.replace);
-      logger.info(`[Optimizer] Applied patch for '${targetKey}': ${parsed.find.length} chars replaced with ${parsed.replace.length} chars`, {
-        category: LogCategory.GENERAL,
-      });
+      const patchedContent = currentContent.replace(
+        parsed.find,
+        parsed.replace
+      );
+      logger.info(
+        `[Optimizer] Applied patch for '${targetKey}': ${parsed.find.length} chars replaced with ${parsed.replace.length} chars`,
+        {
+          category: LogCategory.GENERAL,
+        }
+      );
       return {
         content: patchedContent,
         hypothesis: parsed.hypothesis,
@@ -636,21 +661,19 @@ async function deployChallenger(
     .eq("is_current", true);
 
   // Insert challenger as new current version
-  const { error: insertError } = await supabase
-    .from("sophia_prompts")
-    .insert({
-      key: target.key,
-      content: challenger.content,
-      category: "behavior",
-      description: `Autoresearch gen ${generation}: ${challenger.summary}`,
-      priority: target.priority,
-      is_active: true,
-      is_current: true,
-      version: newVersion,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      updated_by: `autoresearch:gen${generation}`,
-    });
+  const { error: insertError } = await supabase.from("sophia_prompts").insert({
+    key: target.key,
+    content: challenger.content,
+    category: "behavior",
+    description: `Autoresearch gen ${generation}: ${challenger.summary}`,
+    priority: target.priority,
+    is_active: true,
+    is_current: true,
+    version: newVersion,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    updated_by: `autoresearch:gen${generation}`,
+  });
 
   if (insertError) {
     logger.error(
@@ -683,22 +706,20 @@ async function deployChallenger(
     );
 
   // Create experiment record
-  const { error: expError } = await supabase
-    .from("sophia_experiments")
-    .insert({
-      target_key: target.key,
-      status: "active",
-      baseline_version: target.version,
-      baseline_summary: "Current production prompt",
-      baseline_hash: baselineHash,
-      challenger_version: newVersion,
-      challenger_summary: challenger.summary,
-      challenger_hash: challengerHash,
-      hypothesis: challenger.hypothesis,
-      generation,
-      min_sessions: 10,
-      min_improvement: 0.10,
-    });
+  const { error: expError } = await supabase.from("sophia_experiments").insert({
+    target_key: target.key,
+    status: "active",
+    baseline_version: target.version,
+    baseline_summary: "Current production prompt",
+    baseline_hash: baselineHash,
+    challenger_version: newVersion,
+    challenger_summary: challenger.summary,
+    challenger_hash: challengerHash,
+    hypothesis: challenger.hypothesis,
+    generation,
+    min_sessions: 10,
+    min_improvement: 0.1,
+  });
 
   if (expError) {
     logger.error(
@@ -746,7 +767,9 @@ Deno.serve(async (req) => {
     try {
       const body = await req.json().catch(() => ({}));
       debug = body?.debug === true;
-    } catch { /* empty body is fine */ }
+    } catch {
+      /* empty body is fine */
+    }
 
     logger.info("[Optimizer] Starting autoresearch cycle", {
       category: LogCategory.GENERAL,
@@ -794,7 +817,11 @@ Deno.serve(async (req) => {
         .select("key, reason");
 
       const eligible = (prompts || []).filter(
-        (p: { key: string }) => !skip.has(p.key) && !(activeExps || []).some((e: { target_key: string }) => e.target_key === p.key)
+        (p: { key: string }) =>
+          !skip.has(p.key) &&
+          !(activeExps || []).some(
+            (e: { target_key: string }) => e.target_key === p.key
+          )
       );
 
       // Get content lengths
@@ -803,10 +830,12 @@ Deno.serve(async (req) => {
         .select("key, content")
         .eq("is_active", true)
         .eq("is_current", true);
-      const contentLengths = (contentCheck || []).map((p: { key: string; content: string | null }) => ({
-        key: p.key,
-        contentLength: p.content?.length || 0,
-      }));
+      const contentLengths = (contentCheck || []).map(
+        (p: { key: string; content: string | null }) => ({
+          key: p.key,
+          contentLength: p.content?.length || 0,
+        })
+      );
 
       result.diagnostics = {
         allPrompts: prompts || [],
@@ -827,11 +856,9 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify(result), { headers, status: 200 });
   } catch (err) {
-    logger.error(
-      "[Optimizer] Autoresearch cycle failed",
-      err as Error,
-      { category: LogCategory.GENERAL }
-    );
+    logger.error("[Optimizer] Autoresearch cycle failed", err as Error, {
+      category: LogCategory.GENERAL,
+    });
 
     return new Response(
       JSON.stringify({

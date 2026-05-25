@@ -8,8 +8,8 @@
  * This solves LIST-06 where delayed/retried Zyprus uploads fail due to expired URLs
  */
 
-import { LogCategory, logger } from "../utils/logger.ts";
 import { getSupabaseAdmin } from "../../_shared/db.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
 
 const supabase = getSupabaseAdmin();
 

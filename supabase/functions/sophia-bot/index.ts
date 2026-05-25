@@ -18,12 +18,12 @@
  */
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { getSupabaseAdmin } from "../_shared/db.ts";
 import { initSentry } from "../_shared/sentry.ts";
 import { handleAdminRequest } from "./handlers/admin.ts";
 import { handleEmailWebhook } from "./handlers/email-webhook.ts";
 import { handleHealthCheck } from "./handlers/health.ts";
 import { handleWebhook } from "./handlers/webhook.ts";
-import { getSupabaseAdmin } from "../_shared/db.ts";
 import { withContext } from "./utils/context.ts";
 import { ErrorCategory, LogCategory, logger } from "./utils/logger.ts";
 
@@ -126,10 +126,16 @@ serve(async (req) => {
         id: loc.id,
         name: loc.name,
         parentId: loc.parentId || null,
-        parentName: loc.parentId ? parentMap.get(loc.parentId) || "UNKNOWN" : null,
+        parentName: loc.parentId
+          ? parentMap.get(loc.parentId) || "UNKNOWN"
+          : null,
       }));
     return new Response(
-      JSON.stringify({ query, matches, total: taxonomy.locations.length }, null, 2),
+      JSON.stringify(
+        { query, matches, total: taxonomy.locations.length },
+        null,
+        2
+      ),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   }

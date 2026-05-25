@@ -11,39 +11,44 @@
  * 6. Deduplication: 10-minute window per property per group
  */
 
-import type { TelegramMessage, Agent, TelegramGroup, ForwardResult } from "./types.ts";
 import {
-  LIMASSOL_AGENTS,
-  LARNACA_AGENTS,
-  OTHERS_GROUP_AGENTS,
-  PAPHOS_AGENTS,
-  PAPHOS_OFFICE_FALLBACK_AGENTS,
-  RUSSIAN_SPEAKER_AGENT,
-  detectRussianLanguage,
-  isOthersGroup,
-  isLimassolRegion,
-  isLarnacaRegion,
-  extractPropertyIds,
-  isLeadMessage,
-  extractRequestedAgent,
-  extractCallerPhone,
-  extractZyprusUrls,
-  detectRegionFromText,
-  detectRentalIntent,
-} from "./routing-constants.ts";
-import { getOwnerFromUrls } from "./zyprus-api.ts";
-import {
-  getOrCreateGroup,
-  getAgentsByNames,
-  getAgentsByRegion,
+  checkRecentDuplicatesBatch,
   findAgentByName,
   findPreviousAgentForCaller,
-  checkRecentDuplicatesBatch,
+  getAgentsByNames,
+  getAgentsByRegion,
+  getOrCreateGroup,
   logLead,
   selectNextAgentAtomic,
   updateRotationState,
 } from "./database.ts";
+import {
+  detectRegionFromText,
+  detectRentalIntent,
+  detectRussianLanguage,
+  extractCallerPhone,
+  extractPropertyIds,
+  extractRequestedAgent,
+  extractZyprusUrls,
+  isLarnacaRegion,
+  isLeadMessage,
+  isLimassolRegion,
+  isOthersGroup,
+  LARNACA_AGENTS,
+  LIMASSOL_AGENTS,
+  OTHERS_GROUP_AGENTS,
+  PAPHOS_AGENTS,
+  PAPHOS_OFFICE_FALLBACK_AGENTS,
+  RUSSIAN_SPEAKER_AGENT,
+} from "./routing-constants.ts";
 import { forwardMessage, sendMessage } from "./telegram-client.ts";
+import type {
+  Agent,
+  ForwardResult,
+  TelegramGroup,
+  TelegramMessage,
+} from "./types.ts";
+import { getOwnerFromUrls } from "./zyprus-api.ts";
 
 // Full-name overrides for region-based routing. A missing agent (inactive,
 // no telegram_user_id, etc.) falls through to the group's normal routing.
@@ -79,7 +84,9 @@ const forwardLeadToAgent = async (
     return { success: false, error: "agent_not_registered" };
   }
 
-  console.log(`[LeadRouter] Forwarding to ${agent.full_name} (${agentTelegramId})`);
+  console.log(
+    `[LeadRouter] Forwarding to ${agent.full_name} (${agentTelegramId})`
+  );
 
   // 1. Forward the original message to agent
   const forwardedMessageId = await forwardMessage(
@@ -185,18 +192,24 @@ const selectNextInRotation = async (
   const selectedAgentId = await selectNextAgentAtomic(rotationKey, agentIds);
 
   if (!selectedAgentId) {
-    console.log("[LeadRouter] Atomic selection returned null, using first agent");
+    console.log(
+      "[LeadRouter] Atomic selection returned null, using first agent"
+    );
     return agents[0];
   }
 
   // Find the selected agent
   const selectedAgent = agents.find((a) => a.id === selectedAgentId);
   if (!selectedAgent) {
-    console.log("[LeadRouter] Selected agent not found in list, using first agent");
+    console.log(
+      "[LeadRouter] Selected agent not found in list, using first agent"
+    );
     return agents[0];
   }
 
-  console.log(`[LeadRouter] Atomic round-robin selected: ${selectedAgent.full_name}`);
+  console.log(
+    `[LeadRouter] Atomic round-robin selected: ${selectedAgent.full_name}`
+  );
   return selectedAgent;
 };
 
@@ -214,9 +227,14 @@ const selectAgent = async (
 
   // Russian preference: Diana if available
   if (isRussian) {
-    const russianAgent = agents.find((a) => a.full_name === RUSSIAN_SPEAKER_AGENT);
+    const russianAgent = agents.find(
+      (a) => a.full_name === RUSSIAN_SPEAKER_AGENT
+    );
     if (russianAgent) {
-      console.log("[LeadRouter] Selected Russian-speaking agent:", russianAgent.full_name);
+      console.log(
+        "[LeadRouter] Selected Russian-speaking agent:",
+        russianAgent.full_name
+      );
       return russianAgent;
     }
   }
@@ -235,13 +253,17 @@ const selectAgent = async (
 const getTargetAgents = async (group: TelegramGroup): Promise<Agent[]> => {
   // RULE 1/1.5: Limassol or Larnaca → Michelle/Diana + Lauren/Qualia
   if (isLimassolRegion(group.region) || isLarnacaRegion(group.region)) {
-    console.log("[LeadRouter] Limassol/Larnaca region - routing to LIMASSOL_AGENTS");
+    console.log(
+      "[LeadRouter] Limassol/Larnaca region - routing to LIMASSOL_AGENTS"
+    );
     return await getAgentsByNames(LIMASSOL_AGENTS);
   }
 
   // RULE 2: Paphos region → 50/50 Marios A and Dimitris ONLY
   if (group.region?.toLowerCase() === "paphos") {
-    console.log("[LeadRouter] Paphos region - routing 50/50 to Marios A / Dimitris");
+    console.log(
+      "[LeadRouter] Paphos region - routing 50/50 to Marios A / Dimitris"
+    );
     return await getAgentsByNames(PAPHOS_OFFICE_FALLBACK_AGENTS);
   }
 
@@ -289,41 +311,62 @@ const handlePaphosOwnerRouting = async (
   const zyprusUrls = extractZyprusUrls(text);
 
   if (zyprusUrls.length === 0) {
-    console.log("[LeadRouter] No Zyprus URLs found in message, skipping owner check");
+    console.log(
+      "[LeadRouter] No Zyprus URLs found in message, skipping owner check"
+    );
     return null;
   }
 
-  console.log(`[LeadRouter] Found ${zyprusUrls.length} Zyprus URLs, checking ownership...`);
+  console.log(
+    `[LeadRouter] Found ${zyprusUrls.length} Zyprus URLs, checking ownership...`
+  );
 
   try {
     // Get ownership info from Zyprus API
     const ownerInfo = await getOwnerFromUrls(zyprusUrls);
 
     if (!ownerInfo || !ownerInfo.found) {
-      console.log("[LeadRouter] No listing found or API failed, falling back to regular routing");
+      console.log(
+        "[LeadRouter] No listing found or API failed, falling back to regular routing"
+      );
       return null;
     }
 
-    console.log(`[LeadRouter] Listing "${ownerInfo.title}" owner: ${ownerInfo.ownerAgentName || "OFFICE"}`);
+    console.log(
+      `[LeadRouter] Listing "${ownerInfo.title}" owner: ${ownerInfo.ownerAgentName || "OFFICE"}`
+    );
 
     let targetAgent: Agent | null = null;
 
     if (ownerInfo.isOfficeOwned) {
       // Office-owned: 50/50 between Marios A and Dimitris
-      console.log("[LeadRouter] Office-owned listing - using 50/50 Marios A / Dimitris");
-      const fallbackAgents = await getAgentsByNames(PAPHOS_OFFICE_FALLBACK_AGENTS);
-      const registeredFallback = fallbackAgents.filter((a) => a.telegram_user_id !== null);
+      console.log(
+        "[LeadRouter] Office-owned listing - using 50/50 Marios A / Dimitris"
+      );
+      const fallbackAgents = await getAgentsByNames(
+        PAPHOS_OFFICE_FALLBACK_AGENTS
+      );
+      const registeredFallback = fallbackAgents.filter(
+        (a) => a.telegram_user_id !== null
+      );
 
       if (registeredFallback.length === 0) {
-        console.log("[LeadRouter] No fallback agents registered, falling back to regular routing");
+        console.log(
+          "[LeadRouter] No fallback agents registered, falling back to regular routing"
+        );
         return null;
       }
 
       // Use atomic round-robin for 50/50 selection
-      targetAgent = await selectNextInRotation(registeredFallback, "paphos_office");
+      targetAgent = await selectNextInRotation(
+        registeredFallback,
+        "paphos_office"
+      );
     } else if (ownerInfo.ownerAgentName) {
       // Agent owns the listing - find them in database
-      console.log(`[LeadRouter] Listing owned by agent: ${ownerInfo.ownerAgentName}`);
+      console.log(
+        `[LeadRouter] Listing owned by agent: ${ownerInfo.ownerAgentName}`
+      );
       const ownerAgent = await findAgentByName(ownerInfo.ownerAgentName);
 
       if (ownerAgent && ownerAgent.telegram_user_id) {
@@ -333,30 +376,52 @@ const handlePaphosOwnerRouting = async (
         );
 
         if (isPaphosAgent) {
-          console.log(`[LeadRouter] Owner ${ownerAgent.full_name} is in Paphos team`);
+          console.log(
+            `[LeadRouter] Owner ${ownerAgent.full_name} is in Paphos team`
+          );
           targetAgent = ownerAgent;
         } else {
-          console.log(`[LeadRouter] Owner ${ownerAgent.full_name} is NOT in Paphos team, using fallback`);
+          console.log(
+            `[LeadRouter] Owner ${ownerAgent.full_name} is NOT in Paphos team, using fallback`
+          );
           // Owner not in Paphos team - treat as office-owned
-          const fallbackAgents = await getAgentsByNames(PAPHOS_OFFICE_FALLBACK_AGENTS);
-          const registeredFallback = fallbackAgents.filter((a) => a.telegram_user_id !== null);
+          const fallbackAgents = await getAgentsByNames(
+            PAPHOS_OFFICE_FALLBACK_AGENTS
+          );
+          const registeredFallback = fallbackAgents.filter(
+            (a) => a.telegram_user_id !== null
+          );
           if (registeredFallback.length > 0) {
-            targetAgent = await selectNextInRotation(registeredFallback, "paphos_office");
+            targetAgent = await selectNextInRotation(
+              registeredFallback,
+              "paphos_office"
+            );
           }
         }
       } else {
-        console.log(`[LeadRouter] Owner agent ${ownerInfo.ownerAgentName} not found or not registered`);
+        console.log(
+          `[LeadRouter] Owner agent ${ownerInfo.ownerAgentName} not found or not registered`
+        );
         // Owner not found - treat as office-owned
-        const fallbackAgents = await getAgentsByNames(PAPHOS_OFFICE_FALLBACK_AGENTS);
-        const registeredFallback = fallbackAgents.filter((a) => a.telegram_user_id !== null);
+        const fallbackAgents = await getAgentsByNames(
+          PAPHOS_OFFICE_FALLBACK_AGENTS
+        );
+        const registeredFallback = fallbackAgents.filter(
+          (a) => a.telegram_user_id !== null
+        );
         if (registeredFallback.length > 0) {
-          targetAgent = await selectNextInRotation(registeredFallback, "paphos_office");
+          targetAgent = await selectNextInRotation(
+            registeredFallback,
+            "paphos_office"
+          );
         }
       }
     }
 
     if (!targetAgent) {
-      console.log("[LeadRouter] No target agent determined, falling back to regular routing");
+      console.log(
+        "[LeadRouter] No target agent determined, falling back to regular routing"
+      );
       return null;
     }
 
@@ -390,7 +455,9 @@ export const handleGroupMessage = async (
   const chatId = message.chat.id;
   const chatTitle = message.chat.title || "Unknown Group";
 
-  console.log(`[LeadRouter] Processing group message from "${chatTitle}": "${text.substring(0, 50)}..."`);
+  console.log(
+    `[LeadRouter] Processing group message from "${chatTitle}": "${text.substring(0, 50)}..."`
+  );
 
   // 1. Check if this is a lead-related message
   if (!isLeadMessage(text)) {
@@ -421,7 +488,9 @@ export const handleGroupMessage = async (
   if (propertyIds.length > 0) {
     const duplicates = await checkRecentDuplicatesBatch(propertyIds, chatId);
     if (duplicates.length > 0) {
-      console.log(`[LeadRouter] Duplicates detected: ${duplicates.join(", ")}, skipping`);
+      console.log(
+        `[LeadRouter] Duplicates detected: ${duplicates.join(", ")}, skipping`
+      );
       return { success: false, error: "duplicate_lead" };
     }
   }
@@ -430,7 +499,8 @@ export const handleGroupMessage = async (
   const senderName = message.from
     ? `${message.from.first_name || ""} ${message.from.last_name || ""}`.trim()
     : "";
-  const isRussian = detectRussianLanguage(text) || detectRussianLanguage(senderName);
+  const isRussian =
+    detectRussianLanguage(text) || detectRussianLanguage(senderName);
   console.log("[LeadRouter] Russian detected:", isRussian);
 
   // 5b. Extract caller phone once for repeat-caller lookup + persistence
@@ -445,7 +515,14 @@ export const handleGroupMessage = async (
     console.log(`[LeadRouter] Client requested agent: ${requestedAgentName}`);
     const agent = await findAgentByName(requestedAgentName);
     if (agent && agent.telegram_user_id) {
-      return await forwardLeadToAgent(message, group, agent, propertyIds, isRussian ? "russian" : "english", callerPhone);
+      return await forwardLeadToAgent(
+        message,
+        group,
+        agent,
+        propertyIds,
+        isRussian ? "russian" : "english",
+        callerPhone
+      );
     }
     console.log("[LeadRouter] Requested agent not found or not registered");
   }
@@ -456,7 +533,9 @@ export const handleGroupMessage = async (
   if (callerPhone) {
     const previousAgent = await findPreviousAgentForCaller(callerPhone, chatId);
     if (previousAgent) {
-      console.log(`[LeadRouter] Repeat caller ${callerPhone} → ${previousAgent.full_name} (previous handler)`);
+      console.log(
+        `[LeadRouter] Repeat caller ${callerPhone} → ${previousAgent.full_name} (previous handler)`
+      );
       return await forwardLeadToAgent(
         message,
         group,
@@ -474,18 +553,34 @@ export const handleGroupMessage = async (
   const groupRegion = group.region?.toLowerCase() || null;
   const mentionedRegion = detectRegionFromText(text);
   const isOthers = isOthersGroup(group.group_type);
-  const effectiveRegion = isOthers ? (mentionedRegion || groupRegion) : groupRegion;
+  const effectiveRegion = isOthers
+    ? mentionedRegion || groupRegion
+    : groupRegion;
 
   // 6d. Paphos rental rule: "wants a rental in Paphos" with no listing link
   //     and no explicit agent goes to Evelina. If there IS a listing link,
   //     owner-based routing takes over below (rental may be owned by someone
   //     else in the Paphos team).
-  const hasListingReference = propertyIds.length > 0 || text.includes("zyprus.com");
-  if (effectiveRegion === "paphos" && detectRentalIntent(text) && !hasListingReference) {
+  const hasListingReference =
+    propertyIds.length > 0 || text.includes("zyprus.com");
+  if (
+    effectiveRegion === "paphos" &&
+    detectRentalIntent(text) &&
+    !hasListingReference
+  ) {
     const evelina = await findAgentByName(PAPHOS_RENTAL_AGENT);
     if (evelina && evelina.telegram_user_id) {
-      console.log(`[LeadRouter] Paphos rental (no listing ref) → ${evelina.full_name}`);
-      return await forwardLeadToAgent(message, group, evelina, propertyIds, isRussian ? "russian" : "english", callerPhone);
+      console.log(
+        `[LeadRouter] Paphos rental (no listing ref) → ${evelina.full_name}`
+      );
+      return await forwardLeadToAgent(
+        message,
+        group,
+        evelina,
+        propertyIds,
+        isRussian ? "russian" : "english",
+        callerPhone
+      );
     }
   }
 
@@ -497,10 +592,21 @@ export const handleGroupMessage = async (
     if (primaryName) {
       const primary = await findAgentByName(primaryName);
       if (primary && primary.telegram_user_id) {
-        console.log(`[LeadRouter] Others-group ${mentionedRegion} → ${primary.full_name}`);
-        return await forwardLeadToAgent(message, group, primary, propertyIds, isRussian ? "russian" : "english", callerPhone);
+        console.log(
+          `[LeadRouter] Others-group ${mentionedRegion} → ${primary.full_name}`
+        );
+        return await forwardLeadToAgent(
+          message,
+          group,
+          primary,
+          propertyIds,
+          isRussian ? "russian" : "english",
+          callerPhone
+        );
       }
-      console.log(`[LeadRouter] ${primaryName} unavailable (no telegram_user_id) — falling through`);
+      console.log(
+        `[LeadRouter] ${primaryName} unavailable (no telegram_user_id) — falling through`
+      );
     }
   }
 
@@ -534,12 +640,18 @@ export const handleGroupMessage = async (
   // 9. Filter agents with Telegram IDs (can receive forwards)
   const registeredAgents = agents.filter((a) => a.telegram_user_id !== null);
   if (registeredAgents.length === 0) {
-    console.error("[LeadRouter] No registered agents (with Telegram IDs) available");
+    console.error(
+      "[LeadRouter] No registered agents (with Telegram IDs) available"
+    );
     return { success: false, error: "no_registered_agents" };
   }
 
   // 10. Select agent (Russian preference or round-robin)
-  const selectedAgent = await selectAgent(registeredAgents, isRussian, group.region);
+  const selectedAgent = await selectAgent(
+    registeredAgents,
+    isRussian,
+    group.region
+  );
   if (!selectedAgent) {
     console.error("[LeadRouter] Failed to select agent");
     return { success: false, error: "agent_selection_failed" };
@@ -564,4 +676,3 @@ export const isGroupChat = (
 ): chatType is "group" | "supergroup" => {
   return chatType === "group" || chatType === "supergroup";
 };
-

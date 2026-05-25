@@ -130,7 +130,7 @@ export const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     type: "phone",
     label: "Client's phone number",
     example: "+357 99 123456",
-    validation: /^\+?[0-9\s\-]+$/,
+    validation: /^\+?[0-9\s-]+$/,
     required: true,
     description: "Full format with country code",
   },
@@ -203,9 +203,11 @@ export const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     name: "propertyInfo",
     type: "property_registration",
     label: "Property to be introduced",
-    example: "Reg. No. 0/1789 Germasogeia, Limassol OR Limas Building Flat No. 103 Tala, Paphos OR 2-bedroom apartment in Germasogeia",
+    example:
+      "Reg. No. 0/1789 Germasogeia, Limassol OR Limas Building Flat No. 103 Tala, Paphos OR 2-bedroom apartment in Germasogeia",
     required: true,
-    description: "Property registration info for sales OR property description for rentals",
+    description:
+      "Property registration info for sales OR property description for rentals",
   },
   propertyReg: {
     name: "propertyReg",
@@ -219,7 +221,8 @@ export const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     name: "propertyDescription",
     type: "text",
     label: "Full property description",
-    example: "Apartment with Registration Number 0/9029, situated in Mouttayiaka, Limassol",
+    example:
+      "Apartment with Registration Number 0/9029, situated in Mouttayiaka, Limassol",
     required: true,
   },
   propertyRegistration: {
@@ -447,7 +450,10 @@ export function validateField(fieldName: string, value: string): boolean {
  * Generate field prompt for a template
  * Returns the text to ask the user for missing fields
  */
-export function generateFieldPrompt(templateId: string, missingFields: string[]): string {
+export function generateFieldPrompt(
+  templateId: string,
+  missingFields: string[]
+): string {
   const template = TEMPLATE_REGISTRY[templateId.padStart(2, "0")];
   if (!template || missingFields.length === 0) return "";
 
@@ -474,7 +480,7 @@ export function getRequiredFields(templateId: string): FieldDefinition[] {
   if (!template) return [];
 
   return template.requiredFields
-    .map(name => FIELD_DEFINITIONS[name])
+    .map((name) => FIELD_DEFINITIONS[name])
     .filter((f): f is FieldDefinition => f !== undefined);
 }
 
@@ -486,14 +492,17 @@ export function getOptionalFields(templateId: string): FieldDefinition[] {
   if (!template?.optionalFields) return [];
 
   return template.optionalFields
-    .map(name => FIELD_DEFINITIONS[name])
+    .map((name) => FIELD_DEFINITIONS[name])
     .filter((f): f is FieldDefinition => f !== undefined);
 }
 
 /**
  * Check if all required fields are present in extracted data
  */
-export function hasAllRequiredFields(templateId: string, extractedFields: Record<string, string>): boolean {
+export function hasAllRequiredFields(
+  templateId: string,
+  extractedFields: Record<string, string>
+): boolean {
   const template = TEMPLATE_REGISTRY[templateId.padStart(2, "0")];
   if (!template) return false;
 
@@ -510,7 +519,10 @@ export function hasAllRequiredFields(templateId: string, extractedFields: Record
 /**
  * Get list of missing required fields
  */
-export function getMissingFields(templateId: string, extractedFields: Record<string, string>): string[] {
+export function getMissingFields(
+  templateId: string,
+  extractedFields: Record<string, string>
+): string[] {
   const template = TEMPLATE_REGISTRY[templateId.padStart(2, "0")];
   if (!template) return [];
 

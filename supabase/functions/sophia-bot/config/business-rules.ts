@@ -131,37 +131,145 @@ export const REGIONAL_EMAILS: Record<string, string> = {
 /** Known locations within each region - used for region detection */
 export const REGION_LOCATIONS: Record<string, string[]> = {
   paphos: [
-    "paphos", "pafos", "tala", "peyia", "chloraka", "kato paphos", "coral bay", "polis",
-    "geroskipou", "pegeia", "kissonerga", "emba", "tremithousa", "mesa chorio",
-    "kamares", "mandria", "kouklia", "letymvou", "tsada", "mesogi", "koloni",
-    "universal", "anavargos", "konia", "tomb of kings", "sea caves",
-    "kallepia", "peristerona", "letymbou", "letymvou", "stroumbi", "kathikas",
-    "polemi", "choulou", "simou", "drouseia", "ineia", "arodes", "akourdaleia",
-    "prodromi"
+    "paphos",
+    "pafos",
+    "tala",
+    "peyia",
+    "chloraka",
+    "kato paphos",
+    "coral bay",
+    "polis",
+    "geroskipou",
+    "pegeia",
+    "kissonerga",
+    "emba",
+    "tremithousa",
+    "mesa chorio",
+    "kamares",
+    "mandria",
+    "kouklia",
+    "letymvou",
+    "tsada",
+    "mesogi",
+    "koloni",
+    "universal",
+    "anavargos",
+    "konia",
+    "tomb of kings",
+    "sea caves",
+    "kallepia",
+    "peristerona",
+    "letymbou",
+    "letymvou",
+    "stroumbi",
+    "kathikas",
+    "polemi",
+    "choulou",
+    "simou",
+    "drouseia",
+    "ineia",
+    "arodes",
+    "akourdaleia",
+    "prodromi",
   ],
   limassol: [
-    "limassol", "lemesos", "germasogeia", "agios tychonas", "potamos", "mesa geitonia",
-    "zakaki", "columbia", "tourist area", "pareklisia", "pissouri", "erimi",
-    "episkopi", "pyrgos", "parekklisia", "mouttagiaka", "agios athanasios",
-    "trachoni", "panthea", "ypsonas", "kato polemidia", "polemidia", "agios nikolaos",
-    "agia fyla", "omonia", "neapolis", "linopetra", "agios ioannis", "ayios tychonas",
-    "neapoli", "agia zoni", "kapsalos", "enaerios", "pentadromos", "naafi"
+    "limassol",
+    "lemesos",
+    "germasogeia",
+    "agios tychonas",
+    "potamos",
+    "mesa geitonia",
+    "zakaki",
+    "columbia",
+    "tourist area",
+    "pareklisia",
+    "pissouri",
+    "erimi",
+    "episkopi",
+    "pyrgos",
+    "parekklisia",
+    "mouttagiaka",
+    "agios athanasios",
+    "trachoni",
+    "panthea",
+    "ypsonas",
+    "kato polemidia",
+    "polemidia",
+    "agios nikolaos",
+    "agia fyla",
+    "omonia",
+    "neapolis",
+    "linopetra",
+    "agios ioannis",
+    "ayios tychonas",
+    "neapoli",
+    "agia zoni",
+    "kapsalos",
+    "enaerios",
+    "pentadromos",
+    "naafi",
   ],
   larnaca: [
-    "larnaca", "larnaka", "oroklini", "pervolia", "livadia", "dekelia", "dhekelia",
-    "kamares", "aradippou", "meneou", "dromolaxia", "kiti", "tersefanou", "perivolia",
-    "chrysopolitissa", "pyla", "mosfiloti", "mosfilioti", "softades", "kivisili",
-    "anglisides", "alethriko", "klavdia", "mazotos", "psematismenos"
+    "larnaca",
+    "larnaka",
+    "oroklini",
+    "pervolia",
+    "livadia",
+    "dekelia",
+    "dhekelia",
+    "kamares",
+    "aradippou",
+    "meneou",
+    "dromolaxia",
+    "kiti",
+    "tersefanou",
+    "perivolia",
+    "chrysopolitissa",
+    "pyla",
+    "mosfiloti",
+    "mosfilioti",
+    "softades",
+    "kivisili",
+    "anglisides",
+    "alethriko",
+    "klavdia",
+    "mazotos",
+    "psematismenos",
   ],
   nicosia: [
-    "nicosia", "lefkosia", "strovolos", "lakatamia", "engomi", "aglantzia",
-    "dasoupoli", "makedonitissa", "kaimakli", "pallouriotissa", "latsia",
-    "geri", "dali", "tseri", "kokkinotrimithia", "deftera", "acropolis"
+    "nicosia",
+    "lefkosia",
+    "strovolos",
+    "lakatamia",
+    "engomi",
+    "aglantzia",
+    "dasoupoli",
+    "makedonitissa",
+    "kaimakli",
+    "pallouriotissa",
+    "latsia",
+    "geri",
+    "dali",
+    "tseri",
+    "kokkinotrimithia",
+    "deftera",
+    "acropolis",
   ],
   famagusta: [
-    "famagusta", "ammochostos", "paralimni", "protaras", "ayia napa", "agia napa",
-    "deryneia", "sotira", "frenaros", "liopetri", "xylofagou", "vrysoulles",
-    "cape greco", "kapparis"
+    "famagusta",
+    "ammochostos",
+    "paralimni",
+    "protaras",
+    "ayia napa",
+    "agia napa",
+    "deryneia",
+    "sotira",
+    "frenaros",
+    "liopetri",
+    "xylofagou",
+    "vrysoulles",
+    "cape greco",
+    "kapparis",
   ],
 };
 
@@ -177,100 +285,103 @@ export const DEFAULT_LOCATION_UUID = "7dbc931e-90eb-4b89-9ac8-b5e593831cf8";
  * Note: These are approximate area centers, not exact addresses
  * Format: { lat: latitude, lon: longitude }
  */
-export const DEFAULT_COORDINATES: Record<string, { lat: number; lon: number }> = {
-  // Main cities
-  "limassol": { lat: 34.6841, lon: 33.0413 },
-  "paphos": { lat: 34.7720, lon: 32.4297 },
-  "pafos": { lat: 34.7720, lon: 32.4297 },
-  "nicosia": { lat: 35.1856, lon: 33.3823 },
-  "larnaca": { lat: 34.9229, lon: 33.6233 },
-  "famagusta": { lat: 35.1174, lon: 33.9417 },
-  "ammochostos": { lat: 35.1174, lon: 33.9417 },
-  // Paphos district
-  "peyia": { lat: 34.8846, lon: 32.3859 },
-  "pegeia": { lat: 34.8846, lon: 32.3859 },
-  "tala": { lat: 34.8475, lon: 32.4297 },
-  "chloraka": { lat: 34.7933, lon: 32.4083 },
-  "kato paphos": { lat: 34.7542, lon: 32.4139 },
-  "paphos city center": { lat: 34.7750, lon: 32.4220 },
-  "paphos city centre": { lat: 34.7750, lon: 32.4220 },
-  "paphos city": { lat: 34.7750, lon: 32.4220 },
-  "paphos town": { lat: 34.7750, lon: 32.4220 },
-  "coral bay": { lat: 34.8409, lon: 32.3547 },
-  "polis": { lat: 35.0347, lon: 32.4275 },
-  "prodromi": { lat: 35.0264, lon: 32.4168 },
-  "kissonerga": { lat: 34.8178, lon: 32.3897 },
-  "geroskipou": { lat: 34.7589, lon: 32.4542 },
-  "emba": { lat: 34.8039, lon: 32.4339 },
-  "kamares": { lat: 34.8550, lon: 32.4400 },
-  "sea caves": { lat: 34.8975, lon: 32.3267 },
-  "tomb of kings": { lat: 34.7697, lon: 32.4039 },
-  "universal": { lat: 34.7750, lon: 32.4167 },
-  // Limassol district
-  "germasogeia": { lat: 34.6970, lon: 33.0870 },
-  "potamos germasogeias": { lat: 34.6970, lon: 33.0870 },
-  "mesa geitonia": { lat: 34.6850, lon: 33.0600 },
-  "agios tychonas": { lat: 34.7150, lon: 33.1283 },
-  "agios athanasios": { lat: 34.6917, lon: 33.0417 },
-  "panthea": { lat: 34.6933, lon: 33.0383 },
-  "tourist area": { lat: 34.6900, lon: 33.0700 },
-  "columbia": { lat: 34.6880, lon: 33.0550 },
-  "zakaki": { lat: 34.6650, lon: 33.0100 },
-  "mouttagiaka": { lat: 34.7083, lon: 33.1017 },
-  "pareklisia": { lat: 34.7253, lon: 33.1556 },
-  "pissouri": { lat: 34.6667, lon: 32.6983 },
-  "episkopi": { lat: 34.6667, lon: 32.8867 },
-  "erimi": { lat: 34.6683, lon: 32.9150 },
-  "pyrgos": { lat: 34.7083, lon: 33.1817 },
-  "limassol marina": { lat: 34.6700, lon: 33.0433 },
-  "old town limassol": { lat: 34.6750, lon: 33.0417 },
-  // Larnaca district
-  "oroklini": { lat: 34.9603, lon: 33.6353 },
-  "pervolia": { lat: 34.8317, lon: 33.5767 },
-  "livadia": { lat: 34.9500, lon: 33.6267 },
-  "dekelia": { lat: 35.0000, lon: 33.7200 },
-  "dhekelia": { lat: 35.0000, lon: 33.7200 },
-  "aradippou": { lat: 34.9500, lon: 33.5833 },
-  "meneou": { lat: 34.8517, lon: 33.5833 },
-  "kiti": { lat: 34.8500, lon: 33.5667 },
-  "mosfiloti": { lat: 34.9000, lon: 33.4500 },
-  "mosfilioti": { lat: 34.9000, lon: 33.4500 },
-  "tersefanou": { lat: 34.8667, lon: 33.5500 },
-  "softades": { lat: 34.8833, lon: 33.4333 },
-  // Nicosia district
-  "strovolos": { lat: 35.1367, lon: 33.3353 },
-  "engomi": { lat: 35.1600, lon: 33.3517 },
-  "lakatamia": { lat: 35.1167, lon: 33.3000 },
-  "aglantzia": { lat: 35.1533, lon: 33.3767 },
-  "latsia": { lat: 35.1017, lon: 33.3633 },
-  "geri": { lat: 35.0833, lon: 33.4000 },
-  "dali": { lat: 35.0217, lon: 33.4217 },
-  "tseri": { lat: 35.0667, lon: 33.3233 },
-  "acropolis": { lat: 35.1450, lon: 33.3400 },
-  // Famagusta district
-  "paralimni": { lat: 35.0385, lon: 33.9823 },
-  "ayia napa": { lat: 34.9869, lon: 34.0028 },
-  "agia napa": { lat: 34.9869, lon: 34.0028 },
-  "protaras": { lat: 35.0112, lon: 34.0583 },
-  "deryneia": { lat: 35.0633, lon: 33.9567 },
-  "sotira": { lat: 35.0350, lon: 33.9283 },
-  "frenaros": { lat: 35.0517, lon: 33.9017 },
-  "kapparis": { lat: 35.0500, lon: 34.0167 },
-  "cape greco": { lat: 34.9667, lon: 34.0833 },
-};
+export const DEFAULT_COORDINATES: Record<string, { lat: number; lon: number }> =
+  {
+    // Main cities
+    limassol: { lat: 34.6841, lon: 33.0413 },
+    paphos: { lat: 34.772, lon: 32.4297 },
+    pafos: { lat: 34.772, lon: 32.4297 },
+    nicosia: { lat: 35.1856, lon: 33.3823 },
+    larnaca: { lat: 34.9229, lon: 33.6233 },
+    famagusta: { lat: 35.1174, lon: 33.9417 },
+    ammochostos: { lat: 35.1174, lon: 33.9417 },
+    // Paphos district
+    peyia: { lat: 34.8846, lon: 32.3859 },
+    pegeia: { lat: 34.8846, lon: 32.3859 },
+    tala: { lat: 34.8475, lon: 32.4297 },
+    chloraka: { lat: 34.7933, lon: 32.4083 },
+    "kato paphos": { lat: 34.7542, lon: 32.4139 },
+    "paphos city center": { lat: 34.775, lon: 32.422 },
+    "paphos city centre": { lat: 34.775, lon: 32.422 },
+    "paphos city": { lat: 34.775, lon: 32.422 },
+    "paphos town": { lat: 34.775, lon: 32.422 },
+    "coral bay": { lat: 34.8409, lon: 32.3547 },
+    polis: { lat: 35.0347, lon: 32.4275 },
+    prodromi: { lat: 35.0264, lon: 32.4168 },
+    kissonerga: { lat: 34.8178, lon: 32.3897 },
+    geroskipou: { lat: 34.7589, lon: 32.4542 },
+    emba: { lat: 34.8039, lon: 32.4339 },
+    kamares: { lat: 34.855, lon: 32.44 },
+    "sea caves": { lat: 34.8975, lon: 32.3267 },
+    "tomb of kings": { lat: 34.7697, lon: 32.4039 },
+    universal: { lat: 34.775, lon: 32.4167 },
+    // Limassol district
+    germasogeia: { lat: 34.697, lon: 33.087 },
+    "potamos germasogeias": { lat: 34.697, lon: 33.087 },
+    "mesa geitonia": { lat: 34.685, lon: 33.06 },
+    "agios tychonas": { lat: 34.715, lon: 33.1283 },
+    "agios athanasios": { lat: 34.6917, lon: 33.0417 },
+    panthea: { lat: 34.6933, lon: 33.0383 },
+    "tourist area": { lat: 34.69, lon: 33.07 },
+    columbia: { lat: 34.688, lon: 33.055 },
+    zakaki: { lat: 34.665, lon: 33.01 },
+    mouttagiaka: { lat: 34.7083, lon: 33.1017 },
+    pareklisia: { lat: 34.7253, lon: 33.1556 },
+    pissouri: { lat: 34.6667, lon: 32.6983 },
+    episkopi: { lat: 34.6667, lon: 32.8867 },
+    erimi: { lat: 34.6683, lon: 32.915 },
+    pyrgos: { lat: 34.7083, lon: 33.1817 },
+    "limassol marina": { lat: 34.67, lon: 33.0433 },
+    "old town limassol": { lat: 34.675, lon: 33.0417 },
+    // Larnaca district
+    oroklini: { lat: 34.9603, lon: 33.6353 },
+    pervolia: { lat: 34.8317, lon: 33.5767 },
+    livadia: { lat: 34.95, lon: 33.6267 },
+    dekelia: { lat: 35.0, lon: 33.72 },
+    dhekelia: { lat: 35.0, lon: 33.72 },
+    aradippou: { lat: 34.95, lon: 33.5833 },
+    meneou: { lat: 34.8517, lon: 33.5833 },
+    kiti: { lat: 34.85, lon: 33.5667 },
+    mosfiloti: { lat: 34.9, lon: 33.45 },
+    mosfilioti: { lat: 34.9, lon: 33.45 },
+    tersefanou: { lat: 34.8667, lon: 33.55 },
+    softades: { lat: 34.8833, lon: 33.4333 },
+    // Nicosia district
+    strovolos: { lat: 35.1367, lon: 33.3353 },
+    engomi: { lat: 35.16, lon: 33.3517 },
+    lakatamia: { lat: 35.1167, lon: 33.3 },
+    aglantzia: { lat: 35.1533, lon: 33.3767 },
+    latsia: { lat: 35.1017, lon: 33.3633 },
+    geri: { lat: 35.0833, lon: 33.4 },
+    dali: { lat: 35.0217, lon: 33.4217 },
+    tseri: { lat: 35.0667, lon: 33.3233 },
+    acropolis: { lat: 35.145, lon: 33.34 },
+    // Famagusta district
+    paralimni: { lat: 35.0385, lon: 33.9823 },
+    "ayia napa": { lat: 34.9869, lon: 34.0028 },
+    "agia napa": { lat: 34.9869, lon: 34.0028 },
+    protaras: { lat: 35.0112, lon: 34.0583 },
+    deryneia: { lat: 35.0633, lon: 33.9567 },
+    sotira: { lat: 35.035, lon: 33.9283 },
+    frenaros: { lat: 35.0517, lon: 33.9017 },
+    kapparis: { lat: 35.05, lon: 34.0167 },
+    "cape greco": { lat: 34.9667, lon: 34.0833 },
+  };
 
 // =============================================================================
 // TAXONOMY DEFAULTS
 // =============================================================================
 
 /** Default property type UUID - Flat (leaf under Apartment) */
-export const DEFAULT_PROPERTY_TYPE_UUID = "47dba0ae-f01c-46ae-999e-5ccb48e53033";
+export const DEFAULT_PROPERTY_TYPE_UUID =
+  "47dba0ae-f01c-46ae-999e-5ccb48e53033";
 
 /** Default listing type UUID - For Sale */
 export const DEFAULT_LISTING_TYPE_UUID = "8f187816-a888-4cda-a937-1cee84b9c0ee";
 
 /** Default price modifier UUID */
-export const DEFAULT_PRICE_MODIFIER_UUID = "ab39af2d-c8f5-4971-9fa5-2df6822ab9a9";
+export const DEFAULT_PRICE_MODIFIER_UUID =
+  "ab39af2d-c8f5-4971-9fa5-2df6822ab9a9";
 
 /** Default title deed UUID */
 export const DEFAULT_TITLE_DEED_UUID = "5c553db1-e53d-46a2-b609-093d17e75a7a";
@@ -286,35 +397,35 @@ export const DEFAULT_TITLE_DEED_UUID = "5c553db1-e53d-46a2-b609-093d17e75a7a";
  */
 export const PROPERTY_TYPE_FALLBACKS: Record<string, string> = {
   // --- Apartment children (leaf) ---
-  apartment: "47dba0ae-f01c-46ae-999e-5ccb48e53033",          // -> Flat (leaf under Apartment)
-  flat: "47dba0ae-f01c-46ae-999e-5ccb48e53033",               // Flat
-  penthouse: "cf2d6939-a757-4036-912f-6fda39a6d5fb",          // Penthouse
+  apartment: "47dba0ae-f01c-46ae-999e-5ccb48e53033", // -> Flat (leaf under Apartment)
+  flat: "47dba0ae-f01c-46ae-999e-5ccb48e53033", // Flat
+  penthouse: "cf2d6939-a757-4036-912f-6fda39a6d5fb", // Penthouse
   "entire floor apartment": "763e048f-f2da-42d2-b33a-8f7e333817cb", // Entire Floor Apartment
-  studio: "bff4e856-9888-4c4a-94c5-9fc6a6dfb6f3",            // Studio
-  maisonette: "47dba0ae-f01c-46ae-999e-5ccb48e53033",         // -> Flat (no maisonette leaf exists)
+  studio: "bff4e856-9888-4c4a-94c5-9fc6a6dfb6f3", // Studio
+  maisonette: "47dba0ae-f01c-46ae-999e-5ccb48e53033", // -> Flat (no maisonette leaf exists)
 
   // --- House children (leaf) ---
-  house: "76b4fa8e-de7e-4232-85ac-869dca3620f4",              // -> Detached House
-  "detached house": "76b4fa8e-de7e-4232-85ac-869dca3620f4",   // Detached House
-  villa: "76b4fa8e-de7e-4232-85ac-869dca3620f4",              // -> Detached House
-  "detached villa": "76b4fa8e-de7e-4232-85ac-869dca3620f4",   // -> Detached House
-  "semi-detached": "d9ab36df-b3ab-4fd0-b618-797784457fe9",    // Semi Detached House
+  house: "76b4fa8e-de7e-4232-85ac-869dca3620f4", // -> Detached House
+  "detached house": "76b4fa8e-de7e-4232-85ac-869dca3620f4", // Detached House
+  villa: "76b4fa8e-de7e-4232-85ac-869dca3620f4", // -> Detached House
+  "detached villa": "76b4fa8e-de7e-4232-85ac-869dca3620f4", // -> Detached House
+  "semi-detached": "d9ab36df-b3ab-4fd0-b618-797784457fe9", // Semi Detached House
   "semi-detached house": "d9ab36df-b3ab-4fd0-b618-797784457fe9", // Semi Detached House
-  bungalow: "8a3b5196-0068-4c56-b7bd-8f419a0884cc",           // Bungalow
-  townhouse: "74f0a039-fff8-4f7e-ae6d-6bda4c656b68",          // Townhouse
+  bungalow: "8a3b5196-0068-4c56-b7bd-8f419a0884cc", // Bungalow
+  townhouse: "74f0a039-fff8-4f7e-ae6d-6bda4c656b68", // Townhouse
 
   // --- Building children (leaf) ---
-  building: "5b6b4dcd-0e62-4548-b9cd-ca0d2df794c9",           // -> Commercial Building
+  building: "5b6b4dcd-0e62-4548-b9cd-ca0d2df794c9", // -> Commercial Building
   "commercial building": "5b6b4dcd-0e62-4548-b9cd-ca0d2df794c9", // Commercial Building
   "residential building": "6c7500ba-2ffa-4d4e-88b8-b7f647bdce41", // Residential Building
-  "mixed-use building": "4f7972ae-78c7-422d-944e-a628bba4948e",   // Mixed-use Building
-  hotel: "de3a8c24-824b-4bc7-9cc0-27b9e337f209",              // Hotel
+  "mixed-use building": "4f7972ae-78c7-422d-944e-a628bba4948e", // Mixed-use Building
+  hotel: "de3a8c24-824b-4bc7-9cc0-27b9e337f209", // Hotel
 
   // --- Top-level leaves (no parent) ---
-  office: "2528fe73-b53d-403f-b9b4-05f6efc2370b",             // Office
-  shop: "71953022-20cf-4f9c-be4a-8aad699a8a47",               // Shop
-  industrial: "06c87769-b0d3-4388-9c50-9c7d3dbdccb3",         // Industrial
-  warehouse: "06c87769-b0d3-4388-9c50-9c7d3dbdccb3",          // -> Industrial (nearest leaf)
+  office: "2528fe73-b53d-403f-b9b4-05f6efc2370b", // Office
+  shop: "71953022-20cf-4f9c-be4a-8aad699a8a47", // Shop
+  industrial: "06c87769-b0d3-4388-9c50-9c7d3dbdccb3", // Industrial
+  warehouse: "06c87769-b0d3-4388-9c50-9c7d3dbdccb3", // -> Industrial (nearest leaf)
 };
 
 /** Property status UUIDs - verified from live API (Feb 2026) */
@@ -333,35 +444,35 @@ export const PROPERTY_STATUS_UUIDS: Record<string, string> = {
  */
 export const INDOOR_FEATURE_FALLBACKS: Record<string, string> = {
   "air conditioning": "f577829f-8cbe-4ba8-9ce8-e67a30b6fe76",
-  "basement": "1b16146f-6298-4690-a779-328b0fc3b88c",
+  basement: "1b16146f-6298-4690-a779-328b0fc3b88c",
   "cctv system": "1ba67b0a-94a2-4998-9553-0ddce11aa64d",
   "central heating": "4f2523f7-9fde-4390-b532-c0da52644632",
   "conference room": "7af7be29-e1df-458a-8d10-2edda6c9b685",
   "covered parking": "432ac572-ed64-4107-a818-19a8a22c5371",
   "electrical appliances": "3ad75077-e2a8-4a2f-9b04-b10f2f797ac1",
-  "elevator": "55b75d9e-76fb-4fe8-b2dd-55f48b7ef0ea",
+  elevator: "55b75d9e-76fb-4fe8-b2dd-55f48b7ef0ea",
   "fire alarm system": "75a1d23e-dc4f-4b7c-a80d-40984899ba1e",
-  "fireplace": "bd49f04a-5eae-4056-9565-ecd898f49fe9",
+  fireplace: "bd49f04a-5eae-4056-9565-ecd898f49fe9",
   "fitted kitchen": "92015a2f-f3dd-42c0-80f9-be90d8bbb0ea",
   "fly screens": "3cdae0f7-afde-43dc-896b-4c6588d83618",
-  "furnished": "3d5b2d80-0f61-480f-a481-156ea25cf20c",
+  furnished: "3d5b2d80-0f61-480f-a481-156ea25cf20c",
   "guest toilet": "5e2a90da-6836-444b-8d72-a5f810d3a9e5",
   "internal pool": "f46a3ff9-b499-4ddf-9aeb-49da0cd47545",
-  "jacuzzi": "596b1dd8-7867-4258-b50a-8d323ab60113",
+  jacuzzi: "596b1dd8-7867-4258-b50a-8d323ab60113",
   "male and female w/c": "7cd54930-dc67-4680-a343-67d5838fe1a2",
   "master bed": "5c19f790-1ea2-4c8e-9820-2a03f9ce6ac2",
-  "mezzanine": "24b4054c-d535-48f4-866a-a9a67037ea24",
+  mezzanine: "24b4054c-d535-48f4-866a-a9a67037ea24",
   "open-plan": "5e13a12b-fde0-459e-ac4b-3ada19b63ca6",
   "pet friendly": "83cf669a-069d-4c79-baac-b51dc8930af8",
-  "playroom": "41ba2e44-9a56-4b71-b1c5-804377cb0840",
+  playroom: "41ba2e44-9a56-4b71-b1c5-804377cb0840",
   "pressurised water system": "caa7b9a2-9e44-4585-a1cc-f86ae22c0ed1",
   "provision for air conditioning": "273a7354-b3e3-435e-a71e-263edbebc190",
   "provision for central heating": "12f34f20-02dd-46c4-af4c-baf2c771fabe",
-  "reception": "c3e320d2-0291-410b-aa4a-f09c710f8a97",
+  reception: "c3e320d2-0291-410b-aa4a-f09c710f8a97",
   "security system": "f1e7f4c3-7595-4de7-bfe7-2203035b9c46",
   "under floor heating": "061507f4-4f13-4877-b70e-78f6612abfe7",
   "underground parking": "698e0dd1-5b9a-47cd-a36a-3f0d5bb7f258",
-  "unfurnished": "85c67873-4c1b-4dcf-976c-69b1347bb90e",
+  unfurnished: "85c67873-4c1b-4dcf-976c-69b1347bb90e",
   "utility room": "c8993099-d8f0-45a7-acbb-3f15c3ee2f6d",
   "ventilation system": "31c6f6d3-2b45-42bf-b1f1-8564cc9262db",
   "video entrance system": "b61345b7-77c6-4822-a394-64bcddfd3ca9",
@@ -414,7 +525,12 @@ export const VIEW_FALLBACKS: Record<string, string> = {
 
 /** Maps common user terms to Zyprus taxonomy terms for outdoor features */
 export const OUTDOOR_FEATURE_ALIASES: Record<string, string[]> = {
-  "private pool": ["private swimming pool", "private pool", "swimming pool", "pool"],
+  "private pool": [
+    "private swimming pool",
+    "private pool",
+    "swimming pool",
+    "pool",
+  ],
   "communal pool": ["shared pool", "common pool", "communal swimming pool"],
   "heated swimming pool": ["heated pool"],
   "landscape garden": ["landscaped garden", "landscaping", "garden"],
@@ -424,7 +540,12 @@ export const OUTDOOR_FEATURE_ALIASES: Record<string, string[]> = {
   "photovoltaic system": ["pv system", "photovoltaic", "pv panels"],
   "solar system": ["solar water heater", "solar panels", "solar"],
   "double garage": ["2 car garage", "two car garage"],
-  "single garage": ["1 car garage", "one car garage", "garage", "garage parking"],
+  "single garage": [
+    "1 car garage",
+    "one car garage",
+    "garage",
+    "garage parking",
+  ],
   "irrigation system": ["irrigation", "sprinkler system", "sprinklers"],
   "barbecue area": ["bbq", "bbq area", "barbecue", "barbeque"],
   "electric shutters": ["electric blinds", "motorized shutters", "shutters"],
@@ -438,30 +559,79 @@ export const OUTDOOR_FEATURE_ALIASES: Record<string, string[]> = {
 export const INDOOR_FEATURE_ALIASES: Record<string, string[]> = {
   "air conditioning": ["ac", "a/c", "aircon", "air con"],
   "central heating": ["central heat"],
-  "provision for central heating": ["provisions for central heating", "provision for heating", "provision for electric central heating", "provisions for heating"],
-  "under floor heating": ["underfloor heating", "floor heating", "radiant floor", "heated floors", "ufh"],
+  "provision for central heating": [
+    "provisions for central heating",
+    "provision for heating",
+    "provision for electric central heating",
+    "provisions for heating",
+  ],
+  "under floor heating": [
+    "underfloor heating",
+    "floor heating",
+    "radiant floor",
+    "heated floors",
+    "ufh",
+  ],
   "fitted kitchen": ["built-in kitchen", "modern kitchen"],
   "covered parking": ["indoor parking"],
-  "guest toilet": ["guest wc", "powder room", "guest bathroom", "second bathroom", "2nd bathroom"],
+  "guest toilet": [
+    "guest wc",
+    "powder room",
+    "guest bathroom",
+    "second bathroom",
+    "2nd bathroom",
+  ],
   "electrical appliances": ["appliances", "white goods"],
-  "fly screens": ["flyscreen", "fly screen", "insect screens", "mosquito screens"],
+  "fly screens": [
+    "flyscreen",
+    "fly screen",
+    "insect screens",
+    "mosquito screens",
+  ],
   "water heater": ["boiler", "hot water"],
   "open-plan": ["open plan", "openplan", "open layout"],
-  "utility room": ["laundry room", "laundry", "storage room", "storeroom", "store room"],
+  "utility room": [
+    "laundry room",
+    "laundry",
+    "storage room",
+    "storeroom",
+    "store room",
+  ],
   "master bed": ["master bedroom", "master suite", "en-suite", "ensuite"],
-  "jacuzzi": ["jacuzzi tub", "whirlpool bath", "spa bath", "hot tub", "indoor jacuzzi"],
-  "fireplace": ["wood burning fireplace", "wood fireplace", "fire place"],
-  "playroom": ["play room", "games room", "game room", "entertainment room", "rec room"],
-  "basement": ["underground storage", "cellar"],
+  jacuzzi: [
+    "jacuzzi tub",
+    "whirlpool bath",
+    "spa bath",
+    "hot tub",
+    "indoor jacuzzi",
+  ],
+  fireplace: ["wood burning fireplace", "wood fireplace", "fire place"],
+  playroom: [
+    "play room",
+    "games room",
+    "game room",
+    "entertainment room",
+    "rec room",
+  ],
+  basement: ["underground storage", "cellar"],
   "cctv system": ["cctv", "security cameras", "surveillance"],
-  "security system": ["alarm", "alarm system", "security alarm", "burglar alarm"],
+  "security system": [
+    "alarm",
+    "alarm system",
+    "security alarm",
+    "burglar alarm",
+  ],
   "fire alarm system": ["fire alarm", "smoke detector", "smoke alarm"],
-  "elevator": ["lift"],
-  "mezzanine": ["mezzanine floor", "loft", "attic"],
+  elevator: ["lift"],
+  mezzanine: ["mezzanine floor", "loft", "attic"],
   "internal pool": ["indoor pool", "indoor swimming pool"],
-  "pressurised water system": ["pressurised water", "water pressure system", "pressure pump"],
+  "pressurised water system": [
+    "pressurised water",
+    "water pressure system",
+    "pressure pump",
+  ],
   "video entrance system": ["video intercom", "intercom", "video door"],
-  "reception": ["reception area", "lobby", "entrance hall"],
+  reception: ["reception area", "lobby", "entrance hall"],
   "conference room": ["meeting room"],
   "underground parking": ["underground garage"],
 };
@@ -477,7 +647,7 @@ export const TAXONOMY_CACHE_TTL_MS = 60 * 60 * 1000;
 export const TAXONOMY_STALE_TTL_MS = 2 * 60 * 60 * 1000;
 
 /** Upload lock duration to prevent parallel uploads (30 seconds) */
-export const UPLOAD_LOCK_DURATION_MS = 30000;
+export const UPLOAD_LOCK_DURATION_MS = 30_000;
 
 /** Prompt cache TTL in milliseconds (5 minutes) */
 export const PROMPT_CACHE_TTL_MS = 5 * 60 * 1000;

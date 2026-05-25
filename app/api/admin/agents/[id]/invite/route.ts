@@ -16,7 +16,8 @@ const APP_URL =
   process.env.NEXTAUTH_URL ||
   "https://sofiatesting.vercel.app";
 
-const INVITE_FROM = process.env.INVITE_FROM_EMAIL || "SOPHIA <sophia@zyprus.com>";
+const INVITE_FROM =
+  process.env.INVITE_FROM_EMAIL || "SOPHIA <sophia@zyprus.com>";
 
 /**
  * POST /api/admin/agents/[id]/invite
@@ -48,9 +49,7 @@ export async function POST(
 
     const { data: agent, error: findError } = await getAdminSupabase()
       .from("agents")
-      .select(
-        "id, full_name, communication_email, invite_sent_at, user_id"
-      )
+      .select("id, full_name, communication_email, invite_sent_at, user_id")
       .eq("id", id)
       .single();
 
@@ -94,7 +93,9 @@ export async function POST(
     const signupUrl = `${APP_URL}/register?invite=${inviteToken}&email=${encodeURIComponent(agent.communication_email)}`;
 
     if (!resend) {
-      logger.warn("RESEND_API_KEY not configured — returning link without sending email");
+      logger.warn(
+        "RESEND_API_KEY not configured — returning link without sending email"
+      );
       return NextResponse.json({
         success: true,
         emailed: false,

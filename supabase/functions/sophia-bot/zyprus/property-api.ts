@@ -7,6 +7,7 @@ import { logClassifiedError } from "../utils/error-mapper.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
 import { withRetry } from "../utils/retry.ts";
 import { validateImageUrl } from "../utils/url-validator.ts";
+import { getAccessToken, getZyprusConfig, type ZyprusConfig } from "./oauth.ts";
 import {
   findIndoorFeatureUuids,
   findListingTypeUuid,
@@ -18,7 +19,6 @@ import {
   findUserUuid,
   findUserUuids,
 } from "./taxonomy-cache.ts";
-import { getAccessToken, getZyprusConfig, type ZyprusConfig } from "./oauth.ts";
 
 export interface ListingData {
   listingType: "sale" | "rent";
@@ -203,7 +203,11 @@ function buildJsonApiPayload(
   // Build proper title: "2 Bedroom Bungalow (125m²) For Sale in Kamares, Tala"
   // For 0-bedroom properties (offices, shops): "Office (125m²) For Sale in Nicosia"
   // If there's a covered veranda, include total area (Net Indoor Area + Covered Veranda only)
-  const isCommercial = listing.bedrooms === 0 || ["office", "shop", "warehouse", "building", "hotel"].includes(listing.propertyType.toLowerCase());
+  const isCommercial =
+    listing.bedrooms === 0 ||
+    ["office", "shop", "warehouse", "building", "hotel"].includes(
+      listing.propertyType.toLowerCase()
+    );
   const bedroomText = isCommercial
     ? "" // No bedroom text for commercial properties
     : listing.bedrooms === 1
@@ -1123,7 +1127,8 @@ export async function createDraftListing(
 
   // Resolve instructor UUID — usually same as owner, but differs for Michelle rentals
   const instructorUuid =
-    listing.listingInstructor && listing.listingInstructor !== listing.listingOwner
+    listing.listingInstructor &&
+    listing.listingInstructor !== listing.listingOwner
       ? await findUserUuid(listing.listingInstructor)
       : listingOwnerUuid;
 
@@ -1143,18 +1148,19 @@ export async function createDraftListing(
   });
 
   // Upload all file types in parallel (gallery, floor plans, title deeds, other docs)
-  const [imageFileIds, floorPlanFileIds, titleDeedFileIds, otherDocFileIds] = await Promise.all([
-    uploadImages(listing.images, token, config),
-    listing.floorPlanUrls && listing.floorPlanUrls.length > 0
-      ? uploadFloorPlans(listing.floorPlanUrls, token, config)
-      : Promise.resolve([] as string[]),
-    listing.titleDeedFileUrls && listing.titleDeedFileUrls.length > 0
-      ? uploadTitleDeedFiles(listing.titleDeedFileUrls, token, config)
-      : Promise.resolve([] as string[]),
-    listing.otherDocumentUrls && listing.otherDocumentUrls.length > 0
-      ? uploadOtherDocuments(listing.otherDocumentUrls, token, config)
-      : Promise.resolve([] as string[]),
-  ]);
+  const [imageFileIds, floorPlanFileIds, titleDeedFileIds, otherDocFileIds] =
+    await Promise.all([
+      uploadImages(listing.images, token, config),
+      listing.floorPlanUrls && listing.floorPlanUrls.length > 0
+        ? uploadFloorPlans(listing.floorPlanUrls, token, config)
+        : Promise.resolve([] as string[]),
+      listing.titleDeedFileUrls && listing.titleDeedFileUrls.length > 0
+        ? uploadTitleDeedFiles(listing.titleDeedFileUrls, token, config)
+        : Promise.resolve([] as string[]),
+      listing.otherDocumentUrls && listing.otherDocumentUrls.length > 0
+        ? uploadOtherDocuments(listing.otherDocumentUrls, token, config)
+        : Promise.resolve([] as string[]),
+    ]);
 
   logger.info("All files uploaded for listing", {
     category: LogCategory.ZYPRUS,
@@ -1217,8 +1223,9 @@ export async function createDraftListing(
       const errorJson = JSON.parse(errorText);
       if (errorJson.errors) {
         errorDetail = errorJson.errors
-          .map((e: { detail?: string; title?: string }) =>
-            e.detail || e.title || JSON.stringify(e)
+          .map(
+            (e: { detail?: string; title?: string }) =>
+              e.detail || e.title || JSON.stringify(e)
           )
           .join("; ");
       }
@@ -1262,7 +1269,8 @@ export async function createDraftListing(
   if (titleDeedFileIds.length > 0) {
     // Verify attachment by checking if the POST response includes the relationship
     // If not present, fall back to PATCH
-    const hasRelationship = result.data?.relationships?.field_title_deed_file?.data;
+    const hasRelationship =
+      result.data?.relationships?.field_title_deed_file?.data;
     if (hasRelationship) {
       logger.info("Title deed files attached via initial POST", {
         category: LogCategory.ZYPRUS,
@@ -1273,11 +1281,14 @@ export async function createDraftListing(
     } else {
       // POST didn't include title deeds (possibly 403 on that field) — fall back to PATCH
       titleDeedAttached = false;
-      logger.warn("Title deed files NOT in POST response — falling back to PATCH", {
-        category: LogCategory.ZYPRUS,
-        operation: "patchTitleDeedFiles",
-        listingId,
-      });
+      logger.warn(
+        "Title deed files NOT in POST response — falling back to PATCH",
+        {
+          category: LogCategory.ZYPRUS,
+          operation: "patchTitleDeedFiles",
+          listingId,
+        }
+      );
     }
   }
   if (titleDeedFileIds.length > 0 && !titleDeedAttached) {
@@ -1323,30 +1334,29 @@ export async function createDraftListing(
             attempt,
           });
           break;
-        } else {
-          let patchErrorBody = "";
-          try {
-            patchErrorBody = await patchRes.text();
-          } catch {
-            /* ignore */
+        }
+        let patchErrorBody = "";
+        try {
+          patchErrorBody = await patchRes.text();
+        } catch {
+          /* ignore */
+        }
+        logger.error(
+          `Title deed PATCH failed (attempt ${attempt}/3)`,
+          undefined,
+          {
+            category: LogCategory.ZYPRUS,
+            operation: "patchTitleDeedFiles",
+            listingId,
+            status: patchRes.status,
+            errorBody: patchErrorBody.substring(0, 500),
+            attempt,
           }
-          logger.error(
-            `Title deed PATCH failed (attempt ${attempt}/3)`,
-            undefined,
-            {
-              category: LogCategory.ZYPRUS,
-              operation: "patchTitleDeedFiles",
-              listingId,
-              status: patchRes.status,
-              errorBody: patchErrorBody.substring(0, 500),
-              attempt,
-            }
-          );
-          // Only retry on 5xx errors
-          if (patchRes.status < 500 && attempt < 3) {
-            // 4xx error — likely permissions. Try without delay.
-            continue;
-          }
+        );
+        // Only retry on 5xx errors
+        if (patchRes.status < 500 && attempt < 3) {
+          // 4xx error — likely permissions. Try without delay.
+          continue;
         }
       } catch (patchError) {
         logger.error(
@@ -1388,7 +1398,8 @@ export async function createDraftListing(
     listingUrl: nodeId
       ? `${config.siteUrl}/node/${nodeId}/edit`
       : `${config.siteUrl}/property/${listingId}`,
-    titleDeedAttached: titleDeedFileIds.length > 0 ? titleDeedAttached : undefined,
+    titleDeedAttached:
+      titleDeedFileIds.length > 0 ? titleDeedAttached : undefined,
   };
 }
 

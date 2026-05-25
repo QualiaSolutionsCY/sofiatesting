@@ -3,8 +3,7 @@
  * Handles the createLandListing tool
  */
 
-import { trackListingUpload } from "../../../_shared/db.ts";
-import { getSupabaseAdmin } from "../../../_shared/db.ts";
+import { getSupabaseAdmin, trackListingUpload } from "../../../_shared/db.ts";
 import { type Agent, getAgentByEmail } from "../../agents/identifier.ts";
 import {
   DEFAULT_COORDINATES,
@@ -59,7 +58,10 @@ import {
   isLocationAStreetInUrl,
   isStreetAddress,
 } from "../validators/location.ts";
-import { acquireUploadLock, releaseUploadLock } from "../validators/upload-lock.ts";
+import {
+  acquireUploadLock,
+  releaseUploadLock,
+} from "../validators/upload-lock.ts";
 
 export interface ToolResult {
   success?: boolean;
@@ -338,9 +340,7 @@ export async function handleCreateLandListing(
         }
       );
     } else {
-      const assigneeAgent = await getAgentByEmail(
-        assignToEmail
-      );
+      const assigneeAgent = await getAgentByEmail(assignToEmail);
       if (!assigneeAgent) {
         logger.warn("assignTo email not found in agents database — stripping", {
           category: LogCategory.TOOL,
@@ -364,9 +364,7 @@ export async function handleCreateLandListing(
   let listingOwnerName = agent.fullName;
   if (args.assignTo && reviewers.listingOwner !== agent.communicationEmail) {
     try {
-      const assignedAgent = await getAgentByEmail(
-        reviewers.listingOwner
-      );
+      const assignedAgent = await getAgentByEmail(reviewers.listingOwner);
       if (assignedAgent) {
         listingOwnerName = assignedAgent.fullName;
         logger.info("Resolved listing owner name from assignTo", {
@@ -488,32 +486,41 @@ export async function handleCreateLandListing(
 
   // 7b. Retrieve pending documents (with filename-based dedup + classification)
   let titleDeedFileUrls: string[] = [...titleDeedImageUrls];
-  let otherDocumentUrls: string[] = [];
+  const otherDocumentUrls: string[] = [];
   if (agentPhone) {
     const pendingDocs = await getPendingDocuments(agentPhone);
     if (pendingDocs.length > 0) {
       // Deduplicate by normalized filename (strip wa_doc_{timestamp}_ prefix)
       const seen = new Map<string, { url: string; filename: string }>();
       for (const doc of pendingDocs) {
-        const name = (doc.filename || doc.document_url)
-          .split("/").pop()?.split("?")[0] || doc.document_url;
-        const normalized = name.replace(/^wa_doc_\d+_/, "").toLowerCase().trim();
-        if (!seen.has(normalized)) {
-          seen.set(normalized, { url: doc.document_url, filename: normalized });
-        } else {
+        const name =
+          (doc.filename || doc.document_url).split("/").pop()?.split("?")[0] ||
+          doc.document_url;
+        const normalized = name
+          .replace(/^wa_doc_\d+_/, "")
+          .toLowerCase()
+          .trim();
+        if (seen.has(normalized)) {
           logger.info("Deduplicated document by filename", {
             category: LogCategory.GENERAL,
             operation: "createLandListing",
             duplicate: doc.filename,
           });
+        } else {
+          seen.set(normalized, { url: doc.document_url, filename: normalized });
         }
       }
 
       // Classify: title deeds vs other documents (KMZ, general PDFs, etc.)
       const titleDeedPatterns = [
-        "title_deed", "title deed", "titledeed",
-        "td_", "_td.", "_td_",
-        "deed_", "_deed.",
+        "title_deed",
+        "title deed",
+        "titledeed",
+        "td_",
+        "_td.",
+        "_td_",
+        "deed_",
+        "_deed.",
       ];
       for (const { url, filename } of seen.values()) {
         const isTitleDeed = titleDeedPatterns.some((p) => filename.includes(p));
@@ -524,15 +531,18 @@ export async function handleCreateLandListing(
         }
       }
 
-      logger.info("Retrieved and classified pending documents for land upload", {
-        category: LogCategory.GENERAL,
-        operation: "createLandListing",
-        rawCount: pendingDocs.length,
-        dedupedCount: seen.size,
-        titleDeedCount: titleDeedFileUrls.length,
-        otherDocCount: otherDocumentUrls.length,
-        filenames: pendingDocs.map((d) => d.filename).filter(Boolean),
-      });
+      logger.info(
+        "Retrieved and classified pending documents for land upload",
+        {
+          category: LogCategory.GENERAL,
+          operation: "createLandListing",
+          rawCount: pendingDocs.length,
+          dedupedCount: seen.size,
+          titleDeedCount: titleDeedFileUrls.length,
+          otherDocCount: otherDocumentUrls.length,
+          filenames: pendingDocs.map((d) => d.filename).filter(Boolean),
+        }
+      );
     }
   }
   const aiTitleDeedUrls = (args.titleDeedFileUrls as string[]) || [];
@@ -716,11 +726,22 @@ export async function handleCreateLandListing(
   }
 
   // 9d. Default infrastructure: always include all 4 unless agent says otherwise
-  const DEFAULT_INFRASTRUCTURE = ["electricity", "road_access", "telecommunications", "water"];
+  const DEFAULT_INFRASTRUCTURE = [
+    "electricity",
+    "road_access",
+    "telecommunications",
+    "water",
+  ];
   const agentInfra = (args.infrastructure as string[]) || [];
-  const mergedInfrastructure = agentInfra.length > 0
-    ? [...new Set([...agentInfra.map(i => i.toLowerCase().trim()), ...DEFAULT_INFRASTRUCTURE])]
-    : DEFAULT_INFRASTRUCTURE;
+  const mergedInfrastructure =
+    agentInfra.length > 0
+      ? [
+          ...new Set([
+            ...agentInfra.map((i) => i.toLowerCase().trim()),
+            ...DEFAULT_INFRASTRUCTURE,
+          ]),
+        ]
+      : DEFAULT_INFRASTRUCTURE;
 
   // 10. Generate description
   const description = generateLandDescription({
@@ -828,7 +849,9 @@ export async function handleCreateLandListing(
           notifyPhone = assignedAgent.mobile.replace(/\D/g, "");
           notifyName = assignedAgent.fullName;
         }
-      } catch { /* fall back to uploader */ }
+      } catch {
+        /* fall back to uploader */
+      }
     }
     const listingTitle = `Plot (${args.landSize}m²) For ${listingType === "rent" ? "Rent" : "Sale"} in ${descriptionLocation}`;
     trackListingUpload(

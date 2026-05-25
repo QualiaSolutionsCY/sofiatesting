@@ -1,23 +1,32 @@
 /**
  * Advanced Viewing Form
- * 
+ *
  * Template for viewing form with legal paragraph (exclusive representation clause).
  * Matches the HTML template: zyprus_viewing_form_single_advanced.html
- * 
+ *
  * Can be used for single or multiple people - includes the legal liability text.
  */
 
 import {
+  AlignmentType,
   Document,
+  ImageRun,
   Paragraph,
   TextRun,
-  ImageRun,
-  AlignmentType,
   UnderlineType,
 } from "https://esm.sh/docx@8.5.0";
-
-import { FONTS, SPACING, COMPANY, LEGAL_TEXT, createSignatureLine, formatDate, formatPropertyDescription, PLACEHOLDERS, isPlaceholder } from "../styles.ts";
 import { logger } from "../../utils/logger.ts";
+import {
+  COMPANY,
+  createSignatureLine,
+  FONTS,
+  formatDate,
+  formatPropertyDescription,
+  isPlaceholder,
+  LEGAL_TEXT,
+  PLACEHOLDERS,
+  SPACING,
+} from "../styles.ts";
 
 /**
  * Person data for viewing form
@@ -46,7 +55,9 @@ export interface ViewingFormAdvancedData {
 /**
  * Create blank viewing form data with placeholders for advanced form
  */
-export function createBlankViewingFormAdvancedData(date?: string): ViewingFormAdvancedData {
+export function createBlankViewingFormAdvancedData(
+  date?: string
+): ViewingFormAdvancedData {
   return {
     date: date || formatDate(),
     persons: [
@@ -140,14 +151,55 @@ export function createViewingFormAdvanced(
   const declarationRuns: TextRun[] = [];
   data.persons.forEach((p, idx) => {
     const prefix = idx === 0 ? "Herein, I " : " and I ";
-    declarationRuns.push(new TextRun({ text: prefix, size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }));
-    declarationRuns.push(new TextRun({ text: p.fullName, bold: isPlaceholder(p.fullName), size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }));
-    declarationRuns.push(new TextRun({ text: " with ID ", size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }));
-    declarationRuns.push(new TextRun({ text: p.idNumber, bold: isPlaceholder(p.idNumber), size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }));
-    declarationRuns.push(new TextRun({ text: ", Issued By: ", size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }));
-    declarationRuns.push(new TextRun({ text: p.issuedBy, bold: isPlaceholder(p.issuedBy), size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }));
+    declarationRuns.push(
+      new TextRun({ text: prefix, size: FONTS.SIZES.BODY, font: FONTS.PRIMARY })
+    );
+    declarationRuns.push(
+      new TextRun({
+        text: p.fullName,
+        bold: isPlaceholder(p.fullName),
+        size: FONTS.SIZES.BODY,
+        font: FONTS.PRIMARY,
+      })
+    );
+    declarationRuns.push(
+      new TextRun({
+        text: " with ID ",
+        size: FONTS.SIZES.BODY,
+        font: FONTS.PRIMARY,
+      })
+    );
+    declarationRuns.push(
+      new TextRun({
+        text: p.idNumber,
+        bold: isPlaceholder(p.idNumber),
+        size: FONTS.SIZES.BODY,
+        font: FONTS.PRIMARY,
+      })
+    );
+    declarationRuns.push(
+      new TextRun({
+        text: ", Issued By: ",
+        size: FONTS.SIZES.BODY,
+        font: FONTS.PRIMARY,
+      })
+    );
+    declarationRuns.push(
+      new TextRun({
+        text: p.issuedBy,
+        bold: isPlaceholder(p.issuedBy),
+        size: FONTS.SIZES.BODY,
+        font: FONTS.PRIMARY,
+      })
+    );
   });
-  declarationRuns.push(new TextRun({ text: ` confirm that ${COMPANY.FULL_REFERENCE}, has introduced to ${verb} with a viewing and/or digitally the property with the following Registry details:`, size: FONTS.SIZES.BODY, font: FONTS.PRIMARY }));
+  declarationRuns.push(
+    new TextRun({
+      text: ` confirm that ${COMPANY.FULL_REFERENCE}, has introduced to ${verb} with a viewing and/or digitally the property with the following Registry details:`,
+      size: FONTS.SIZES.BODY,
+      font: FONTS.PRIMARY,
+    })
+  );
 
   children.push(
     new Paragraph({
@@ -159,10 +211,18 @@ export function createViewingFormAdvanced(
   children.push(new Paragraph({ text: "" }));
 
   // Property line
-  const rawProp = data.property.rawDescription || [
-    data.property.registrationNo ? `registration no ${data.property.registrationNo}` : '',
-    data.property.municipality, data.property.district, data.property.locality,
-  ].filter(Boolean).join(" ");
+  const rawProp =
+    data.property.rawDescription ||
+    [
+      data.property.registrationNo
+        ? `registration no ${data.property.registrationNo}`
+        : "",
+      data.property.municipality,
+      data.property.district,
+      data.property.locality,
+    ]
+      .filter(Boolean)
+      .join(" ");
   const propertyDescription = formatPropertyDescription(rawProp);
   children.push(
     new Paragraph({
@@ -234,11 +294,13 @@ export function createViewingFormAdvanced(
       })
     );
   }
-  
+
   return new Document({
-    sections: [{
-      children,
-    }],
+    sections: [
+      {
+        children,
+      },
+    ],
   });
 }
 
@@ -246,51 +308,67 @@ export function createViewingFormAdvanced(
  * Parse AI response to extract advanced viewing form data
  * Returns blank data with placeholders if parsing fails (for blank documents)
  */
-export function parseViewingFormAdvancedData(response: string): ViewingFormAdvancedData | null {
+export function parseViewingFormAdvancedData(
+  response: string
+): ViewingFormAdvancedData | null {
   try {
     // Strip markdown formatting for easier parsing
-    const cleanResponse = response.replace(/\*\*/g, '').replace(/\*\s+/g, '');
+    const cleanResponse = response.replace(/\*\*/g, "").replace(/\*\s+/g, "");
 
     // Check if this is a BLANK viewing form (has placeholders or ellipses)
-    const hasBlankPatterns = /\[\s*\]/g.test(response) ||
-                            /[\.…]{8,}/g.test(response) ||
-                            /_{15,}/g.test(response) ||
-                            /\.{15,}/g.test(response);
+    const hasBlankPatterns =
+      /\[\s*\]/g.test(response) ||
+      /[.…]{8,}/g.test(response) ||
+      /_{15,}/g.test(response) ||
+      /\.{15,}/g.test(response);
 
-    const isViewingForm = cleanResponse.toLowerCase().includes('viewing form') &&
-                          cleanResponse.toLowerCase().includes('herein, i');
+    const isViewingForm =
+      cleanResponse.toLowerCase().includes("viewing form") &&
+      cleanResponse.toLowerCase().includes("herein, i");
 
     // If it's a blank/partial viewing form, extract whatever data IS available
     if (isViewingForm && hasBlankPatterns) {
-      logger.debug("[ViewingFormAdvanced] Detected blank/partial viewing form - extracting available data");
-      const dateMatch = cleanResponse.match(/Date:?\s*\*?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
-      const blankData = createBlankViewingFormAdvancedData(dateMatch ? dateMatch[1] : undefined);
+      logger.debug(
+        "[ViewingFormAdvanced] Detected blank/partial viewing form - extracting available data"
+      );
+      const dateMatch = cleanResponse.match(
+        /Date:?\s*\*?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i
+      );
+      const blankData = createBlankViewingFormAdvancedData(
+        dateMatch ? dateMatch[1] : undefined
+      );
 
       // Extract ALL persons using matchAll (supports multiple people)
-      const personMatches = cleanResponse.matchAll(/(?:Herein,?\s*)?I\s+([^,]+?)\s+with\s+ID\s+(\[[^\]]*\]|[^\s,]+),?\s+Issued\s+By:?\s*([A-Za-z]+|\[[\s\w]*\])(?:\s+(?:and|confirm))?/gi);
+      const personMatches = cleanResponse.matchAll(
+        /(?:Herein,?\s*)?I\s+([^,]+?)\s+with\s+ID\s+(\[[^\]]*\]|[^\s,]+),?\s+Issued\s+By:?\s*([A-Za-z]+|\[[\s\w]*\])(?:\s+(?:and|confirm))?/gi
+      );
       const extractedPersons: PersonData[] = [];
       for (const m of personMatches) {
         const name = m[1].trim();
-        if (name && !/^[\[\]\.…_\s]+$/.test(name) && name.length > 1) {
+        if (name && !/^[[\].…_\s]+$/.test(name) && name.length > 1) {
           const rawId = m[2].trim();
           extractedPersons.push({
             fullName: name,
             idNumber: /^\[/.test(rawId) ? PLACEHOLDERS.ID_NUMBER : rawId,
-            issuedBy: /^\[/.test(m[3].trim()) ? PLACEHOLDERS.ISSUED_BY : m[3].trim(),
+            issuedBy: /^\[/.test(m[3].trim())
+              ? PLACEHOLDERS.ISSUED_BY
+              : m[3].trim(),
           });
         }
       }
 
       if (extractedPersons.length > 0) {
         blankData.persons = extractedPersons;
-        logger.debug(`[ViewingFormAdvanced] Extracted ${extractedPersons.length} person(s) from partial data`);
+        logger.debug(
+          `[ViewingFormAdvanced] Extracted ${extractedPersons.length} person(s) from partial data`
+        );
       }
 
       // Extract property if available
       const partialPropertyMatch = cleanResponse.match(/^Property:\s*(.+)/im);
       if (partialPropertyMatch) {
         const prop = partialPropertyMatch[1].trim();
-        if (prop && !/^[\[\]\.…_\s]+$/.test(prop) && prop.length > 3) {
+        if (prop && !/^[[\].…_\s]+$/.test(prop) && prop.length > 3) {
           blankData.property.rawDescription = prop;
         }
       }
@@ -301,13 +379,17 @@ export function parseViewingFormAdvancedData(response: string): ViewingFormAdvan
     // Extract all person matches
     // IMPORTANT: issuedBy captures only the country name (single word) to avoid duplicate company text
     const persons: PersonData[] = [];
-    const simpleMatches = cleanResponse.matchAll(/(?:Herein,?\s*)?I\s+([^,]+?)\s+with\s+ID\s+(\[[^\]]*\]|[^\s,]+),?\s+Issued\s+By:?\s*([A-Za-z]+|\[[\s\w]*\])(?:\s+confirm)?/gi);
+    const simpleMatches = cleanResponse.matchAll(
+      /(?:Herein,?\s*)?I\s+([^,]+?)\s+with\s+ID\s+(\[[^\]]*\]|[^\s,]+),?\s+Issued\s+By:?\s*([A-Za-z]+|\[[\s\w]*\])(?:\s+confirm)?/gi
+    );
     for (const m of simpleMatches) {
       const rawId = m[2].trim();
       persons.push({
         fullName: m[1].trim(),
         idNumber: /^\[/.test(rawId) ? PLACEHOLDERS.ID_NUMBER : rawId,
-        issuedBy: /^\[/.test(m[3].trim()) ? PLACEHOLDERS.ISSUED_BY : m[3].trim(),
+        issuedBy: /^\[/.test(m[3].trim())
+          ? PLACEHOLDERS.ISSUED_BY
+          : m[3].trim(),
       });
     }
 
@@ -315,15 +397,23 @@ export function parseViewingFormAdvancedData(response: string): ViewingFormAdvan
     // IMPORTANT: Must anchor to line start and require colon to avoid matching "Property" in company name
     const propertyLineMatch = cleanResponse.match(/^Property:\s*(.+)/im);
 
-    const regNoMatch = cleanResponse.match(/Registration\s*No\.?:?\s*([^\n,*]+)/i);
+    const regNoMatch = cleanResponse.match(
+      /Registration\s*No\.?:?\s*([^\n,*]+)/i
+    );
     const districtMatch = cleanResponse.match(/District:?\s*([^\n,*]+)/i);
-    const municipalityMatch = cleanResponse.match(/Municipality:?\s*([^\n,*]+)/i);
+    const municipalityMatch = cleanResponse.match(
+      /Municipality:?\s*([^\n,*]+)/i
+    );
     const localityMatch = cleanResponse.match(/Locality:?\s*([^\n,*]+)/i);
 
-    const dateMatch = cleanResponse.match(/Date:?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
+    const dateMatch = cleanResponse.match(
+      /Date:?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i
+    );
 
     if (persons.length === 0 || (!regNoMatch && !propertyLineMatch)) {
-      logger.debug("[ViewingFormAdvanced] Could not parse required fields from response");
+      logger.debug(
+        "[ViewingFormAdvanced] Could not parse required fields from response"
+      );
       return null;
     }
 
@@ -335,12 +425,16 @@ export function parseViewingFormAdvancedData(response: string): ViewingFormAdvan
         district: districtMatch ? districtMatch[1].trim() : "",
         municipality: municipalityMatch ? municipalityMatch[1].trim() : "",
         locality: localityMatch ? localityMatch[1].trim() : "",
-        rawDescription: propertyLineMatch ? propertyLineMatch[1].trim() : undefined,
+        rawDescription: propertyLineMatch
+          ? propertyLineMatch[1].trim()
+          : undefined,
       },
     };
   } catch (error) {
-    logger.error("[ViewingFormAdvanced] Parse error", error instanceof Error ? error : new Error(String(error)));
+    logger.error(
+      "[ViewingFormAdvanced] Parse error",
+      error instanceof Error ? error : new Error(String(error))
+    );
     return null;
   }
 }
-

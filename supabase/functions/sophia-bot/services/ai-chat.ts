@@ -9,20 +9,17 @@
 
 import type { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import type { Agent } from "../agents/identifier.ts";
-import type {
-  OpenRouterMessage,
-  OpenRouterTool,
-} from "../types/openrouter.ts";
 import { getToolDefinitions } from "../tools/definitions.ts";
 import { executeTool } from "../tools/executor.ts";
-import { LogCategory, logger } from "../utils/logger.ts";
-import { getPendingImages } from "./pending-images.ts";
-import { loadSystemPrompt } from "./prompt-loader.ts";
+import type { OpenRouterMessage, OpenRouterTool } from "../types/openrouter.ts";
 import {
   canRequest,
   recordFailure,
   recordSuccess,
 } from "../utils/circuit-breaker.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
+import { getPendingImages } from "./pending-images.ts";
+import { loadSystemPrompt } from "./prompt-loader.ts";
 
 const OPENROUTER_CIRCUIT = {
   name: "openrouter",
@@ -281,8 +278,11 @@ ${accumulatedImages.map((url, i) => `${i + 1}. ${url}`).join("\n")}
   );
 
   // Email channel: add extraction directive at the END (closest to the user message = highest attention)
-  const isEmail = context.userMessage?.toLowerCase().includes("[channel: email");
-  const emailDirective = isEmail ? `
+  const isEmail = context.userMessage
+    ?.toLowerCase()
+    .includes("[channel: email");
+  const emailDirective = isEmail
+    ? `
 
 ---
 ## EMAIL UPLOAD — CRITICAL INSTRUCTIONS
@@ -300,7 +300,8 @@ ${accumulatedImages.map((url, i) => `${i + 1}. ${url}`).join("\n")}
 **Do NOT ask the agent for information that is already in the email.**
 **Do NOT use the sendEmail tool — the reply is sent automatically.**
 ---
-` : "";
+`
+    : "";
 
   return (
     baseSystemPrompt +
@@ -320,7 +321,10 @@ ${accumulatedImages.map((url, i) => `${i + 1}. ${url}`).join("\n")}
 async function callOpenRouter(
   messages: OpenRouterMessage[],
   tools: OpenRouterTool[],
-  toolChoice: "auto" | "required" | { type: "function"; function: { name: string } } = "auto",
+  toolChoice:
+    | "auto"
+    | "required"
+    | { type: "function"; function: { name: string } } = "auto",
   model: string = PRIMARY_MODEL
 ): Promise<{
   message: OpenRouterMessage | null;
@@ -441,9 +445,13 @@ async function callOpenRouter(
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       const timeoutMs = model === PRO_MODEL ? 90_000 : 60_000;
-      logger.error(`OpenRouter request timeout (${timeoutMs / 1000}s) for model ${model}`, error, {
-        category: LogCategory.GENERAL,
-      });
+      logger.error(
+        `OpenRouter request timeout (${timeoutMs / 1000}s) for model ${model}`,
+        error,
+        {
+          category: LogCategory.GENERAL,
+        }
+      );
       recordFailure(OPENROUTER_CIRCUIT);
       return {
         message: null,
@@ -504,12 +512,14 @@ export async function chat(
     // Add assistant prefill that reads the email — the AI continues from here
     openrouterMessages.push({
       role: "assistant",
-      content: "I'll read the email carefully and extract all the property details to create the listing. Let me call the appropriate tool with the information provided.",
+      content:
+        "I'll read the email carefully and extract all the property details to create the listing. Let me call the appropriate tool with the information provided.",
     });
     // Now add a "user" nudge to trigger the tool call
     openrouterMessages.push({
       role: "user",
-      content: "Go ahead — use the tool now with the details from the email above. Remember to use the EXACT location/area name from the email.",
+      content:
+        "Go ahead — use the tool now with the details from the email above. Remember to use the EXACT location/area name from the email.",
     });
   }
 
@@ -537,12 +547,17 @@ export async function chat(
     (lowerMessage.includes("want to") && lowerMessage.includes("upload")) ||
     (lowerMessage.includes("i want to") && lowerMessage.includes("property")) ||
     // Email uploads: the body itself has property details (price, bedrooms, location)
-    (isEmailChannel && (
-      lowerMessage.includes("sale") || lowerMessage.includes("rent") ||
-      lowerMessage.includes("bedroom") || lowerMessage.includes("apartment") ||
-      lowerMessage.includes("villa") || lowerMessage.includes("house") ||
-      lowerMessage.includes("property") || lowerMessage.includes("listing") ||
-      /€\d/.test(lowerMessage) || /\d+\s*sqm/.test(lowerMessage))) ||
+    (isEmailChannel &&
+      (lowerMessage.includes("sale") ||
+        lowerMessage.includes("rent") ||
+        lowerMessage.includes("bedroom") ||
+        lowerMessage.includes("apartment") ||
+        lowerMessage.includes("villa") ||
+        lowerMessage.includes("house") ||
+        lowerMessage.includes("property") ||
+        lowerMessage.includes("listing") ||
+        /€\d/.test(lowerMessage) ||
+        /\d+\s*sqm/.test(lowerMessage))) ||
     (imageUrls.length > 0 &&
       (lowerMessage.includes("property") ||
         lowerMessage.includes("listing") ||
@@ -553,7 +568,7 @@ export async function chat(
 
   if (isPropertyUploadIntent) {
     logger.info(
-      `[OpenRouter] Property upload intent detected - will encourage tool usage`,
+      "[OpenRouter] Property upload intent detected - will encourage tool usage",
       { category: LogCategory.ZYPRUS }
     );
   }
@@ -591,13 +606,15 @@ export async function chat(
 
     // Both email and WhatsApp: use "required" when upload intent detected (AI must call a tool).
     // "required" lets the AI pick WHICH tool — it reads the content and fills args itself.
-    const toolChoiceForCall: "auto" | "required" | { type: "function"; function: { name: string } } =
-      (isPropertyUploadIntent && toolCallCount === 0)
-        ? "required"
-        : "auto";
+    const toolChoiceForCall:
+      | "auto"
+      | "required"
+      | { type: "function"; function: { name: string } } =
+      isPropertyUploadIntent && toolCallCount === 0 ? "required" : "auto";
 
     // Use Pro model for property uploads, Bazaraki extraction, and email uploads (better at structured extraction)
-    const useProModel = isPropertyUploadIntent || isBazarakiLink || isEmailChannel;
+    const useProModel =
+      isPropertyUploadIntent || isBazarakiLink || isEmailChannel;
     const modelForCall = useProModel ? PRO_MODEL : PRIMARY_MODEL;
 
     const openRouterResult = await callOpenRouter(
@@ -610,9 +627,12 @@ export async function chat(
     const { usage } = openRouterResult;
 
     if (useProModel && !error) {
-      logger.info(`[OpenRouter] Used Pro model for ${isBazarakiLink ? "Bazaraki extraction" : "property upload"}`, {
-        category: LogCategory.GENERAL,
-      });
+      logger.info(
+        `[OpenRouter] Used Pro model for ${isBazarakiLink ? "Bazaraki extraction" : "property upload"}`,
+        {
+          category: LogCategory.GENERAL,
+        }
+      );
     }
 
     // Accumulate token usage
@@ -891,10 +911,12 @@ export async function chat(
         { category: LogCategory.GENERAL }
       );
 
-      const {
-        message: retryMessage,
-        usage: retryUsage,
-      } = await callOpenRouter(currentMessages, tools, "required", PRO_MODEL);
+      const { message: retryMessage, usage: retryUsage } = await callOpenRouter(
+        currentMessages,
+        tools,
+        "required",
+        PRO_MODEL
+      );
 
       // Accumulate retry token usage
       if (retryUsage?.totalTokens) {
@@ -1013,4 +1035,3 @@ export async function chat(
     tokenCount: totalTokens > 0 ? totalTokens : undefined,
   };
 }
-

@@ -18,7 +18,9 @@ export default async function LogsPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-4 md:space-y-6">
       <div>
-        <h2 className="font-bold text-xl tracking-tight md:text-3xl">Agent Logs</h2>
+        <h2 className="font-bold text-xl tracking-tight md:text-3xl">
+          Agent Logs
+        </h2>
         <p className="text-muted-foreground text-sm md:text-base">
           Detailed execution logs of all agent interactions.
         </p>

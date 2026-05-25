@@ -68,11 +68,11 @@ import {
   isConfirmationMessage as centralizedIsConfirmation,
   detectTemplateTypeFromMessage,
 } from "../templates/detection.ts";
+import { getContext } from "../utils/context.ts";
 import {
   hasAllRequiredFields,
   isCollectingInformation,
 } from "../utils/field-validator.ts";
-import { getContext } from "../utils/context.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
 import { checkRateLimit } from "../utils/rate-limiter.ts";
 import {
@@ -217,7 +217,7 @@ async function processRequest(
         "assistant",
         "Here's the Zyprus Property Group logo!"
       );
-      return undefined;
+      return;
     }
 
     // Add user message to database
@@ -248,17 +248,15 @@ async function processRequest(
         });
         return [];
       }),
-      identifyAgentByPhone(phoneNumber).catch(
-        (error) => {
-          logger.warn("Failed to identify agent by phone (non-critical)", {
-            category: LogCategory.GENERAL,
-            operation: "identifyAgentByPhone",
-            phoneNumber,
-            error: error instanceof Error ? error.message : String(error),
-          });
-          return null;
-        }
-      ),
+      identifyAgentByPhone(phoneNumber).catch((error) => {
+        logger.warn("Failed to identify agent by phone (non-critical)", {
+          category: LogCategory.GENERAL,
+          operation: "identifyAgentByPhone",
+          phoneNumber,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      }),
       getLastDocument(userId).catch((error) => {
         logger.warn("Failed to get last document (non-critical)", {
           category: LogCategory.GENERAL,
@@ -346,7 +344,7 @@ async function processRequest(
           error: String(err),
         })
       );
-      return undefined;
+      return;
     }
 
     // Sanitize AI output before sending to WhatsApp (strip untrusted URLs, injection markers)
@@ -641,7 +639,7 @@ async function processRequest(
       category: LogCategory.GENERAL,
     });
     trackError(phoneNumber, "PROCESS_REQUEST_ERROR", String(error));
-    return undefined;
+    return;
   }
 }
 
@@ -820,7 +818,9 @@ export async function handleWebhook(
 
     // Send ONE acknowledgment for the first image only.
     if (imageUrls.length > 0) {
-      const { getPendingImageCount } = await import("../services/pending-images.ts");
+      const { getPendingImageCount } = await import(
+        "../services/pending-images.ts"
+      );
       const digitsPhone = phoneNumber.replace(/\D/g, "");
       const totalImages = await getPendingImageCount(digitsPhone);
       if (totalImages === 1) {

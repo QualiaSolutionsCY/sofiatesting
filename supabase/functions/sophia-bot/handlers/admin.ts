@@ -13,6 +13,7 @@
  */
 
 import type { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { getAgentByEmail } from "../agents/identifier.ts";
 import {
   generateDescription,
   type PropertyDetails,
@@ -23,10 +24,9 @@ import {
   invalidateCache,
   rollbackPrompt,
 } from "../services/prompt-loader.ts";
+import { handleCreatePropertyListing } from "../tools/handlers/property-listing.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
 import { constantTimeCompare } from "../utils/webhook-auth.ts";
-import { handleCreatePropertyListing } from "../tools/handlers/property-listing.ts";
-import { getAgentByEmail } from "../agents/identifier.ts";
 import { loadTaxonomy } from "../zyprus/taxonomy-cache.ts";
 
 const ADMIN_SECRET = Deno.env.get("SOPHIA_ADMIN_SECRET");
@@ -337,14 +337,26 @@ async function handlePromptSync(
     const body = await req.json();
 
     // Import all fallback prompts
-    const { DOCUMENT_ROUTING } = await import("../prompts/behaviors/document-routing.ts");
-    const { PROPERTY_UPLOAD } = await import("../prompts/behaviors/property-upload.ts");
-    const { RESERVATION_LOAN_VAT_REQUIRED } = await import("../prompts/behaviors/reservation-loan-vat.ts");
-    const { RESPONSE_FORMAT } = await import("../prompts/behaviors/response-format.ts");
+    const { DOCUMENT_ROUTING } = await import(
+      "../prompts/behaviors/document-routing.ts"
+    );
+    const { PROPERTY_UPLOAD } = await import(
+      "../prompts/behaviors/property-upload.ts"
+    );
+    const { RESERVATION_LOAN_VAT_REQUIRED } = await import(
+      "../prompts/behaviors/reservation-loan-vat.ts"
+    );
+    const { RESPONSE_FORMAT } = await import(
+      "../prompts/behaviors/response-format.ts"
+    );
     const { IDENTITY } = await import("../prompts/core/identity.ts");
     const { SAFETY_RULES } = await import("../prompts/core/safety-rules.ts");
-    const { CALCULATOR_CAPABILITIES } = await import("../prompts/knowledge/calculators.ts");
-    const { CYPRUS_KNOWLEDGE } = await import("../prompts/knowledge/cyprus-real-estate.ts");
+    const { CALCULATOR_CAPABILITIES } = await import(
+      "../prompts/knowledge/calculators.ts"
+    );
+    const { CYPRUS_KNOWLEDGE } = await import(
+      "../prompts/knowledge/cyprus-real-estate.ts"
+    );
     const { TEMPLATES } = await import("../prompts/templates/content.ts");
 
     const filePrompts: Record<string, string> = {
@@ -367,19 +379,27 @@ async function handlePromptSync(
       keysToSync = body.keys.filter((k: string) => k in filePrompts);
     } else {
       return new Response(
-        JSON.stringify({ success: false, error: 'Body must have "keys": ["key1", "key2"] or "keys": "all"' }),
+        JSON.stringify({
+          success: false,
+          error: 'Body must have "keys": ["key1", "key2"] or "keys": "all"',
+        }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
     if (keysToSync.length === 0) {
       return new Response(
-        JSON.stringify({ success: false, error: "No valid keys to sync", validKeys: Object.keys(filePrompts) }),
+        JSON.stringify({
+          success: false,
+          error: "No valid keys to sync",
+          validKeys: Object.keys(filePrompts),
+        }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    const results: Array<{ key: string; status: string; newVersion?: number }> = [];
+    const results: Array<{ key: string; status: string; newVersion?: number }> =
+      [];
 
     for (const key of keysToSync) {
       const content = filePrompts[key];
@@ -800,7 +820,10 @@ async function handleDirectCreateListing(req: Request): Promise<Response> {
     const agent = await getAgentByEmail(agentEmail);
     if (!agent) {
       return new Response(
-        JSON.stringify({ success: false, error: `Agent not found for ${agentEmail}` }),
+        JSON.stringify({
+          success: false,
+          error: `Agent not found for ${agentEmail}`,
+        }),
         { status: 404, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -813,14 +836,18 @@ async function handleDirectCreateListing(req: Request): Promise<Response> {
 
     const result = await handleCreatePropertyListing(args, agent);
 
-    return new Response(
-      JSON.stringify({ success: true, result }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
-  } catch (err) {
-    logger.error("Admin: Direct create-listing error", err instanceof Error ? err : undefined, {
-      category: LogCategory.GENERAL,
+    return new Response(JSON.stringify({ success: true, result }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
     });
+  } catch (err) {
+    logger.error(
+      "Admin: Direct create-listing error",
+      err instanceof Error ? err : undefined,
+      {
+        category: LogCategory.GENERAL,
+      }
+    );
     return new Response(
       JSON.stringify({ success: false, error: String(err) }),
       { status: 500, headers: { "Content-Type": "application/json" } }
@@ -835,17 +862,17 @@ async function handleDirectCreateListing(req: Request): Promise<Response> {
 async function handleTaxonomySearch(url: URL): Promise<Response> {
   const query = (url.searchParams.get("q") || "").toLowerCase().trim();
   if (!query) {
-    return new Response(
-      JSON.stringify({ error: "Missing ?q= parameter" }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: "Missing ?q= parameter" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const taxonomy = await loadTaxonomy();
 
   // Find matching locations
-  const matches = taxonomy.locations.filter(
-    (loc) => loc.name.toLowerCase().includes(query)
+  const matches = taxonomy.locations.filter((loc) =>
+    loc.name.toLowerCase().includes(query)
   );
 
   // For each match, resolve parent name
@@ -858,24 +885,42 @@ async function handleTaxonomySearch(url: URL): Promise<Response> {
   }));
 
   // Also show all district parent nodes
-  const districtTerms = ["paphos", "pafos", "limassol", "lemesos", "larnaca", "larnaka", "nicosia", "lefkosia", "famagusta"];
+  const districtTerms = [
+    "paphos",
+    "pafos",
+    "limassol",
+    "lemesos",
+    "larnaca",
+    "larnaka",
+    "nicosia",
+    "lefkosia",
+    "famagusta",
+  ];
   const districtNodes = taxonomy.locations
-    .filter((loc) => districtTerms.some((t) => loc.name.toLowerCase().includes(t)))
+    .filter((loc) =>
+      districtTerms.some((t) => loc.name.toLowerCase().includes(t))
+    )
     .map((loc) => ({
       id: loc.id,
       name: loc.name,
       parentId: loc.parentId || null,
-      parentName: loc.parentId ? parentMap.get(loc.parentId) || "UNKNOWN" : null,
+      parentName: loc.parentId
+        ? parentMap.get(loc.parentId) || "UNKNOWN"
+        : null,
     }));
 
   return new Response(
-    JSON.stringify({
-      query,
-      matchCount: results.length,
-      matches: results,
-      totalLocations: taxonomy.locations.length,
-      districtNodes,
-    }, null, 2),
+    JSON.stringify(
+      {
+        query,
+        matchCount: results.length,
+        matches: results,
+        totalLocations: taxonomy.locations.length,
+        districtNodes,
+      },
+      null,
+      2
+    ),
     { status: 200, headers: { "Content-Type": "application/json" } }
   );
 }

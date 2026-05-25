@@ -113,9 +113,8 @@ async function fetchListingStatus(
   const data = await response.json();
   const published = data.data?.attributes?.status === true;
   const pathAlias = data.data?.attributes?.path?.alias;
-  const publicUrl = published && pathAlias
-    ? `${ZYPRUS_API_URL}${pathAlias}`
-    : undefined;
+  const publicUrl =
+    published && pathAlias ? `${ZYPRUS_API_URL}${pathAlias}` : undefined;
 
   return { published, publicUrl };
 }

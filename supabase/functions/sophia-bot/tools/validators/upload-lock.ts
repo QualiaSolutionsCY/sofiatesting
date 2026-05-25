@@ -3,8 +3,8 @@
  * Provides atomic locking mechanism to prevent duplicate uploads
  */
 
-import { UPLOAD_LOCK_DURATION_MS } from "../../config/business-rules.ts";
 import { getSupabaseAdmin } from "../../../_shared/db.ts";
+import { UPLOAD_LOCK_DURATION_MS } from "../../config/business-rules.ts";
 
 /**
  * Atomically acquire a DB-based upload lock for a property.

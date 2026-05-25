@@ -542,7 +542,25 @@ export async function loadTaxonomy(): Promise<TaxonomyCache> {
   return taxonomyLoadPromise;
 }
 
+export {
+  findFeatureUuids,
+  findIndoorFeatureUuids,
+  findInfrastructureUuids,
+  findLandTypeUuid,
+  findOutdoorFeatureUuids,
+  findPropertyViewUuids,
+} from "./amenities.ts";
+export {
+  findLocationUuid,
+  findUserUuid,
+  findUserUuids,
+  getLocationsByRegion,
+  type LocationResult,
+} from "./locations.ts";
 // Re-exports for backward compatibility
-export { findPropertyTypeUuid, findListingTypeUuid, findPriceModifierUuid, findTitleDeedUuid } from "./property-types.ts";
-export { findFeatureUuids, findIndoorFeatureUuids, findOutdoorFeatureUuids, findPropertyViewUuids, findLandTypeUuid, findInfrastructureUuids } from "./amenities.ts";
-export { type LocationResult, findLocationUuid, getLocationsByRegion, findUserUuid, findUserUuids } from "./locations.ts";
+export {
+  findListingTypeUuid,
+  findPriceModifierUuid,
+  findPropertyTypeUuid,
+  findTitleDeedUuid,
+} from "./property-types.ts";

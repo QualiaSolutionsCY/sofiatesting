@@ -30,7 +30,9 @@ async function getAccessToken(): Promise<string> {
   });
 
   if (!response.ok) {
-    throw new Error(`Token fetch failed: ${response.status} ${await response.text()}`);
+    throw new Error(
+      `Token fetch failed: ${response.status} ${await response.text()}`
+    );
   }
 
   const data = await response.json();
@@ -39,7 +41,8 @@ async function getAccessToken(): Promise<string> {
 
 async function fetchPropertyTypes(token: string): Promise<TaxonomyItem[]> {
   const items: TaxonomyItem[] = [];
-  let nextUrl: string | null = `${ZYPRUS_API_URL}/jsonapi/taxonomy_term/property_type?page[limit]=50`;
+  let nextUrl: string | null =
+    `${ZYPRUS_API_URL}/jsonapi/taxonomy_term/property_type?page[limit]=50`;
 
   while (nextUrl) {
     const response = await fetch(nextUrl, {
@@ -58,9 +61,16 @@ async function fetchPropertyTypes(token: string): Promise<TaxonomyItem[]> {
     const data = await response.json();
 
     for (const item of data.data || []) {
-      const rels = item.relationships as Record<string, { data?: Array<{ id: string }> | { id: string } | null }> | undefined;
+      const rels = item.relationships as
+        | Record<
+            string,
+            { data?: Array<{ id: string }> | { id: string } | null }
+          >
+        | undefined;
       const parentData = rels?.parent?.data;
-      const parentId = Array.isArray(parentData) ? parentData[0]?.id : undefined;
+      const parentId = Array.isArray(parentData)
+        ? parentData[0]?.id
+        : undefined;
 
       items.push({
         id: item.id as string,
@@ -92,7 +102,9 @@ async function main() {
   const leaves = allTypes.filter((t) => !parentIds.has(t.id));
   const parents = allTypes.filter((t) => parentIds.has(t.id));
 
-  console.log("=== PARENT NODES (categories, NOT selectable as leaf radios) ===");
+  console.log(
+    "=== PARENT NODES (categories, NOT selectable as leaf radios) ==="
+  );
   for (const p of parents.sort((a, b) => a.name.localeCompare(b.name))) {
     console.log(`  ${p.name}: ${p.id}`);
   }
@@ -100,7 +112,9 @@ async function main() {
   console.log("\n=== LEAF NODES (selectable radios on the edit page) ===");
   for (const l of leaves.sort((a, b) => a.name.localeCompare(b.name))) {
     const parent = allTypes.find((t) => t.id === l.parentId);
-    const parentLabel = parent ? ` (parent: ${parent.name})` : " (top-level leaf)";
+    const parentLabel = parent
+      ? ` (parent: ${parent.name})`
+      : " (top-level leaf)";
     console.log(`  ${l.name}: ${l.id}${parentLabel}`);
   }
 
@@ -131,7 +145,9 @@ async function main() {
 
   // Generate suggested PROPERTY_TYPE_FALLBACKS
   console.log("\n=== SUGGESTED PROPERTY_TYPE_FALLBACKS (copy-paste ready) ===");
-  console.log("export const PROPERTY_TYPE_FALLBACKS: Record<string, string> = {");
+  console.log(
+    "export const PROPERTY_TYPE_FALLBACKS: Record<string, string> = {"
+  );
   for (const l of leaves.sort((a, b) => a.name.localeCompare(b.name))) {
     const key = l.name.toLowerCase();
     console.log(`  "${key}": "${l.id}",`);

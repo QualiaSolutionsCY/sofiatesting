@@ -117,7 +117,9 @@ export function AgentProfileSheet({
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(
-          payload.error || payload.message || `Request failed (${response.status})`
+          payload.error ||
+            payload.message ||
+            `Request failed (${response.status})`
         );
       }
       if (payload.emailed === false && payload.signupUrl) {
@@ -149,7 +151,9 @@ export function AgentProfileSheet({
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(
-          payload.error || payload.message || `Request failed (${response.status})`
+          payload.error ||
+            payload.message ||
+            `Request failed (${response.status})`
         );
       }
       toast.success(
@@ -395,9 +399,7 @@ export function AgentProfileSheet({
               Edit agent
             </Button>
             <Button
-              disabled={
-                inviteSending || !!agent.userId || !agent.email
-              }
+              disabled={inviteSending || !!agent.userId || !agent.email}
               onClick={handleSendInvite}
               variant="outline"
             >
@@ -432,10 +434,7 @@ export function AgentProfileSheet({
       </SheetContent>
 
       {/* Activate/Deactivate confirmation */}
-      <AlertDialog
-        onOpenChange={setToggleConfirmOpen}
-        open={toggleConfirmOpen}
-      >
+      <AlertDialog onOpenChange={setToggleConfirmOpen} open={toggleConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
@@ -448,7 +447,9 @@ export function AgentProfileSheet({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={togglePending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={togglePending}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               className={
                 agent.isActive

@@ -4,7 +4,8 @@
  */
 
 // Environment variables
-const ZYPRUS_API_URL = Deno.env.get("ZYPRUS_API_URL") || "https://www.zyprus.com";
+const ZYPRUS_API_URL =
+  Deno.env.get("ZYPRUS_API_URL") || "https://www.zyprus.com";
 const ZYPRUS_CLIENT_ID = Deno.env.get("ZYPRUS_CLIENT_ID");
 const ZYPRUS_CLIENT_SECRET = Deno.env.get("ZYPRUS_CLIENT_SECRET");
 
@@ -24,7 +25,9 @@ const getAccessToken = async (): Promise<string | null> => {
   }
 
   if (!ZYPRUS_CLIENT_ID || !ZYPRUS_CLIENT_SECRET) {
-    console.error("[ZyprusAPI] Missing ZYPRUS_CLIENT_ID or ZYPRUS_CLIENT_SECRET");
+    console.error(
+      "[ZyprusAPI] Missing ZYPRUS_CLIENT_ID or ZYPRUS_CLIENT_SECRET"
+    );
     return null;
   }
 
@@ -81,9 +84,7 @@ export const parseZyprusUrl = (
   url: string
 ): { type: "property" | "land"; nodeId: string } | null => {
   // Match URLs like zyprus.com/land/32417 or zyprus.com/property/12345
-  const match = url.match(
-    /zyprus\.com\/(property|land)\/(\d+)/i
-  );
+  const match = url.match(/zyprus\.com\/(property|land)\/(\d+)/i);
 
   if (!match) {
     return null;
@@ -113,9 +114,10 @@ export const getListingOwnerInfo = async (
 
   try {
     // Use JSON:API filter to find by internal node ID
-    const endpoint = listingType === "property"
-      ? "/jsonapi/node/property"
-      : "/jsonapi/node/land";
+    const endpoint =
+      listingType === "property"
+        ? "/jsonapi/node/property"
+        : "/jsonapi/node/land";
 
     // Include the user relationship to get agent info
     const url = `${ZYPRUS_API_URL}${endpoint}?filter[drupal_internal__nid]=${nodeId}&include=uid`;
@@ -160,14 +162,18 @@ export const getListingOwnerInfo = async (
 
     // Extract owner agent name from user display name
     // Format could be "Marios Azinas" or similar
-    const ownerAgentName = ownerUser?.attributes?.display_name ||
+    const ownerAgentName =
+      ownerUser?.attributes?.display_name ||
       ownerUser?.attributes?.name ||
       null;
 
-    console.log(`[ZyprusAPI] Found listing "${listing.attributes?.title}", owner: ${ownerAgentName || "office"}`);
+    console.log(
+      `[ZyprusAPI] Found listing "${listing.attributes?.title}", owner: ${ownerAgentName || "office"}`
+    );
 
     // Determine if office-owned (no specific agent, or system user)
-    const isOfficeOwned = !ownerAgentName ||
+    const isOfficeOwned =
+      !ownerAgentName ||
       ownerAgentName.toLowerCase() === "admin" ||
       ownerAgentName.toLowerCase() === "zyprus" ||
       ownerAgentName.toLowerCase().includes("office");
@@ -208,4 +214,3 @@ export const getOwnerFromUrls = async (
 
   return null;
 };
-

@@ -15,27 +15,26 @@
  */
 
 import {
-  Document,
-  Paragraph,
-  TextRun,
-  Table,
-  TableRow,
-  TableCell,
-  WidthType,
   AlignmentType,
   BorderStyle,
+  Document,
+  Paragraph,
+  Table,
+  TableCell,
+  TableRow,
+  TextRun,
+  WidthType,
 } from "https://esm.sh/docx@8.5.0";
-
-import { FONTS } from "../styles.ts";
-import { logger, LogCategory } from "../../utils/logger.ts";
+import { LogCategory, logger } from "../../utils/logger.ts";
 import { formatPropertyDescription } from "../../utils/property-formatter.ts";
+import { FONTS } from "../styles.ts";
 
 /**
  * Structured property info for single line display
  * Format: "Cynthiana Complex Flat No. 105, Agios Theodoros, Paphos (Registration No 0/1547)"
  */
 export interface PropertyInfo {
-  description: string;  // Full single line with address, flat no, and registration
+  description: string; // Full single line with address, flat no, and registration
 }
 
 /**
@@ -82,7 +81,7 @@ function formatPrice(price: string): string {
   const cleanPrice = price.replace(/[€$\s,]/g, "");
 
   // Parse as number
-  const numericPrice = parseInt(cleanPrice, 10);
+  const numericPrice = Number.parseInt(cleanPrice, 10);
 
   if (isNaN(numericPrice)) {
     return price; // Return original if can't parse
@@ -119,7 +118,8 @@ export function createMarketingAgreement(
 
   // Get property info (single line format)
   // Use provided propertyInfo if available, otherwise parse from raw input
-  const structuredProperty = data.propertyInfo || formatPropertyInfo(rawPropertyInfo);
+  const structuredProperty =
+    data.propertyInfo || formatPropertyInfo(rawPropertyInfo);
   const propertyDisplay = structuredProperty.description || rawPropertyInfo;
 
   const priceDisplay = formatPrice(data.marketingPrice);
@@ -127,7 +127,7 @@ export function createMarketingAgreement(
   const dateDisplay = agreementDate || "[Date]";
 
   // Check if value contains placeholder brackets [FIELD] or [ ]
-  const checkPlaceholder = (val: string) => !val ? false : /\[.*?\]/.test(val);
+  const checkPlaceholder = (val: string) => (val ? /\[.*?\]/.test(val) : false);
 
   // Border style for signature table only
   const tableBorder = {
@@ -169,9 +169,9 @@ export function createMarketingAgreement(
         properties: {
           page: {
             margin: {
-              top: 720,    // 0.5 inch
+              top: 720, // 0.5 inch
               bottom: 720, // 0.5 inch
-              left: 1080,  // 0.75 inch
+              left: 1080, // 0.75 inch
               right: 1080, // 0.75 inch
             },
           },
@@ -217,7 +217,7 @@ export function createMarketingAgreement(
           new Paragraph({
             children: [
               new TextRun({
-                text: "CREA Reg No. 742, CREA License Number 378/E (hereinafter referred to as the \"Agent\")",
+                text: 'CREA Reg No. 742, CREA License Number 378/E (hereinafter referred to as the "Agent")',
                 size: bodySize,
                 font: fontFamily,
               }),
@@ -550,7 +550,9 @@ export function createMarketingAgreement(
 /**
  * Create blank marketing agreement data with placeholders
  */
-export function createBlankMarketingAgreementData(agentName: string = "[Agent's Name]"): MarketingAgreementData {
+export function createBlankMarketingAgreementData(
+  agentName = "[Agent's Name]"
+): MarketingAgreementData {
   return {
     agreementDate: formatOrdinalDate(),
     sellerFullName: "[SELLER NAME]",
@@ -574,23 +576,35 @@ export function parseMarketingAgreementData(
     const cleanResponse = response.replace(/\*\*/g, "");
 
     // Check if this is a BLANK marketing agreement (has placeholders or ellipses)
-    const hasBlankPatterns = /\[\s*\]/g.test(response) ||
-      /[\.…]{8,}/g.test(response) ||
+    const hasBlankPatterns =
+      /\[\s*\]/g.test(response) ||
+      /[.…]{8,}/g.test(response) ||
       /_{15,}/g.test(response) ||
       /\.{15,}/g.test(response);
 
-    const isMarketingAgreement = cleanResponse.toLowerCase().includes('marketing agreement');
+    const isMarketingAgreement = cleanResponse
+      .toLowerCase()
+      .includes("marketing agreement");
 
     // If it's a blank/partial marketing agreement, extract whatever data IS available
     if (isMarketingAgreement && hasBlankPatterns) {
-      logger.debug("[MarketingAgreement] Detected blank/partial marketing agreement - extracting available data", { category: LogCategory.GENERAL });
+      logger.debug(
+        "[MarketingAgreement] Detected blank/partial marketing agreement - extracting available data",
+        { category: LogCategory.GENERAL }
+      );
       const blankData = createBlankMarketingAgreementData(agentName);
 
       // Extract seller name if available
       const partialSellerMatch =
-        cleanResponse.match(/\bAnd\s*\n+\s*([A-Za-z][A-Za-z\s]+?)(?:……|\.\.\.|\n)/i) ||
-        cleanResponse.match(/Seller(?:'s)?\s*(?:Name)?[:\s]+([A-Za-z][A-Za-z\s]+?)(?:\n|,|$)/i) ||
-        cleanResponse.match(/The Seller\s*\n\s*Name:\s*([A-Za-z][A-Za-z\s]+?)(?:\n|$)/i);
+        cleanResponse.match(
+          /\bAnd\s*\n+\s*([A-Za-z][A-Za-z\s]+?)(?:……|\.\.\.|\n)/i
+        ) ||
+        cleanResponse.match(
+          /Seller(?:'s)?\s*(?:Name)?[:\s]+([A-Za-z][A-Za-z\s]+?)(?:\n|,|$)/i
+        ) ||
+        cleanResponse.match(
+          /The Seller\s*\n\s*Name:\s*([A-Za-z][A-Za-z\s]+?)(?:\n|$)/i
+        );
 
       if (partialSellerMatch) {
         const name = partialSellerMatch[1].trim();
@@ -603,19 +617,28 @@ export function parseMarketingAgreementData(
           /^seller$/i,
           /^the\s+seller$/i,
         ];
-        if (name && !/^[\[\]\.…_\s]+$/.test(name) && name.length > 1 && !invalidNames.some(p => p.test(name))) {
+        if (
+          name &&
+          !/^[[\].…_\s]+$/.test(name) &&
+          name.length > 1 &&
+          !invalidNames.some((p) => p.test(name))
+        ) {
           blankData.sellerFullName = name;
         }
       }
 
       // Extract property registration if available
       const partialRegMatch =
-        cleanResponse.match(/Property(?!\s+Group)[:\s]+(?:with\s+)?(?:Registration\s+(?:No\.?\s*)?)?([^\n]*?\d+\/\d+[^\n]*?)(?=\s*\(?hereinafter|\s*which\s+the\s+seller|\s*$)/im) ||
-        cleanResponse.match(/(?:Reg(?:istration)?\.?\s*(?:No\.?)?)[:\s]*(\d+\/\d+[^\n]*)(?:\n|$)/i);
+        cleanResponse.match(
+          /Property(?!\s+Group)[:\s]+(?:with\s+)?(?:Registration\s+(?:No\.?\s*)?)?([^\n]*?\d+\/\d+[^\n]*?)(?=\s*\(?hereinafter|\s*which\s+the\s+seller|\s*$)/im
+        ) ||
+        cleanResponse.match(
+          /(?:Reg(?:istration)?\.?\s*(?:No\.?)?)[:\s]*(\d+\/\d+[^\n]*)(?:\n|$)/i
+        );
 
       if (partialRegMatch) {
         const prop = partialRegMatch[1].trim();
-        if (prop && !/^[\[\]\.…_\s]+$/.test(prop) && prop.length > 3) {
+        if (prop && !/^[[\].…_\s]+$/.test(prop) && prop.length > 3) {
           blankData.propertyRegistration = prop;
           blankData.propertyInfo = formatPropertyInfo(prop);
         }
@@ -623,7 +646,9 @@ export function parseMarketingAgreementData(
 
       // Extract price if available
       const partialPriceMatch =
-        cleanResponse.match(/(?:marketing\s+)?price\s+is\s+[€$]?\s*([\d,]+)/i) ||
+        cleanResponse.match(
+          /(?:marketing\s+)?price\s+is\s+[€$]?\s*([\d,]+)/i
+        ) ||
         cleanResponse.match(/(?:Marketing\s+)?Price[:\s]+[€$]?\s*([\d,]+)/i);
 
       if (partialPriceMatch) {
@@ -634,34 +659,52 @@ export function parseMarketingAgreementData(
     }
 
     logger.debug("[MarketingAgreement] Parsing response...");
-    logger.debug("[MarketingAgreement] Clean response preview", { preview: cleanResponse.substring(0, 500) });
+    logger.debug("[MarketingAgreement] Clean response preview", {
+      preview: cleanResponse.substring(0, 500),
+    });
 
     // Extract seller name - multiple patterns for different AI output formats
     const sellerMatch =
       // Pattern 1: After "And" on new line, followed by dots (DOCX format)
-      cleanResponse.match(/\bAnd\s*\n+\s*([A-Za-z][A-Za-z\s]+?)(?:……|\.\.\.|\n)/i) ||
+      cleanResponse.match(
+        /\bAnd\s*\n+\s*([A-Za-z][A-Za-z\s]+?)(?:……|\.\.\.|\n)/i
+      ) ||
       // Pattern 2: "Name:" in signature section followed by seller name
       cleanResponse.match(/\bName:\s*([A-Za-z][A-Za-z\s]+?)(?:\n|$)/i) ||
       // Pattern 3: "Seller's Name:" or "Seller:" prefix
-      cleanResponse.match(/Seller(?:'s)?\s*(?:Name)?[:\s]+([A-Za-z][A-Za-z\s]+?)(?:\n|,|$)/i) ||
+      cleanResponse.match(
+        /Seller(?:'s)?\s*(?:Name)?[:\s]+([A-Za-z][A-Za-z\s]+?)(?:\n|,|$)/i
+      ) ||
       // Pattern 4: "name of the seller" or just "seller:"
-      cleanResponse.match(/(?:name of the seller|seller)[:\s]+([A-Za-z][A-Za-z\s]+?)(?:\n|,|$)/i) ||
+      cleanResponse.match(
+        /(?:name of the seller|seller)[:\s]+([A-Za-z][A-Za-z\s]+?)(?:\n|,|$)/i
+      ) ||
       // Pattern 5: "Dear [name]" in email format
       cleanResponse.match(/Dear\s+([A-Za-z][A-Za-z\s]+?)[\n,]/i) ||
       // Pattern 6: "The Seller" section in signature - "The Seller\nName: X"
-      cleanResponse.match(/The Seller\s*\n\s*Name:\s*([A-Za-z][A-Za-z\s]+?)(?:\n|$)/i);
+      cleanResponse.match(
+        /The Seller\s*\n\s*Name:\s*([A-Za-z][A-Za-z\s]+?)(?:\n|$)/i
+      );
 
     // Extract property registration - capture the full line including location
     // IMPORTANT: Avoid matching company names like "CSC Zyprus Property Group LTD"
 
     // First, try to find a complete line containing both property keywords AND registration number
     // This handles "Limas Building Flat 105 Registration No. 0/453" format
-    const fullLineWithReg = cleanResponse.match(/^.*(?:Building|Complex|Tower|Block|Court|Residence|Residences|Gardens|Heights|Flat|Apartment|Unit).*\d+\/\d+.*$/im);
+    const fullLineWithReg = cleanResponse.match(
+      /^.*(?:Building|Complex|Tower|Block|Court|Residence|Residences|Gardens|Heights|Flat|Apartment|Unit).*\d+\/\d+.*$/im
+    );
 
     // Also look for Building/Court/Complex name separately (might be on different line from reg number)
-    const buildingMatch = cleanResponse.match(/([A-Za-z]+\s+(?:Building|Court|Complex|Tower|Residence|Residences|Gardens|Heights|Block))(?:\s+(?:Flat|Apartment|Unit)\s*(?:No\.?)?\s*\d+)?/i);
-    const flatMatch = cleanResponse.match(/(?:Flat|Apartment|Unit)\s*(?:No\.?)?\s*(\d+[A-Za-z]?)/i);
-    const regNumMatch = cleanResponse.match(/(?:Reg(?:istration)?\.?\s*(?:No\.?)?\s*)?(\d+\/\d+)/i);
+    const buildingMatch = cleanResponse.match(
+      /([A-Za-z]+\s+(?:Building|Court|Complex|Tower|Residence|Residences|Gardens|Heights|Block))(?:\s+(?:Flat|Apartment|Unit)\s*(?:No\.?)?\s*\d+)?/i
+    );
+    const flatMatch = cleanResponse.match(
+      /(?:Flat|Apartment|Unit)\s*(?:No\.?)?\s*(\d+[A-Za-z]?)/i
+    );
+    const regNumMatch = cleanResponse.match(
+      /(?:Reg(?:istration)?\.?\s*(?:No\.?)?\s*)?(\d+\/\d+)/i
+    );
 
     // Combine building + flat + reg if found separately
     let combinedProperty = "";
@@ -676,27 +719,45 @@ export function parseMarketingAgreementData(
       // Pattern 1 (HIGHEST PRIORITY): Full property description after "Property:" or "owner of Property"
       // Captures reg + building + flat + location in one shot. Uses lookahead to stop before legal boilerplate.
       // (?!\s+Group) prevents matching "Property Group LTD"
-      cleanResponse.match(/(?:owner of\s+)?Property(?!\s+Group)[:\s]+(?:with\s+)?(?:Registration\s+(?:No\.?\s*)?)?([^\n]*?\d+\/\d+[^\n]*?)(?=\s*\(?hereinafter|\s*which\s+the\s+seller|\s*$)/im) ||
+      cleanResponse.match(
+        /(?:owner of\s+)?Property(?!\s+Group)[:\s]+(?:with\s+)?(?:Registration\s+(?:No\.?\s*)?)?([^\n]*?\d+\/\d+[^\n]*?)(?=\s*\(?hereinafter|\s*which\s+the\s+seller|\s*$)/im
+      ) ||
       // Pattern 2: "Property with 0/1234 Location" - captures full text including location
-      cleanResponse.match(/Property\s+with\s+(?:Registration\s+(?:No\.?\s*)?)?(\d+\/\d+[^\n]*?)(?=\s*\(?hereinafter|\s*which\s+the\s+seller|\s*$)/im) ||
+      cleanResponse.match(
+        /Property\s+with\s+(?:Registration\s+(?:No\.?\s*)?)?(\d+\/\d+[^\n]*?)(?=\s*\(?hereinafter|\s*which\s+the\s+seller|\s*$)/im
+      ) ||
       // Pattern 3: Full line with property keywords + registration
-      (fullLineWithReg && !fullLineWithReg[0].includes("Property Group") ? [fullLineWithReg[0], fullLineWithReg[0].trim()] : null) ||
+      (fullLineWithReg && !fullLineWithReg[0].includes("Property Group")
+        ? [fullLineWithReg[0], fullLineWithReg[0].trim()]
+        : null) ||
       // Pattern 4: Combined building + flat + reg from separate matches (fallback - NO location)
       (combinedProperty ? [combinedProperty, combinedProperty] : null) ||
       // Pattern 5: Standard registration number format with Reg prefix: Reg No. 0/1234
-      cleanResponse.match(/(?:Reg(?:istration)?\.?\s*(?:No\.?)?)[:\s]*(\d+\/\d+[^\n]*)(?:\n|$)/i) ||
+      cleanResponse.match(
+        /(?:Reg(?:istration)?\.?\s*(?:No\.?)?)[:\s]*(\d+\/\d+[^\n]*)(?:\n|$)/i
+      ) ||
       // Pattern 6: Building with number: "Limas Building 1045" or "Limas Building No. 123"
-      cleanResponse.match(/([A-Za-z]+\s+Building\s+(?:No\.?\s*)?\d+[^\n]*)(?:\n|$)/i) ||
+      cleanResponse.match(
+        /([A-Za-z]+\s+Building\s+(?:No\.?\s*)?\d+[^\n]*)(?:\n|$)/i
+      ) ||
       // Pattern 7: Flat/Apartment format: "Flat No. 103" or "Apartment 5"
-      cleanResponse.match(/((?:Flat|Apartment|Unit)\s+(?:No\.?\s*)?\d+[^\n]*)(?:\n|$)/i) ||
+      cleanResponse.match(
+        /((?:Flat|Apartment|Unit)\s+(?:No\.?\s*)?\d+[^\n]*)(?:\n|$)/i
+      ) ||
       // Pattern 8: Complex/Tower/Block: "Cynthiana Complex 103"
-      cleanResponse.match(/([A-Za-z]+\s+(?:Complex|Tower|Block)\s+(?:No\.?\s*)?\d+[^\n]*)(?:\n|$)/i) ||
+      cleanResponse.match(
+        /([A-Za-z]+\s+(?:Complex|Tower|Block)\s+(?:No\.?\s*)?\d+[^\n]*)(?:\n|$)/i
+      ) ||
       // Pattern 9: Explicit "Property registration:" or "Property information:" field
-      cleanResponse.match(/Property(?:'s)?\s+(?:registration|information)[:\s]+([^\n]+)/i) ||
+      cleanResponse.match(
+        /Property(?:'s)?\s+(?:registration|information)[:\s]+([^\n]+)/i
+      ) ||
       // Pattern 10: "Property Details:" field (but NOT "Property Group")
       cleanResponse.match(/Property\s+Details[:\s]+([^\n]+)/i) ||
       // Pattern 11: Fallback generic "Property:" match (catches descriptions without numbers)
-      cleanResponse.match(/(?:owner of\s+)?Property(?!\s+Group)[:\s]+([^\n]+)/i);
+      cleanResponse.match(
+        /(?:owner of\s+)?Property(?!\s+Group)[:\s]+([^\n]+)/i
+      );
 
     // Extract marketing price - handle "price is €X" and "price: €X" formats
     const priceMatch =
@@ -712,9 +773,13 @@ export function parseMarketingAgreementData(
     let sellerName = sellerMatch ? sellerMatch[1].trim() : "";
     // Clean up property registration - trim and remove trailing punctuation
     let propertyRegistration = regMatch ? regMatch[1].trim() : "";
-    logger.debug("[MarketingAgreement] Property extraction matched:", { rawMatch: propertyRegistration.substring(0, 200) });
+    logger.debug("[MarketingAgreement] Property extraction matched:", {
+      rawMatch: propertyRegistration.substring(0, 200),
+    });
     // Remove trailing periods, commas, or parentheses that may have been captured
-    propertyRegistration = propertyRegistration.replace(/[.,;:\s]+$/, "").trim();
+    propertyRegistration = propertyRegistration
+      .replace(/[.,;:\s]+$/, "")
+      .trim();
 
     // Validate property registration - reject company names and invalid patterns
     const invalidPropertyPatterns = [
@@ -723,13 +788,21 @@ export function parseMarketingAgreementData(
       /^CSC\s+Zyprus/i,
       /^Zyprus\s+Property/i,
       /^the\s+property$/i,
-      /^\[.*\]$/,  // Bracketed placeholders
+      /^\[.*\]$/, // Bracketed placeholders
       /^XXXXXXXX$/i,
       /^X+$/i,
     ];
 
-    if (propertyRegistration && invalidPropertyPatterns.some(pattern => pattern.test(propertyRegistration))) {
-      logger.debug(`[MarketingAgreement] Invalid property info detected: "${propertyRegistration}" - rejecting`, { category: LogCategory.GENERAL });
+    if (
+      propertyRegistration &&
+      invalidPropertyPatterns.some((pattern) =>
+        pattern.test(propertyRegistration)
+      )
+    ) {
+      logger.debug(
+        `[MarketingAgreement] Invalid property info detected: "${propertyRegistration}" - rejecting`,
+        { category: LogCategory.GENERAL }
+      );
       propertyRegistration = "";
     }
 
@@ -744,13 +817,19 @@ export function parseMarketingAgreementData(
       /^name\s+of\s+(the\s+)?seller$/i,
       /^seller$/i,
       /^the\s+seller$/i,
-      /^\[.*\]$/,  // Bracketed placeholders like [SELLER_NAME]
+      /^\[.*\]$/, // Bracketed placeholders like [SELLER_NAME]
       /^XXXXXXXX$/i,
       /^X+$/i,
     ];
 
-    if (sellerName && invalidSellerPatterns.some(pattern => pattern.test(sellerName))) {
-      logger.debug(`[MarketingAgreement] Invalid seller name detected: "${sellerName}" - using placeholder`, { category: LogCategory.GENERAL });
+    if (
+      sellerName &&
+      invalidSellerPatterns.some((pattern) => pattern.test(sellerName))
+    ) {
+      logger.debug(
+        `[MarketingAgreement] Invalid seller name detected: "${sellerName}" - using placeholder`,
+        { category: LogCategory.GENERAL }
+      );
       sellerName = "[SELLER NAME]";
     }
 
@@ -764,7 +843,10 @@ export function parseMarketingAgreementData(
 
     // Require at least seller name and property registration
     if (!sellerName || !propertyRegistration) {
-      logger.debug("[MarketingAgreement] Missing required fields", { hasSellerName: !!sellerName, hasPropertyReg: !!propertyRegistration });
+      logger.debug("[MarketingAgreement] Missing required fields", {
+        hasSellerName: !!sellerName,
+        hasPropertyReg: !!propertyRegistration,
+      });
       return null;
     }
 
@@ -784,7 +866,10 @@ export function parseMarketingAgreementData(
       propertyInfo: formattedProperty, // Single line property description
     };
   } catch (error) {
-    logger.error("[MarketingAgreement] Parse error", error instanceof Error ? error : new Error(String(error)));
+    logger.error(
+      "[MarketingAgreement] Parse error",
+      error instanceof Error ? error : new Error(String(error))
+    );
     return null;
   }
 }

@@ -6,7 +6,7 @@
  */
 
 import { ImapFlow } from "imapflow";
-import { simpleParser, type ParsedMail } from "mailparser";
+import { type ParsedMail, simpleParser } from "mailparser";
 import { config } from "./config.js";
 
 /**
@@ -26,7 +26,7 @@ function markdownToHtml(text: string): string {
     // Convert URLs to clickable links
     .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>')
     // Convert bullet points (• or - at line start)
-    .replace(/^[•\-]\s+(.+)$/gm, "<li>$1</li>")
+    .replace(/^[•-]\s+(.+)$/gm, "<li>$1</li>")
     // Convert newlines to <br>
     .replace(/\n/g, "<br/>");
 
@@ -72,11 +72,13 @@ function createImapClient(): ImapFlow {
   // synchronous EventEmitter throw). Swallow it here — fetch loop already
   // handles the failure mode by returning an empty result.
   client.on("error", (err: unknown) => {
-    console.error("[IMAP] client error (info inbox):", err instanceof Error ? err.message : err);
+    console.error(
+      "[IMAP] client error (info inbox):",
+      err instanceof Error ? err.message : err
+    );
   });
   return client;
 }
-
 
 /**
  * Fetch unread emails from inbox
@@ -105,7 +107,7 @@ export async function fetchUnreadEmails(): Promise<EmailMessage[]> {
           const source = msg.source;
           if (!source) continue;
 
-          const parsed = await simpleParser(source) as ParsedMail;
+          const parsed = (await simpleParser(source)) as ParsedMail;
 
           const fromAddr = parsed.from?.value?.[0];
           emails.push({
@@ -113,9 +115,13 @@ export async function fetchUnreadEmails(): Promise<EmailMessage[]> {
             uid: msg.uid,
             from: fromAddr?.address || "",
             fromName: fromAddr?.name || "",
-            to: (parsed.to && !Array.isArray(parsed.to) ? [parsed.to] : parsed.to as any)
-              ?.map((t: any) => t?.value?.[0]?.address)
-              .filter(Boolean) || [],
+            to:
+              (parsed.to && !Array.isArray(parsed.to)
+                ? [parsed.to]
+                : (parsed.to as any)
+              )
+                ?.map((t: any) => t?.value?.[0]?.address)
+                .filter(Boolean) || [],
             subject: parsed.subject || "(no subject)",
             textBody: parsed.text || "",
             htmlBody: parsed.html || "",
@@ -133,7 +139,11 @@ export async function fetchUnreadEmails(): Promise<EmailMessage[]> {
     await client.logout();
   } catch (err) {
     console.error("IMAP fetch error:", err);
-    try { await client.logout(); } catch { /* ignore */ }
+    try {
+      await client.logout();
+    } catch {
+      /* ignore */
+    }
   }
 
   return emails;
@@ -155,7 +165,11 @@ export async function markAsRead(uid: number): Promise<void> {
     await client.logout();
   } catch (err) {
     console.error(`Failed to mark uid=${uid} as read:`, err);
-    try { await client.logout(); } catch { /* ignore */ }
+    try {
+      await client.logout();
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -173,7 +187,8 @@ export async function forwardEmail(
     : `Fwd: ${original.subject}`;
 
   // Clean forward — just the original email content, no added text
-  const body = original.htmlBody || `<p>${original.textBody.replace(/\n/g, "<br/>")}</p>`;
+  const body =
+    original.htmlBody || `<p>${original.textBody.replace(/\n/g, "<br/>")}</p>`;
 
   try {
     const response = await fetch("https://api.resend.com/emails", {
@@ -199,7 +214,9 @@ export async function forwardEmail(
       return false;
     }
 
-    console.log(`Forwarded email "${original.subject}" to ${toEmail} via Resend`);
+    console.log(
+      `Forwarded email "${original.subject}" to ${toEmail} via Resend`
+    );
     return true;
   } catch (err) {
     console.error(`Failed to forward email to ${toEmail}:`, err);
@@ -210,9 +227,14 @@ export async function forwardEmail(
 /**
  * Fetch email templates from Gmail's "Templates" label
  */
-export async function fetchTemplates(): Promise<Map<string, { subject: string; html: string; text: string }>> {
+export async function fetchTemplates(): Promise<
+  Map<string, { subject: string; html: string; text: string }>
+> {
   const client = createImapClient();
-  const templates = new Map<string, { subject: string; html: string; text: string }>();
+  const templates = new Map<
+    string,
+    { subject: string; html: string; text: string }
+  >();
 
   try {
     await client.connect();
@@ -251,7 +273,7 @@ export async function fetchTemplates(): Promise<Map<string, { subject: string; h
         try {
           const source = msg.source;
           if (!source) continue;
-          const parsed = await simpleParser(source) as ParsedMail;
+          const parsed = (await simpleParser(source)) as ParsedMail;
           const name = parsed.subject || `template-${msg.seq}`;
           templates.set(name.toLowerCase(), {
             subject: parsed.subject || "",
@@ -269,7 +291,11 @@ export async function fetchTemplates(): Promise<Map<string, { subject: string; h
     await client.logout();
   } catch (err) {
     console.error("Failed to fetch templates:", err);
-    try { await client.logout(); } catch { /* ignore */ }
+    try {
+      await client.logout();
+    } catch {
+      /* ignore */
+    }
   }
 
   return templates;
@@ -297,19 +323,19 @@ export async function createDraft(
       `Subject: Re: ${subject}`,
       `In-Reply-To: ${inReplyTo.messageId}`,
       `References: ${inReplyTo.messageId}`,
-      `MIME-Version: 1.0`,
+      "MIME-Version: 1.0",
       `Content-Type: multipart/alternative; boundary="${boundary}"`,
-      ``,
+      "",
       `--${boundary}`,
-      `Content-Type: text/plain; charset=utf-8`,
-      ``,
+      "Content-Type: text/plain; charset=utf-8",
+      "",
       textBody,
-      ``,
+      "",
       `--${boundary}`,
-      `Content-Type: text/html; charset=utf-8`,
-      ``,
+      "Content-Type: text/html; charset=utf-8",
+      "",
       htmlBody,
-      ``,
+      "",
       `--${boundary}--`,
     ].join("\r\n");
 
@@ -321,7 +347,11 @@ export async function createDraft(
     return true;
   } catch (err) {
     console.error("Failed to create draft:", err);
-    try { await client.logout(); } catch { /* ignore */ }
+    try {
+      await client.logout();
+    } catch {
+      /* ignore */
+    }
     return false;
   }
 }
@@ -367,7 +397,9 @@ export function extractAttachments(parsed: ParsedMail): EmailAttachment[] {
  * Extract document attachments from a parsed email (PDFs, DOCX, KMZ, etc.)
  * Returns non-image file attachments
  */
-export function extractDocumentAttachments(parsed: ParsedMail): EmailAttachment[] {
+export function extractDocumentAttachments(
+  parsed: ParsedMail
+): EmailAttachment[] {
   if (!parsed.attachments || parsed.attachments.length === 0) {
     return [];
   }
@@ -377,7 +409,8 @@ export function extractDocumentAttachments(parsed: ParsedMail): EmailAttachment[
       // Skip images (handled by extractAttachments)
       if (att.contentType.startsWith("image/")) return false;
       // Accept known document types
-      if (DOCUMENT_MIME_TYPES.some((m) => att.contentType.startsWith(m))) return true;
+      if (DOCUMENT_MIME_TYPES.some((m) => att.contentType.startsWith(m)))
+        return true;
       // Accept by file extension for generic MIME types
       const ext = (att.filename || "").split(".").pop()?.toLowerCase();
       return ["pdf", "doc", "docx", "kmz", "kml"].includes(ext || "");
@@ -411,7 +444,12 @@ export function extractInlineImageUrls(htmlBody: string): string[] {
     // Skip CID references (handled separately), data URIs, and tracking pixels
     if (url.startsWith("cid:")) continue;
     if (url.startsWith("data:")) continue;
-    if (url.includes("tracking") || url.includes("beacon") || url.includes("pixel")) continue;
+    if (
+      url.includes("tracking") ||
+      url.includes("beacon") ||
+      url.includes("pixel")
+    )
+      continue;
     // Skip tiny tracking images (1x1 pixels often have width/height in the tag)
     const tagStr = match[0];
     if (/width=["']1["']|height=["']1["']/.test(tagStr)) continue;
@@ -424,7 +462,8 @@ export function extractInlineImageUrls(htmlBody: string): string[] {
 
   // Match Google Drive sharing links in the body text/HTML
   // e.g., https://drive.google.com/file/d/XXXXX/view
-  const driveRegex = /https:\/\/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/gi;
+  const driveRegex =
+    /https:\/\/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/gi;
   while ((match = driveRegex.exec(htmlBody)) !== null) {
     const fileId = match[1];
     // Convert to direct download URL
@@ -443,11 +482,15 @@ export function extractInlineImageUrls(htmlBody: string): string[] {
  * Handles Google Drive's confirm-download interstitial page.
  * Returns null on failure (non-image content type, timeout, etc.)
  */
-export async function downloadImageUrl(url: string): Promise<EmailAttachment | null> {
+export async function downloadImageUrl(
+  url: string
+): Promise<EmailAttachment | null> {
   try {
     // For Google Drive URLs, use the direct export endpoint with confirm bypass
     let fetchUrl = url;
-    const driveFileIdMatch = url.match(/drive\.google\.com\/(?:uc\?.*id=|file\/d\/)([a-zA-Z0-9_-]+)/);
+    const driveFileIdMatch = url.match(
+      /drive\.google\.com\/(?:uc\?.*id=|file\/d\/)([a-zA-Z0-9_-]+)/
+    );
     if (driveFileIdMatch) {
       const fileId = driveFileIdMatch[1];
       // Use the thumbnail endpoint which doesn't require confirmation
@@ -464,7 +507,9 @@ export async function downloadImageUrl(url: string): Promise<EmailAttachment | n
     });
 
     if (!response.ok) {
-      console.warn(`[Sophia] Failed to download image ${fetchUrl}: ${response.status}`);
+      console.warn(
+        `[Sophia] Failed to download image ${fetchUrl}: ${response.status}`
+      );
       return null;
     }
 
@@ -474,7 +519,9 @@ export async function downloadImageUrl(url: string): Promise<EmailAttachment | n
       if (driveFileIdMatch) {
         const fileId = driveFileIdMatch[1];
         const fallbackUrl = `https://lh3.googleusercontent.com/d/${fileId}=w2048`;
-        console.log(`[Sophia] Drive thumbnail failed, trying lh3 fallback for ${fileId}`);
+        console.log(
+          `[Sophia] Drive thumbnail failed, trying lh3 fallback for ${fileId}`
+        );
         const fallbackResp = await fetch(fallbackUrl, {
           signal: AbortSignal.timeout(30_000),
           headers: { "User-Agent": "Mozilla/5.0 (compatible; SophiaBot/1.0)" },
@@ -494,14 +541,18 @@ export async function downloadImageUrl(url: string): Promise<EmailAttachment | n
           }
         }
       }
-      console.warn(`[Sophia] URL is not an image (${contentType}): ${fetchUrl.substring(0, 100)}`);
+      console.warn(
+        `[Sophia] URL is not an image (${contentType}): ${fetchUrl.substring(0, 100)}`
+      );
       return null;
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
     // Skip tiny images (likely tracking pixels)
     if (buffer.length < 1000) {
-      console.warn(`[Sophia] Skipping tiny image (${buffer.length} bytes): ${fetchUrl.substring(0, 80)}`);
+      console.warn(
+        `[Sophia] Skipping tiny image (${buffer.length} bytes): ${fetchUrl.substring(0, 80)}`
+      );
       return null;
     }
 
@@ -512,7 +563,10 @@ export async function downloadImageUrl(url: string): Promise<EmailAttachment | n
       filename: `inline-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`,
     };
   } catch (err) {
-    console.warn(`[Sophia] Error downloading image ${url.substring(0, 80)}:`, err);
+    console.warn(
+      `[Sophia] Error downloading image ${url.substring(0, 80)}:`,
+      err
+    );
     return null;
   }
 }
@@ -533,7 +587,10 @@ export function createSophiaImapClient(): ImapFlow {
     socketTimeout: 30_000,
   });
   client.on("error", (err: unknown) => {
-    console.error("[IMAP] client error (sophia inbox):", err instanceof Error ? err.message : err);
+    console.error(
+      "[IMAP] client error (sophia inbox):",
+      err instanceof Error ? err.message : err
+    );
   });
   return client;
 }
@@ -542,9 +599,21 @@ export function createSophiaImapClient(): ImapFlow {
  * Fetch unread emails from sophia@zyprus.com inbox
  * Returns emails with their parsed attachments for image extraction
  */
-export async function fetchSophiaUnreadEmails(): Promise<Array<EmailMessage & { parsedAttachments: EmailAttachment[]; documentAttachments: EmailAttachment[] }>> {
+export async function fetchSophiaUnreadEmails(): Promise<
+  Array<
+    EmailMessage & {
+      parsedAttachments: EmailAttachment[];
+      documentAttachments: EmailAttachment[];
+    }
+  >
+> {
   const client = createSophiaImapClient();
-  const emails: Array<EmailMessage & { parsedAttachments: EmailAttachment[]; documentAttachments: EmailAttachment[] }> = [];
+  const emails: Array<
+    EmailMessage & {
+      parsedAttachments: EmailAttachment[];
+      documentAttachments: EmailAttachment[];
+    }
+  > = [];
 
   try {
     await client.connect();
@@ -565,7 +634,7 @@ export async function fetchSophiaUnreadEmails(): Promise<Array<EmailMessage & { 
           const source = msg.source;
           if (!source) continue;
 
-          const parsed = await simpleParser(source) as ParsedMail;
+          const parsed = (await simpleParser(source)) as ParsedMail;
           const fromAddr = parsed.from?.value?.[0];
           const attachments = extractAttachments(parsed);
           const docAttachments = extractDocumentAttachments(parsed);
@@ -575,9 +644,13 @@ export async function fetchSophiaUnreadEmails(): Promise<Array<EmailMessage & { 
             uid: msg.uid,
             from: fromAddr?.address || "",
             fromName: fromAddr?.name || "",
-            to: (parsed.to && !Array.isArray(parsed.to) ? [parsed.to] : parsed.to as any)
-              ?.map((t: any) => t?.value?.[0]?.address)
-              .filter(Boolean) || [],
+            to:
+              (parsed.to && !Array.isArray(parsed.to)
+                ? [parsed.to]
+                : (parsed.to as any)
+              )
+                ?.map((t: any) => t?.value?.[0]?.address)
+                .filter(Boolean) || [],
             subject: parsed.subject || "(no subject)",
             textBody: parsed.text || "",
             htmlBody: parsed.html || "",
@@ -587,7 +660,10 @@ export async function fetchSophiaUnreadEmails(): Promise<Array<EmailMessage & { 
             documentAttachments: docAttachments,
           });
         } catch (parseErr) {
-          console.error(`[Sophia] Failed to parse email uid=${msg.uid}:`, parseErr);
+          console.error(
+            `[Sophia] Failed to parse email uid=${msg.uid}:`,
+            parseErr
+          );
         }
       }
     } finally {
@@ -597,7 +673,11 @@ export async function fetchSophiaUnreadEmails(): Promise<Array<EmailMessage & { 
     await client.logout();
   } catch (err) {
     console.error("[Sophia] IMAP fetch error:", err);
-    try { await client.logout(); } catch { /* ignore */ }
+    try {
+      await client.logout();
+    } catch {
+      /* ignore */
+    }
   }
 
   return emails;
@@ -619,7 +699,11 @@ export async function markSophiaEmailAsRead(uid: number): Promise<void> {
     await client.logout();
   } catch (err) {
     console.error(`[Sophia] Failed to mark uid=${uid} as read:`, err);
-    try { await client.logout(); } catch { /* ignore */ }
+    try {
+      await client.logout();
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -652,7 +736,7 @@ export async function sendSophiaReply(
         text: replyBody,
         headers: {
           "In-Reply-To": inReplyToMessageId,
-          "References": inReplyToMessageId,
+          References: inReplyToMessageId,
         },
       }),
       signal: AbortSignal.timeout(30_000),
@@ -664,7 +748,9 @@ export async function sendSophiaReply(
       return false;
     }
 
-    console.log(`[Sophia] Sent reply to ${toEmail} for "${subject}" via Resend`);
+    console.log(
+      `[Sophia] Sent reply to ${toEmail} for "${subject}" via Resend`
+    );
     return true;
   } catch (err) {
     console.error(`[Sophia] Failed to send reply to ${toEmail}:`, err);

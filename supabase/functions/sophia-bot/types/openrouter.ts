@@ -93,5 +93,8 @@ export interface OpenRouterRequestBody {
   temperature?: number;
   max_tokens?: number;
   tools?: OpenRouterTool[];
-  tool_choice?: "auto" | "required" | { type: "function"; function: { name: string } };
+  tool_choice?:
+    | "auto"
+    | "required"
+    | { type: "function"; function: { name: string } };
 }

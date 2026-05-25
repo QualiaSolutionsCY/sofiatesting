@@ -1,6 +1,8 @@
 import type { InferUITool, UIMessage } from "ai";
 import { z } from "zod";
+
 type ArtifactKind = "text" | "code" | "image" | "sheet";
+
 import type { sendDocument } from "./ai/tools/send-document";
 import type { Suggestion } from "./db/schema";
 import type { AppUsage } from "./usage";

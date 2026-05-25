@@ -91,7 +91,9 @@ export const sendLongMessage = async (
 
     const success = await sendMessage(chatId, chunk, replyId);
     if (!success) {
-      console.error(`[Telegram] Failed to send chunk ${i + 1}/${chunks.length}`);
+      console.error(
+        `[Telegram] Failed to send chunk ${i + 1}/${chunks.length}`
+      );
       return false;
     }
 
@@ -245,7 +247,10 @@ export const sendMessageWithContext = async (
     const data = await response.json();
 
     if (!data.ok) {
-      console.error("[Telegram] sendMessageWithContext error:", data.description);
+      console.error(
+        "[Telegram] sendMessageWithContext error:",
+        data.description
+      );
       return null;
     }
 
@@ -255,4 +260,3 @@ export const sendMessageWithContext = async (
     return null;
   }
 };
-

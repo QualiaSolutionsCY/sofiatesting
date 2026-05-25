@@ -30,5 +30,11 @@
     ".next/types/**/*.ts",
     "next.config.js"
   ],
-  "exclude": ["node_modules", "scripts/**/*", "tests/**/*", "supabase/**/*", "services/**/*"]
+  "exclude": [
+    "node_modules",
+    "scripts/**/*",
+    "tests/**/*",
+    "supabase/**/*",
+    "services/**/*"
+  ]
 }

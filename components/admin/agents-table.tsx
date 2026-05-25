@@ -130,7 +130,9 @@ export function AgentsTable({
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(
-          payload.error || payload.message || `Request failed (${response.status})`
+          payload.error ||
+            payload.message ||
+            `Request failed (${response.status})`
         );
       }
       if (payload.emailed === false && payload.signupUrl) {
@@ -164,7 +166,9 @@ export function AgentsTable({
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(
-          payload.error || payload.message || `Request failed (${response.status})`
+          payload.error ||
+            payload.message ||
+            `Request failed (${response.status})`
         );
       }
       toast.success(
@@ -347,7 +351,10 @@ export function AgentsTable({
                       <span className="font-medium">{agent.fullName}</span>
                       {agent.inviteSentAt && !agent.userId && (
                         <span className="text-amber-700 text-xs">
-                          Invite sent {formatDistanceToNow(new Date(agent.inviteSentAt), { addSuffix: true })}
+                          Invite sent{" "}
+                          {formatDistanceToNow(new Date(agent.inviteSentAt), {
+                            addSuffix: true,
+                          })}
                         </span>
                       )}
                     </div>
@@ -471,10 +478,7 @@ export function AgentsTable({
           {pagination.total > 0 && (
             <>
               Showing {(pagination.page - 1) * pagination.limit + 1}–
-              {Math.min(
-                pagination.page * pagination.limit,
-                pagination.total
-              )}{" "}
+              {Math.min(pagination.page * pagination.limit, pagination.total)}{" "}
               of {pagination.total}
             </>
           )}

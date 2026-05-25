@@ -178,7 +178,10 @@ export class ThreeCXClient {
 
       // Parse response — v16 may return text/plain instead of application/json
       const responseText = await response.text();
-      if (responseText.includes("<html") || responseText.includes("<!DOCTYPE")) {
+      if (
+        responseText.includes("<html") ||
+        responseText.includes("<!DOCTYPE")
+      ) {
         throw new ThreeCXAuthError(
           "3CX returned login page - session likely expired"
         );

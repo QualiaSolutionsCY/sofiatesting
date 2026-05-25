@@ -6,6 +6,15 @@
 import { trackListingUpload } from "../../../_shared/db.ts";
 import { type Agent, getAgentByEmail } from "../../agents/identifier.ts";
 import { DEFAULT_COORDINATES } from "../../config/business-rules.ts";
+import { checkForDuplicates } from "../../services/duplicate-checker.ts";
+import {
+  generateImageWarnings,
+  hasEnoughImages,
+  processImages,
+  validateImages,
+} from "../../services/image-handler.ts";
+import { clearPendingDocuments } from "../../services/pending-documents.ts";
+import { clearPendingImages } from "../../services/pending-images.ts";
 import { classifyError, ErrorType } from "../../utils/error-mapper.ts";
 import { LogCategory, logger } from "../../utils/logger.ts";
 import {
@@ -14,6 +23,7 @@ import {
   getZyprusConfig,
 } from "../../zyprus/client.ts";
 import { findLocationUuid } from "../../zyprus/taxonomy-cache.ts";
+import { releaseUploadLock } from "../validators/upload-lock.ts";
 import {
   type ToolResult,
   type ValidatedFields,
@@ -21,20 +31,6 @@ import {
 } from "./field-validation.ts";
 import { processListingImages } from "./image-processor.ts";
 import { generateListingContent } from "./notes-generator.ts";
-import {
-  generateImageWarnings,
-  hasEnoughImages,
-  processImages,
-  validateImages,
-} from "../../services/image-handler.ts";
-import { checkForDuplicates } from "../../services/duplicate-checker.ts";
-import {
-  clearPendingImages,
-} from "../../services/pending-images.ts";
-import {
-  clearPendingDocuments,
-} from "../../services/pending-documents.ts";
-import { releaseUploadLock } from "../validators/upload-lock.ts";
 
 // Re-export ToolResult for external consumers
 export type { ToolResult };
@@ -62,14 +58,26 @@ export async function handleCreatePropertyListing(
   }
 
   const validated = validationResult as ValidatedFields;
-  const { location, listingType, locationUrl, reviewers, listingOwnerName, potentialDuplicateNote, uploadLockKey } =
-    validated;
+  const {
+    location,
+    listingType,
+    locationUrl,
+    reviewers,
+    listingOwnerName,
+    potentialDuplicateNote,
+    uploadLockKey,
+  } = validated;
 
   const agentPhone = agent!.mobile?.replace(/\D/g, "") || "";
 
   // Step 7-7b: Process images
-  const { imageUrls, titleDeedImageUrls, floorPlanUrls, documentUrls, otherDocumentUrls } =
-    await processListingImages(args, agentPhone);
+  const {
+    imageUrls,
+    titleDeedImageUrls,
+    floorPlanUrls,
+    documentUrls,
+    otherDocumentUrls,
+  } = await processListingImages(args, agentPhone);
 
   const processedImages = await processImages(imageUrls);
 
@@ -429,8 +437,16 @@ export async function handleCreatePropertyListing(
       safePriceModifier
     );
 
-  const commercialPropertyTypes = ["building", "office", "shop", "warehouse", "hotel"];
-  const isCommercialType = commercialPropertyTypes.some((t) => propertyTypeLower.includes(t));
+  const commercialPropertyTypes = [
+    "building",
+    "office",
+    "shop",
+    "warehouse",
+    "hotel",
+  ];
+  const isCommercialType = commercialPropertyTypes.some((t) =>
+    propertyTypeLower.includes(t)
+  );
   const bathrooms = isCommercialType
     ? (args.bathrooms as number) || 0
     : (args.bathrooms as number) || 1;
@@ -488,17 +504,14 @@ export async function handleCreatePropertyListing(
         | "vat_included"
         | undefined,
       floorPlanUrls:
-        [
-          ...(floorPlanUrls || []),
-          ...((args.floorPlanUrls as string[]) || []),
-        ].length > 0
+        [...(floorPlanUrls || []), ...((args.floorPlanUrls as string[]) || [])]
+          .length > 0
           ? [
               ...(floorPlanUrls || []),
               ...((args.floorPlanUrls as string[]) || []),
             ]
           : undefined,
-      titleDeedFileUrls:
-        documentUrls.length > 0 ? documentUrls : undefined,
+      titleDeedFileUrls: documentUrls.length > 0 ? documentUrls : undefined,
       otherDocumentUrls:
         otherDocumentUrls.length > 0 ? otherDocumentUrls : undefined,
       agentName: listingOwnerName,
@@ -538,12 +551,15 @@ export async function handleCreatePropertyListing(
           notifyPhone = assignedAgent.mobile.replace(/\D/g, "");
           notifyName = assignedAgent.fullName;
         }
-      } catch { /* fall back to uploader */ }
+      } catch {
+        /* fall back to uploader */
+      }
     }
     const bedrooms = args.bedrooms as number;
-    const propertyTitle = bedrooms > 0
-      ? `${bedrooms} bed ${args.propertyType} in ${location}`
-      : `${args.propertyType} in ${location}`;
+    const propertyTitle =
+      bedrooms > 0
+        ? `${bedrooms} bed ${args.propertyType} in ${location}`
+        : `${args.propertyType} in ${location}`;
     trackListingUpload(
       result.listingId,
       notifyPhone,
@@ -595,9 +611,10 @@ export async function handleCreatePropertyListing(
   // Step 14: Build success message
   let message = `✅ I've uploaded the property as a draft listing.\n\n`;
   message += "**Summary:**\n";
-  const bedroomsDisplay = (args.bedrooms as number) > 0
-    ? `${args.bedrooms} bed ${args.propertyType}`
-    : `${args.propertyType}`;
+  const bedroomsDisplay =
+    (args.bedrooms as number) > 0
+      ? `${args.bedrooms} bed ${args.propertyType}`
+      : `${args.propertyType}`;
   message += `• Property: ${bedroomsDisplay} in ${location}\n`;
   message += `• Price: €${(args.price as number).toLocaleString()}\n`;
   message += `• Type: For ${listingType}\n`;

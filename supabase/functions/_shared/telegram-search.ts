@@ -28,13 +28,13 @@ export interface SearchResult {
 // ---------------------------------------------------------------------------
 
 export const REGIONAL_GROUP_IDS: Record<string, number> = {
-  paphos: -843115873,
-  limassol: -768604814,
-  larnaca: -870056882,
+  paphos: -843_115_873,
+  limassol: -768_604_814,
+  larnaca: -870_056_882,
   nicosia: 0, // Not yet configured
 };
 
-export const ZYPRESS_OTHERS_CHAT_ID: number = -1003337263793;
+export const ZYPRESS_OTHERS_CHAT_ID: number = -1_003_337_263_793;
 export const VASYA_TELEGRAM_USER_ID = 0; // Replace with actual Vasya's Telegram user ID
 
 // ---------------------------------------------------------------------------

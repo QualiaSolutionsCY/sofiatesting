@@ -219,7 +219,12 @@ export function AgentsFilterBar({
             </SelectContent>
           </Select>
 
-          <Button className="w-full sm:w-auto" onClick={handleClearFilters} size="sm" variant="outline">
+          <Button
+            className="w-full sm:w-auto"
+            onClick={handleClearFilters}
+            size="sm"
+            variant="outline"
+          >
             Clear Filters
           </Button>
         </div>

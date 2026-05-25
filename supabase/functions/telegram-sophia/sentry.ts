@@ -77,7 +77,8 @@ const generateEventId = (): string => {
 const parseStackTrace = (
   error: Error
 ): Array<{ filename: string; function: string; lineno?: number }> => {
-  const frames: Array<{ filename: string; function: string; lineno?: number }> = [];
+  const frames: Array<{ filename: string; function: string; lineno?: number }> =
+    [];
 
   if (!error.stack) return frames;
 
@@ -89,7 +90,7 @@ const parseStackTrace = (
       frames.push({
         function: match[1],
         filename: match[2],
-        lineno: parseInt(match[3]),
+        lineno: Number.parseInt(match[3]),
       });
     }
   }
@@ -210,4 +211,3 @@ export const captureMessage = (
 export const isSentryEnabled = (): boolean => {
   return !!SENTRY_DSN;
 };
-

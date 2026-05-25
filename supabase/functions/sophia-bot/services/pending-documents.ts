@@ -5,8 +5,8 @@
  * Documents auto-expire after 1 hour and are cleared after successful upload.
  */
 
-import { LogCategory, logger } from "../utils/logger.ts";
 import { getSupabaseAdmin } from "../../_shared/db.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
 
 const supabase = getSupabaseAdmin();
 

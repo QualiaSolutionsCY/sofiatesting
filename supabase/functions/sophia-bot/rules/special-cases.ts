@@ -24,9 +24,7 @@ export interface SpecialCaseResult {
 /**
  * Get the region for an agent by their email (from database)
  */
-export async function getAgentRegion(
-  email: string
-): Promise<string | null> {
+export async function getAgentRegion(email: string): Promise<string | null> {
   const agent = await getAgentByEmail(email);
   return agent?.region || null;
 }
@@ -86,9 +84,7 @@ export async function handleSpecialCases(
       }
     } else {
       // Regular agent — validate from database
-      const assigneeRegion = await getAgentRegion(
-        request.assignTo
-      );
+      const assigneeRegion = await getAgentRegion(request.assignTo);
 
       if (
         assigneeRegion &&

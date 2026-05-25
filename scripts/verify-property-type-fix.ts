@@ -62,7 +62,11 @@ async function createMinimalListing(
       attributes: {
         status: false,
         title: `[TEST] Property Type Fix Verification - ${label} - ${new Date().toISOString()}`,
-        body: { value: "Automated test — verifying property type leaf UUID fix. Safe to delete.", format: "plain_text" },
+        body: {
+          value:
+            "Automated test — verifying property type leaf UUID fix. Safe to delete.",
+          format: "plain_text",
+        },
         field_ai_state: "draft",
         field_price: "100000",
         field_no_bedrooms: 2,
@@ -126,7 +130,9 @@ async function createMinimalListing(
 
   if (!response.ok) {
     const text = await response.text();
-    console.error(`  FAILED to create listing for "${label}": ${response.status} ${text.substring(0, 200)}`);
+    console.error(
+      `  FAILED to create listing for "${label}": ${response.status} ${text.substring(0, 200)}`
+    );
     return null;
   }
 
@@ -158,7 +164,8 @@ async function verifyListing(
   const data = await response.json();
   const included = data.included || [];
   const propertyType = included.find(
-    (i: Record<string, unknown>) => (i.type as string) === "taxonomy_term--property_type"
+    (i: Record<string, unknown>) =>
+      (i.type as string) === "taxonomy_term--property_type"
   );
 
   if (!propertyType) {
@@ -173,12 +180,11 @@ async function verifyListing(
   if (actualName === expectedLeafName) {
     console.log(`  PASS: field_property_type = "${actualName}" (${actualId})`);
     return true;
-  } else {
-    console.error(
-      `  FAIL: expected "${expectedLeafName}" but got "${actualName}" (${actualId})`
-    );
-    return false;
   }
+  console.error(
+    `  FAIL: expected "${expectedLeafName}" but got "${actualName}" (${actualId})`
+  );
+  return false;
 }
 
 async function deleteListing(token: string, nodeId: string): Promise<void> {
@@ -205,7 +211,11 @@ async function main() {
     console.log(`Testing: ${tc.label}`);
     console.log(`  UUID: ${tc.propertyTypeUuid}`);
 
-    const nodeId = await createMinimalListing(token, tc.propertyTypeUuid, tc.label);
+    const nodeId = await createMinimalListing(
+      token,
+      tc.propertyTypeUuid,
+      tc.label
+    );
     if (!nodeId) {
       allPassed = false;
       continue;

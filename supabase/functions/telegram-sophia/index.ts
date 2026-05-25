@@ -15,22 +15,26 @@
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { sendMessage, sendLongMessage, sendChatAction } from "./telegram-client.ts";
 import {
-  getHistory,
   addMessage,
   claimMessage,
   clearHistory,
-  findAgentByPhone,
-  registerAgentTelegram,
-  getAgentByTelegramId,
-  getRegistrationState,
-  setRegistrationState,
   clearRegistrationState,
+  findAgentByPhone,
+  getAgentByTelegramId,
+  getHistory,
+  getRegistrationState,
+  registerAgentTelegram,
+  setRegistrationState,
 } from "./database.ts";
-import { SYSTEM_PROMPT, getDateContext } from "./prompts.ts";
 import { handleGroupMessage, isGroupChat } from "./lead-router.ts";
+import { getDateContext, SYSTEM_PROMPT } from "./prompts.ts";
 import { captureException, captureMessage, isSentryEnabled } from "./sentry.ts";
+import {
+  sendChatAction,
+  sendLongMessage,
+  sendMessage,
+} from "./telegram-client.ts";
 import type { TelegramMessage, TelegramUpdate } from "./types.ts";
 
 // Environment variables
@@ -57,7 +61,8 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const AI_MODEL = "google/gemini-3.1-pro-preview-customtools";
 
 // Indexer URL - forward all updates so telegram-indexer keeps working
-const INDEXER_URL = "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/telegram-indexer";
+const INDEXER_URL =
+  "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/telegram-indexer";
 
 /**
  * Forward update payload to telegram-indexer (fire-and-forget)
@@ -82,7 +87,8 @@ serve(async (req: Request): Promise<Response> => {
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST",
-        "Access-Control-Allow-Headers": "Content-Type, X-Telegram-Bot-Api-Secret-Token",
+        "Access-Control-Allow-Headers":
+          "Content-Type, X-Telegram-Bot-Api-Secret-Token",
       },
     });
   }
@@ -93,12 +99,18 @@ serve(async (req: Request): Promise<Response> => {
     if (url.searchParams.has("setup")) {
       const secret = url.searchParams.get("secret");
       if (!secret || secret !== TELEGRAM_WEBHOOK_SECRET) {
-        return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
+        return new Response(JSON.stringify({ error: "unauthorized" }), {
+          status: 401,
+        });
       }
       if (!TELEGRAM_BOT_TOKEN) {
-        return new Response(JSON.stringify({ error: "TELEGRAM_BOT_TOKEN not set" }), { status: 500 });
+        return new Response(
+          JSON.stringify({ error: "TELEGRAM_BOT_TOKEN not set" }),
+          { status: 500 }
+        );
       }
-      const webhookUrl = "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/telegram-sophia";
+      const webhookUrl =
+        "https://vceeheaxcrhmpqueudqx.supabase.co/functions/v1/telegram-sophia";
       const res = await fetch(
         `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook`,
         {
@@ -112,15 +124,20 @@ serve(async (req: Request): Promise<Response> => {
       );
       const data = await res.json();
       // Also get current webhook info
-      const infoRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo`);
+      const infoRes = await fetch(
+        `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo`
+      );
       const info = await infoRes.json();
       return new Response(JSON.stringify({ set: data, info }), {
         headers: { "Content-Type": "application/json" },
       });
     }
-    return new Response(JSON.stringify({ ok: true, function: "telegram-sophia" }), {
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ ok: true, function: "telegram-sophia" }),
+      {
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 
   // Only accept POST requests
@@ -187,14 +204,17 @@ serve(async (req: Request): Promise<Response> => {
       // Process group message for lead routing (fire-and-forget)
       handleGroupMessage(message).catch((error) => {
         console.error("[Webhook] handleGroupMessage error:", error);
-        captureException(error instanceof Error ? error : new Error(String(error)), {
-          transaction: "handleGroupMessage",
-          tags: { chat_type: "group" },
-          extra: {
-            chat_id: message.chat.id,
-            chat_title: message.chat.title,
-          },
-        });
+        captureException(
+          error instanceof Error ? error : new Error(String(error)),
+          {
+            transaction: "handleGroupMessage",
+            tags: { chat_type: "group" },
+            extra: {
+              chat_id: message.chat.id,
+              chat_title: message.chat.title,
+            },
+          }
+        );
       });
       return jsonResponse({ ok: true, reason: "group_message_routed" });
     }
@@ -213,24 +233,30 @@ serve(async (req: Request): Promise<Response> => {
     // We don't await - return 200 immediately to prevent Telegram timeout
     processMessage(message).catch((error) => {
       console.error("[Webhook] processMessage error:", error);
-      captureException(error instanceof Error ? error : new Error(String(error)), {
-        transaction: "processMessage",
-        tags: { chat_type: "private" },
-        user: { id: String(message.from?.id) },
-        extra: {
-          chat_id: message.chat.id,
-          message_id: message.message_id,
-        },
-      });
+      captureException(
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          transaction: "processMessage",
+          tags: { chat_type: "private" },
+          user: { id: String(message.from?.id) },
+          extra: {
+            chat_id: message.chat.id,
+            message_id: message.message_id,
+          },
+        }
+      );
     });
 
     return jsonResponse({ ok: true });
   } catch (error) {
     console.error("[Webhook] Error:", error);
-    captureException(error instanceof Error ? error : new Error(String(error)), {
-      transaction: "webhook_handler",
-      tags: { severity: "critical" },
-    });
+    captureException(
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        transaction: "webhook_handler",
+        tags: { severity: "critical" },
+      }
+    );
     // Always return 200 to prevent Telegram retries
     return jsonResponse({ ok: true, error: String(error) });
   }
@@ -285,7 +311,10 @@ const processMessage = async (message: TelegramMessage): Promise<void> => {
 /**
  * Handle /start command
  */
-const handleStartCommand = async (chatId: number, firstName: string): Promise<void> => {
+const handleStartCommand = async (
+  chatId: number,
+  firstName: string
+): Promise<void> => {
   const welcomeMessage = `Hi ${firstName}! I'm SOPHIA from Zyprus Property Group.
 
 Ask me about Cyprus property, PR programs, taxes, or areas. What do you need?`;
@@ -312,7 +341,10 @@ Just ask your question!`;
 /**
  * Handle /register command (for agents to link Telegram ID)
  */
-const handleRegisterCommand = async (chatId: number, userId: number): Promise<void> => {
+const handleRegisterCommand = async (
+  chatId: number,
+  userId: number
+): Promise<void> => {
   // Check if already registered
   const existingAgent = await getAgentByTelegramId(userId);
   if (existingAgent) {
@@ -328,7 +360,7 @@ const handleRegisterCommand = async (chatId: number, userId: number): Promise<vo
 
   await sendMessage(
     chatId,
-    `To register as a Zyprus agent, please send your phone number.\n\nFormat: +35799XXXXXX\n\nThis will link your Telegram account so you can receive lead forwards from Zyprus groups.`
+    "To register as a Zyprus agent, please send your phone number.\n\nFormat: +35799XXXXXX\n\nThis will link your Telegram account so you can receive lead forwards from Zyprus groups."
   );
 };
 
@@ -353,7 +385,7 @@ const handlePhoneRegistration = async (
   if (!/^\+\d{10,15}$/.test(phone)) {
     await sendMessage(
       chatId,
-      `Invalid phone format. Please use: +35799XXXXXX\n\nSend /register to try again.`
+      "Invalid phone format. Please use: +35799XXXXXX\n\nSend /register to try again."
     );
     return;
   }
@@ -372,7 +404,7 @@ const handlePhoneRegistration = async (
   if (agent.telegram_user_id && agent.telegram_user_id !== userId) {
     await sendMessage(
       chatId,
-      `This phone number is already linked to another Telegram account.\n\nPlease contact management if you need to update your registration.`
+      "This phone number is already linked to another Telegram account.\n\nPlease contact management if you need to update your registration."
     );
     return;
   }
@@ -382,7 +414,7 @@ const handlePhoneRegistration = async (
   if (!success) {
     await sendMessage(
       chatId,
-      `Registration failed due to a technical error. Please try again later or contact support.`
+      "Registration failed due to a technical error. Please try again later or contact support."
     );
     captureMessage("Agent registration failed", "error", {
       tags: { type: "registration_failure" },
@@ -397,17 +429,25 @@ const handlePhoneRegistration = async (
     `✓ Registered successfully!\n\nYou are now linked as:\n• ${agent.full_name}\n• ${agent.region} ${agent.role}\n\nYou will receive lead forwards from Zyprus Telegram groups.`
   );
 
-  console.log(`[Register] Agent ${agent.full_name} registered with Telegram ID ${userId}`);
+  console.log(
+    `[Register] Agent ${agent.full_name} registered with Telegram ID ${userId}`
+  );
 };
 
 /**
  * Handle /clear command
  */
-const handleClearCommand = async (chatId: number, userId: number): Promise<void> => {
+const handleClearCommand = async (
+  chatId: number,
+  userId: number
+): Promise<void> => {
   const success = await clearHistory(userId);
 
   if (success) {
-    await sendMessage(chatId, "Conversation cleared! Feel free to start fresh.");
+    await sendMessage(
+      chatId,
+      "Conversation cleared! Feel free to start fresh."
+    );
   } else {
     await sendMessage(chatId, "Conversation cleared. How can I help you?");
   }
@@ -434,7 +474,11 @@ const processAIMessage = async (
     await addMessage(userId, "user", userText);
 
     // 4. Build messages for OpenRouter
-    const systemPromptWithContext = SYSTEM_PROMPT + "\n\n" + getDateContext() + `\n\nCurrent user: ${firstName}`;
+    const systemPromptWithContext =
+      SYSTEM_PROMPT +
+      "\n\n" +
+      getDateContext() +
+      `\n\nCurrent user: ${firstName}`;
 
     const openrouterMessages = [
       { role: "system", content: systemPromptWithContext },
@@ -463,18 +507,23 @@ const processAIMessage = async (
     // 7. Send response (split if needed)
     await sendLongMessage(chatId, aiResponse, messageId);
 
-    console.log(`[Process] Response sent to user ${userId}, length: ${aiResponse.length}`);
+    console.log(
+      `[Process] Response sent to user ${userId}, length: ${aiResponse.length}`
+    );
   } catch (error) {
     console.error("[Process] AI processing error:", error);
-    captureException(error instanceof Error ? error : new Error(String(error)), {
-      transaction: "processAIMessage",
-      user: { id: String(userId) },
-      extra: {
-        chat_id: chatId,
-        message_id: messageId,
-        text_preview: userText.substring(0, 100),
-      },
-    });
+    captureException(
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        transaction: "processAIMessage",
+        user: { id: String(userId) },
+        extra: {
+          chat_id: chatId,
+          message_id: messageId,
+          text_preview: userText.substring(0, 100),
+        },
+      }
+    );
     await sendMessage(
       chatId,
       "Sorry, I encountered an error. Please try again.",
@@ -512,7 +561,9 @@ const callOpenRouter = async (
 
       if (response.status === 429) {
         // Rate limited - wait and retry
-        const retryAfter = parseInt(response.headers.get("retry-after") || "5");
+        const retryAfter = Number.parseInt(
+          response.headers.get("retry-after") || "5"
+        );
         console.log(`[OpenRouter] Rate limited, waiting ${retryAfter}s...`);
         await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
         continue;
@@ -549,7 +600,9 @@ const callOpenRouter = async (
 
       // Wait before retry (exponential backoff)
       if (attempt < MAX_RETRIES) {
-        await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+        await new Promise((resolve) =>
+          setTimeout(resolve, 1000 * (attempt + 1))
+        );
       }
     }
   }
@@ -574,4 +627,3 @@ const jsonResponse = (data: Record<string, unknown>): Response => {
     headers: { "Content-Type": "application/json" },
   });
 };
-

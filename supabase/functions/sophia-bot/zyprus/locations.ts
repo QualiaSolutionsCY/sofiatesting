@@ -222,7 +222,13 @@ export async function findLocationUuid(
       limassol: ["limassol", "lemesos"],
       larnaca: ["larnaca", "larnaka"],
       nicosia: ["nicosia", "lefkosia", "strovolos", "lakatamia", "engomi"],
-      famagusta: ["famagusta", "ammochostos", "paralimni", "protaras", "ayia napa"],
+      famagusta: [
+        "famagusta",
+        "ammochostos",
+        "paralimni",
+        "protaras",
+        "ayia napa",
+      ],
     };
 
     const parentIdToDistrict = new Map<string, string>();
@@ -244,7 +250,9 @@ export async function findLocationUuid(
     );
 
     // Helper: get district for a location via its parentId
-    const getLocationDistrict = (loc: TaxonomyCache["locations"][0]): string | null => {
+    const getLocationDistrict = (
+      loc: TaxonomyCache["locations"][0]
+    ): string | null => {
       if (!loc.parentId) return null;
       return parentIdToDistrict.get(loc.parentId) || null;
     };
@@ -253,9 +261,10 @@ export async function findLocationUuid(
     let districtFallbackNode: TaxonomyCache["locations"][0] | null = null;
     if (specifiedDistrict) {
       const terms = regionNameTerms[specifiedDistrict] || [];
-      districtFallbackNode = taxonomy.locations.find((loc) =>
-        terms.some((t) => loc.name.toLowerCase().includes(t))
-      ) || null;
+      districtFallbackNode =
+        taxonomy.locations.find((loc) =>
+          terms.some((t) => loc.name.toLowerCase().includes(t))
+        ) || null;
       if (districtFallbackNode) {
         logger.debug(
           `[Taxonomy] District fallback for ${specifiedDistrict}: "${districtFallbackNode.name}"`,
@@ -322,8 +331,10 @@ export async function findLocationUuid(
           // No parent or parent name doesn't match any district
           // Fall back to location name and REGION_LOCATIONS checks
           const allDistrictNames: Record<string, string[]> = {
-            paphos: ["paphos", "pafos"], limassol: ["limassol", "lemesos"],
-            larnaca: ["larnaca", "larnaka"], nicosia: ["nicosia", "lefkosia"],
+            paphos: ["paphos", "pafos"],
+            limassol: ["limassol", "lemesos"],
+            larnaca: ["larnaca", "larnaka"],
+            nicosia: ["nicosia", "lefkosia"],
             famagusta: ["famagusta", "ammochostos"],
           };
 
@@ -348,7 +359,8 @@ export async function findLocationUuid(
                 regionLocs.some((regLoc) => locWord === regLoc)
               ) ||
               regionLocs.some(
-                (regLoc) => regLoc.includes(" ") && locNameLower.includes(regLoc)
+                (regLoc) =>
+                  regLoc.includes(" ") && locNameLower.includes(regLoc)
               );
 
             if (locationIsInDistrict) {

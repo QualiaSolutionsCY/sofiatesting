@@ -27,21 +27,28 @@ import {
 } from "../memory/sophia-memory.ts";
 import { buildSystemPrompt, chat } from "../services/ai-chat.ts";
 import { validateImagesAtIngress } from "../services/image-validator.ts";
-import { addPendingDocument, clearPendingDocuments } from "../services/pending-documents.ts";
-import { addPendingImages, clearPendingImages, getPendingImages } from "../services/pending-images.ts";
+import {
+  addPendingDocument,
+  clearPendingDocuments,
+} from "../services/pending-documents.ts";
+import {
+  addPendingImages,
+  clearPendingImages,
+  getPendingImages,
+} from "../services/pending-images.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
 import { checkRateLimit } from "../utils/rate-limiter.ts";
-import { sanitizeUserInput, sanitizeAiOutput } from "../utils/validation.ts";
+import { sanitizeAiOutput, sanitizeUserInput } from "../utils/validation.ts";
 import { constantTimeCompare } from "../utils/webhook-auth.ts";
 
 const ADMIN_SECRET = Deno.env.get("SOPHIA_ADMIN_SECRET");
 
 export interface EmailWebhookPayload {
-  from: string;        // Sender email address (used as userId)
-  fromName: string;    // Sender display name
-  subject: string;     // Email subject line
-  textBody: string;    // Plain text content
-  htmlBody?: string;   // HTML content (optional)
+  from: string; // Sender email address (used as userId)
+  fromName: string; // Sender display name
+  subject: string; // Email subject line
+  textBody: string; // Plain text content
+  htmlBody?: string; // HTML content (optional)
   imageUrls?: string[]; // Public image URLs from attachments
   documentUrls?: string[]; // Public document URLs (PDFs, DOCX, KMZ)
 }
@@ -113,9 +120,12 @@ export async function handleEmailWebhook(
       const match = sanitizedBody.match(marker);
       if (match?.index != null && match.index > 10) {
         sanitizedBody = sanitizedBody.substring(0, match.index).trim();
-        logger.info(`[Email] Stripped quoted content at "${marker.source}" (${sanitizedBody.length} chars remaining)`, {
-          category: LogCategory.GENERAL,
-        });
+        logger.info(
+          `[Email] Stripped quoted content at "${marker.source}" (${sanitizedBody.length} chars remaining)`,
+          {
+            category: LogCategory.GENERAL,
+          }
+        );
         break;
       }
     }
@@ -149,19 +159,25 @@ export async function handleEmailWebhook(
       return new Response(
         JSON.stringify({
           success: true,
-          reply: "I don't recognise this email address. Please email from your registered Zyprus agent email, or contact support to register.",
+          reply:
+            "I don't recognise this email address. Please email from your registered Zyprus agent email, or contact support to register.",
           agentFound: false,
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    logger.info(`[Email] Identified agent: ${identifiedAgent.fullName} (${identifiedAgent.region})`, {
-      category: LogCategory.GENERAL,
-    });
+    logger.info(
+      `[Email] Identified agent: ${identifiedAgent.fullName} (${identifiedAgent.region})`,
+      {
+        category: LogCategory.GENERAL,
+      }
+    );
 
     // Rate limiting (keyed by sender email)
-    const withinRateLimit = await checkRateLimit(supabase, senderEmail).catch(() => true);
+    const withinRateLimit = await checkRateLimit(supabase, senderEmail).catch(
+      () => true
+    );
     if (!withinRateLimit) {
       logger.warn(`[Email] Rate limit exceeded for ${senderEmail}`, {
         category: LogCategory.GENERAL,
@@ -169,7 +185,8 @@ export async function handleEmailWebhook(
       return new Response(
         JSON.stringify({
           success: true,
-          reply: "You're sending emails too quickly. Please wait a moment and try again.",
+          reply:
+            "You're sending emails too quickly. Please wait a moment and try again.",
           agentFound: true,
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
@@ -181,14 +198,16 @@ export async function handleEmailWebhook(
 
     // Email message format: channel marker + body + reminder to extract fields.
     // The reminder at the END gets highest AI attention (recency bias).
-    const channelNote = `[Channel: email — do NOT mention WhatsApp, do NOT use sendEmail tool]`;
+    const channelNote =
+      "[Channel: email — do NOT mention WhatsApp, do NOT use sendEmail tool]";
     const extractionReminder = `\n\n---\nIMPORTANT: Extract ALL fields from the email above. Pay special attention to the EXACT location/area name (e.g., pass "Tala, Paphos" not just "Paphos"). Pass the Google Maps URL as locationUrl. Do NOT ask for information already provided above.`;
     const userMessage = subject
       ? `${channelNote}\n\n${sanitizedBody}${extractionReminder}`
       : `${channelNote}\n\n${sanitizedBody}${extractionReminder}`;
 
     // Use agent's mobile number as pending_images key (same key WhatsApp uses)
-    const agentPhone = identifiedAgent.mobile?.replace(/\D/g, "") || senderEmail;
+    const agentPhone =
+      identifiedAgent.mobile?.replace(/\D/g, "") || senderEmail;
 
     // Clear old pending images for new emails (prevent cross-email contamination)
     // Reply emails keep the original email's images
@@ -199,11 +218,19 @@ export async function handleEmailWebhook(
           category: LogCategory.GENERAL,
         });
       } catch (err) {
-        logger.error("[Email] FAILED to clear old pending images — aborting", err instanceof Error ? err : undefined, {
-          category: LogCategory.GENERAL,
-        });
+        logger.error(
+          "[Email] FAILED to clear old pending images — aborting",
+          err instanceof Error ? err : undefined,
+          {
+            category: LogCategory.GENERAL,
+          }
+        );
         return new Response(
-          JSON.stringify({ success: false, reply: "I had a temporary issue processing your email. Please resend it." }),
+          JSON.stringify({
+            success: false,
+            reply:
+              "I had a temporary issue processing your email. Please resend it.",
+          }),
           { status: 200, headers: { "Content-Type": "application/json" } }
         );
       }
@@ -233,9 +260,12 @@ export async function handleEmailWebhook(
             error: String(err),
           });
         });
-        logger.info(`[Email] Stored ${validUrls.length} validated images for ${agentPhone}`, {
-          category: LogCategory.GENERAL,
-        });
+        logger.info(
+          `[Email] Stored ${validUrls.length} validated images for ${agentPhone}`,
+          {
+            category: LogCategory.GENERAL,
+          }
+        );
       }
     }
 
@@ -248,15 +278,21 @@ export async function handleEmailWebhook(
       for (const docUrl of rawDocumentUrls) {
         const filename = docUrl.split("/").pop()?.split("?")[0] || "document";
         await addPendingDocument(agentPhone, docUrl, filename).catch((err) => {
-          logger.warn("[Email] Failed to store pending document (non-critical)", {
-            category: LogCategory.GENERAL,
-            error: String(err),
-          });
+          logger.warn(
+            "[Email] Failed to store pending document (non-critical)",
+            {
+              category: LogCategory.GENERAL,
+              error: String(err),
+            }
+          );
         });
       }
-      logger.info(`[Email] Stored ${rawDocumentUrls.length} documents for ${agentPhone}`, {
-        category: LogCategory.GENERAL,
-      });
+      logger.info(
+        `[Email] Stored ${rawDocumentUrls.length} documents for ${agentPhone}`,
+        {
+          category: LogCategory.GENERAL,
+        }
+      );
     }
 
     // Load chat history — same strategy as before:
@@ -268,9 +304,12 @@ export async function handleEmailWebhook(
       try {
         const fullHistory = await getHistory(userId);
         history = fullHistory.slice(-6);
-        logger.info(`[Email] Reply — loaded ${history.length} recent messages`, {
-          category: LogCategory.GENERAL,
-        });
+        logger.info(
+          `[Email] Reply — loaded ${history.length} recent messages`,
+          {
+            category: LogCategory.GENERAL,
+          }
+        );
       } catch {
         history = [];
       }
@@ -278,9 +317,12 @@ export async function handleEmailWebhook(
       try {
         const recentHistory = await getHistory(userId);
         if (recentHistory.length > 0) {
-          const lastModel = recentHistory.filter((m: { role: string }) => m.role === "model").pop();
+          const lastModel = recentHistory
+            .filter((m: { role: string }) => m.role === "model")
+            .pop();
           const lastText = lastModel?.parts?.[0]?.text || "";
-          const isWaitingForInfo = lastText.includes("Google Maps") ||
+          const isWaitingForInfo =
+            lastText.includes("Google Maps") ||
             lastText.includes("pin location") ||
             lastText.includes("I need") ||
             lastText.includes("Could you") ||
@@ -288,9 +330,12 @@ export async function handleEmailWebhook(
             lastText.includes("please provide");
           if (isWaitingForInfo) {
             history = recentHistory.slice(-4);
-            logger.info(`[Email] New email but Sophia was waiting for info — loaded ${history.length} messages`, {
-              category: LogCategory.GENERAL,
-            });
+            logger.info(
+              `[Email] New email but Sophia was waiting for info — loaded ${history.length} messages`,
+              {
+                category: LogCategory.GENERAL,
+              }
+            );
           }
         }
       } catch {
@@ -307,22 +352,29 @@ export async function handleEmailWebhook(
     });
 
     // Fetch ALL pending images (same as WhatsApp — used for upload intent detection)
-    const allPendingImages = await getPendingImages(agentPhone).catch(() => [] as string[]);
+    const allPendingImages = await getPendingImages(agentPhone).catch(
+      () => [] as string[]
+    );
     if (allPendingImages.length > 0) {
-      logger.info(`[Email] Found ${allPendingImages.length} pending images for ${agentPhone}`, {
-        category: LogCategory.GENERAL,
-      });
+      logger.info(
+        `[Email] Found ${allPendingImages.length} pending images for ${agentPhone}`,
+        {
+          category: LogCategory.GENERAL,
+        }
+      );
     }
 
     // Load personalization context (same as WhatsApp)
     let personalizationContext = "";
-    const userContext = await buildUserContext(agentPhone, userMessage).catch((err) => {
-      logger.warn("[Email] Failed to build user context (non-critical)", {
-        category: LogCategory.GENERAL,
-        error: String(err),
-      });
-      return null;
-    });
+    const userContext = await buildUserContext(agentPhone, userMessage).catch(
+      (err) => {
+        logger.warn("[Email] Failed to build user context (non-critical)", {
+          category: LogCategory.GENERAL,
+          error: String(err),
+        });
+        return null;
+      }
+    );
     if (userContext) {
       personalizationContext = formatContextForPrompt(userContext);
     }
@@ -358,7 +410,9 @@ export async function handleEmailWebhook(
       agentPhone
     );
 
-    const reply = sanitizeAiOutput(aiResult.response || "I couldn't process your request. Please try again.");
+    const reply = sanitizeAiOutput(
+      aiResult.response || "I couldn't process your request. Please try again."
+    );
 
     // Store AI response in chat history
     await addMessage(userId, "model", reply).catch((err) => {
@@ -368,9 +422,12 @@ export async function handleEmailWebhook(
       });
     });
 
-    logger.info(`[Email] Processed successfully. Tools used: ${aiResult.toolsUsed?.join(", ") || "none"}`, {
-      category: LogCategory.GENERAL,
-    });
+    logger.info(
+      `[Email] Processed successfully. Tools used: ${aiResult.toolsUsed?.join(", ") || "none"}`,
+      {
+        category: LogCategory.GENERAL,
+      }
+    );
 
     return new Response(
       JSON.stringify({
@@ -405,9 +462,8 @@ export async function handleEmailWebhook(
 }
 
 function jsonError(message: string, status: number): Response {
-  return new Response(
-    JSON.stringify({ success: false, error: message }),
-    { status, headers: { "Content-Type": "application/json" } }
-  );
+  return new Response(JSON.stringify({ success: false, error: message }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
-

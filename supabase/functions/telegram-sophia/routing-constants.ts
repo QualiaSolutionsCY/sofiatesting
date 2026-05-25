@@ -11,31 +11,52 @@
  * Paphos region leads - Actual Paphos team + Lauren for testing
  * Marios A (Listings), Dimitris (Listings), Evelina (Rentals+Listings), Marios P (Invoices+Listings)
  */
-export const PAPHOS_AGENTS = ["Marios Azinas", "Dimitris Panayiotou", "Evelina Neophytou", "Marios Polyviou", "Lauren Ellingham"];
+export const PAPHOS_AGENTS = [
+  "Marios Azinas",
+  "Dimitris Panayiotou",
+  "Evelina Neophytou",
+  "Marios Polyviou",
+  "Lauren Ellingham",
+];
 
 /**
  * Paphos office-owned fallback agents (50/50 when listing belongs to office)
  * Only Marios A and Dimitris receive office-owned leads
  */
-export const PAPHOS_OFFICE_FALLBACK_AGENTS = ["Marios Azinas", "Dimitris Panayiotou"];
+export const PAPHOS_OFFICE_FALLBACK_AGENTS = [
+  "Marios Azinas",
+  "Dimitris Panayiotou",
+];
 
 /**
  * "Others" group leads (Nicosia, Famagusta)
  * Evan (Ivan Kazakov), Narime (Narine Akopyan), Michelle Longridge
  * Note: Vasia receives forwarded enquiries (people who call/enquire)
  */
-export const OTHERS_GROUP_AGENTS = ["Ivan Kazakov", "Narine Akopyan", "Michelle Longridge"];
+export const OTHERS_GROUP_AGENTS = [
+  "Ivan Kazakov",
+  "Narine Akopyan",
+  "Michelle Longridge",
+];
 
 /**
  * Limassol region leads - Michelle is the Limassol manager
  * TODO: Add Diana Kultaseva once Telegram ID is available
  */
-export const LIMASSOL_AGENTS = ["Michelle Longridge", "Lauren Ellingham", "Qualia Admin"];
+export const LIMASSOL_AGENTS = [
+  "Michelle Longridge",
+  "Lauren Ellingham",
+  "Qualia Admin",
+];
 
 /**
  * Larnaca region leads - Same as Limassol for now
  */
-export const LARNACA_AGENTS = ["Michelle Longridge", "Lauren Ellingham", "Qualia Admin"];
+export const LARNACA_AGENTS = [
+  "Michelle Longridge",
+  "Lauren Ellingham",
+  "Qualia Admin",
+];
 
 /**
  * Russian-speaking agent preference
@@ -152,19 +173,21 @@ export const isLarnacaRegion = (region: string | null): boolean => {
 /**
  * Detect group type from group name
  */
-export const detectGroupType = (
-  name: string | null
-): string => {
+export const detectGroupType = (name: string | null): string => {
   if (!name) return "others";
 
   const nameLower = name.toLowerCase();
 
   if (nameLower.includes("alla") || nameLower.includes("all")) return "all";
   if (nameLower.includes("limassol")) return "limassol";
-  if (nameLower.includes("paphos") || nameLower.includes("pafos")) return "paphos";
-  if (nameLower.includes("larnaca") || nameLower.includes("larnaka")) return "larnaca";
-  if (nameLower.includes("nicosia") || nameLower.includes("lefkosia")) return "nicosia";
-  if (nameLower.includes("famagusta") || nameLower.includes("ammochostos")) return "famagusta";
+  if (nameLower.includes("paphos") || nameLower.includes("pafos"))
+    return "paphos";
+  if (nameLower.includes("larnaca") || nameLower.includes("larnaka"))
+    return "larnaca";
+  if (nameLower.includes("nicosia") || nameLower.includes("lefkosia"))
+    return "nicosia";
+  if (nameLower.includes("famagusta") || nameLower.includes("ammochostos"))
+    return "famagusta";
 
   return "others";
 };
@@ -178,10 +201,14 @@ export const detectRegionFromName = (name: string | null): string | null => {
   const nameLower = name.toLowerCase();
 
   if (nameLower.includes("limassol")) return "limassol";
-  if (nameLower.includes("paphos") || nameLower.includes("pafos")) return "paphos";
-  if (nameLower.includes("larnaca") || nameLower.includes("larnaka")) return "larnaca";
-  if (nameLower.includes("nicosia") || nameLower.includes("lefkosia")) return "nicosia";
-  if (nameLower.includes("famagusta") || nameLower.includes("ammochostos")) return "famagusta";
+  if (nameLower.includes("paphos") || nameLower.includes("pafos"))
+    return "paphos";
+  if (nameLower.includes("larnaca") || nameLower.includes("larnaka"))
+    return "larnaca";
+  if (nameLower.includes("nicosia") || nameLower.includes("lefkosia"))
+    return "nicosia";
+  if (nameLower.includes("famagusta") || nameLower.includes("ammochostos"))
+    return "famagusta";
   if (nameLower.includes("alla") || nameLower.includes("all")) return "all";
 
   return null;
@@ -212,7 +239,8 @@ export const extractPropertyIds = (text: string): string[] => {
  * Matches "rent", "rental", "renting", "lease", "for rent", "to let" as whole
  * words so it doesn't fire on "rentier", "parent", etc.
  */
-export const RENTAL_PATTERN = /\b(rent|rental|renting|renter|lease|leasing|to\s+let|for\s+rent)\b/i;
+export const RENTAL_PATTERN =
+  /\b(rent|rental|renting|renter|lease|leasing|to\s+let|for\s+rent)\b/i;
 
 /**
  * Whether the lead is about a rental (not a purchase).
@@ -235,7 +263,12 @@ export const detectRegionFromText = (text: string): string | null => {
   if (/\blimassol\b|\blemesos\b/.test(t)) return "limassol";
   if (/\blarnaca\b|\blarnaka\b/.test(t)) return "larnaca";
   if (/\bnicosia\b|\blefkosia\b/.test(t)) return "nicosia";
-  if (/\bfamagusta\b|\bammochostos\b|\bayia\s+napa\b|\bprotaras\b|\bparalimni\b/.test(t)) return "famagusta";
+  if (
+    /\bfamagusta\b|\bammochostos\b|\bayia\s+napa\b|\bprotaras\b|\bparalimni\b/.test(
+      t
+    )
+  )
+    return "famagusta";
   return null;
 };
 
@@ -260,7 +293,10 @@ export const isLeadMessage = (text: string): boolean => {
   const region = detectRegionFromText(text);
   if (region) {
     if (RENTAL_PATTERN.test(text)) return true;
-    if (/\b(buy|buying|purchase|purchasing|interested|viewing|enquir)/i.test(text)) return true;
+    if (
+      /\b(buy|buying|purchase|purchasing|interested|viewing|enquir)/i.test(text)
+    )
+      return true;
   }
 
   return false;
@@ -290,7 +326,8 @@ export const normalizePhoneForSearch = (phone: string): string[] => {
   if (cleaned.startsWith("+")) {
     const noPlus = cleaned.slice(1);
     variants.add(noPlus);
-    if (noPlus.startsWith("357") && noPlus.length > 3) variants.add(noPlus.slice(3));
+    if (noPlus.startsWith("357") && noPlus.length > 3)
+      variants.add(noPlus.slice(3));
   }
   if (cleaned.startsWith("00")) {
     const no00 = cleaned.slice(2);
@@ -369,4 +406,3 @@ export const extractZyprusUrls = (text: string): string[] => {
 
   return [...new Set(urls)]; // Remove duplicates
 };
-

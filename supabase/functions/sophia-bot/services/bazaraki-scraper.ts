@@ -52,7 +52,11 @@ export async function extractFromBazaraki(
 
   if (scraperUrl) {
     try {
-      const scraped = await fetchFromScraperService(url, scraperUrl, scraperSecret);
+      const scraped = await fetchFromScraperService(
+        url,
+        scraperUrl,
+        scraperSecret
+      );
       if (scraped) {
         mergeScrapedData(scraped, result);
         result.source = result.title ? "html" : "partial";
@@ -67,9 +71,12 @@ export async function extractFromBazaraki(
       );
     }
   } else {
-    logger.warn("BAZARAKI_SCRAPER_URL not configured — using URL pattern only", {
-      category: LogCategory.GENERAL,
-    });
+    logger.warn(
+      "BAZARAKI_SCRAPER_URL not configured — using URL pattern only",
+      {
+        category: LogCategory.GENERAL,
+      }
+    );
   }
 
   return result;
@@ -116,18 +123,28 @@ async function fetchFromScraperService(
     const json = await response.json();
     if (json.success && json.data) {
       // Detect Cloudflare block — scraper returns but with challenge page content
-      const title = json.data.title as string || "";
-      const desc = json.data.description as string || "";
-      if (title.includes("bazaraki.com") || desc.includes("security service") || desc.includes("malicious bots")) {
-        logger.warn("Bazaraki scraper got Cloudflare challenge page instead of listing", {
-          category: LogCategory.GENERAL,
-        });
+      const title = (json.data.title as string) || "";
+      const desc = (json.data.description as string) || "";
+      if (
+        title.includes("bazaraki.com") ||
+        desc.includes("security service") ||
+        desc.includes("malicious bots")
+      ) {
+        logger.warn(
+          "Bazaraki scraper got Cloudflare challenge page instead of listing",
+          {
+            category: LogCategory.GENERAL,
+          }
+        );
         return null;
       }
 
-      logger.info(`Bazaraki scraper: extracted "${title}" — ${json.data.imageUrls?.length || 0} images`, {
-        category: LogCategory.GENERAL,
-      });
+      logger.info(
+        `Bazaraki scraper: extracted "${title}" — ${json.data.imageUrls?.length || 0} images`,
+        {
+          category: LogCategory.GENERAL,
+        }
+      );
       return json.data;
     }
 
@@ -159,8 +176,11 @@ function mergeScrapedData(
     result.price = scraped.price;
     result.currency = "EUR";
   }
-  if (scraped.location && typeof scraped.location === "string" &&
-      !scraped.location.toLowerCase().includes("all adverts")) {
+  if (
+    scraped.location &&
+    typeof scraped.location === "string" &&
+    !scraped.location.toLowerCase().includes("all adverts")
+  ) {
     result.location = scraped.location;
   }
   if (scraped.description && typeof scraped.description === "string") {

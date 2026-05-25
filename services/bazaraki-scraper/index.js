@@ -32,7 +32,8 @@ async function scrapeBazaraki(url) {
     javaScriptEnabled: true,
     bypassCSP: true,
     extraHTTPHeaders: {
-      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      Accept:
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
       "Accept-Language": "en-US,en;q=0.9",
       "Accept-Encoding": "gzip, deflate, br",
       "Sec-Fetch-Dest": "document",
@@ -68,17 +69,27 @@ async function scrapeBazaraki(url) {
   });
 
   try {
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
 
     // Handle Cloudflare challenge — wait for it to resolve
     let pageText = await page.textContent("body").catch(() => "");
-    if (pageText && (pageText.includes("security service") || pageText.includes("Checking your browser"))) {
-      console.log("[Scrape] Cloudflare challenge detected, waiting up to 20s for resolution...");
+    if (
+      pageText &&
+      (pageText.includes("security service") ||
+        pageText.includes("Checking your browser"))
+    ) {
+      console.log(
+        "[Scrape] Cloudflare challenge detected, waiting up to 20s for resolution..."
+      );
       // Wait for the challenge to auto-solve — look for real page content appearing
       for (let i = 0; i < 10; i++) {
         await page.waitForTimeout(2000);
         pageText = await page.textContent("body").catch(() => "");
-        if (pageText && !pageText.includes("security service") && !pageText.includes("Checking your browser")) {
+        if (
+          pageText &&
+          !pageText.includes("security service") &&
+          !pageText.includes("Checking your browser")
+        ) {
           console.log(`[Scrape] Cloudflare resolved after ${(i + 1) * 2}s`);
           break;
         }
@@ -87,7 +98,9 @@ async function scrapeBazaraki(url) {
 
     // Wait for key content to render
     await page
-      .waitForSelector("h1, [class*=price], [class*=announcement]", { timeout: 10000 })
+      .waitForSelector("h1, [class*=price], [class*=announcement]", {
+        timeout: 10_000,
+      })
       .catch(() => {});
 
     const data = await page.evaluate(() => {
@@ -122,7 +135,7 @@ async function scrapeBazaraki(url) {
       const priceDataEl = document.querySelector("[data-price]");
       if (priceDataEl) {
         const dp = priceDataEl.getAttribute("data-price");
-        if (dp) result.price = parseInt(dp, 10);
+        if (dp) result.price = Number.parseInt(dp, 10);
       }
       if (!result.price) {
         // Try the price display element — look for the actual number with €
@@ -144,14 +157,14 @@ async function scrapeBazaraki(url) {
           // Handle European format (420.000) vs US format (420,000)
           // If has dots and no commas, dots are thousands separators
           if (cleaned.includes(".") && !cleaned.includes(",")) {
-            result.price = parseInt(cleaned.replace(/\./g, ""), 10);
+            result.price = Number.parseInt(cleaned.replace(/\./g, ""), 10);
           } else if (cleaned.includes(",") && !cleaned.includes(".")) {
-            result.price = parseInt(cleaned.replace(/,/g, ""), 10);
+            result.price = Number.parseInt(cleaned.replace(/,/g, ""), 10);
           } else {
-            result.price = parseInt(cleaned.replace(/[.,]/g, ""), 10);
+            result.price = Number.parseInt(cleaned.replace(/[.,]/g, ""), 10);
           }
           // Sanity check: Cyprus property prices should be < 50M
-          if (result.price && result.price > 50000000) result.price = null;
+          if (result.price && result.price > 50_000_000) result.price = null;
         }
       }
 
@@ -185,10 +198,7 @@ async function scrapeBazaraki(url) {
         ];
         breadcrumbs.forEach((bc) => {
           const text = bc.textContent.trim();
-          if (
-            text &&
-            !skipWords.some((w) => text.toLowerCase().includes(w))
-          ) {
+          if (text && !skipWords.some((w) => text.toLowerCase().includes(w))) {
             parts.push(text);
           }
         });
@@ -204,10 +214,7 @@ async function scrapeBazaraki(url) {
         const descText = descContainer.textContent || "";
         // Clean up: remove "Translate to: ..." prefix and extra whitespace
         const cleaned = descText
-          .replace(
-            /Translate to:[\s\S]*?Show original\s*/i,
-            ""
-          )
+          .replace(/Translate to:[\s\S]*?Show original\s*/i, "")
           .replace(/\s+/g, " ")
           .trim();
         if (cleaned.length > 20) result.description = cleaned;
@@ -279,51 +286,73 @@ async function scrapeBazaraki(url) {
         // Bedrooms
         if (text.includes("bedroom") && !text.includes("bathroom")) {
           const num = text.match(/(\d+)/);
-          if (num) result.bedrooms = parseInt(num[1], 10);
+          if (num) result.bedrooms = Number.parseInt(num[1], 10);
         }
         // Bathrooms
-        if (text.includes("bathroom") || (text.includes("bath") && !text.includes("bedroom"))) {
+        if (
+          text.includes("bathroom") ||
+          (text.includes("bath") && !text.includes("bedroom"))
+        ) {
           const num = text.match(/(\d+)/);
-          if (num) result.bathrooms = parseInt(num[1], 10);
+          if (num) result.bathrooms = Number.parseInt(num[1], 10);
         }
         // Covered/property area — Bazaraki uses "Property area" label
         if (
-          (text.includes("property area") || text.includes("covered area") ||
-           text.includes("indoor area") || text.includes("internal area") ||
-           text.includes("living area")) &&
+          (text.includes("property area") ||
+            text.includes("covered area") ||
+            text.includes("indoor area") ||
+            text.includes("internal area") ||
+            text.includes("living area")) &&
           text.match(/\d/)
         ) {
           const num = text.match(/(\d[\d,.]*)\s*m/);
           if (num)
-            result.coveredArea = parseInt(num[1].replace(/[,.]/g, ""), 10);
+            result.coveredArea = Number.parseInt(
+              num[1].replace(/[,.]/g, ""),
+              10
+            );
         }
         // Plot size
         if (
-          (text.includes("plot") || text.includes("land size") || text.includes("land area")) &&
+          (text.includes("plot") ||
+            text.includes("land size") ||
+            text.includes("land area")) &&
           text.match(/\d/)
         ) {
           const num = text.match(/(\d[\d,.]*)\s*m/);
           if (num)
-            result.plotSize = parseInt(num[1].replace(/[,.]/g, ""), 10);
+            result.plotSize = Number.parseInt(num[1].replace(/[,.]/g, ""), 10);
         }
         // Property type (from "Type" row)
-        if ((text.startsWith("type") || text.includes("type:")) && !text.includes("property type")) {
-          const val = text.split(/type:?\s*/i).pop().trim();
+        if (
+          (text.startsWith("type") || text.includes("type:")) &&
+          !text.includes("property type")
+        ) {
+          const val = text
+            .split(/type:?\s*/i)
+            .pop()
+            .trim();
           if (val && val.length < 50) result.propertyType = val;
         }
         // Construction year
         if (text.includes("construction year") || text.includes("year built")) {
           const num = text.match(/((?:19|20)\d{2})/);
-          if (num) result.yearBuilt = parseInt(num[1], 10);
+          if (num) result.yearBuilt = Number.parseInt(num[1], 10);
         }
         // Condition
         if (text.includes("condition")) {
-          const val = text.split(/condition:?\s*/i).pop().trim();
+          const val = text
+            .split(/condition:?\s*/i)
+            .pop()
+            .trim();
           if (val && val.length < 30) result.condition = val;
         }
         // Furnishing
         if (text.includes("furnishing") || text.includes("furnished")) {
-          const val = text.split(/furnish\w*:?\s*/i).pop().trim();
+          const val = text
+            .split(/furnish\w*:?\s*/i)
+            .pop()
+            .trim();
           if (val && val.length < 50) result.furnishing = val;
         }
         // Energy efficiency
@@ -333,12 +362,18 @@ async function scrapeBazaraki(url) {
         }
         // Parking
         if (text.includes("parking")) {
-          const val = text.split(/parking:?\s*/i).pop().trim();
+          const val = text
+            .split(/parking:?\s*/i)
+            .pop()
+            .trim();
           if (val && val.length < 30) result.parking = val;
         }
         // Included features
         if (text.includes("included") || text.includes("features")) {
-          const val = text.split(/(?:included|features):?\s*/i).pop().trim();
+          const val = text
+            .split(/(?:included|features):?\s*/i)
+            .pop()
+            .trim();
           if (val) {
             val.split(/,\s*/).forEach((f) => {
               const feat = f.trim();
@@ -348,27 +383,40 @@ async function scrapeBazaraki(url) {
         }
         // Location from characteristics (e.g., "Location: Limassol – Episkopi Lemesou")
         if (text.startsWith("location") && text.includes(":")) {
-          const val = row.textContent.split(/location:?\s*/i).pop().trim();
+          const val = row.textContent
+            .split(/location:?\s*/i)
+            .pop()
+            .trim();
           if (val && val.length > 3 && val.length < 100) {
             result.location = val;
           }
         }
         // Air conditioning
         if (text.includes("air conditioning") || text.includes("a/c")) {
-          const val = text.split(/(?:air conditioning|a\/c):?\s*/i).pop().trim();
+          const val = text
+            .split(/(?:air conditioning|a\/c):?\s*/i)
+            .pop()
+            .trim();
           if (val && val.length < 50) result.airConditioning = val;
         }
       });
 
       // Location fallback — search all text nodes for "Location:" pattern
       // Bazaraki often shows "Location: Limassol – Episkopi Lemesou" outside the characteristics list
-      if (!result.location || result.location.toLowerCase().includes("all adverts")) {
+      if (
+        !result.location ||
+        result.location.toLowerCase().includes("all adverts")
+      ) {
         const allText = document.body.innerText || "";
         const locMatch = allText.match(/Location:\s*(.+?)(?:\n|$)/i);
         if (locMatch) {
           const locVal = locMatch[1].trim();
-          if (locVal && locVal.length > 3 && locVal.length < 100 &&
-              !locVal.toLowerCase().includes("all adverts")) {
+          if (
+            locVal &&
+            locVal.length > 3 &&
+            locVal.length < 100 &&
+            !locVal.toLowerCase().includes("all adverts")
+          ) {
             result.location = locVal;
           }
         }

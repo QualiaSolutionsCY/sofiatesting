@@ -9,18 +9,16 @@
  * - templates/  → Template registry (existing)
  */
 
-// Core modules
-import { IDENTITY } from "./core/identity.ts";
-import { SAFETY_RULES } from "./core/safety-rules.ts";
-
 // Behavior modules
 import { DOCUMENT_ROUTING } from "./behaviors/document-routing.ts";
 import { PROPERTY_UPLOAD } from "./behaviors/property-upload.ts";
 import { RESPONSE_FORMAT } from "./behaviors/response-format.ts";
-
+// Core modules
+import { IDENTITY } from "./core/identity.ts";
+import { SAFETY_RULES } from "./core/safety-rules.ts";
+import { CALCULATOR_CAPABILITIES } from "./knowledge/calculators.ts";
 // Knowledge modules
 import { CYPRUS_KNOWLEDGE } from "./knowledge/cyprus-real-estate.ts";
-import { CALCULATOR_CAPABILITIES } from "./knowledge/calculators.ts";
 
 // Templates module
 import { TEMPLATES } from "./templates/content.ts";
@@ -36,8 +34,13 @@ export function buildSystemPrompt(options: {
   tomorrowDate: string;
   templates?: string;
 }): string {
-  const { agentName, agentPhone, currentDate, tomorrowDate, templates = TEMPLATES } =
-    options;
+  const {
+    agentName,
+    agentPhone,
+    currentDate,
+    tomorrowDate,
+    templates = TEMPLATES,
+  } = options;
 
   // Agent context header
   const agentContext = `## Agent Context

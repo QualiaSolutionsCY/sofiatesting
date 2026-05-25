@@ -13,8 +13,8 @@
  *   3. Set up pg_cron schedule for daily execution
  */
 
-import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
 import { addBreadcrumb, captureError, initSentry } from "../_shared/sentry.ts";
+import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
 import { ThreeCXClient } from "./3cx/client.ts";
 import { runDailyAudit } from "./audit-pipeline.ts";
 import { AUDIT_CONFIG, get3CXConfig } from "./config.ts";
@@ -290,7 +290,9 @@ Deno.serve(async (req: Request) => {
       const executionMs = Math.round(performance.now() - startTime);
 
       captureError(
-        configError instanceof Error ? configError : new Error(String(configError)),
+        configError instanceof Error
+          ? configError
+          : new Error(String(configError)),
         { auditErrorCategory: errorCategory, channel: "call-audit" }
       );
       logger.error(
@@ -415,10 +417,11 @@ Deno.serve(async (req: Request) => {
     );
     const executionMs = Math.round(performance.now() - startTime);
 
-    captureError(
-      error instanceof Error ? error : new Error(String(error)),
-      { auditErrorCategory: errorCategory, channel: "call-audit", executionMs }
-    );
+    captureError(error instanceof Error ? error : new Error(String(error)), {
+      auditErrorCategory: errorCategory,
+      channel: "call-audit",
+      executionMs,
+    });
     logger.error(
       "[Call Audit] Fatal error",
       error instanceof Error ? error : new Error(String(error)),

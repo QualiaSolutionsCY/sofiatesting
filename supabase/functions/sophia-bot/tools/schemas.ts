@@ -39,31 +39,37 @@ const optionalEmail = () =>
  */
 export const createPropertyListingSchema = z.object({
   listingType: z.enum(["sale", "rent"]),
-  propertyType: z.enum([
-    "apartment",
-    "house",
-    "detached house",
-    "villa",
-    "maisonette",
-    "bungalow",
-    "penthouse",
-    "townhouse",
-    "studio",
-    "semi-detached",
-    "semi-detached house",
-    "residential building",
-    "commercial building",
-    "mixed-use building",
-    "office",
-    "shop",
-    "warehouse",
-    "industrial",
-    "building",
-    "hotel",
-    "flat",
-    "entire floor apartment",
-  ]).optional(),
-  price: z.number().positive().max(100_000_000, "Price must be under 100M EUR").optional(),
+  propertyType: z
+    .enum([
+      "apartment",
+      "house",
+      "detached house",
+      "villa",
+      "maisonette",
+      "bungalow",
+      "penthouse",
+      "townhouse",
+      "studio",
+      "semi-detached",
+      "semi-detached house",
+      "residential building",
+      "commercial building",
+      "mixed-use building",
+      "office",
+      "shop",
+      "warehouse",
+      "industrial",
+      "building",
+      "hotel",
+      "flat",
+      "entire floor apartment",
+    ])
+    .optional(),
+  price: z
+    .number()
+    .positive()
+    .max(100_000_000, "Price must be under 100M EUR")
+    .optional(),
   location: z.string().min(2).max(200).optional(),
   bedrooms: z.number().int().min(0).max(50).optional(),
   bathrooms: z.number().int().min(0).max(50).optional(),
@@ -145,8 +151,20 @@ export const createPropertyListingSchema = z.object({
   poolType: z.enum(["private", "communal", "provisions", "none"]).optional(),
   features: z.array(z.string().max(100)).max(100).optional(),
   energyClass: optionalString(10),
-  yearBuilt: z.number().int().min(0).max(2100).optional().transform((v) => (v && v < 1800 ? undefined : v)),
-  yearRenovated: z.number().int().min(0).max(2100).optional().transform((v) => (v && v < 1800 ? undefined : v)),
+  yearBuilt: z
+    .number()
+    .int()
+    .min(0)
+    .max(2100)
+    .optional()
+    .transform((v) => (v && v < 1800 ? undefined : v)),
+  yearRenovated: z
+    .number()
+    .int()
+    .min(0)
+    .max(2100)
+    .optional()
+    .transform((v) => (v && v < 1800 ? undefined : v)),
   floor: optionalString(20),
   basementRooms: z.number().int().min(0).max(20).optional(),
   roofRooms: z.number().int().min(0).max(20).optional(),
@@ -171,7 +189,13 @@ export const createPropertyListingSchema = z.object({
  */
 export const createLandListingSchema = z.object({
   listingType: z.enum(["sale", "rent"]),
-  landType: z.enum(["plot", "field", "agricultural", "commercial", "industrial"]),
+  landType: z.enum([
+    "plot",
+    "field",
+    "agricultural",
+    "commercial",
+    "industrial",
+  ]),
   price: z.number().positive().max(100_000_000, "Price must be under 100M EUR"),
   location: z.string().min(2).max(200),
   landSize: z

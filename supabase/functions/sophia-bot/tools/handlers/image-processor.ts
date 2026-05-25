@@ -6,8 +6,8 @@
 
 import {
   classifyImagesWithVision,
-  type RoomType,
   ROOM_TYPE_ORDER,
+  type RoomType,
 } from "../../services/image-classifier.ts";
 import {
   clearPendingDocuments,
@@ -24,13 +24,13 @@ export interface ProcessedImages {
   imageUrls: string[];
   titleDeedImageUrls: string[];
   floorPlanUrls: string[];
-  documentUrls: string[];       // Title deed documents → field_title_deed_file
-  otherDocumentUrls: string[];  // Other documents → field_other_document
+  documentUrls: string[]; // Title deed documents → field_title_deed_file
+  otherDocumentUrls: string[]; // Other documents → field_other_document
 }
 
 export async function processListingImages(
   args: Record<string, unknown>,
-  agentPhone: string,
+  agentPhone: string
 ): Promise<ProcessedImages> {
   logger.info("Image processing started", {
     category: LogCategory.IMAGE,
@@ -131,7 +131,10 @@ export async function processListingImages(
     visionRoomTypes = visionResult.roomTypes;
 
     // Use vision-detected title deeds if agent didn't specify
-    if (titleDeedImageIndices.length === 0 && visionResult.titleDeedIndices.length > 0) {
+    if (
+      titleDeedImageIndices.length === 0 &&
+      visionResult.titleDeedIndices.length > 0
+    ) {
       titleDeedImageIndices = visionResult.titleDeedIndices.map((i) => i + 1);
       logger.info("Vision auto-detected title deed images", {
         category: LogCategory.IMAGE,
@@ -140,7 +143,10 @@ export async function processListingImages(
       });
     }
     // Use vision-detected floor plans if agent didn't specify
-    if (floorPlanImageIndicesFromArgs.length === 0 && visionResult.floorPlanIndices.length > 0) {
+    if (
+      floorPlanImageIndicesFromArgs.length === 0 &&
+      visionResult.floorPlanIndices.length > 0
+    ) {
       floorPlanImageIndicesFromArgs = visionResult.floorPlanIndices.map(
         (i) => i + 1
       );
@@ -194,7 +200,10 @@ export async function processListingImages(
     );
     // Floor plans go to end of gallery
     imageUrls = [...nonFloorPlan, ...floorPlanImageUrls];
-    visionRoomTypes = [...nonFloorPlanRoomTypes, ...floorPlanImageUrls.map(() => "floor_plan" as const)];
+    visionRoomTypes = [
+      ...nonFloorPlanRoomTypes,
+      ...floorPlanImageUrls.map(() => "floor_plan" as const),
+    ];
     logger.info(
       "Floor plans moved to end of gallery and added to floor plan section",
       {
@@ -212,7 +221,11 @@ export async function processListingImages(
   const imageOrder = (args.imageOrder as number[]) || [];
   const hasAgentOrdering = imageOrder.length > 0 || !!args.mainPhotoIndex;
 
-  if (visionRoomTypes.length === imageUrls.length && visionRoomTypes.length > 0 && !hasAgentOrdering) {
+  if (
+    visionRoomTypes.length === imageUrls.length &&
+    visionRoomTypes.length > 0 &&
+    !hasAgentOrdering
+  ) {
     // Build paired array of [url, roomType] for sorting
     const paired = imageUrls.map((url, i) => ({
       url,
@@ -264,12 +277,15 @@ export async function processListingImages(
       }
     }
     imageUrls = reordered;
-    logger.info("Photos reordered per agent-specified imageOrder (overrides auto-sort)", {
-      category: LogCategory.IMAGE,
-      operation: "processListingImages",
-      orderProvided: imageOrder.length,
-      totalImages: imageUrls.length,
-    });
+    logger.info(
+      "Photos reordered per agent-specified imageOrder (overrides auto-sort)",
+      {
+        category: LogCategory.IMAGE,
+        operation: "processListingImages",
+        orderProvided: imageOrder.length,
+        totalImages: imageUrls.length,
+      }
+    );
   } else if (args.mainPhotoIndex && imageUrls.length > 0) {
     // mainPhotoIndex: move one photo to front, then auto-sort the rest
     const mainIdx = (args.mainPhotoIndex as number) - 1;
@@ -285,7 +301,9 @@ export async function processListingImages(
           roomType: restRoomTypes[i],
           originalIndex: i,
         }));
-        const floorPlanPairs = paired.filter((p) => p.roomType === "floor_plan");
+        const floorPlanPairs = paired.filter(
+          (p) => p.roomType === "floor_plan"
+        );
         const sortablePairs = paired.filter((p) => p.roomType !== "floor_plan");
         sortablePairs.sort((a, b) => {
           const orderA = ROOM_TYPE_ORDER[a.roomType as RoomType] ?? 10;
@@ -299,12 +317,15 @@ export async function processListingImages(
         imageUrls = [mainPhoto, ...rest];
       }
 
-      logger.info("Main photo moved to first + remaining auto-sorted by room type", {
-        category: LogCategory.IMAGE,
-        operation: "processListingImages",
-        mainPhotoIndex: args.mainPhotoIndex,
-        totalImages: imageUrls.length,
-      });
+      logger.info(
+        "Main photo moved to first + remaining auto-sorted by room type",
+        {
+          category: LogCategory.IMAGE,
+          operation: "processListingImages",
+          mainPhotoIndex: args.mainPhotoIndex,
+          totalImages: imageUrls.length,
+        }
+      );
     }
   }
 
@@ -318,16 +339,18 @@ export async function processListingImages(
       // Strip the wa_doc_{timestamp}_ prefix to compare base filenames
       const seen = new Map<string, string>(); // normalized filename → first URL
       for (const doc of pendingDocs) {
-        const normalizedName = normalizeDocFilename(doc.filename || doc.document_url);
-        if (!seen.has(normalizedName)) {
-          seen.set(normalizedName, doc.document_url);
-        } else {
+        const normalizedName = normalizeDocFilename(
+          doc.filename || doc.document_url
+        );
+        if (seen.has(normalizedName)) {
           logger.info("Deduplicated document by filename", {
             category: LogCategory.GENERAL,
             operation: "processListingImages",
             duplicate: doc.filename,
             normalizedName,
           });
+        } else {
+          seen.set(normalizedName, doc.document_url);
         }
       }
       allDocumentUrls = [...seen.values()];
@@ -408,9 +431,14 @@ function normalizeDocFilename(filenameOrUrl: string): string {
 function isTitleDeedDocument(url: string): boolean {
   const filename = (url.split("/").pop()?.split("?")[0] || "").toLowerCase();
   const titleDeedPatterns = [
-    "title_deed", "title deed", "titledeed",
-    "td_", "_td.", "_td_",
-    "deed_", "_deed.",
+    "title_deed",
+    "title deed",
+    "titledeed",
+    "td_",
+    "_td.",
+    "_td_",
+    "deed_",
+    "_deed.",
   ];
   return titleDeedPatterns.some((p) => filename.includes(p));
 }

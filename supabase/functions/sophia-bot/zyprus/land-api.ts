@@ -7,6 +7,8 @@ import { logClassifiedError } from "../utils/error-mapper.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
 import { withRetry } from "../utils/retry.ts";
 import { validateImageUrl } from "../utils/url-validator.ts";
+import { getAccessToken, getZyprusConfig, type ZyprusConfig } from "./oauth.ts";
+import { uploadSingleImage } from "./property-api.ts";
 import {
   findInfrastructureUuids,
   findLandTypeUuid,
@@ -17,8 +19,6 @@ import {
   findUserUuid,
   findUserUuids,
 } from "./taxonomy-cache.ts";
-import { getAccessToken, getZyprusConfig, type ZyprusConfig } from "./oauth.ts";
-import { uploadSingleImage } from "./property-api.ts";
 
 export interface LandListingData {
   listingType: "sale" | "rent";
@@ -182,16 +182,17 @@ function buildJsonApiPayloadLand(
   // Build proper title: "Residential Land 3,679 SQM For Sale in Kallepia, Paphos"
   // Map land types to Zyprus display names
   const landTypeDisplay: Record<string, string> = {
-    "plot": "Residential Land",
-    "residential": "Residential Land",
-    "field": "Land Parcel",
+    plot: "Residential Land",
+    residential: "Residential Land",
+    field: "Land Parcel",
     "land parcel": "Land Parcel",
-    "agricultural": "Agricultural Land",
-    "commercial": "Commercial Land",
-    "industrial": "Industrial Land",
+    agricultural: "Agricultural Land",
+    commercial: "Commercial Land",
+    industrial: "Industrial Land",
   };
   const landTypeKey = (listing.landType || "plot").toLowerCase().trim();
-  const displayType = landTypeDisplay[landTypeKey] ||
+  const displayType =
+    landTypeDisplay[landTypeKey] ||
     `${listing.landType.charAt(0).toUpperCase() + listing.landType.slice(1).toLowerCase()} Land`;
   const listingTypeText =
     listing.listingType === "rent" ? "For Rent" : "For Sale";
@@ -704,7 +705,8 @@ async function uploadLandOtherDocuments(
           "image/png": ".png",
           "application/pdf": ".pdf",
           "application/msword": ".doc",
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            ".docx",
           "application/vnd.google-earth.kmz": ".kmz",
           "application/vnd.google-earth.kml+xml": ".kml",
         };
@@ -733,7 +735,9 @@ async function uploadLandOtherDocuments(
               }
             );
             if (!res.ok && res.status >= 500) {
-              throw new Error(`Land other document upload failed: ${res.status}`);
+              throw new Error(
+                `Land other document upload failed: ${res.status}`
+              );
             }
             return res;
           },
@@ -830,7 +834,8 @@ export async function createDraftLandListing(
 
   // Resolve instructor UUID — usually same as owner, but differs for Michelle rentals
   const instructorUuid =
-    listing.listingInstructor && listing.listingInstructor !== listing.listingOwner
+    listing.listingInstructor &&
+    listing.listingInstructor !== listing.listingOwner
       ? await findUserUuid(listing.listingInstructor)
       : listingOwnerUuid;
 
@@ -849,15 +854,16 @@ export async function createDraftLandListing(
   });
 
   // Upload files in parallel
-  const [imageFileIds, titleDeedFileIds, otherDocumentFileIds] = await Promise.all([
-    uploadLandImages(listing.images, token, config),
-    listing.titleDeedFileUrls && listing.titleDeedFileUrls.length > 0
-      ? uploadLandTitleDeedFiles(listing.titleDeedFileUrls, token, config)
-      : Promise.resolve([] as string[]),
-    listing.otherDocumentUrls && listing.otherDocumentUrls.length > 0
-      ? uploadLandOtherDocuments(listing.otherDocumentUrls, token, config)
-      : Promise.resolve([] as string[]),
-  ]);
+  const [imageFileIds, titleDeedFileIds, otherDocumentFileIds] =
+    await Promise.all([
+      uploadLandImages(listing.images, token, config),
+      listing.titleDeedFileUrls && listing.titleDeedFileUrls.length > 0
+        ? uploadLandTitleDeedFiles(listing.titleDeedFileUrls, token, config)
+        : Promise.resolve([] as string[]),
+      listing.otherDocumentUrls && listing.otherDocumentUrls.length > 0
+        ? uploadLandOtherDocuments(listing.otherDocumentUrls, token, config)
+        : Promise.resolve([] as string[]),
+    ]);
 
   logger.info("All files uploaded for land listing", {
     category: LogCategory.ZYPRUS,
@@ -922,8 +928,9 @@ export async function createDraftLandListing(
       const errorJson = JSON.parse(errorText);
       if (errorJson.errors) {
         errorDetail = errorJson.errors
-          .map((e: { detail?: string; title?: string }) =>
-            e.detail || e.title || JSON.stringify(e)
+          .map(
+            (e: { detail?: string; title?: string }) =>
+              e.detail || e.title || JSON.stringify(e)
           )
           .join("; ");
       }
@@ -962,15 +969,19 @@ export async function createDraftLandListing(
   // Fall back to PATCH only if POST didn't include them
   let titleDeedAttachedToLand = false;
   if (titleDeedFileIds.length > 0) {
-    const hasRelationship = result.data?.relationships?.field_title_deed_file?.data;
+    const hasRelationship =
+      result.data?.relationships?.field_title_deed_file?.data;
     if (hasRelationship) {
       titleDeedAttachedToLand = true;
-      logger.info("Title deed files attached to land listing via initial POST", {
-        category: LogCategory.ZYPRUS,
-        operation: "createDraftLandListing",
-        listingId,
-        fileCount: titleDeedFileIds.length,
-      });
+      logger.info(
+        "Title deed files attached to land listing via initial POST",
+        {
+          category: LogCategory.ZYPRUS,
+          operation: "createDraftLandListing",
+          listingId,
+          fileCount: titleDeedFileIds.length,
+        }
+      );
     }
   }
   if (titleDeedFileIds.length > 0 && !titleDeedAttachedToLand) {

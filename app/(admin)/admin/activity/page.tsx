@@ -98,7 +98,9 @@ export default async function ActivityPage() {
   return (
     <div className="space-y-4 md:space-y-6">
       <div>
-        <h2 className="font-bold text-xl tracking-tight md:text-3xl">Live Activity</h2>
+        <h2 className="font-bold text-xl tracking-tight md:text-3xl">
+          Live Activity
+        </h2>
         <p className="text-muted-foreground text-sm md:text-base">
           Real-time monitoring of agent presence and WhatsApp conversations.
         </p>

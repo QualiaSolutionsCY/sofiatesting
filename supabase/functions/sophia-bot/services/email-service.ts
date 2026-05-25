@@ -9,13 +9,13 @@
 
 import { getLastDocument } from "../../_shared/db.ts";
 import { maskEmailForLogging } from "../rules/index.ts";
-import { LogCategory, logger } from "../utils/logger.ts";
-import { safeFetch, validateExternalUrl } from "../utils/url-validator.ts";
 import {
   canRequest,
-  recordSuccess,
   recordFailure,
+  recordSuccess,
 } from "../utils/circuit-breaker.ts";
+import { LogCategory, logger } from "../utils/logger.ts";
+import { safeFetch, validateExternalUrl } from "../utils/url-validator.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 

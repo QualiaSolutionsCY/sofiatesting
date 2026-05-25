@@ -4,8 +4,17 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import type { Agent, TelegramGroup, TelegramLead, LeadForwardingRotation } from "./types.ts";
-import { detectGroupType, detectRegionFromName, normalizePhoneForSearch } from "./routing-constants.ts";
+import {
+  detectGroupType,
+  detectRegionFromName,
+  normalizePhoneForSearch,
+} from "./routing-constants.ts";
+import type {
+  Agent,
+  LeadForwardingRotation,
+  TelegramGroup,
+  TelegramLead,
+} from "./types.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -87,10 +96,12 @@ export const claimMessage = async (
   telegramUserId: number
 ): Promise<boolean> => {
   try {
-    const { error } = await supabase.from("telegram_processed_messages").insert({
-      message_key: messageKey,
-      telegram_user_id: telegramUserId,
-    });
+    const { error } = await supabase
+      .from("telegram_processed_messages")
+      .insert({
+        message_key: messageKey,
+        telegram_user_id: telegramUserId,
+      });
 
     if (error) {
       // 23505 = unique constraint violation (already exists)
@@ -115,7 +126,9 @@ export const claimMessage = async (
  * Clear conversation history for a user
  * Called when user sends /clear command
  */
-export const clearHistory = async (telegramUserId: number): Promise<boolean> => {
+export const clearHistory = async (
+  telegramUserId: number
+): Promise<boolean> => {
   try {
     const { error } = await supabase
       .from("telegram_chat_history")
@@ -187,7 +200,12 @@ export const getOrCreateGroup = async (
       return null;
     }
 
-    console.log("[DB] Created new group:", newGroup?.group_name, "type:", groupType);
+    console.log(
+      "[DB] Created new group:",
+      newGroup?.group_name,
+      "type:",
+      groupType
+    );
     return newGroup as TelegramGroup;
   } catch (error) {
     console.error("[DB] getOrCreateGroup exception:", error);
@@ -353,7 +371,9 @@ export const findPreviousAgentForCaller = async (
 /**
  * Find agent by phone number (for /register command)
  */
-export const findAgentByPhone = async (phone: string): Promise<Agent | null> => {
+export const findAgentByPhone = async (
+  phone: string
+): Promise<Agent | null> => {
   try {
     // Normalize phone number (remove spaces, ensure +)
     let normalized = phone.replace(/\s/g, "");
@@ -437,10 +457,12 @@ export const getAgentByTelegramId = async (
 export const isRecentDuplicate = async (
   propertyId: string,
   sourceGroupId: number,
-  windowMinutes: number = 10
+  windowMinutes = 10
 ): Promise<boolean> => {
   try {
-    const windowAgo = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
+    const windowAgo = new Date(
+      Date.now() - windowMinutes * 60 * 1000
+    ).toISOString();
 
     const { data, error } = await supabase
       .from("telegram_leads")
@@ -466,7 +488,9 @@ export const isRecentDuplicate = async (
  * Log a forwarded lead to the database
  */
 export const logLead = async (
-  lead: Omit<TelegramLead, "id" | "created_at"> & { caller_phone?: string | null }
+  lead: Omit<TelegramLead, "id" | "created_at"> & {
+    caller_phone?: string | null;
+  }
 ): Promise<string | null> => {
   try {
     const { data, error } = await supabase
@@ -521,19 +545,17 @@ export const updateRotationState = async (
   agentId: string
 ): Promise<boolean> => {
   try {
-    const { error } = await supabase
-      .from("lead_forwarding_rotation")
-      .upsert(
-        {
-          region: region.toLowerCase(),
-          last_forwarded_to_agent_id: agentId,
-          forward_count: 1,
-          updated_at: new Date().toISOString(),
-        },
-        {
-          onConflict: "region",
-        }
-      );
+    const { error } = await supabase.from("lead_forwarding_rotation").upsert(
+      {
+        region: region.toLowerCase(),
+        last_forwarded_to_agent_id: agentId,
+        forward_count: 1,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "region",
+      }
+    );
 
     if (error) {
       console.error("[DB] updateRotationState error:", error);
@@ -541,7 +563,9 @@ export const updateRotationState = async (
     }
 
     // Increment forward count
-    await supabase.rpc("increment_forward_count", { p_region: region.toLowerCase() });
+    await supabase.rpc("increment_forward_count", {
+      p_region: region.toLowerCase(),
+    });
 
     return true;
   } catch (error) {
@@ -645,7 +669,7 @@ export const clearRegistrationState = async (
 export const checkRecentDuplicatesBatch = async (
   propertyIds: string[],
   sourceGroupId: number,
-  windowMinutes: number = 10
+  windowMinutes = 10
 ): Promise<string[]> => {
   if (propertyIds.length === 0) {
     return [];
@@ -700,4 +724,3 @@ export const selectNextAgentAtomic = async (
     return agentIds[0];
   }
 };
-

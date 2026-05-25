@@ -14,13 +14,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { config } from "./config.js";
 import {
+  downloadImageUrl,
+  type EmailAttachment,
+  extractDocumentAttachments,
+  extractInlineImageUrls,
   fetchSophiaUnreadEmails,
   markSophiaEmailAsRead,
   sendSophiaReply,
-  extractInlineImageUrls,
-  downloadImageUrl,
-  extractDocumentAttachments,
-  type EmailAttachment,
 } from "./gmail.js";
 
 let isSophiaRunning = false;
@@ -63,7 +63,10 @@ async function uploadAttachmentToStorage(
       });
 
     if (error) {
-      console.error(`[Sophia] Upload error for ${attachment.filename}:`, error.message);
+      console.error(
+        `[Sophia] Upload error for ${attachment.filename}:`,
+        error.message
+      );
       return null;
     }
 
@@ -71,7 +74,10 @@ async function uploadAttachmentToStorage(
     const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
     return urlData?.publicUrl || null;
   } catch (err) {
-    console.error(`[Sophia] Failed to upload attachment ${attachment.filename}:`, err);
+    console.error(
+      `[Sophia] Failed to upload attachment ${attachment.filename}:`,
+      err
+    );
     return null;
   }
 }
@@ -106,11 +112,12 @@ async function callSophiaBot(payload: {
       console.error(`[Sophia] Bot returned ${response.status}: ${errText}`);
       return {
         success: false,
-        reply: "I encountered an issue processing your email. Please try again.",
+        reply:
+          "I encountered an issue processing your email. Please try again.",
       };
     }
 
-    const data = await response.json() as { success: boolean; reply: string };
+    const data = (await response.json()) as { success: boolean; reply: string };
     return data;
   } catch (err) {
     console.error("[Sophia] Failed to call sophia-bot:", err);
@@ -139,7 +146,9 @@ export async function processSophiaEmails(): Promise<void> {
   const stats = { processed: 0, replied: 0, errors: 0 };
 
   try {
-    console.log(`[${new Date().toISOString()}] [Sophia] Starting email processing...`);
+    console.log(
+      `[${new Date().toISOString()}] [Sophia] Starting email processing...`
+    );
 
     // Fetch unread emails from sophia@zyprus.com
     const emails = await fetchSophiaUnreadEmails();
@@ -149,12 +158,16 @@ export async function processSophiaEmails(): Promise<void> {
       try {
         stats.processed++;
 
-        console.log(`[Sophia] Processing: "${email.subject}" from ${email.from}`);
+        console.log(
+          `[Sophia] Processing: "${email.subject}" from ${email.from}`
+        );
 
         // Upload image attachments to Supabase storage
         const imageUrls: string[] = [];
         if (email.parsedAttachments.length > 0) {
-          console.log(`[Sophia] Uploading ${email.parsedAttachments.length} image attachment(s)...`);
+          console.log(
+            `[Sophia] Uploading ${email.parsedAttachments.length} image attachment(s)...`
+          );
           for (const attachment of email.parsedAttachments) {
             const publicUrl = await uploadAttachmentToStorage(
               attachment,
@@ -164,7 +177,9 @@ export async function processSophiaEmails(): Promise<void> {
             );
             if (publicUrl) {
               imageUrls.push(publicUrl);
-              console.log(`[Sophia] Uploaded ${attachment.filename} → ${publicUrl}`);
+              console.log(
+                `[Sophia] Uploaded ${attachment.filename} → ${publicUrl}`
+              );
             }
           }
         }
@@ -173,7 +188,9 @@ export async function processSophiaEmails(): Promise<void> {
         const documentUrls: string[] = [];
         const docAttachments = extractDocumentAttachments(email as any);
         if (docAttachments.length > 0) {
-          process.stdout.write(`[Sophia] Uploading ${docAttachments.length} document attachment(s)...\n`);
+          process.stdout.write(
+            `[Sophia] Uploading ${docAttachments.length} document attachment(s)...\n`
+          );
           for (const doc of docAttachments) {
             const publicUrl = await uploadAttachmentToStorage(
               doc,
@@ -183,7 +200,9 @@ export async function processSophiaEmails(): Promise<void> {
             );
             if (publicUrl) {
               documentUrls.push(publicUrl);
-              process.stdout.write(`[Sophia] Uploaded doc ${doc.filename} → ${publicUrl}\n`);
+              process.stdout.write(
+                `[Sophia] Uploaded doc ${doc.filename} → ${publicUrl}\n`
+              );
             }
           }
         }
@@ -194,7 +213,9 @@ export async function processSophiaEmails(): Promise<void> {
         if (imageUrls.length === 0 && email.htmlBody) {
           const inlineUrls = extractInlineImageUrls(email.htmlBody);
           if (inlineUrls.length > 0) {
-            console.log(`[Sophia] Found ${inlineUrls.length} inline image(s) in HTML body, downloading...`);
+            console.log(
+              `[Sophia] Found ${inlineUrls.length} inline image(s) in HTML body, downloading...`
+            );
             for (const inlineUrl of inlineUrls) {
               const attachment = await downloadImageUrl(inlineUrl);
               if (attachment) {
@@ -246,7 +267,10 @@ export async function processSophiaEmails(): Promise<void> {
         );
       } catch (emailErr) {
         stats.errors++;
-        console.error(`[Sophia] Error processing email "${email.subject}":`, emailErr);
+        console.error(
+          `[Sophia] Error processing email "${email.subject}":`,
+          emailErr
+        );
         // Still try to mark as read to avoid reprocessing on next poll
         try {
           await markSophiaEmailAsRead(email.uid);

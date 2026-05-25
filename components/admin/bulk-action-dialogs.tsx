@@ -34,7 +34,9 @@ async function callBulkAction(
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(
-      payload.error || payload.message || `Bulk action failed (${response.status})`
+      payload.error ||
+        payload.message ||
+        `Bulk action failed (${response.status})`
     );
   }
   return payload as {
@@ -67,9 +69,13 @@ export function BulkSendInvitesDialog({
           `Sent ${sent} invite${sent === 1 ? "" : "s"}${skipped ? ` · skipped ${skipped}` : ""}${failed ? ` · failed ${failed}` : ""}`
         );
       } else if (skipped > 0 && failed === 0) {
-        toast.message(`All ${skipped} skipped (already registered or no email).`);
+        toast.message(
+          `All ${skipped} skipped (already registered or no email).`
+        );
       } else if (failed > 0) {
-        toast.error(`${failed} invite${failed === 1 ? "" : "s"} failed to send.`);
+        toast.error(
+          `${failed} invite${failed === 1 ? "" : "s"} failed to send.`
+        );
       } else {
         toast.success("Done.");
       }
@@ -89,7 +95,8 @@ export function BulkSendInvitesDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            Send invites to {selectedCount} agent{selectedCount === 1 ? "" : "s"}?
+            Send invites to {selectedCount} agent
+            {selectedCount === 1 ? "" : "s"}?
           </AlertDialogTitle>
           <AlertDialogDescription>
             Each selected agent without a registered account will receive an

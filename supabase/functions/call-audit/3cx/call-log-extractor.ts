@@ -68,7 +68,7 @@ export async function extractTodayCalls(
     {
       name: "v16 Admin Console API",
       method: "GET",
-      path: `/api/CallLog?TimeZoneName=Asia%2FNicosia&callState=All&dateRangeType=Today&numberOfRows=200&startRow=0&searchFilter=&fromFilter=&fromFilterType=Any&toFilter=&toFilterType=Any`,
+      path: "/api/CallLog?TimeZoneName=Asia%2FNicosia&callState=All&dateRangeType=Today&numberOfRows=200&startRow=0&searchFilter=&fromFilter=&fromFilterType=Any&toFilter=&toFilterType=Any",
     },
     {
       name: "v18+ REST API",
@@ -364,7 +364,7 @@ function parseCallEntry(entry: any): ThreeCXCallLogEntry | null {
   const getCallerNumber = () =>
     entry.callerNumber ||
     entry.CallerNumber ||
-    entry.CallerId ||    // v16 Admin Console API
+    entry.CallerId || // v16 Admin Console API
     entry.Caller ||
     entry.from ||
     entry.From ||
@@ -375,7 +375,7 @@ function parseCallEntry(entry: any): ThreeCXCallLogEntry | null {
   const getCalledNumber = () =>
     entry.calledNumber ||
     entry.CalledNumber ||
-    entry.Destination ||  // v16 Admin Console API
+    entry.Destination || // v16 Admin Console API
     entry.Called ||
     entry.to ||
     entry.To ||
@@ -383,7 +383,12 @@ function parseCallEntry(entry: any): ThreeCXCallLogEntry | null {
     entry.destination;
 
   const getDuration = () => {
-    const raw = entry.duration || entry.Duration || entry.CallDuration || entry.call_duration || 0;
+    const raw =
+      entry.duration ||
+      entry.Duration ||
+      entry.CallDuration ||
+      entry.call_duration ||
+      0;
     // v16 returns duration as "HH:MM:SS" string — convert to seconds
     if (typeof raw === "string" && raw.includes(":")) {
       const parts = raw.split(":").map(Number);
@@ -397,11 +402,13 @@ function parseCallEntry(entry: any): ThreeCXCallLogEntry | null {
     if (typeof entry.Answered === "boolean") {
       return entry.Answered ? "Answered" : "Missed";
     }
-    return entry.status ||
+    return (
+      entry.status ||
       entry.Status ||
       entry.CallStatus ||
       entry.call_status ||
-      "Unknown";
+      "Unknown"
+    );
   };
 
   const getDirection = () =>

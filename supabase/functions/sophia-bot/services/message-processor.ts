@@ -4,6 +4,12 @@
  * Handles message extraction, parsing, validation, and response formatting.
  */
 
+import type {
+  WaSendDocumentMessage,
+  WaSendImageMessage,
+  WaSendMessage,
+  WaSendWebhookPayload,
+} from "../types/wasend.ts";
 import { getContext } from "../utils/context.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
 import { formatPropertyDescription } from "../utils/property-formatter.ts";
@@ -18,12 +24,6 @@ import {
 } from "./media-decryptor.ts";
 import { addPendingDocument } from "./pending-documents.ts";
 import { addPendingImages } from "./pending-images.ts";
-import type {
-  WaSendDocumentMessage,
-  WaSendImageMessage,
-  WaSendMessage,
-  WaSendWebhookPayload,
-} from "../types/wasend.ts";
 
 /**
  * Extracts message content from WaSend webhook payload
@@ -152,9 +152,12 @@ export async function extractMessage(payload: WaSendWebhookPayload): Promise<{
     );
   }
   if (payloadStr.includes("documentMessage")) {
-    logger.debug(" *** Found 'documentMessage' — document attachment detected ***", {
-      category: LogCategory.GENERAL,
-    });
+    logger.debug(
+      " *** Found 'documentMessage' — document attachment detected ***",
+      {
+        category: LogCategory.GENERAL,
+      }
+    );
     const docIdx = payloadStr.indexOf("documentMessage");
     logger.debug(
       "Context around documentMessage: " +
@@ -163,10 +166,9 @@ export async function extractMessage(payload: WaSendWebhookPayload): Promise<{
     );
   }
   if (payloadStr.includes("mediaKey")) {
-    logger.debug(
-      " *** Found 'mediaKey' - this is likely a media message ***",
-      { category: LogCategory.GENERAL }
-    );
+    logger.debug(" *** Found 'mediaKey' - this is likely a media message ***", {
+      category: LogCategory.GENERAL,
+    });
   }
   if (payloadStr.includes("mmg.whatsapp.net")) {
     logger.debug(" *** Found encrypted WhatsApp media URL ***", {
@@ -373,14 +375,18 @@ export async function extractMessage(payload: WaSendWebhookPayload): Promise<{
           logger.info("Decrypting document image via WaSend API...", {
             category: LogCategory.GENERAL,
           });
-          const decryptedUrl = await decryptWhatsAppImage(messageId + "_doc", {
-            url: rawUrl,
-            mimetype: docMimetype,
-            mediaKey: docMsg.mediaKey,
-            fileSha256: docMsg.fileSha256,
-            fileLength: docMsg.fileLength?.toString(),
-            fileName: docMsg.fileName,
-          }, "documentMessage");
+          const decryptedUrl = await decryptWhatsAppImage(
+            messageId + "_doc",
+            {
+              url: rawUrl,
+              mimetype: docMimetype,
+              mediaKey: docMsg.mediaKey,
+              fileSha256: docMsg.fileSha256,
+              fileLength: docMsg.fileLength?.toString(),
+              fileName: docMsg.fileName,
+            },
+            "documentMessage"
+          );
           if (decryptedUrl) {
             logger.info("Document image decryption successful!", {
               category: LogCategory.GENERAL,
@@ -416,14 +422,18 @@ export async function extractMessage(payload: WaSendWebhookPayload): Promise<{
           logger.info("Decrypting document via WaSend API...", {
             category: LogCategory.GENERAL,
           });
-          documentUrl = await decryptWhatsAppImage(messageId + "_doc", {
-            url: rawUrl,
-            mimetype: docMimetype,
-            mediaKey: docMsg.mediaKey,
-            fileSha256: docMsg.fileSha256,
-            fileLength: docMsg.fileLength?.toString(),
-            fileName: docFilename,
-          }, "documentMessage");
+          documentUrl = await decryptWhatsAppImage(
+            messageId + "_doc",
+            {
+              url: rawUrl,
+              mimetype: docMimetype,
+              mediaKey: docMsg.mediaKey,
+              fileSha256: docMsg.fileSha256,
+              fileLength: docMsg.fileLength?.toString(),
+              fileName: docFilename,
+            },
+            "documentMessage"
+          );
         } else if (isPublicUrl(rawUrl)) {
           documentUrl = rawUrl;
         }

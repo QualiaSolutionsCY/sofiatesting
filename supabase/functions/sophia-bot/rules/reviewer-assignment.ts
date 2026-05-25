@@ -115,10 +115,7 @@ export function needsAssignmentInput(
 ): boolean {
   // Management needs to specify who to assign to — applies to both sale and
   // rent because the listing owner can't be the management user themselves.
-  return (
-    agent.role === "management" &&
-    agent.listingOwnerEmail === "ASK"
-  );
+  return agent.role === "management" && agent.listingOwnerEmail === "ASK";
 }
 
 /**

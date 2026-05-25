@@ -46,8 +46,12 @@ export const myProvider = isTestEnvironment
         specificationVersion: "v1",
         provider: "test",
         modelId: "test-model",
-        doGenerate: () => { throw new Error("Test environment - no AI provider"); },
-        doStream: () => { throw new Error("Test environment - no AI provider"); },
+        doGenerate: () => {
+          throw new Error("Test environment - no AI provider");
+        },
+        doStream: () => {
+          throw new Error("Test environment - no AI provider");
+        },
       } as any;
       return customProvider({
         languageModels: {

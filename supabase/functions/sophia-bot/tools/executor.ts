@@ -91,10 +91,7 @@ export async function executeTool(
 
     switch (tool.name) {
       case "createPropertyListing":
-        result = await handleCreatePropertyListing(
-          validArgs,
-          agent
-        );
+        result = await handleCreatePropertyListing(validArgs, agent);
         // Track successful property upload
         if (result.success && phoneNumber) {
           trackPropertyUploaded(phoneNumber, agent?.id, {
@@ -105,10 +102,7 @@ export async function executeTool(
         break;
 
       case "createLandListing":
-        result = await handleCreateLandListing(
-          validArgs,
-          agent
-        );
+        result = await handleCreateLandListing(validArgs, agent);
         // Track successful land upload
         if (result.success && phoneNumber) {
           trackPropertyUploaded(phoneNumber, agent?.id, {

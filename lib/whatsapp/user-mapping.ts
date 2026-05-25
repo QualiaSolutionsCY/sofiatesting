@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { chat, user, supabaseAgent } from "@/lib/db/schema";
+import { chat, supabaseAgent, user } from "@/lib/db/schema";
 import { generateUUID } from "@/lib/utils";
 
 /**

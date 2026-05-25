@@ -1,8 +1,8 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,9 +44,7 @@ function LoginForm() {
       <div className="w-full max-w-sm space-y-6 rounded-xl border border-zinc-800 bg-zinc-900 p-8">
         <div className="text-center">
           <h1 className="font-bold text-2xl text-white">SOPHIA Admin</h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            Sign in to continue
-          </p>
+          <p className="mt-1 text-sm text-zinc-400">Sign in to continue</p>
         </div>
 
         {loginError && (
@@ -78,11 +76,7 @@ function LoginForm() {
               value={password}
             />
           </div>
-          <Button
-            className="w-full"
-            disabled={isLoading}
-            type="submit"
-          >
+          <Button className="w-full" disabled={isLoading} type="submit">
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Sign In
           </Button>

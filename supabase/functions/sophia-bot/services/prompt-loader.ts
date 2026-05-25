@@ -77,8 +77,8 @@ const FALLBACK_PROMPTS: Record<string, string> = {
 // Removed document_routing, response_format, property_upload to enable autoresearch optimization
 // These keys are now managed via DB (sophia_prompts) and can be experimented on
 const FILE_OVERRIDE_KEYS = [
-  "safety_rules",  // Never auto-optimize — safety is non-negotiable
-  "templates",     // Template content lives in files only (not in DB)
+  "safety_rules", // Never auto-optimize — safety is non-negotiable
+  "templates", // Template content lives in files only (not in DB)
 ];
 
 interface PromptRow {

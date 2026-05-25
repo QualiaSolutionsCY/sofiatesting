@@ -5,7 +5,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { config } from "./config.js";
 
-const supabase = createClient(config.supabase.url, config.supabase.serviceRoleKey);
+const supabase = createClient(
+  config.supabase.url,
+  config.supabase.serviceRoleKey
+);
 
 export interface Agent {
   id: string;
@@ -23,7 +26,9 @@ export interface Agent {
 export async function getActiveAgents(): Promise<Agent[]> {
   const { data, error } = await supabase
     .from("agents")
-    .select("id, full_name, region, communication_email, listing_owner_email, can_receive_leads, is_active")
+    .select(
+      "id, full_name, region, communication_email, listing_owner_email, can_receive_leads, is_active"
+    )
     .eq("is_active", true);
 
   if (error) throw new Error(`Failed to fetch agents: ${error.message}`);
@@ -36,19 +41,24 @@ export async function getActiveAgents(): Promise<Agent[]> {
 export async function getAgentsForRegion(region: string): Promise<Agent[]> {
   const { data, error } = await supabase
     .from("agents")
-    .select("id, full_name, region, communication_email, listing_owner_email, can_receive_leads, is_active")
+    .select(
+      "id, full_name, region, communication_email, listing_owner_email, can_receive_leads, is_active"
+    )
     .eq("is_active", true)
     .eq("can_receive_leads", true)
     .eq("region", region.toLowerCase());
 
-  if (error) throw new Error(`Failed to fetch agents for ${region}: ${error.message}`);
+  if (error)
+    throw new Error(`Failed to fetch agents for ${region}: ${error.message}`);
   return data || [];
 }
 
 /**
  * Check if an email was already processed (deduplication)
  */
-export async function isEmailProcessed(gmailMessageId: string): Promise<boolean> {
+export async function isEmailProcessed(
+  gmailMessageId: string
+): Promise<boolean> {
   const { data } = await supabase
     .from("email_forwards")
     .select("id")
@@ -112,18 +122,19 @@ export async function getNextInRotation(
 /**
  * Update rotation state after forwarding
  */
-export async function updateRotation(region: string, agentId: string): Promise<void> {
-  const { error } = await supabase
-    .from("email_forwarding_rotation")
-    .upsert(
-      {
-        region: region.toLowerCase(),
-        last_forwarded_to_agent_id: agentId,
-        forward_count: 1,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "region" }
-    );
+export async function updateRotation(
+  region: string,
+  agentId: string
+): Promise<void> {
+  const { error } = await supabase.from("email_forwarding_rotation").upsert(
+    {
+      region: region.toLowerCase(),
+      last_forwarded_to_agent_id: agentId,
+      forward_count: 1,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "region" }
+  );
 
   if (error) {
     console.error("Failed to update rotation:", error.message);
