@@ -184,6 +184,22 @@ function fallbackEmail(fullName: string): string {
   return `${slug}-${suffix}@pending.zyprus.local`;
 }
 
+/**
+ * Normalize a Cyprus phone number to E.164.
+ * Sophia identifies WhatsApp senders by matching the last 8 digits of
+ * agents.mobile, so the canonical stored format is `+357XXXXXXXX`.
+ * Returns the raw input if it doesn't look like a Cyprus mobile.
+ */
+function normalizeCyprusPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+  let local = digits;
+  if (local.startsWith("357")) local = local.slice(3);
+  if (local.startsWith("0")) local = local.slice(1);
+  if (local.length === 8) return `+357${local}`;
+  return digits.startsWith("357") ? `+${digits}` : digits;
+}
+
 export async function POST(request: NextRequest) {
   // Check admin authentication - require admin role for creating agents
   const adminCheck = await checkAdminAuth();
@@ -238,12 +254,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Normalize phone so Sophia's mobile-matching lookup (last-8-digit ILIKE
+     // on agents.mobile) finds this agent the moment they message WhatsApp.
+    const normalizedMobile = validatedData.phoneNumber
+      ? normalizeCyprusPhone(validatedData.phoneNumber)
+      : "";
+
     // Create agent
     const insertPayload = {
       full_name: validatedData.fullName,
       communication_email: email,
       listing_owner_email: email,
-      mobile: validatedData.phoneNumber?.trim() || "",
+      mobile: normalizedMobile,
+      whatsapp_phone_number: normalizedMobile || null,
       region: (validatedData.region ?? "All").toLowerCase(),
       role: validatedData.role ?? "agent",
       is_active: validatedData.isActive ?? true,
