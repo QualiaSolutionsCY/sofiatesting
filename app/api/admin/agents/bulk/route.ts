@@ -21,7 +21,7 @@ const INVITE_FROM =
   process.env.INVITE_FROM_EMAIL || "SOPHIA <sophia@zyprus.com>";
 
 const bulkSchema = z.object({
-  action: z.enum(["deactivate", "activate", "send-invite"]),
+  action: z.enum(["deactivate", "activate", "send-invite", "permanent-delete"]),
   ids: z.array(z.string().uuid()).min(1).max(500),
 });
 
@@ -77,6 +77,10 @@ export async function POST(request: NextRequest) {
         action: payload.action,
         affected: data?.length ?? 0,
       });
+    }
+
+    if (payload.action === "permanent-delete") {
+      return await handleBulkPermanentDelete(supabase, payload.ids, adminCheck.userId ?? "unknown");
     }
 
     // send-invite
@@ -179,6 +183,140 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: "Bulk action failed",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleBulkPermanentDelete(
+  supabase: ReturnType<typeof getAdminSupabase>,
+  ids: string[],
+  actorUserId: string
+) {
+  // Fetch all agents to get phone numbers for cascading cleanup
+  const { data: agents, error: fetchError } = await supabase
+    .from("agents")
+    .select("id, full_name, mobile, whatsapp_phone_number")
+    .in("id", ids);
+
+  if (fetchError) {
+    logger.error("Bulk permanent delete: failed to fetch agents", fetchError);
+    return NextResponse.json(
+      { error: "Failed to load agents", details: fetchError.message },
+      { status: 500 }
+    );
+  }
+
+  const agentIds = (agents ?? []).map((a: { id: string }) => a.id);
+
+  if (agentIds.length === 0) {
+    return NextResponse.json(
+      { error: "No matching agents found" },
+      { status: 404 }
+    );
+  }
+
+  // Collect all phone numbers for non-FK cleanup
+  const phoneNumbers = (agents ?? [])
+    .flatMap((a: { mobile?: string | null; whatsapp_phone_number?: string | null }) => [
+      a.mobile,
+      a.whatsapp_phone_number,
+    ])
+    .filter(Boolean) as string[];
+
+  try {
+    // 1. Nullify telegram_leads FK references
+    const { error: leadsError } = await supabase
+      .from("telegram_leads")
+      .update({ forwarded_to_agent_id: null })
+      .in("forwarded_to_agent_id", agentIds);
+
+    if (leadsError) {
+      logger.error("Bulk permanent delete: telegram_leads cleanup failed", leadsError);
+      return NextResponse.json(
+        { error: "Failed to clean up telegram lead references", details: leadsError.message },
+        { status: 500 }
+      );
+    }
+
+    // 2. Nullify lead_forwarding_rotation FK references
+    const { error: rotationError } = await supabase
+      .from("lead_forwarding_rotation")
+      .update({ last_forwarded_to_agent_id: null })
+      .in("last_forwarded_to_agent_id", agentIds);
+
+    if (rotationError) {
+      logger.error("Bulk permanent delete: lead_forwarding_rotation cleanup failed", rotationError);
+      return NextResponse.json(
+        { error: "Failed to clean up lead rotation references", details: rotationError.message },
+        { status: 500 }
+      );
+    }
+
+    // 3. Delete whatsapp_analytics rows (non-fatal)
+    for (const agentId of agentIds) {
+      const { error: analyticsError } = await supabase
+        .from("whatsapp_analytics")
+        .delete()
+        .eq("agent_id", agentId);
+      if (analyticsError) {
+        logger.error(`Bulk permanent delete: whatsapp_analytics cleanup failed for ${agentId} (non-fatal)`, analyticsError);
+      }
+    }
+
+    // 4. Delete chat_history by phone (non-fatal)
+    for (const phone of phoneNumbers) {
+      const { error: chatError } = await supabase
+        .from("chat_history")
+        .delete()
+        .eq("user_id", phone);
+      if (chatError) {
+        logger.error(`Bulk permanent delete: chat_history cleanup failed for ${phone} (non-fatal)`, chatError);
+      }
+    }
+
+    // 5. Delete listing_uploads by phone (non-fatal)
+    for (const phone of phoneNumbers) {
+      const { error: uploadsError } = await supabase
+        .from("listing_uploads")
+        .delete()
+        .eq("agent_phone", phone);
+      if (uploadsError) {
+        logger.error(`Bulk permanent delete: listing_uploads cleanup failed for ${phone} (non-fatal)`, uploadsError);
+      }
+    }
+
+    // 6. Delete the agent rows
+    const { error: deleteError } = await supabase
+      .from("agents")
+      .delete()
+      .in("id", agentIds);
+
+    if (deleteError) {
+      logger.error("Bulk permanent delete: agent row deletion failed", deleteError);
+      return NextResponse.json(
+        { error: "Failed to delete agents", details: deleteError.message },
+        { status: 500 }
+      );
+    }
+
+    const agentNames = (agents ?? []).map((a: { full_name: string }) => a.full_name).join(", ");
+    logger.info(
+      `Bulk permanent delete: ${agentIds.length} agents deleted (${agentNames}) by actor=${actorUserId}`
+    );
+
+    return NextResponse.json({
+      success: true,
+      action: "permanent-delete",
+      affected: agentIds.length,
+    });
+  } catch (error) {
+    logger.error("Bulk permanent delete error", error);
+    return NextResponse.json(
+      {
+        error: "Bulk permanent delete failed",
         details: error instanceof Error ? error.message : String(error),
       },
       { status: 500 }

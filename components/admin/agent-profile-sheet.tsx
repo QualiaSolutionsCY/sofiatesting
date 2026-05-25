@@ -11,11 +11,13 @@ import {
   Power,
   PowerOff,
   Send,
+  Trash2,
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AgentEditModal } from "@/components/admin/agent-edit-modal";
+import { PermanentDeleteAgentDialog } from "@/components/admin/permanent-delete-dialog";
 import {
   LinkTelegramModal,
   LinkWhatsAppModal,
@@ -99,6 +101,7 @@ export function AgentProfileSheet({
   const [inviteSending, setInviteSending] = useState(false);
   const [toggleConfirmOpen, setToggleConfirmOpen] = useState(false);
   const [togglePending, setTogglePending] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const handleSendInvite = async () => {
     if (agent.userId) {
@@ -430,6 +433,26 @@ export function AgentProfileSheet({
               </Button>
             )}
           </div>
+
+          {/* Danger Zone */}
+          <div className="rounded-lg border border-destructive/30 p-4">
+            <h3 className="mb-2 font-semibold text-destructive text-sm">
+              Danger Zone
+            </h3>
+            <p className="mb-3 text-muted-foreground text-xs">
+              Permanently remove this agent and all their associated data. This
+              action cannot be undone.
+            </p>
+            <Button
+              className="w-full"
+              onClick={() => setDeleteDialogOpen(true)}
+              size="sm"
+              variant="destructive"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete permanently
+            </Button>
+          </div>
         </div>
       </SheetContent>
 
@@ -502,6 +525,19 @@ export function AgentProfileSheet({
           fetchAgentStats();
         }}
         open={whatsappModalOpen}
+      />
+
+      {/* Permanent Delete Dialog */}
+      <PermanentDeleteAgentDialog
+        agentId={agent.id}
+        agentName={agent.fullName}
+        onOpenChange={setDeleteDialogOpen}
+        onSuccess={() => {
+          toast.success(`${agent.fullName} deleted permanently`);
+          onOpenChange(false);
+          onRefresh();
+        }}
+        open={deleteDialogOpen}
       />
     </Sheet>
   );

@@ -7,6 +7,7 @@ import {
   Mail,
   RefreshCw,
   Search,
+  Trash2,
   UserPlus,
   XCircle,
 } from "lucide-react";
@@ -17,6 +18,7 @@ import { AgentCreateModal } from "@/components/admin/agent-create-modal";
 import {
   BulkActivateDialog,
   BulkDeactivateDialog,
+  BulkPermanentDeleteDialog,
   BulkSendInvitesDialog,
 } from "@/components/admin/bulk-action-dialogs";
 
@@ -88,6 +90,8 @@ export function AgentsFilterBar({
   const [sendInvitesDialogOpen, setSendInvitesDialogOpen] = useState(false);
   const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
   const [activateDialogOpen, setActivateDialogOpen] = useState(false);
+  const [permanentDeleteDialogOpen, setPermanentDeleteDialogOpen] =
+    useState(false);
 
   const handleBulkSuccess = () => {
     onRefresh();
@@ -280,6 +284,15 @@ export function AgentsFilterBar({
               <XCircle className="mr-2 h-4 w-4" />
               Deactivate
             </Button>
+            <Button
+              className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setPermanentDeleteDialogOpen(true)}
+              size="sm"
+              variant="outline"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete permanently
+            </Button>
           </div>
         </div>
       )}
@@ -317,6 +330,13 @@ export function AgentsFilterBar({
         onOpenChange={setActivateDialogOpen}
         onSuccess={handleBulkSuccess}
         open={activateDialogOpen}
+        selectedIds={selectedIds}
+      />
+
+      <BulkPermanentDeleteDialog
+        onOpenChange={setPermanentDeleteDialogOpen}
+        onSuccess={handleBulkSuccess}
+        open={permanentDeleteDialogOpen}
         selectedIds={selectedIds}
       />
     </div>

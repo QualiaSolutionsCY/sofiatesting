@@ -237,10 +237,10 @@ export async function PUT(
 
 /**
  * DELETE /api/admin/agents/[id]
- * Deactivate an agent (soft delete)
+ * Deactivate an agent (soft delete) or permanently delete (?permanent=true)
  */
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   // Check admin authentication
@@ -260,9 +260,17 @@ export async function DELETE(
     );
   }
 
+  const permanent =
+    request.nextUrl.searchParams.get("permanent") === "true";
+
   try {
     const { id } = await context.params;
 
+    if (permanent) {
+      return await handlePermanentDelete(id, adminCheck.userId ?? "unknown");
+    }
+
+    // Soft delete (existing behavior)
     const { data: deactivated, error } = await getAdminSupabase()
       .from("agents")
       .update({ is_active: false })
@@ -283,6 +291,155 @@ export async function DELETE(
     return NextResponse.json(
       {
         error: "Failed to deactivate agent",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Permanently delete an agent and all related data.
+ * Cascade order:
+ *   1. Nullify telegram_leads.forwarded_to_agent_id
+ *   2. Nullify lead_forwarding_rotation.last_forwarded_to_agent_id
+ *   3. Delete whatsapp_analytics rows (agent_id is TEXT, not FK-constrained)
+ *   4. Delete chat_history rows (keyed by phone number stored in agents.mobile / whatsapp_phone_number)
+ *   5. Delete listing_uploads rows (keyed by agent_phone)
+ *   6. Delete the agent row itself
+ */
+async function handlePermanentDelete(agentId: string, actorUserId: string) {
+  const supabase = getAdminSupabase();
+
+  // Fetch agent first so we can log meaningful info and clean up by phone
+  const { data: agent, error: fetchError } = await supabase
+    .from("agents")
+    .select("id, full_name, mobile, whatsapp_phone_number")
+    .eq("id", agentId)
+    .single();
+
+  if (fetchError || !agent) {
+    return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+  }
+
+  try {
+    // 1. Nullify FK references in telegram_leads
+    const { error: leadsError } = await supabase
+      .from("telegram_leads")
+      .update({ forwarded_to_agent_id: null })
+      .eq("forwarded_to_agent_id", agentId);
+
+    if (leadsError) {
+      logger.error("Failed to nullify telegram_leads references", leadsError);
+      return NextResponse.json(
+        {
+          error: "Failed to clean up telegram lead references",
+          details: leadsError.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    // 2. Nullify FK references in lead_forwarding_rotation
+    const { error: rotationError } = await supabase
+      .from("lead_forwarding_rotation")
+      .update({ last_forwarded_to_agent_id: null })
+      .eq("last_forwarded_to_agent_id", agentId);
+
+    if (rotationError) {
+      logger.error(
+        "Failed to nullify lead_forwarding_rotation references",
+        rotationError
+      );
+      return NextResponse.json(
+        {
+          error: "Failed to clean up lead rotation references",
+          details: rotationError.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    // 3. Delete whatsapp_analytics rows (agent_id is a text field, not a real FK)
+    const { error: analyticsError } = await supabase
+      .from("whatsapp_analytics")
+      .delete()
+      .eq("agent_id", agentId);
+
+    if (analyticsError) {
+      // Non-fatal: analytics is supplementary data
+      logger.error(
+        "Failed to delete whatsapp_analytics rows (non-fatal)",
+        analyticsError
+      );
+    }
+
+    // 4. Delete chat_history rows keyed by the agent's phone numbers
+    const phoneNumbers = [
+      agent.mobile,
+      agent.whatsapp_phone_number,
+    ].filter(Boolean) as string[];
+
+    for (const phone of phoneNumbers) {
+      const { error: chatError } = await supabase
+        .from("chat_history")
+        .delete()
+        .eq("user_id", phone);
+
+      if (chatError) {
+        logger.error(
+          `Failed to delete chat_history for phone ${phone} (non-fatal)`,
+          chatError
+        );
+      }
+    }
+
+    // 5. Delete listing_uploads rows keyed by agent_phone
+    for (const phone of phoneNumbers) {
+      const { error: uploadsError } = await supabase
+        .from("listing_uploads")
+        .delete()
+        .eq("agent_phone", phone);
+
+      if (uploadsError) {
+        logger.error(
+          `Failed to delete listing_uploads for phone ${phone} (non-fatal)`,
+          uploadsError
+        );
+      }
+    }
+
+    // 6. Delete the agent row
+    const { error: deleteError } = await supabase
+      .from("agents")
+      .delete()
+      .eq("id", agentId);
+
+    if (deleteError) {
+      logger.error("Failed to delete agent row", deleteError);
+      return NextResponse.json(
+        {
+          error: "Failed to delete agent",
+          details: deleteError.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    logger.info(
+      `Agent permanently deleted: id=${agentId}, name="${agent.full_name}", by actor=${actorUserId}`
+    );
+
+    return NextResponse.json({
+      deleted: true,
+      agentId,
+      message: "Agent permanently deleted",
+    });
+  } catch (error) {
+    logger.error("Error during permanent agent deletion", error);
+    return NextResponse.json(
+      {
+        error: "Failed to permanently delete agent",
         details: error instanceof Error ? error.message : String(error),
       },
       { status: 500 }

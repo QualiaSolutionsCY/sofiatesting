@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -14,6 +14,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type BulkActionDialogProps = {
   open: boolean;
@@ -23,7 +34,7 @@ type BulkActionDialogProps = {
 };
 
 async function callBulkAction(
-  action: "send-invite" | "deactivate" | "activate",
+  action: "send-invite" | "deactivate" | "activate" | "permanent-delete",
   ids: string[]
 ) {
   const response = await fetch("/api/admin/agents/bulk", {
@@ -238,5 +249,110 @@ export function BulkActivateDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+export function BulkPermanentDeleteDialog({
+  open,
+  onOpenChange,
+  selectedIds,
+  onSuccess,
+}: BulkActionDialogProps) {
+  const [confirmText, setConfirmText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const selectedCount = selectedIds.length;
+
+  const isConfirmed = confirmText === "DELETE";
+
+  const handleConfirm = async () => {
+    if (!isConfirmed) return;
+    setLoading(true);
+    try {
+      const result = await callBulkAction("permanent-delete", selectedIds);
+      toast.success(
+        `Permanently deleted ${result.affected ?? selectedCount} agent${(result.affected ?? selectedCount) === 1 ? "" : "s"}`
+      );
+      onSuccess();
+      onOpenChange(false);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to permanently delete agents"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setConfirmText("");
+    }
+    onOpenChange(nextOpen);
+  };
+
+  return (
+    <Dialog onOpenChange={handleOpenChange} open={open}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <Trash2 className="h-5 w-5" />
+            Permanently delete {selectedCount} agent
+            {selectedCount === 1 ? "" : "s"}?
+          </DialogTitle>
+          <DialogDescription>
+            This will permanently delete the selected agent
+            {selectedCount === 1 ? "" : "s"} and all their related data. This
+            action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            All chat history, analytics, lead assignments, and listing records
+            associated with these agents will be removed or unlinked.
+          </AlertDescription>
+        </Alert>
+
+        <div className="space-y-2">
+          <Label htmlFor="confirm-bulk-delete">
+            Type{" "}
+            <span className="font-mono font-semibold text-destructive">
+              DELETE
+            </span>{" "}
+            to confirm
+          </Label>
+          <Input
+            autoComplete="off"
+            disabled={loading}
+            id="confirm-bulk-delete"
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder="DELETE"
+            value={confirmText}
+          />
+        </div>
+
+        <DialogFooter>
+          <Button
+            disabled={loading}
+            onClick={() => handleOpenChange(false)}
+            variant="outline"
+          >
+            Cancel
+          </Button>
+          <Button
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            disabled={!isConfirmed || loading}
+            onClick={handleConfirm}
+          >
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Delete {selectedCount} agent{selectedCount === 1 ? "" : "s"}{" "}
+            permanently
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

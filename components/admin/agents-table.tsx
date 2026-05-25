@@ -12,12 +12,14 @@ import {
   Power,
   PowerOff,
   Send,
+  Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AgentEditModal } from "@/components/admin/agent-edit-modal";
 import { AgentProfileSheet } from "@/components/admin/agent-profile-sheet";
+import { PermanentDeleteAgentDialog } from "@/components/admin/permanent-delete-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -101,6 +103,7 @@ export function AgentsTable({
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [agentToEdit, setAgentToEdit] = useState<Agent | null>(null);
   const [agentToToggle, setAgentToToggle] = useState<Agent | null>(null);
+  const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
   const [busyAgentId, setBusyAgentId] = useState<string | null>(null);
 
   const handleRowClick = (agent: Agent) => {
@@ -462,6 +465,14 @@ export function AgentsTable({
                             Activate
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setAgentToDelete(agent)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete permanently
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -570,6 +581,23 @@ export function AgentsTable({
             setAgentToEdit(null);
           }}
           open={editModalOpen}
+        />
+      )}
+
+      {/* Permanent Delete Dialog */}
+      {agentToDelete && (
+        <PermanentDeleteAgentDialog
+          agentId={agentToDelete.id}
+          agentName={agentToDelete.fullName}
+          onOpenChange={(open) => {
+            if (!open) setAgentToDelete(null);
+          }}
+          onSuccess={() => {
+            toast.success(`${agentToDelete.fullName} deleted permanently`);
+            setAgentToDelete(null);
+            onRefresh();
+          }}
+          open={!!agentToDelete}
         />
       )}
     </>
