@@ -285,8 +285,19 @@ export async function extractFromBankPortal(
   try {
     const scraped = await callFirecrawlScrape(url, portal, apiKey);
     if (scraped) {
-      mergeFirecrawlData(scraped, result);
-      result.source = result.title ? "firecrawl" : "partial";
+      mergeFirecrawlData(scraped.extract ?? {}, result);
+      // Markdown-level regex fallback — runs whenever extract was thin and
+      // we have the rendered text. This is the reliable path because we own
+      // the parsing, not Firecrawl's third-party LLM.
+      if (typeof scraped.markdown === "string" && scraped.markdown.length > 0) {
+        backfillFromMarkdown(scraped.markdown, result);
+      }
+      const haveCore = !!(result.price || result.bedrooms || result.coveredArea);
+      result.source = haveCore
+        ? "firecrawl"
+        : result.title
+          ? "partial"
+          : "url_pattern";
     }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -302,16 +313,167 @@ export async function extractFromBankPortal(
 }
 
 /**
+ * Backfill missing PortalListing fields by regex-scanning the page's
+ * markdown. Runs after Firecrawl's structured extract; only fills fields
+ * that are still empty so explicit extract data wins.
+ *
+ * Patterns cover all 4 bank portals' common layouts. Extracted by reading
+ * actual Altamira/REMU/Gordian listing pages.
+ */
+function backfillFromMarkdown(md: string, result: PortalListing): void {
+  const text = md.replace(/ /g, " ");
+
+  // Price: €550,000 / € 1.250.000 / EUR 450000 — first occurrence usually wins.
+  if (!result.price) {
+    const priceMatch =
+      text.match(/€\s*([\d.,]{4,})/) ||
+      text.match(/EUR\s*([\d.,]{4,})/i) ||
+      text.match(/\b(?:asking\s+)?price[^\d]{0,20}([\d.,]{4,})/i);
+    if (priceMatch) {
+      const n = coerceNumber(priceMatch[1]);
+      if (n && n >= 5000 && n <= 50_000_000) {
+        result.price = n;
+        result.currency = "EUR";
+      }
+    }
+  }
+
+  // Bedrooms: "4 Bedrooms" / "4 Beds" / "4 BR".
+  if (result.bedrooms === undefined) {
+    const m = text.match(/(\d{1,2})\s*(?:Bedrooms?|Beds?|BR)\b/i);
+    if (m) {
+      const n = Number.parseInt(m[1], 10);
+      if (n >= 0 && n <= 20) result.bedrooms = n;
+    }
+  }
+
+  // Bathrooms.
+  if (!result.bathrooms) {
+    const m = text.match(/(\d{1,2})\s*(?:Bathrooms?|Baths?|WC)\b/i);
+    if (m) {
+      const n = Number.parseInt(m[1], 10);
+      if (n > 0 && n <= 20) result.bathrooms = n;
+    }
+  }
+
+  // Covered area: "304 m²" before "Bedrooms" — Altamira lists it first in the
+  // specs row. Generic match for first m² value, then per-label match.
+  if (!result.coveredArea) {
+    const labelled = text.match(
+      /(?:Covered Area|Internal Area|Built[- ]up Area|Habitable Area|Living Area|Floor Area)[^\d]{0,15}([\d.,]+)\s*(?:m²|sqm|sq\.?m|m2)/i
+    );
+    if (labelled) {
+      const n = coerceNumber(labelled[1]);
+      if (n && n >= 10 && n <= 100_000) result.coveredArea = n;
+    } else {
+      const first = text.match(/([\d.,]{2,})\s*(?:m²|sqm|sq\.?m|m2)(?!\s*Land)/i);
+      if (first) {
+        const n = coerceNumber(first[1]);
+        if (n && n >= 10 && n <= 100_000) result.coveredArea = n;
+      }
+    }
+  }
+
+  // Plot size: "552 m² Land" / "Plot 800 m²" / "Land Area 600 sqm".
+  if (!result.plotSize) {
+    const m =
+      text.match(/([\d.,]+)\s*(?:m²|sqm|sq\.?m|m2)\s*Land/i) ||
+      text.match(
+        /(?:Plot(?:\s+(?:Size|Area))?|Land(?:\s+(?:Size|Area))?|Lot\s+Size)[^\d]{0,15}([\d.,]+)\s*(?:m²|sqm|sq\.?m|m2)/i
+      );
+    if (m) {
+      const n = coerceNumber(m[1]);
+      if (n && n >= 10 && n <= 10_000_000) result.plotSize = n;
+    }
+  }
+
+  // Veranda: "Veranda: 11 m² Covered + 55 m² Uncovered" (Altamira pattern).
+  if (!result.coveredVeranda) {
+    const m = text.match(
+      /Veranda[^\d]{0,15}([\d.,]+)\s*(?:m²|sqm|sq\.?m|m2)\s*Covered/i
+    );
+    if (m) {
+      const n = coerceNumber(m[1]);
+      if (n && n > 0 && n < 1000) result.coveredVeranda = n;
+    }
+  }
+  if (!result.uncoveredVeranda) {
+    const m = text.match(
+      /([\d.,]+)\s*(?:m²|sqm|sq\.?m|m2)\s*Uncovered/i
+    );
+    if (m) {
+      const n = coerceNumber(m[1]);
+      if (n && n > 0 && n < 1000) result.uncoveredVeranda = n;
+    }
+  }
+
+  // Coordinates: "(34.686935, 32.978161)" — Altamira format.
+  if (result.latitude === undefined || result.longitude === undefined) {
+    const m = text.match(/\(\s*(3[4-6]\.\d{3,})\s*,\s*(3[2-5]\.\d{3,})\s*\)/);
+    if (m) {
+      const lat = Number.parseFloat(m[1]);
+      const lng = Number.parseFloat(m[2]);
+      if (lat >= 34 && lat <= 36 && lng >= 32 && lng <= 35) {
+        result.latitude = lat;
+        result.longitude = lng;
+      }
+    }
+  }
+
+  // Energy Category: a standalone single letter after "Energy Category"/"Energy Class".
+  if (!result.energyCategory) {
+    const m = text.match(
+      /Energy\s+(?:Category|Class|Performance|Rating)[^A-Za-z]{0,30}\b(A\+?|B|C|D|E|F|G|Exempt)\b/i
+    );
+    if (m) result.energyCategory = m[1].toUpperCase();
+  }
+
+  // Reference: "Ref. PR12345" / "Reference: ABC-123".
+  if (!result.reference) {
+    const m = text.match(/\b(?:Ref\.?|Reference|Property\s+No\.?)[:\s]+([A-Z0-9-]{3,20})/i);
+    if (m) result.reference = m[1];
+  }
+
+  // Title: when extract returned nothing but the page has an H1.
+  if (!result.title) {
+    const m = text.match(/^#\s+(.{3,200})$/m);
+    if (m) result.title = m[1].trim();
+  }
+
+  // Image URLs: pull every https image link from the markdown if extract
+  // didn't return any.
+  if (result.imageUrls.length === 0) {
+    const urls = new Set<string>();
+    const imageRegex = /!\[[^\]]*\]\((https:\/\/[^)]+\.(?:jpe?g|png|webp))/gi;
+    let match: RegExpExecArray | null;
+    // eslint-disable-next-line no-cond-assign
+    while ((match = imageRegex.exec(text)) !== null) {
+      urls.add(match[1]);
+    }
+    if (urls.size > 0) {
+      result.imageUrls = Array.from(urls).filter(
+        (u) => !/logo|avatar|icon|map\b/i.test(u)
+      );
+    }
+  }
+}
+
+/**
  * Call Firecrawl /v1/scrape with extract format (synchronous).
  * Returns the extracted data object or null on failure.
  */
+interface FirecrawlScrapeResult {
+  extract?: Record<string, unknown>;
+  markdown?: string;
+}
+
 async function callFirecrawlScrape(
   url: string,
   portal: Exclude<PortalName, "bazaraki">,
   apiKey: string
-): Promise<Record<string, unknown> | null> {
+): Promise<FirecrawlScrapeResult | null> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 25_000); // 25s timeout
+  const timeout = setTimeout(() => controller.abort(), 30_000); // 30s timeout
 
   try {
     const response = await fetch("https://api.firecrawl.dev/v1/scrape", {
@@ -322,9 +484,12 @@ async function callFirecrawlScrape(
       },
       body: JSON.stringify({
         url,
-        formats: ["extract"],
-        onlyMainContent: true,
-        waitFor: 2500,
+        // Ask for BOTH markdown (so we can regex-extract reliably) and
+        // structured extract (so the LLM also takes a shot). The markdown
+        // fallback covers cases where Firecrawl's third-party extract LLM
+        // returns thin data on a server-rendered page that obviously has it.
+        formats: ["markdown", "extract"],
+        waitFor: 4000,
         extract: {
           prompt: PORTAL_PROMPTS[portal],
           schema: EXTRACTION_SCHEMA,
@@ -343,16 +508,22 @@ async function callFirecrawlScrape(
     }
 
     const json = await response.json();
-    if (json.success && json.data?.extract) {
+    if (json.success && json.data) {
+      const extract = json.data.extract as
+        | Record<string, unknown>
+        | undefined;
+      const markdown =
+        typeof json.data.markdown === "string"
+          ? (json.data.markdown as string)
+          : undefined;
       logger.info(
-        `Firecrawl extracted "${json.data.extract.title || "untitled"}" from ${portal} — ` +
-          `${json.data.extract.imageUrls?.length || 0} images`,
+        `Firecrawl scraped ${portal}: extract.title="${extract?.title || "—"}", extract.price=${extract?.price ?? "—"}, markdown=${markdown ? markdown.length + "B" : "—"}`,
         { category: LogCategory.GENERAL }
       );
-      return json.data.extract;
+      return { extract, markdown };
     }
 
-    logger.info(`Firecrawl response had no extract data for ${portal}`, {
+    logger.info(`Firecrawl response had no data for ${portal}`, {
       category: LogCategory.GENERAL,
     });
     return null;
