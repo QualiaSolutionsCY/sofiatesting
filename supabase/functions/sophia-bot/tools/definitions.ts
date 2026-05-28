@@ -707,6 +707,95 @@ export const TOOLS: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "addAgent",
+      description:
+        "ADMIN-ONLY. Add a new agent to the Zyprus agents registry from WhatsApp. " +
+        "Only Lauren, Charalambos, and Fawzi (management) are authorised — the handler enforces this and refuses other callers. " +
+        "Use this when an admin says things like 'add agent {name} {phone} for {region}', 'register {name} as {role} in {region}', or 'create an account for {name}'. " +
+        "REQUIRED inputs (gather any missing ones by asking the admin): fullName, phoneNumber (Cyprus mobile, 8 digits +/- +357), region. " +
+        "Optional: role (agent | manager | management, defaults to agent), email, landline. " +
+        "The handler normalises the phone to +357XXXXXXXX so the new agent is recognised the next time they WhatsApp Sophia. " +
+        "Duplicate phone/email is rejected — no overwrite. Confirm the agent's name, phone, and region back to the admin in your reply.",
+      parameters: {
+        type: "object",
+        properties: {
+          fullName: {
+            type: "string",
+            description: "Full name of the new agent (first + last name)",
+          },
+          phoneNumber: {
+            type: "string",
+            description:
+              "Cyprus mobile number, with or without +357 prefix (e.g. '99123456', '+35799123456')",
+          },
+          region: {
+            type: "string",
+            enum: [
+              "paphos",
+              "limassol",
+              "larnaca",
+              "nicosia",
+              "famagusta",
+              "all",
+            ],
+            description:
+              "Region the agent works in. Use lowercase city name, or 'all' for company-wide.",
+          },
+          role: {
+            type: "string",
+            enum: ["agent", "manager", "management"],
+            description:
+              "Agent role. Defaults to 'agent' if not specified by the admin.",
+          },
+          email: {
+            type: "string",
+            description:
+              "Communication email. Optional — a placeholder is generated if omitted.",
+          },
+          landline: {
+            type: "string",
+            description: "Office landline for CREA compliance (optional)",
+          },
+        },
+        required: ["fullName", "phoneNumber", "region"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "removeAgent",
+      description:
+        "ADMIN-ONLY. Deactivate an existing agent so they stop receiving leads and Sophia ignores their WhatsApp messages. " +
+        "Only Lauren, Charalambos, and Fawzi (management) are authorised — the handler enforces this. " +
+        "Use this when an admin says things like 'remove agent {name}', 'deactivate {phone}', or 'take {name} off the system'. " +
+        "Identify the agent by fullName OR phoneNumber. If the lookup returns multiple matches, the handler asks the admin to disambiguate — relay that question. " +
+        "This is a SOFT deactivation (is_active=false). Permanent deletion with full cascade stays in the admin panel — tell the admin to use the panel if they ask for a hard delete. " +
+        "Pass confirm=true ONLY after the admin has explicitly confirmed in the conversation that they want to proceed.",
+      parameters: {
+        type: "object",
+        properties: {
+          fullName: {
+            type: "string",
+            description:
+              "Agent's full name or a partial match (e.g. 'Maria' will match 'Maria Georgiou')",
+          },
+          phoneNumber: {
+            type: "string",
+            description: "Cyprus mobile number, any common format",
+          },
+          confirm: {
+            type: "boolean",
+            description:
+              "Must be true to actually deactivate. The first call should omit this so the handler can ask the admin to confirm; the second call passes true once the admin has said yes.",
+          },
+        },
+      },
+    },
+  },
 ];
 
 /**

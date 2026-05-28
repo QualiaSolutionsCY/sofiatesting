@@ -28,6 +28,38 @@ export const AZINAS_UUID = "c8e05e2a-56e6-4d1f-9a20-31235feaec54";
 /** Charalambos's UUID */
 export const CHARALAMBOS_UUID = "71ac4784-238f-45b2-ac15-5f74200601ce";
 
+// =============================================================================
+// WHATSAPP ADMIN ALLOWLIST
+// =============================================================================
+// These are the agents-table primary keys (NOT the Zyprus API UUIDs above) of
+// the people allowed to manage agents over WhatsApp via Sophia tools
+// (addAgent / removeAgent). Keep this list tight — these IDs grant
+// privileged mutations from a chat interface.
+
+/** Lauren Ellingham — agents.id */
+export const LAUREN_AGENT_ID = "057df5cd-7e66-4c27-831e-ec15523779d9";
+
+/** Charalambos Pitros — agents.id */
+export const CHARALAMBOS_AGENT_ID = "b065fc89-94be-4739-a93a-19318c913257";
+
+/** Fawzi Goussous (owner) — agents.id */
+export const FAWZI_AGENT_ID = "1572c18b-f618-4896-a12d-8c1ed60cb3d7";
+
+/** Agents allowed to use addAgent / removeAgent over WhatsApp. */
+export const WHATSAPP_ADMIN_AGENT_IDS: ReadonlySet<string> = new Set([
+  LAUREN_AGENT_ID,
+  CHARALAMBOS_AGENT_ID,
+  FAWZI_AGENT_ID,
+]);
+
+/**
+ * Check whether the given agent (identified by Sophia's phone match) is
+ * allowed to mutate the agents registry via WhatsApp.
+ */
+export function isWhatsAppAdmin(agentId: string | null | undefined): boolean {
+  return !!agentId && WHATSAPP_ADMIN_AGENT_IDS.has(agentId);
+}
+
 /**
  * Hardcoded fallback UUIDs for known Zyprus staff
  * Used when API user lookup fails

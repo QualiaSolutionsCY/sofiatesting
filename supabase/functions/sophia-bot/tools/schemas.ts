@@ -362,6 +362,47 @@ export const sendEmailSchema = z.object({
 });
 
 /**
+ * Schema for addAgent tool (admin-only)
+ * Validates agent-registry inserts triggered from WhatsApp.
+ */
+export const addAgentSchema = z.object({
+  fullName: z
+    .string()
+    .min(2, "Full name must be at least 2 characters")
+    .max(120),
+  phoneNumber: z
+    .string()
+    .min(8, "Phone number must include at least 8 digits")
+    .max(20),
+  region: z
+    .string()
+    .max(20)
+    .transform((v) => v.toLowerCase()),
+  role: z
+    .string()
+    .max(20)
+    .optional()
+    .transform((v) => (v ? v.toLowerCase() : "agent")),
+  email: optionalEmail(),
+  landline: optionalString(20),
+});
+
+/**
+ * Schema for removeAgent tool (admin-only)
+ * Validates the soft-deactivate request — at least one identifier is required,
+ * and the handler enforces an explicit confirm step.
+ */
+export const removeAgentSchema = z
+  .object({
+    fullName: optionalString(120),
+    phoneNumber: optionalString(20),
+    confirm: z.union([z.boolean(), z.string()]).optional(),
+  })
+  .refine((v) => !!v.fullName || !!v.phoneNumber, {
+    message: "Either fullName or phoneNumber is required",
+  });
+
+/**
  * Lookup map for all tool schemas
  * Used by validation.ts to find the appropriate schema
  */
@@ -375,4 +416,6 @@ export const TOOL_SCHEMAS: Record<string, z.ZodSchema> = {
   getRegionalAgents: getRegionalAgentsSchema,
   extractFromBazaraki: extractFromBazarakiSchema,
   sendEmail: sendEmailSchema,
+  addAgent: addAgentSchema,
+  removeAgent: removeAgentSchema,
 };

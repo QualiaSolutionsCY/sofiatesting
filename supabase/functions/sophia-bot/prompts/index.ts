@@ -10,6 +10,7 @@
  */
 
 // Behavior modules
+import { ADMIN_AGENT_MANAGEMENT } from "./behaviors/admin-agent-management.ts";
 import { DOCUMENT_ROUTING } from "./behaviors/document-routing.ts";
 import { PROPERTY_UPLOAD } from "./behaviors/property-upload.ts";
 import { RESPONSE_FORMAT } from "./behaviors/response-format.ts";
@@ -74,6 +75,9 @@ CRITICAL TEMPORAL RULES:
     // 5. Response formatting
     RESPONSE_FORMAT,
 
+    // 5b. Admin: agent registry management (addAgent / removeAgent tools)
+    ADMIN_AGENT_MANAGEMENT,
+
     // 6. Calculator capabilities
     CALCULATOR_CAPABILITIES,
 
@@ -96,6 +100,7 @@ export const PromptSections = {
   documentRouting: DOCUMENT_ROUTING,
   propertyUpload: PROPERTY_UPLOAD,
   responseFormat: RESPONSE_FORMAT,
+  adminAgentManagement: ADMIN_AGENT_MANAGEMENT,
   calculators: CALCULATOR_CAPABILITIES,
   cyprusKnowledge: CYPRUS_KNOWLEDGE,
 };
@@ -109,6 +114,7 @@ export {
   DOCUMENT_ROUTING,
   PROPERTY_UPLOAD,
   RESPONSE_FORMAT,
+  ADMIN_AGENT_MANAGEMENT,
   CALCULATOR_CAPABILITIES,
   CYPRUS_KNOWLEDGE,
   TEMPLATES,

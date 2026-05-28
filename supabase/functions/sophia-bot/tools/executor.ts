@@ -26,6 +26,10 @@ import {
   handleGetRegionalAgents,
   handleGetZyprusData,
 } from "./handlers/data-retrieval.ts";
+import {
+  handleAddAgent,
+  handleRemoveAgent,
+} from "./handlers/agent-management.ts";
 import { handleSendEmail } from "./handlers/email.ts";
 import { handleCreateLandListing } from "./handlers/land-listing.ts";
 import { handleCreatePropertyListing } from "./handlers/property-listing.ts";
@@ -134,6 +138,14 @@ export async function executeTool(
 
       case "extractFromBazaraki":
         result = await handleExtractFromBazaraki(validArgs, agent);
+        break;
+
+      case "addAgent":
+        result = await handleAddAgent(validArgs, agent);
+        break;
+
+      case "removeAgent":
+        result = await handleRemoveAgent(validArgs, agent);
         break;
 
       case "sendEmail":
