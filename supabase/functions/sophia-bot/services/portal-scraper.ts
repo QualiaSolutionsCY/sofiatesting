@@ -99,69 +99,67 @@ export function isPropertyPortalUrl(url: string): boolean {
 const EXTRACTION_SCHEMA = {
   type: "object",
   properties: {
-    title: { type: "string", description: "Property listing title" },
+    title: { type: "string", description: "Property listing title or headline" },
     price: {
       type: "number",
-      description: "Property price in EUR (number only, no currency symbol)",
+      description:
+        "Property price as a raw integer in EUR. Strip the € symbol, commas, dots used as thousands separators, and any 'EUR'/'€' suffix. Example: '€ 350,000' → 350000. Look in fields labelled 'Price', 'Asking Price', 'Sale Price', or 'Rent'. If the page hides the price behind a 'Show price' button or only shows 'POA', return null.",
     },
     currency: {
       type: "string",
-      description: "Currency code, usually EUR",
+      description: "Currency code (EUR for Cyprus listings)",
       default: "EUR",
     },
     location: {
       type: "string",
       description:
-        "Property location — city and district/area (e.g. 'Paphos, Kathikas')",
+        "Full property location as 'District, Area' (e.g. 'Paphos, Kathikas' or 'Limassol, Agios Athanasios'). Look in breadcrumbs, 'Location' / 'Area' / 'Region' fields, the page title, and the address block. If only city is shown, return just the city.",
     },
     propertyType: {
       type: "string",
-      enum: [
-        "villa",
-        "apartment",
-        "house",
-        "townhouse",
-        "maisonette",
-        "bungalow",
-        "penthouse",
-        "studio",
-        "land",
-        "commercial",
-        "detached house",
-        "semi-detached",
-      ],
-      description: "Type of property",
+      description:
+        "Type of property. Use lowercase. Common values: villa, apartment, house, townhouse, maisonette, bungalow, penthouse, studio, detached house, semi-detached, land, plot, field, office, shop, retail, warehouse, industrial, commercial, hotel, building.",
     },
     listingType: {
       type: "string",
       enum: ["sale", "rent"],
       description: "Whether the property is for sale or rent",
     },
-    bedrooms: { type: "number", description: "Number of bedrooms" },
-    bathrooms: { type: "number", description: "Number of bathrooms" },
+    bedrooms: {
+      type: "number",
+      description:
+        "Number of bedrooms as an integer. Look for 'Bedrooms', 'Beds', 'BR', or the room-count icon. Studios = 0. Land/commercial may have no bedrooms — return null then.",
+    },
+    bathrooms: {
+      type: "number",
+      description:
+        "Number of bathrooms as an integer (round half-baths up). Look for 'Bathrooms', 'Baths', 'WC', 'Toilets', or the bath icon.",
+    },
     coveredArea: {
       type: "number",
-      description: "Covered/internal area in square metres",
+      description:
+        "Internal/covered area in square metres as a raw number. Strip 'm²', 'sqm', 'sq.m', ',', '.' thousands separators. Look in fields labelled 'Covered Area', 'Internal Area', 'Built-up Area', 'Habitable Area', 'Living Area', 'Floor Area', or 'Area'. Example: '125 m²' → 125.",
     },
     plotSize: {
       type: "number",
-      description: "Plot/land size in square metres",
+      description:
+        "Plot/land area in square metres as a raw number. Strip units and separators. Look for 'Plot Size', 'Plot Area', 'Land Area', 'Land Size', or 'Lot Size'.",
     },
     description: {
       type: "string",
-      description: "Full property description text",
+      description: "Full property description / about / details text",
     },
     imageUrls: {
       type: "array",
       items: { type: "string" },
       description:
-        "Array of full absolute https image URLs from the listing gallery",
+        "Array of full absolute https URLs of the property gallery photos (NOT logo, agent avatar, map thumbnail, or share-icon images). Prefer the highest-resolution variant when multiple sizes exist.",
     },
     features: {
       type: "array",
       items: { type: "string" },
       description:
-        "Array of property features/amenities (e.g. 'swimming pool', 'air conditioning', 'parking')",
+        "Array of property features/amenities (e.g. 'swimming pool', 'air conditioning', 'parking', 'sea view', 'furnished'). Look under 'Features', 'Amenities', 'Characteristics', 'Specifications', or icon lists.",
     },
   },
   required: ["title"],
@@ -173,21 +171,35 @@ const PORTAL_PROMPTS: Record<
   string
 > = {
   altia:
-    "Extract property listing details from this Altia Marketplace bank-owned property page. " +
-    "The price is in EUR. Look for bedrooms, bathrooms, covered area (sqm), plot size, and location. " +
-    "Collect all property gallery image URLs (full https URLs). Features may be listed under amenities or characteristics.",
+    "Extract every field of the provided schema from this Altia Marketplace listing page (marketplace.altia.com.cy). " +
+    "Altia is a Spanish-built portal localised for Cyprus — price is always EUR; strip '€' and any thousands separator. " +
+    "The listing's main attributes appear in a 'Property Details' / 'Características' panel: read 'Surface' or 'Built area' → coveredArea, 'Plot' or 'Land surface' → plotSize, 'Bedrooms' / 'Habitaciones' → bedrooms, 'Bathrooms' / 'Baños' → bathrooms. " +
+    "Location is usually 'Province, Municipality' or in breadcrumbs above the title — combine into 'District, Area'. " +
+    "If the price is hidden behind a 'Solicitar precio' / 'Request price' / 'Show price' button or shows 'A consultar', return price as null. " +
+    "Collect every photo URL from the gallery carousel — they are typically on cdn.altia or img.altia.",
   altamira:
-    "Extract property listing details from this Altamira Real Estate bank-owned property page. " +
-    "Price is in EUR. Look for the property type, bedrooms, bathrooms, internal area (sqm), plot size, " +
-    "and full location (city + area). Collect all gallery image URLs. Features may be listed under 'characteristics' or similar sections.",
+    "Extract every field of the provided schema from this Altamira Real Estate listing page (altamirarealestate.com.cy). " +
+    "Altamira labels are: 'Covered Area' → coveredArea, 'Plot Area' → plotSize, 'Bedrooms' → bedrooms, 'Bathrooms' → bathrooms. " +
+    "Price is shown as '€ 350,000' style — strip € and commas, return integer. " +
+    "Location: the breadcrumb 'Home > Properties > {District} > {Area}' and the 'Region/Area' table row both contain location — combine into 'District, Area'. The URL slug also encodes this (e.g. /paphos/kathikas/). " +
+    "Property type comes from the URL slug AND the 'Type' table row — prefer the table row. " +
+    "Some listings are commercial (offices, shops, warehouses, plots) — use the lowercase type as-is. " +
+    "Gather all gallery photo URLs (typically from altamira's CDN) — exclude the agent avatar and the 'Altamira' logo.",
   remu:
-    "Extract property listing details from this REMU Properties bank-owned property page. " +
-    "Price is in EUR. Extract bedrooms, bathrooms, covered area, plot size, location, and property type. " +
-    "Collect all listing photo URLs (full https URLs). Features/amenities may be in a separate section.",
+    "Extract every field of the provided schema from this REMU Properties listing page (remuproperties.com). " +
+    "REMU is a Bank of Cyprus portal and the page is a JS-rendered SPA — make sure to read the rendered 'Property Details' / 'Specifications' table, not just the initial HTML. " +
+    "REMU labels: 'Covered Area' or 'Built-up Area' → coveredArea, 'Plot Area' or 'Land Area' → plotSize, 'Bedrooms' → bedrooms, 'Bathrooms' → bathrooms. " +
+    "Price is labelled 'Price' or 'Asking Price' in EUR — return integer (strip €, commas). If marked 'POA' / 'Price on Application', return null. " +
+    "Location: read the 'Location' table row AND the breadcrumb; combine into 'District, Area' (e.g. 'Limassol, Agios Athanasios'). " +
+    "REMU also lists many commercial / land assets — accept any property type, lowercase. " +
+    "Gather all gallery image URLs from the photo carousel — ignore the small map thumbnail.",
   gogordian:
-    "Extract property listing details from this Gordian bank-owned property page. " +
-    "Price is in EUR. The URL slug often contains bedrooms and location — cross-check with page content. " +
-    "Extract bedrooms, bathrooms, area, plot size, and full location. Collect all gallery image URLs.",
+    "Extract every field of the provided schema from this Gordian listing page (gogordian.com). Gordian is a JS-rendered SPA — the price and details only appear after the main content loads. " +
+    "Gordian labels: 'Covered Area' → coveredArea, 'Land Area' or 'Plot' → plotSize, 'Bedrooms' → bedrooms, 'Bathrooms' → bathrooms. " +
+    "Price is shown as '€ 350,000' — strip € and commas to return integer. " +
+    "The URL slug encodes bedrooms, type, area and district (e.g. /property/3-bedroom-house-in-agios-theodoros--larnaca-8885). Cross-check the slug with the page's 'Region' / 'District' / 'Location' fields and combine as 'District, Area'. " +
+    "Property type: trust the page's 'Type' field over the slug when they disagree (the slug uses 'house' for many subtypes). " +
+    "Collect every gallery photo URL — Gordian uses its own CDN. Exclude any agent avatar.",
 };
 
 /**
@@ -268,6 +280,8 @@ async function callFirecrawlScrape(
       body: JSON.stringify({
         url,
         formats: ["extract"],
+        onlyMainContent: true,
+        waitFor: 2500,
         extract: {
           prompt: PORTAL_PROMPTS[portal],
           schema: EXTRACTION_SCHEMA,
@@ -322,37 +336,38 @@ function mergeFirecrawlData(
   if (scraped.title && typeof scraped.title === "string") {
     result.title = scraped.title;
   }
-  if (
-    scraped.price &&
-    typeof scraped.price === "number" &&
-    scraped.price > 0
-  ) {
-    result.price = scraped.price;
+  const price = coerceNumber(scraped.price);
+  if (price && price > 0) {
+    result.price = price;
     result.currency = "EUR";
   }
   if (scraped.currency && typeof scraped.currency === "string") {
     result.currency = scraped.currency;
   }
   if (scraped.location && typeof scraped.location === "string") {
-    result.location = scraped.location;
+    result.location = scraped.location.trim();
   }
   if (scraped.description && typeof scraped.description === "string") {
     result.description = scraped.description;
   }
-  if (scraped.bedrooms && typeof scraped.bedrooms === "number") {
-    result.bedrooms = scraped.bedrooms;
+  const bedrooms = coerceNumber(scraped.bedrooms);
+  if (bedrooms !== null && bedrooms >= 0) {
+    result.bedrooms = Math.round(bedrooms);
   }
-  if (scraped.bathrooms && typeof scraped.bathrooms === "number") {
-    result.bathrooms = scraped.bathrooms;
+  const bathrooms = coerceNumber(scraped.bathrooms);
+  if (bathrooms !== null && bathrooms > 0) {
+    result.bathrooms = Math.round(bathrooms);
   }
-  if (scraped.coveredArea && typeof scraped.coveredArea === "number") {
-    result.coveredArea = scraped.coveredArea;
+  const coveredArea = coerceNumber(scraped.coveredArea);
+  if (coveredArea && coveredArea > 0) {
+    result.coveredArea = coveredArea;
   }
-  if (scraped.plotSize && typeof scraped.plotSize === "number") {
-    result.plotSize = scraped.plotSize;
+  const plotSize = coerceNumber(scraped.plotSize);
+  if (plotSize && plotSize > 0) {
+    result.plotSize = plotSize;
   }
   if (scraped.propertyType && typeof scraped.propertyType === "string") {
-    result.propertyType = scraped.propertyType;
+    result.propertyType = scraped.propertyType.toLowerCase().trim();
   }
   if (scraped.listingType && typeof scraped.listingType === "string") {
     const lt = scraped.listingType.toLowerCase();
@@ -491,6 +506,33 @@ function extractFromUrlSlug(
   } catch {
     // URL parsing failed — non-critical
   }
+}
+
+/**
+ * Coerce a Firecrawl-returned value into a positive number.
+ * Accepts numbers, or strings like "€ 350,000", "350.000", "125 m²", "3 beds".
+ * Returns null if no valid number can be parsed.
+ */
+function coerceNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    // Strip currency symbols, units, and thousands separators.
+    // Keep digits, minus sign, and one decimal point.
+    const cleaned = value
+      .replace(/[€$£,]/g, "")
+      .replace(/\b(eur|usd|gbp|sqm|sq\.?m|m²|m2|beds?|baths?|rooms?)\b/gi, "")
+      .replace(/[^\d.\-]/g, "")
+      .trim();
+    if (!cleaned) return null;
+    // If multiple dots (e.g. "350.000" european thousands), drop them all
+    const dotCount = (cleaned.match(/\./g) || []).length;
+    const normalized = dotCount > 1 ? cleaned.replace(/\./g, "") : cleaned;
+    const n = Number.parseFloat(normalized);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
 }
 
 /** Capitalize a URL segment (replace dashes with spaces, title case) */
