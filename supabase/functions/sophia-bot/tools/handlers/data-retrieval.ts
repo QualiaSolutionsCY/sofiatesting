@@ -255,6 +255,7 @@ export async function handleExtractFromBazaraki(
       mustCopy.push(`  imageUrls: [${listing.imageUrls.length} URLs — pass through verbatim]`);
     mustCopy.push(`  owner_name: "${url}"`);
     mustCopy.push(`  owner_phone: ""`);
+    mustCopy.push(`  locationUrl: ""    // IMPORTANT: leave empty. The bank URL belongs in owner_name only — it must NOT appear in locationUrl or My Notes will leak it.`);
     mustCopy.push(`  title_deed_status: "pending"`);
 
     const summary =
@@ -264,7 +265,7 @@ export async function handleExtractFromBazaraki(
       `\n=== END MUST-COPY ===\n` +
       `\nBANK-PORTAL UPLOAD RULES:\n` +
       `1. EVERY field in MUST-COPY above is already known. Copy each value into your createPropertyListing call exactly as shown. NEVER ask the agent for any of these fields — re-asking for an already-extracted field is forbidden.\n` +
-      `2. Owner name: bank-owned listings NEVER disclose an owner. Use the source URL ("${url}") as owner_name. Owner phone is empty. Do NOT ask the agent.\n` +
+      `2. Owner name: bank-owned listings NEVER disclose an owner. Use the source URL ("${url}") as owner_name — it becomes the Own Reference ID on Zyprus. Owner phone is empty. Do NOT ask the agent. Do NOT also pass the URL as locationUrl — locationUrl is for Google Maps links only; passing the bank URL there will pollute the My Notes field.\n` +
       `3. Photos: ${listing.imageUrls.length} image URL(s) extracted — pass them through. Do NOT ask the agent to resend photos via WhatsApp.\n` +
       `4. Title deed: default "pending"; do not block.\n` +
       `5. Bank name: detect from URL host (altamira/altia/remu/gogordian).\n` +

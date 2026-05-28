@@ -56,9 +56,16 @@ export function generateMyNotes(
     lines.push(`Listing Owner: ${ownerDisplay}`);
   }
 
-  // Google Maps link
-  if (context?.locationUrl) {
-    lines.push(context.locationUrl);
+  // Google Maps link — ONLY if locationUrl is actually a Google Maps link.
+  // Bank-portal URLs (altamira/altia/remu/gogordian) belong in Own Reference ID,
+  // not My notes. Bazaraki URLs likewise stay out of notes.
+  const looksLikeMapsUrl =
+    !!context?.locationUrl &&
+    /google\.(?:com|gr|com\.cy)\/maps|goo\.gl\/maps|maps\.app\.goo\.gl/i.test(
+      context.locationUrl
+    );
+  if (looksLikeMapsUrl) {
+    lines.push(context!.locationUrl as string);
   } else if (context?.coordinates) {
     const mapsUrl = `https://www.google.com/maps/place/${context.coordinates.lat},${context.coordinates.lon}`;
     lines.push(mapsUrl);
@@ -102,9 +109,15 @@ export function generateAIAssistantNotes(
     );
   }
 
-  // Google Maps link
-  if (locationUrl) {
-    lines.push(locationUrl);
+  // Google Maps link — same filter as generateMyNotes. Bank-portal URLs do
+  // not belong in AI Notes; they go to Own Reference ID.
+  const looksLikeMapsUrl =
+    !!locationUrl &&
+    /google\.(?:com|gr|com\.cy)\/maps|goo\.gl\/maps|maps\.app\.goo\.gl/i.test(
+      locationUrl
+    );
+  if (looksLikeMapsUrl) {
+    lines.push(locationUrl as string);
   } else if (coordinates) {
     const mapsUrl = `https://www.google.com/maps/place/${coordinates.lat},${coordinates.lon}`;
     lines.push(mapsUrl);
