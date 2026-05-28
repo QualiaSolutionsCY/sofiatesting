@@ -290,14 +290,19 @@ export async function extractFromBankPortal(
       // we have the rendered text. This is the reliable path because we own
       // the parsing, not Firecrawl's third-party LLM.
       if (typeof scraped.markdown === "string" && scraped.markdown.length > 0) {
+        const before = describeResult(result);
         backfillFromMarkdown(scraped.markdown, result);
+        const after = describeResult(result);
+        logger.info(
+          `Markdown backfill for ${portal}: ${scraped.markdown.length}B in, before=${before}, after=${after}, sample=${JSON.stringify(scraped.markdown.slice(0, 240))}`,
+          { category: LogCategory.GENERAL }
+        );
+      } else {
+        logger.info(
+          `Firecrawl returned no markdown for ${portal} — markdown fallback skipped`,
+          { category: LogCategory.GENERAL }
+        );
       }
-      const haveCore = !!(result.price || result.bedrooms || result.coveredArea);
-      result.source = haveCore
-        ? "firecrawl"
-        : result.title
-          ? "partial"
-          : "url_pattern";
     }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -309,7 +314,131 @@ export async function extractFromBankPortal(
     );
   }
 
+  // Phase 3 — Direct-fetch raw-HTML parse. Firecrawl is unreliable on bank
+  // portals; the pages themselves are server-rendered HTML, so we can fetch
+  // them ourselves and regex-extract from the raw markup. This runs whenever
+  // we still lack the core fields after Firecrawl.
+  const stillMissingCore =
+    !result.price || result.bedrooms === undefined || !result.coveredArea;
+  if (stillMissingCore) {
+    try {
+      const html = await fetchPageHtml(url);
+      if (html) {
+        const before = describeResult(result);
+        backfillFromHtml(html, result);
+        const after = describeResult(result);
+        logger.info(
+          `Direct HTML backfill for ${portal}: ${html.length}B in, before=${before}, after=${after}`,
+          { category: LogCategory.GENERAL }
+        );
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.warn(`Direct fetch failed for ${portal}: ${msg}`, {
+        category: LogCategory.GENERAL,
+      });
+    }
+  }
+
+  const haveCore = !!(result.price || result.bedrooms || result.coveredArea);
+  result.source = haveCore
+    ? "firecrawl"
+    : result.title
+      ? "partial"
+      : "url_pattern";
+
   return result;
+}
+
+/** One-line summary of which fields are populated — for diagnostic logs. */
+function describeResult(r: PortalListing): string {
+  return [
+    r.price ? `€${r.price}` : "no€",
+    r.bedrooms !== undefined ? `${r.bedrooms}bd` : "no-bd",
+    r.bathrooms ? `${r.bathrooms}ba` : "no-ba",
+    r.coveredArea ? `${r.coveredArea}m²` : "no-area",
+    r.plotSize ? `${r.plotSize}plot` : "no-plot",
+    r.latitude ? `lat${r.latitude}` : "no-coord",
+    r.energyCategory ? `e${r.energyCategory}` : "no-energy",
+    `${r.imageUrls.length}imgs`,
+  ].join("/");
+}
+
+/**
+ * Fetch a portal page's raw HTML with a real browser User-Agent.
+ * Some portals serve different content based on UA. Returns null on
+ * non-200 or empty body. 20s timeout.
+ */
+async function fetchPageHtml(url: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      signal: controller.signal,
+      redirect: "follow",
+    });
+    if (!response.ok) return null;
+    const html = await response.text();
+    return html.length > 500 ? html : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Backfill missing fields by scanning the raw HTML returned from a direct
+ * fetch of the bank-portal listing page. Strategy: strip tags to plain text,
+ * then run the same markdown regex set against it. This is the most reliable
+ * path because we control the fetch + parse end-to-end.
+ */
+function backfillFromHtml(html: string, result: PortalListing): void {
+  // Pull image URLs FIRST from raw HTML <img src> / srcset before we strip
+  // tags. Look for /properties/, /images/, gallery patterns.
+  if (result.imageUrls.length === 0) {
+    const urls = new Set<string>();
+    const imgRegex = /<img[^>]+src=["']([^"']+\.(?:jpe?g|png|webp))["']/gi;
+    let m: RegExpExecArray | null;
+    while ((m = imgRegex.exec(html)) !== null) {
+      let u = m[1];
+      if (u.startsWith("//")) u = "https:" + u;
+      else if (u.startsWith("/")) {
+        // Resolve relative to page origin
+        const origin = result.url.match(/^(https?:\/\/[^/]+)/)?.[1];
+        if (origin) u = origin + u;
+      }
+      if (u.startsWith("https://") && !/logo|avatar|icon|sprite|pixel/i.test(u)) {
+        urls.add(u);
+      }
+    }
+    if (urls.size > 0) {
+      result.imageUrls = Array.from(urls);
+    }
+  }
+
+  // Strip tags + decode common entities to get plain text, then reuse the
+  // markdown backfill regexes.
+  const text = html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&euro;/g, "€")
+    .replace(/&#8364;/g, "€")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, " ");
+
+  backfillFromMarkdown(text, result);
 }
 
 /**
