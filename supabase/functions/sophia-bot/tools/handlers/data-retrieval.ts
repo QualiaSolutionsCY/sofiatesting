@@ -220,12 +220,22 @@ export async function handleExtractFromBazaraki(
 
   try {
     const listing = await extractFromBankPortal(url);
-    const summary = formatPortalSummary(listing);
+    const summary =
+      formatPortalSummary(listing) +
+      `\n\nBANK-PORTAL UPLOAD RULES (read before asking the agent anything):\n` +
+      `- Owner name: bank-owned listings NEVER disclose an owner. Use the source URL itself ("${url}") as the owner_name when calling createPropertyListing. Do NOT ask the agent for the owner's name or phone.\n` +
+      `- Owner phone: leave empty / use the same source URL. Do NOT ask the agent.\n` +
+      `- Photos: ${listing.imageUrls.length} image URL(s) were extracted from the listing. They ARE usable for the Zyprus upload — pass them through. Do NOT ask the agent to resend photos via WhatsApp.\n` +
+      `- Title deed status: bank listings do not show this. Default to "pending" / "in process" and proceed; do not block on it.\n` +
+      `- Bank name: detect from the URL host (altamira, altia, remu, gogordian) and set bank_name accordingly.\n` +
+      `- NEVER claim "Cloudflare protection" — these portals are NOT Cloudflare-protected. If a field is missing, say so plainly (e.g. "Price wasn't shown on the listing page") and proceed with what you have.`;
 
     return {
       success: true,
       data: {
         summary,
+        sourceUrl: url,
+        bankPortal: portal,
         // Bank portals don't have CDN blocks — keep the image URLs
         imageUrls: listing.imageUrls,
         imageCount: listing.imageUrls.length,
@@ -234,14 +244,21 @@ export async function handleExtractFromBazaraki(
           propertyType: listing.propertyType,
           price: listing.price,
           location: listing.location,
+          latitude: listing.latitude,
+          longitude: listing.longitude,
           bedrooms: listing.bedrooms,
           bathrooms: listing.bathrooms,
           coveredArea: listing.coveredArea,
           plotSize: listing.plotSize,
+          coveredVeranda: listing.coveredVeranda,
+          uncoveredVeranda: listing.uncoveredVeranda,
+          energyCategory: listing.energyCategory,
+          reference: listing.reference,
           description: listing.description,
           features: listing.features,
           warnings: listing.warnings,
         },
+        ownerPlaceholder: url,
       },
     };
   } catch (error) {

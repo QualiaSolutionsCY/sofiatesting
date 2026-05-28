@@ -27,12 +27,18 @@ export interface PortalListing {
   price?: number;
   currency?: string;
   location?: string;
+  latitude?: number;
+  longitude?: number;
   propertyType?: string;
   listingType?: "sale" | "rent";
   bedrooms?: number;
   bathrooms?: number;
   coveredArea?: number;
   plotSize?: number;
+  coveredVeranda?: number;
+  uncoveredVeranda?: number;
+  energyCategory?: string;
+  reference?: string;
   description?: string;
   imageUrls: string[];
   features: string[];
@@ -145,6 +151,36 @@ const EXTRACTION_SCHEMA = {
       description:
         "Plot/land area in square metres as a raw number. Strip units and separators. Look for 'Plot Size', 'Plot Area', 'Land Area', 'Land Size', or 'Lot Size'.",
     },
+    coveredVeranda: {
+      type: "number",
+      description:
+        "Covered veranda area in square metres. Strip 'm²' / 'sqm'. The page often shows it as 'Veranda: X m² Covered + Y m² Uncovered' — return X here. Look for 'Covered Veranda', 'Veranda Covered', or similar.",
+    },
+    uncoveredVeranda: {
+      type: "number",
+      description:
+        "Uncovered veranda area in square metres. From the 'Veranda: X m² Covered + Y m² Uncovered' pattern, return Y here.",
+    },
+    latitude: {
+      type: "number",
+      description:
+        "Property latitude in decimal degrees (typically 34–36 for Cyprus). Look in the embedded Google Maps block, often shown as '(34.686935, 32.978161)' or in the iframe src / data attributes. Return ONLY the latitude as a raw decimal number.",
+    },
+    longitude: {
+      type: "number",
+      description:
+        "Property longitude in decimal degrees (typically 32–34 for Cyprus). From the same Google Maps block as latitude, return ONLY the longitude as a raw decimal number.",
+    },
+    energyCategory: {
+      type: "string",
+      description:
+        "Energy rating letter (A, A+, B, C, D, E, F, G, or 'Exempt'). Look for the 'Energy Category', 'Energy Class', or 'Energy Performance' section — sometimes shown as a graphic with a single letter on a house icon. Return just the letter (e.g. 'C').",
+    },
+    reference: {
+      type: "string",
+      description:
+        "Listing reference / catalog code (e.g. 'PR40712', 'REF12345'). Usually labelled 'Ref.', 'Reference', 'Property No.', or 'Listing ID'.",
+    },
     description: {
       type: "string",
       description: "Full property description / about / details text",
@@ -178,13 +214,20 @@ const PORTAL_PROMPTS: Record<
     "If the price is hidden behind a 'Solicitar precio' / 'Request price' / 'Show price' button or shows 'A consultar', return price as null. " +
     "Collect every photo URL from the gallery carousel — they are typically on cdn.altia or img.altia.",
   altamira:
-    "Extract every field of the provided schema from this Altamira Real Estate listing page (altamirarealestate.com.cy). " +
-    "Altamira labels are: 'Covered Area' → coveredArea, 'Plot Area' → plotSize, 'Bedrooms' → bedrooms, 'Bathrooms' → bathrooms. " +
-    "Price is shown as '€ 350,000' style — strip € and commas, return integer. " +
-    "Location: the breadcrumb 'Home > Properties > {District} > {Area}' and the 'Region/Area' table row both contain location — combine into 'District, Area'. The URL slug also encodes this (e.g. /paphos/kathikas/). " +
-    "Property type comes from the URL slug AND the 'Type' table row — prefer the table row. " +
-    "Some listings are commercial (offices, shops, warehouses, plots) — use the lowercase type as-is. " +
-    "Gather all gallery photo URLs (typically from altamira's CDN) — exclude the agent avatar and the 'Altamira' logo.",
+    "Extract every field of the provided schema from this Altamira Real Estate listing page (altamirarealestate.com.cy). Altamira pages are server-rendered HTML — every field below is in the page; do NOT claim Cloudflare protection, none exists. " +
+    "Page layout (top to bottom): " +
+    "1. Header: 'House - {Area}, {District}' and 'Ref. PR{NNNNN}'. Extract reference (e.g. 'PR40712'). VAT line may say 'Not subject to VAT' or 'Subject to VAT'. " +
+    "2. Price block: a red number like '€550,000' followed by 'Indicative Price' or 'Final Price'. Strip € and commas — return integer (550000). If the page only shows 'Tender' or 'POA' return null. " +
+    "3. Photo gallery (40+ photos common). Collect EVERY https image URL from the gallery — they are usable; do not exclude them. Skip only the small Altamira logo and agent-avatar thumbnails. " +
+    "4. Specs row with icons: 'XXX m²' (coveredArea), 'YYY m² Land' (plotSize), 'N Bedrooms' (bedrooms), 'M Bathrooms' (bathrooms). " +
+    "5. 'Services and facilities' section: list each amenity as a feature ('Private Swimming pool', 'Air condition', 'Garden', etc.). " +
+    "6. 'Veranda: X m² Covered + Y m² Uncovered' → coveredVeranda = X, uncoveredVeranda = Y. " +
+    "7. Long description paragraph below — capture into description. " +
+    "8. 'Location' section with embedded Google Map and a line like '(34.686935, 32.978161)' below the map → latitude=34.686935, longitude=32.978161. " +
+    "9. 'Energy Category' section with a single letter on a house icon (A, B, C, D, E, F, or G) → energyCategory='C'. " +
+    "Property type: trust the URL slug ('detached-house-for-sale' → 'detached house', 'apartment-for-sale' → 'apartment'). " +
+    "Location string: combine breadcrumb / header as '{District}, {Area}' (e.g. 'Limassol, Ypsonas'). " +
+    "Some listings are commercial (offices, shops, warehouses, plots) — use the lowercase type as-is.",
   remu:
     "Extract every field of the provided schema from this REMU Properties listing page (remuproperties.com). " +
     "REMU is a Bank of Cyprus portal and the page is a JS-rendered SPA — make sure to read the rendered 'Property Details' / 'Specifications' table, not just the initial HTML. " +
@@ -365,6 +408,31 @@ function mergeFirecrawlData(
   const plotSize = coerceNumber(scraped.plotSize);
   if (plotSize && plotSize > 0) {
     result.plotSize = plotSize;
+  }
+  const coveredVeranda = coerceNumber(scraped.coveredVeranda);
+  if (coveredVeranda && coveredVeranda > 0) {
+    result.coveredVeranda = coveredVeranda;
+  }
+  const uncoveredVeranda = coerceNumber(scraped.uncoveredVeranda);
+  if (uncoveredVeranda && uncoveredVeranda > 0) {
+    result.uncoveredVeranda = uncoveredVeranda;
+  }
+  const latitude = coerceNumber(scraped.latitude);
+  if (latitude !== null && latitude >= 34 && latitude <= 36) {
+    result.latitude = latitude;
+  }
+  const longitude = coerceNumber(scraped.longitude);
+  if (longitude !== null && longitude >= 32 && longitude <= 35) {
+    result.longitude = longitude;
+  }
+  if (scraped.energyCategory && typeof scraped.energyCategory === "string") {
+    const ec = scraped.energyCategory.trim().toUpperCase();
+    if (/^(A\+?|B|C|D|E|F|G|EXEMPT)$/.test(ec)) {
+      result.energyCategory = ec;
+    }
+  }
+  if (scraped.reference && typeof scraped.reference === "string") {
+    result.reference = scraped.reference.trim();
   }
   if (scraped.propertyType && typeof scraped.propertyType === "string") {
     result.propertyType = scraped.propertyType.toLowerCase().trim();
@@ -572,20 +640,33 @@ export function formatPortalSummary(listing: PortalListing): string {
   parts.push(`Source: ${portalName} (${sourceLabel})`);
 
   if (listing.title) parts.push(`Title: ${listing.title}`);
+  if (listing.reference) parts.push(`Reference: ${listing.reference}`);
   if (listing.propertyType) parts.push(`Type: ${listing.propertyType}`);
   if (listing.listingType) parts.push(`For: ${listing.listingType}`);
   if (listing.price) parts.push(`Price: €${listing.price.toLocaleString()}`);
   if (listing.location) parts.push(`Location: ${listing.location}`);
+  if (listing.latitude !== undefined && listing.longitude !== undefined)
+    parts.push(
+      `Coordinates: ${listing.latitude}, ${listing.longitude} (from listing's Google Map)`
+    );
   if (listing.bedrooms !== undefined)
     parts.push(`Bedrooms: ${listing.bedrooms}`);
   if (listing.bathrooms) parts.push(`Bathrooms: ${listing.bathrooms}`);
-  if (listing.coveredArea) parts.push(`Area: ${listing.coveredArea} sqm`);
+  if (listing.coveredArea) parts.push(`Covered area: ${listing.coveredArea} sqm`);
   if (listing.plotSize) parts.push(`Plot: ${listing.plotSize} sqm`);
+  if (listing.coveredVeranda)
+    parts.push(`Covered veranda: ${listing.coveredVeranda} sqm`);
+  if (listing.uncoveredVeranda)
+    parts.push(`Uncovered veranda: ${listing.uncoveredVeranda} sqm`);
+  if (listing.energyCategory)
+    parts.push(`Energy category: ${listing.energyCategory}`);
   if (listing.description) parts.push(`Description: ${listing.description}`);
   if (listing.features.length > 0)
     parts.push(`Features: ${listing.features.join(", ")}`);
   if (listing.imageUrls.length > 0)
-    parts.push(`Images: ${listing.imageUrls.length} photo(s) extracted`);
+    parts.push(
+      `Images: ${listing.imageUrls.length} photo(s) extracted — these are bank-portal images and ARE USABLE for the Zyprus upload. Do NOT ask the agent to resend them.`
+    );
 
   if (listing.warnings.length > 0) {
     parts.push(
@@ -602,7 +683,7 @@ export function formatPortalSummary(listing: PortalListing): string {
 
   if (missing.length > 0) {
     parts.push(
-      `\nCould not extract from listing: ${missing.join(", ")}. Check the agent's message — they may have already provided some of these. Only ask for what is truly missing.`
+      `\nFields not found on the listing page: ${missing.join(", ")}. These specific fields were absent from the rendered HTML — do NOT invent reasons like "Cloudflare protection" or "limited data". Check the agent's message for any of these values they already gave; only ask for what's still missing. For bank-portal uploads, follow the BANK-PORTAL UPLOAD RULES above — never ask for owner name/phone or for photos to be resent.`
     );
   }
 
