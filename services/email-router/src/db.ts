@@ -120,6 +120,110 @@ export async function getNextInRotation(
 }
 
 /**
+ * A row from the pending_email_forwards queue (delayed Paphos-only intake).
+ * See supabase/migrations/20260528_pending_email_forwards.sql.
+ */
+export interface PendingForward {
+  id: string;
+  gmail_message_id: string;
+  imap_uid: number | null;
+  from_email: string;
+  from_name: string | null;
+  subject: string | null;
+  text_body: string | null;
+  html_body: string | null;
+  region: string;
+  agent_id: string;
+  agent_email: string;
+  routing_reason: string | null;
+  forward_at: string; // ISO timestamp
+  status: "pending" | "sent" | "failed";
+}
+
+/**
+ * Enqueue a Paphos lead for delayed forwarding. Idempotent: a duplicate
+ * gmail_message_id (e.g. on overlapping polls) is logged and skipped, not
+ * thrown — Postgres unique constraint enforces the dedupe.
+ */
+export async function enqueuePendingForward(
+  record: Omit<PendingForward, "id" | "status">
+): Promise<void> {
+  const { error } = await supabase
+    .from("pending_email_forwards")
+    .insert({ ...record, status: "pending" });
+  if (error) {
+    // 23505 = unique_violation. Treat as no-op so re-polls are idempotent.
+    if (error.code === "23505") {
+      console.log(
+        `Pending forward already enqueued for gmail_message_id=${record.gmail_message_id}`
+      );
+      return;
+    }
+    console.error("Failed to enqueue pending forward:", error.message);
+  }
+}
+
+/**
+ * Fetch up to 50 pending forwards whose forward_at has elapsed, oldest first.
+ */
+export async function getDuePendingForwards(): Promise<PendingForward[]> {
+  const { data, error } = await supabase
+    .from("pending_email_forwards")
+    .select(
+      "id, gmail_message_id, imap_uid, from_email, from_name, subject, text_body, html_body, region, agent_id, agent_email, routing_reason, forward_at, status"
+    )
+    .eq("status", "pending")
+    .lte("forward_at", new Date().toISOString())
+    .order("forward_at", { ascending: true })
+    .limit(50);
+
+  if (error) {
+    console.error("Failed to fetch due pending forwards:", error.message);
+    return [];
+  }
+  return (data as PendingForward[]) || [];
+}
+
+/**
+ * Mark a pending forward as successfully sent.
+ */
+export async function markPendingForwardSent(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("pending_email_forwards")
+    .update({ status: "sent", sent_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) {
+    console.error(
+      `Failed to mark pending forward ${id} as sent:`,
+      error.message
+    );
+  }
+}
+
+/**
+ * Mark a pending forward as failed (operator handles manually — no auto-retry).
+ */
+export async function markPendingForwardFailed(
+  id: string,
+  errorMessage: string
+): Promise<void> {
+  const { error } = await supabase
+    .from("pending_email_forwards")
+    .update({
+      status: "failed",
+      sent_at: new Date().toISOString(),
+      error_message: errorMessage,
+    })
+    .eq("id", id);
+  if (error) {
+    console.error(
+      `Failed to mark pending forward ${id} as failed:`,
+      error.message
+    );
+  }
+}
+
+/**
  * Update rotation state after forwarding
  */
 export async function updateRotation(
