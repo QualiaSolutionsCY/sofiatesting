@@ -220,15 +220,56 @@ export async function handleExtractFromBazaraki(
 
   try {
     const listing = await extractFromBankPortal(url);
+
+    // Build a machine-readable, MUST-COPY block. The AI must transfer
+    // every value below verbatim into createPropertyListing — re-asking
+    // the agent for a field that appears here is a violation.
+    const mustCopy: string[] = [];
+    if (listing.listingType)
+      mustCopy.push(`  listing_type: "${listing.listingType}"`);
+    if (listing.propertyType)
+      mustCopy.push(`  property_type: "${listing.propertyType}"`);
+    if (listing.price) mustCopy.push(`  price: ${listing.price}`);
+    if (listing.location)
+      mustCopy.push(`  location: "${listing.location}"`);
+    if (listing.latitude && listing.longitude) {
+      mustCopy.push(`  latitude: ${listing.latitude}`);
+      mustCopy.push(`  longitude: ${listing.longitude}`);
+    }
+    if (listing.bedrooms !== undefined)
+      mustCopy.push(`  bedrooms: ${listing.bedrooms}`);
+    if (listing.bathrooms)
+      mustCopy.push(`  bathrooms: ${listing.bathrooms}`);
+    if (listing.coveredArea)
+      mustCopy.push(`  covered_area: ${listing.coveredArea}`);
+    if (listing.plotSize) mustCopy.push(`  plot_size: ${listing.plotSize}`);
+    if (listing.coveredVeranda)
+      mustCopy.push(`  covered_veranda: ${listing.coveredVeranda}`);
+    if (listing.uncoveredVeranda)
+      mustCopy.push(`  uncovered_veranda: ${listing.uncoveredVeranda}`);
+    if (listing.energyCategory)
+      mustCopy.push(`  energy_class: "${listing.energyCategory}"`);
+    if (listing.features.length > 0)
+      mustCopy.push(`  features: ${JSON.stringify(listing.features)}`);
+    if (listing.imageUrls.length > 0)
+      mustCopy.push(`  imageUrls: [${listing.imageUrls.length} URLs — pass through verbatim]`);
+    mustCopy.push(`  owner_name: "${url}"`);
+    mustCopy.push(`  owner_phone: ""`);
+    mustCopy.push(`  title_deed_status: "pending"`);
+
     const summary =
       formatPortalSummary(listing) +
-      `\n\nBANK-PORTAL UPLOAD RULES (read before asking the agent anything):\n` +
-      `- Owner name: bank-owned listings NEVER disclose an owner. Use the source URL itself ("${url}") as the owner_name when calling createPropertyListing. Do NOT ask the agent for the owner's name or phone.\n` +
-      `- Owner phone: leave empty / use the same source URL. Do NOT ask the agent.\n` +
-      `- Photos: ${listing.imageUrls.length} image URL(s) were extracted from the listing. They ARE usable for the Zyprus upload — pass them through. Do NOT ask the agent to resend photos via WhatsApp.\n` +
-      `- Title deed status: bank listings do not show this. Default to "pending" / "in process" and proceed; do not block on it.\n` +
-      `- Bank name: detect from the URL host (altamira, altia, remu, gogordian) and set bank_name accordingly.\n` +
-      `- NEVER claim "Cloudflare protection" — these portals are NOT Cloudflare-protected. If a field is missing, say so plainly (e.g. "Price wasn't shown on the listing page") and proceed with what you have.`;
+      `\n\n=== MUST-COPY into createPropertyListing (verbatim — these fields are EXTRACTED, do NOT ask the agent for them) ===\n` +
+      mustCopy.join("\n") +
+      `\n=== END MUST-COPY ===\n` +
+      `\nBANK-PORTAL UPLOAD RULES:\n` +
+      `1. EVERY field in MUST-COPY above is already known. Copy each value into your createPropertyListing call exactly as shown. NEVER ask the agent for any of these fields — re-asking for an already-extracted field is forbidden.\n` +
+      `2. Owner name: bank-owned listings NEVER disclose an owner. Use the source URL ("${url}") as owner_name. Owner phone is empty. Do NOT ask the agent.\n` +
+      `3. Photos: ${listing.imageUrls.length} image URL(s) extracted — pass them through. Do NOT ask the agent to resend photos via WhatsApp.\n` +
+      `4. Title deed: default "pending"; do not block.\n` +
+      `5. Bank name: detect from URL host (altamira/altia/remu/gogordian).\n` +
+      `6. NEVER claim "Cloudflare protection", "page didn't show price", or any other invented reason if a value IS in MUST-COPY above. State plainly only what is genuinely absent.\n` +
+      `7. The ONLY thing you should ask the agent for is the assigned agent (which Zyprus user to route to). Everything else is extracted.`;
 
     return {
       success: true,
