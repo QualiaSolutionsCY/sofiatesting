@@ -10,13 +10,23 @@
 import http from "node:http";
 import { config } from "./config.js";
 import {
+  type Agent,
+  enqueuePendingForward,
   getActiveAgents,
+  getDuePendingForwards,
   isEmailProcessed,
   logEmailForward,
+  markPendingForwardFailed,
+  markPendingForwardSent,
   updateRotation,
 } from "./db.js";
 import { shouldSkipEmail } from "./filter.js";
-import { fetchUnreadEmails, forwardEmail, markAsRead } from "./gmail.js";
+import {
+  type EmailMessage,
+  fetchUnreadEmails,
+  forwardEmail,
+  markAsRead,
+} from "./gmail.js";
 import { routeEmail } from "./router.js";
 import { getSophiaStatus, processSophiaEmails } from "./sophia-handler.js";
 
@@ -32,7 +42,14 @@ process.on("unhandledRejection", (reason) => {
 });
 
 let lastRunAt: Date | null = null;
-let lastRunStats = { processed: 0, forwarded: 0, skipped: 0, drafts: 0 };
+let lastRunStats = {
+  processed: 0,
+  forwarded: 0,
+  skipped: 0,
+  drafts: 0,
+  queued: 0,
+  drained: 0,
+};
 let isRunning = false;
 
 /**
@@ -50,6 +67,8 @@ async function processEmails(): Promise<void> {
     forwarded: 0,
     skipped: 0,
     drafts: 0,
+    queued: 0,
+    drained: 0,
     errors: 0,
   };
 
@@ -113,6 +132,65 @@ async function processEmails(): Promise<void> {
           email.from,
           agents
         );
+
+        // Paphos-only mode: only Paphos leads are enqueued for delayed forward.
+        // Non-Paphos and unroutable emails are left UNREAD with no DB rows —
+        // they remain in info@ for a human to handle. We intentionally bypass
+        // the unrouted/forward fallthrough below.
+        if (config.polling.paphosOnly) {
+          if (!route || route.region !== "paphos") {
+            console.log(
+              `Skipping (paphosOnly): "${email.subject}" — region=${route?.region ?? "unrouted"}`
+            );
+            stats.skipped++;
+            continue;
+          }
+
+          // Paphos lead → enqueue with future forward_at, mark IMAP read now.
+          // Rotation is NOT advanced here; updateRotation runs only on drain
+          // success so a queued-but-never-sent row can't shift the rotation.
+          const forwardAt = new Date(
+            Date.now() + config.polling.forwardDelayMinutes * 60_000
+          ).toISOString();
+
+          await enqueuePendingForward({
+            gmail_message_id: email.messageId,
+            imap_uid: email.uid,
+            from_email: email.from,
+            from_name: email.fromName ?? null,
+            subject: email.subject ?? null,
+            text_body: email.textBody ?? null,
+            html_body: email.htmlBody ?? null,
+            region: route.region,
+            agent_id: route.agent.id,
+            agent_email: route.agent.communication_email,
+            routing_reason: route.reason,
+            forward_at: forwardAt,
+          });
+
+          await logEmailForward({
+            gmail_message_id: email.messageId,
+            from_email: email.from,
+            subject: email.subject,
+            body_preview: email.textBody.substring(0, 500),
+            forwarded_to_agent_id: route.agent.id,
+            forwarded_to_email: route.agent.communication_email,
+            region: route.region,
+            routing_reason: `queued (paphosOnly +${config.polling.forwardDelayMinutes}m)`,
+            draft_created: false,
+            draft_template_name: null,
+            skipped: false,
+            skip_reason: null,
+          });
+
+          await markAsRead(email.uid);
+
+          stats.queued++;
+          console.log(
+            `Queued (paphosOnly): "${email.subject}" → ${route.agent.full_name} (${route.agent.communication_email}) at ${forwardAt}`
+          );
+          continue;
+        }
 
         if (!route) {
           console.warn(`No route found for: "${email.subject}"`);
@@ -180,16 +258,78 @@ async function processEmails(): Promise<void> {
       }
     }
 
+    // Drain due pending forwards at the end of every poll cycle. Runs regardless
+    // of paphosOnly so the operator can flip the flag off without stranding
+    // already-queued rows — they will still be drained on subsequent cycles.
+    const drained = await drainPendingForwards(agents);
+    stats.drained = drained;
+
     lastRunAt = new Date();
     lastRunStats = stats;
     console.log(
-      `[${lastRunAt.toISOString()}] Done. Processed: ${stats.processed}, Forwarded: ${stats.forwarded}, Skipped: ${stats.skipped}, Drafts: ${stats.drafts}, Errors: ${stats.errors}`
+      `[${lastRunAt.toISOString()}] Done. Processed: ${stats.processed}, Forwarded: ${stats.forwarded}, Skipped: ${stats.skipped}, Drafts: ${stats.drafts}, Queued: ${stats.queued}, Drained: ${stats.drained}, Errors: ${stats.errors}`
     );
   } catch (err) {
     console.error("Email processing failed:", err);
   } finally {
     isRunning = false;
   }
+}
+
+/**
+ * Drain the pending_email_forwards queue: forward any row whose forward_at
+ * has elapsed, then mark it sent or failed. No retry — failed rows stay
+ * 'failed' for an operator to inspect.
+ *
+ * Returns the count of successfully drained (forwarded) rows.
+ */
+async function drainPendingForwards(_agents: Agent[]): Promise<number> {
+  const due = await getDuePendingForwards();
+  if (due.length === 0) return 0;
+
+  console.log(`Draining ${due.length} due pending forward(s)`);
+  let drained = 0;
+
+  for (const row of due) {
+    try {
+      // Reconstruct a minimal EmailMessage so forwardEmail's existing shape works.
+      // Only the fields it reads are populated; raw/date/to are unused downstream.
+      const reconstructed: EmailMessage = {
+        messageId: row.gmail_message_id,
+        uid: row.imap_uid ?? 0,
+        from: row.from_email,
+        fromName: row.from_name ?? "",
+        to: [],
+        subject: row.subject ?? "",
+        textBody: row.text_body ?? "",
+        htmlBody: row.html_body ?? "",
+        date: new Date(),
+        raw: Buffer.from("") as Buffer,
+      };
+
+      const ok = await forwardEmail(reconstructed, row.agent_email, "");
+
+      if (ok) {
+        await markPendingForwardSent(row.id);
+        await updateRotation(row.region, row.agent_id);
+        drained++;
+        console.log(
+          `Drained pending forward → ${row.agent_email} (queued ${row.forward_at})`
+        );
+      } else {
+        await markPendingForwardFailed(row.id, "Resend forward failed");
+        console.error(
+          `Drain failed for pending forward ${row.id} → ${row.agent_email}`
+        );
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await markPendingForwardFailed(row.id, message);
+      console.error(`Drain threw for pending forward ${row.id}:`, err);
+    }
+  }
+
+  return drained;
 }
 
 /**
@@ -247,6 +387,11 @@ server.listen(config.port, () => {
 
   if (config.polling.enabled) {
     console.log(`info@ polling interval: ${config.polling.intervalMs / 1000}s`);
+    if (config.polling.paphosOnly) {
+      console.log(
+        `info@ Paphos-only mode (forward delay: ${config.polling.forwardDelayMinutes}m)`
+      );
+    }
     // Run info@ immediately on startup, then on interval
     processEmails().catch(console.error);
     setInterval(() => {

@@ -191,6 +191,13 @@ CHARALAMBOS_UUID = "71ac4784-238f-45b2-ac15-5f74200601ce"
 - `email-parser.ts`: server-side field extraction BEFORE AI sees the email (prevents hallucination)
 - Email uploads use the same tools/reviewers as WhatsApp uploads
 
+### info@ Paphos-only forwarding (delayed)
+- `INFO_POLLING_ENABLED=true` — enable info@ inbox polling
+- `INFO_PAPHOS_ONLY=true` — only forward Paphos leads; non-Paphos left unread for human handling
+- `INFO_FORWARD_DELAY_MINUTES=20` — delay before forwarding (default 20)
+- Queue table: `pending_email_forwards` (status: pending/sent/failed). Drained every poll cycle.
+- Migration: `supabase/migrations/20260528_pending_email_forwards.sql`
+
 ### Pending
 - ~~Resend Domain Verification~~ — VERIFIED, domain is live
 
