@@ -7597,3 +7597,33 @@ kbd {
   }
   .detail-pane .detail-header-meta { margin-left: 0; }
 }
+
+/* ============================================================
+   M8 — overlap fixes (ledger rows + inline editor)
+   ============================================================ */
+/* Ledger row: stylesheet kept a legacy 5-col grid but markup is 3
+   children (icon · main · chip) → amount overflowed under the chip. */
+.document-row {
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+}
+.document-row .row-main { min-width: 0; }
+.document-row .row-meta { display: flex; gap: 10px; align-items: baseline; }
+
+/* Inline editor: narrow form column clipped fields against the preview.
+   Stack the 2-up rows and let every control shrink. */
+.detail-pane .inline-editor-row { grid-template-columns: 1fr !important; }
+.detail-pane .inline-editor-form { overflow-x: hidden; }
+.detail-pane .inline-editor-field { min-width: 0; }
+.detail-pane .inline-editor-field input,
+.detail-pane .inline-editor-field select,
+.detail-pane .inline-editor-field textarea {
+  width: 100%; min-width: 0; box-sizing: border-box;
+}
+.detail-pane .inline-editor-lines-grid { min-width: 0; overflow-x: auto; }
+
+/* Wider form column on desktop only (keeps mobile stacking intact). */
+@media (min-width: 1101px) {
+  .detail-pane .inline-editor {
+    grid-template-columns: minmax(340px, 380px) minmax(0, 1fr) !important;
+  }
+}
