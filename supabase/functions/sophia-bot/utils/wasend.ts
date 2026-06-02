@@ -569,3 +569,52 @@ export function formatPhoneNumber(remoteJid: string | null): string | null {
   });
   return number;
 }
+
+/**
+ * Sends any document (e.g. an invoice PDF) to a WhatsApp number by public URL.
+ * The file is already hosted (invoice PDFs live in Supabase Storage), so this is
+ * a thin WaSend document send with no upload step.
+ */
+export async function sendDocumentByUrl(
+  phoneNumber: string,
+  documentUrl: string,
+  fileName: string,
+  caption?: string
+): Promise<Response> {
+  if (!canRequest(WASEND_BREAKER_CONFIG)) {
+    return new Response(
+      JSON.stringify({ error: "WhatsApp service temporarily unavailable" }),
+      { status: 503 }
+    );
+  }
+  const sendUrl = `${WASEND_BASE_URL}/send-message`;
+  try {
+    const res = await withRetry(
+      () =>
+        fetch(sendUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${WASEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            to: phoneNumber,
+            text: caption || "Invoice attached",
+            documentUrl,
+            fileName,
+          }),
+        }),
+      { maxRetries: 2, baseDelayMs: 1000, maxDelayMs: 5000 },
+      "wasend-send-document-url"
+    );
+    if (res.ok) recordSuccess(WASEND_BREAKER_CONFIG);
+    else recordFailure(WASEND_BREAKER_CONFIG);
+    return res;
+  } catch (e) {
+    recordFailure(WASEND_BREAKER_CONFIG);
+    logger.error("sendDocumentByUrl failed", e instanceof Error ? e : undefined, {
+      category: LogCategory.GENERAL,
+    });
+    return new Response(JSON.stringify({ error: "send failed" }), { status: 500 });
+  }
+}

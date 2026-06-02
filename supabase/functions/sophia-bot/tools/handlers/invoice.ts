@@ -9,6 +9,7 @@
 import { type Agent, normalizePhone } from "../../agents/identifier.ts";
 import { callInvoiceIntent } from "../../services/invoice-bridge.ts";
 import { LogCategory, logger } from "../../utils/logger.ts";
+import { sendDocumentByUrl } from "../../utils/wasend.ts";
 
 export interface ToolResult {
   success?: boolean;
@@ -75,7 +76,25 @@ export async function handleManageInvoice(
     undefined
   );
 
+  // Attach the invoice PDF to the agent's WhatsApp when one was produced.
+  if (result.ok && result.pdfUrl) {
+    try {
+      await sendDocumentByUrl(
+        phoneNumber || agent?.mobile || "",
+        result.pdfUrl,
+        result.filename || "invoice.pdf",
+        result.reply
+      );
+    } catch (_e) {
+      // Non-fatal — the text reply still goes out even if the file send fails.
+    }
+  }
+
   return result.ok
-    ? { success: true, message: result.reply, data: { documentId: result.documentId } }
+    ? {
+        success: true,
+        message: result.reply,
+        data: { documentId: result.documentId, pdfUrl: result.pdfUrl },
+      }
     : { success: false, message: result.reply, error: result.error };
 }

@@ -372,6 +372,7 @@ const manageInvoiceSchema = z.object({
     "issue_receipt",
     "issue_credit_note",
     "resend",
+    "send_pdf",
   ]),
   client: z.string().max(200).optional(),
   amount: z.number().min(0).max(100_000_000).optional(),

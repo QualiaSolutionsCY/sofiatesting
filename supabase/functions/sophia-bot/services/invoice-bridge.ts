@@ -33,6 +33,8 @@ export interface BridgeResult {
   ok: boolean;
   reply: string;
   documentId?: string;
+  pdfUrl?: string;
+  filename?: string;
   error?: string;
 }
 
@@ -83,6 +85,8 @@ export async function callInvoiceIntent(
       ok: true,
       reply: typeof data.reply === "string" ? data.reply : "Done.",
       documentId: typeof data.documentId === "string" ? data.documentId : undefined,
+      pdfUrl: typeof data.pdfUrl === "string" ? data.pdfUrl : undefined,
+      filename: typeof data.filename === "string" ? data.filename : undefined,
     };
   } catch (e) {
     logger.error(

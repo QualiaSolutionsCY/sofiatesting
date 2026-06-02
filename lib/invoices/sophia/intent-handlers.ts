@@ -7,6 +7,7 @@ import {
   createDocumentAction,
   loadDocumentsAction,
   markPaidAndIssueReceiptAction,
+  storeDocumentPdfAction,
 } from "@/lib/invoices/actions/documents";
 import type { DocumentInput } from "@/lib/invoices/document-actions";
 import type { InvoiceDocument, VatMode } from "@/lib/invoices/types/invoice";
@@ -20,7 +21,8 @@ export type SophiaIntent =
   | "mark_paid"
   | "issue_receipt"
   | "issue_credit_note"
-  | "resend";
+  | "resend"
+  | "send_pdf";
 
 export interface IntentParams {
   client?: string;
@@ -38,6 +40,10 @@ export interface IntentResult {
   ok: boolean;
   reply: string;
   documentId?: string;
+  /** Public URL of the generated invoice PDF, when one was produced. */
+  pdfUrl?: string;
+  /** Suggested filename for the attachment, e.g. "CSC … Invoice 11424.pdf". */
+  filename?: string;
   error?: string;
 }
 
@@ -76,6 +82,19 @@ function findDoc(docs: InvoiceDocument[], p: IntentParams): InvoiceDocument | nu
   return null;
 }
 
+/** Generate + store the PDF for a document and return its public URL + filename. */
+async function attachPdf(documentId: string): Promise<{ pdfUrl?: string; filename?: string }> {
+  try {
+    const res = await storeDocumentPdfAction(documentId);
+    if (res.storageFile?.publicUrl) {
+      return { pdfUrl: res.storageFile.publicUrl, filename: res.storageFile.filename };
+    }
+  } catch {
+    // PDF generation/storage is best-effort — never fail the intent on it.
+  }
+  return {};
+}
+
 /**
  * Execute one invoicing intent against the embedded invoice backend.
  * Called only after HMAC verification + allowlist check in the route handler.
@@ -101,9 +120,11 @@ export async function runIntent(
       };
       const res = await createDocumentAction(input);
       const doc = res.documents.find((d) => d.id === res.selectedId);
+      const pdf = doc ? await attachPdf(doc.id) : {};
       return {
         ok: true,
         documentId: doc?.id,
+        ...pdf,
         reply: doc
           ? `Draft ${doc.draftNumber} created for ${doc.clientName} — ${money(doc.total)} (${doc.vatMode}). Queued to Marios for approval.`
           : "Draft created.",
@@ -133,15 +154,33 @@ export async function runIntent(
       };
     }
 
+    case "send_pdf": {
+      const res = await loadDocumentsAction();
+      const doc = findDoc(res.documents, params);
+      if (!doc) return { ok: false, reply: "I couldn't find that invoice to send." };
+      const pdf = await attachPdf(doc.id);
+      if (!pdf.pdfUrl) {
+        return { ok: false, reply: `I couldn't generate the PDF for ${doc.clientName} just now.` };
+      }
+      return {
+        ok: true,
+        documentId: doc.id,
+        ...pdf,
+        reply: `${doc.clientName} — ${numberOf(doc)} — ${money(doc.total)}. PDF attached.`,
+      };
+    }
+
     case "approve": {
       const res = await loadDocumentsAction();
       const doc = findDoc(res.documents, params);
       if (!doc) return { ok: false, reply: "I couldn't find that invoice to approve." };
       const out = await approveDocumentAction(doc.id);
       const updated = out.documents.find((d) => d.id === doc.id);
+      const pdf = await attachPdf(doc.id);
       return {
         ok: true,
         documentId: doc.id,
+        ...pdf,
         reply: `Approved ${doc.clientName} — official number ${updated?.officialNumber ?? "assigned"}.`,
       };
     }
@@ -161,9 +200,11 @@ export async function runIntent(
       if (!doc) return { ok: false, reply: "I couldn't find that invoice." };
       const out = await markPaidAndIssueReceiptAction(doc.id);
       const receipt = out.documents.find((d) => d.id === out.selectedId);
+      const pdf = receipt ? await attachPdf(receipt.id) : {};
       return {
         ok: true,
         documentId: receipt?.id,
+        ...pdf,
         reply: `Marked ${doc.clientName} paid — receipt ${receipt?.draftNumber ?? "issued"} created.`,
       };
     }
@@ -174,9 +215,11 @@ export async function runIntent(
       if (!doc) return { ok: false, reply: "I couldn't find that invoice." };
       const out = await cancelWithCreditNoteAction(doc.id);
       const cn = out.documents.find((d) => d.id === out.selectedId);
+      const pdf = cn ? await attachPdf(cn.id) : {};
       return {
         ok: true,
         documentId: cn?.id,
+        ...pdf,
         reply: `Credit note ${cn?.draftNumber ?? "created"} issued against ${doc.clientName}.`,
       };
     }
@@ -186,7 +229,8 @@ export async function runIntent(
       const doc = findDoc(res.documents, params);
       if (!doc) return { ok: false, reply: "I couldn't find that invoice to resend." };
       await correctResendAction(doc.id, params.correctionReason || "Resend requested");
-      return { ok: true, documentId: doc.id, reply: `Resent ${doc.clientName} (${numberOf(doc)}).` };
+      const pdf = await attachPdf(doc.id);
+      return { ok: true, documentId: doc.id, ...pdf, reply: `Resent ${doc.clientName} (${numberOf(doc)}). PDF attached.` };
     }
 
     default:

@@ -728,6 +728,7 @@ export const TOOLS: ToolDefinition[] = [
               "issue_receipt",
               "issue_credit_note",
               "resend",
+              "send_pdf",
             ],
             description: "The invoicing action to perform",
           },
