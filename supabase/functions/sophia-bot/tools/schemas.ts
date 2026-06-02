@@ -380,6 +380,8 @@ const manageInvoiceSchema = z.object({
   documentId: z.string().max(120).optional(),
   officialNumber: z.string().max(120).optional(),
   correctionReason: z.string().max(1000).optional(),
+  recurrence: z.enum(["none", "monthly", "yearly"]).optional(),
+  recurrenceDay: z.number().int().min(1).max(31).optional(),
 });
 
 /**

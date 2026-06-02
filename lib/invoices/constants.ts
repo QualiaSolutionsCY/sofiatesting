@@ -10,7 +10,7 @@
 export const INVOICE_AUTHORIZED_AGENTS: ReadonlyArray<{ name: string; msisdn: string }> = [
   { name: "Fawzi Goussous", msisdn: "35799111668" },
   { name: "Charalambos Pitros", msisdn: "35799076732" },
-  { name: "Marios Azinas", msisdn: "35799926648" },
+  { name: "Marios Polyviou", msisdn: "35799921560" },
 ];
 
 export function normalizeMsisdn(input: string): string {

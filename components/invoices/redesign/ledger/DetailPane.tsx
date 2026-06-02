@@ -549,7 +549,7 @@ function DeliveryPlan({
       channels: [
         {
           ic: <MessageCircle size={12} strokeWidth={1.6} />,
-          addr: "Group · CSC Review WhatsApp",
+          addr: "Marios · +357 99 921560",
           state: reviewState,
           stateLabel: reviewLabel
         }

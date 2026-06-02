@@ -30,6 +30,8 @@ export interface IntentParams {
   documentId?: string;
   officialNumber?: string;
   correctionReason?: string;
+  recurrence?: "none" | "monthly" | "yearly";
+  recurrenceDay?: number;
 }
 
 export interface IntentResult {
@@ -94,7 +96,8 @@ export async function runIntent(
         amount: params.amount,
         vatMode: mapVat(params.vatMode),
         issueDate: new Date().toISOString().slice(0, 10),
-        recurrence: "none",
+        recurrence: params.recurrence ?? "none",
+        recurrenceDay: params.recurrenceDay,
       };
       const res = await createDocumentAction(input);
       const doc = res.documents.find((d) => d.id === res.selectedId);

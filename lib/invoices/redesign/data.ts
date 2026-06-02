@@ -83,7 +83,7 @@ export const DOCS: Doc[] = [
     description: "Includes parking allocation per Schedule B.",
     timeline: [
       { at: "2026-05-25 08:02", who: "Sophia", what: "Draft prepared", body: "—" },
-      { at: "2026-05-25 08:03", who: "Sophia", what: "Sent to Marios for review", body: "Routed via WhatsApp group · CSC Review" }
+      { at: "2026-05-25 08:03", who: "Sophia", what: "Sent to Marios for review", body: "Sent directly to Marios on WhatsApp" }
     ]
   }),
   inv({

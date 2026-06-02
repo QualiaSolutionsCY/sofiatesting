@@ -758,6 +758,11 @@ export const TOOLS: ToolDefinition[] = [
             type: "string",
             description: "Reason for a correction or resend",
           },
+          recurrence: {
+            type: "string",
+            enum: ["none", "monthly", "yearly"],
+            description: "Billing recurrence for create_draft (default none)",
+          },
         },
         required: ["intent"],
       },

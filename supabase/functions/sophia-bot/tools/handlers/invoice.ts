@@ -19,8 +19,8 @@ export interface ToolResult {
   data?: unknown;
 }
 
-// Fawzi Goussous, Charalambos Pitros, Marios Azinas — last 8 digits of `mobile`.
-const ALLOWED_LAST8 = ["99111668", "99076732", "99926648"];
+// Fawzi Goussous, Charalambos Pitros, Marios Polyviou — last 8 digits of `mobile`.
+const ALLOWED_LAST8 = ["99111668", "99076732", "99921560"];
 
 function isAllowed(phone?: string, agent?: Agent | null): boolean {
   const candidates = [phone, agent?.mobile].filter(Boolean) as string[];
@@ -64,6 +64,8 @@ export async function handleManageInvoice(
     documentId: args.documentId,
     officialNumber: args.officialNumber,
     correctionReason: args.correctionReason,
+    recurrence: args.recurrence,
+    recurrenceDay: args.recurrenceDay,
   };
 
   const result = await callInvoiceIntent(
