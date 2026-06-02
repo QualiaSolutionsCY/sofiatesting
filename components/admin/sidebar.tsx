@@ -8,6 +8,7 @@ import {
   FileText,
   LayoutDashboard,
   Menu,
+  Receipt,
   Users,
   X,
 } from "lucide-react";
@@ -45,6 +46,12 @@ const navigationItems = [
     name: "Listings",
     href: "/admin/listings",
     icon: Building2,
+    requiredPermission: null,
+  },
+  {
+    name: "Invoices",
+    href: "/admin/invoices",
+    icon: Receipt,
     requiredPermission: null,
   },
   {
