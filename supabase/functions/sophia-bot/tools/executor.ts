@@ -29,6 +29,7 @@ import {
 import { handleSendEmail } from "./handlers/email.ts";
 import { handleCreateLandListing } from "./handlers/land-listing.ts";
 import { handleCreatePropertyListing } from "./handlers/property-listing.ts";
+import { handleManageInvoice } from "./handlers/invoice.ts";
 import { validateToolArguments } from "./validation.ts";
 
 export interface ToolResult {
@@ -147,6 +148,10 @@ export async function executeTool(
         ) {
           trackDocumentGenerated(phoneNumber, "email_with_document", agent?.id);
         }
+        break;
+
+      case "manageInvoice":
+        result = await handleManageInvoice(validArgs, agent, phoneNumber);
         break;
 
       default:

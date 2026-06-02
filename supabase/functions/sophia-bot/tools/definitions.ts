@@ -707,6 +707,62 @@ export const TOOLS: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "manageInvoice",
+      description:
+        "Manage invoices, credit notes, and receipts for CSC Zyprus (authorized staff only — Fawzi, Marios, Charalambos). Use when an authorized agent asks to create/draft an invoice, list open drafts, check an invoice's status, approve one, mark one paid, issue a receipt or credit note, or request a correction/resend. The system assigns all official sequence numbers — never invent a number yourself.",
+      parameters: {
+        type: "object",
+        properties: {
+          intent: {
+            type: "string",
+            enum: [
+              "create_draft",
+              "list_drafts",
+              "query_status",
+              "approve",
+              "request_correction",
+              "mark_paid",
+              "issue_receipt",
+              "issue_credit_note",
+              "resend",
+            ],
+            description: "The invoicing action to perform",
+          },
+          client: {
+            type: "string",
+            description: "Client / tenant name (for create_draft, or to locate a document)",
+          },
+          amount: { type: "number", description: "Amount in EUR (for create_draft)" },
+          vatMode: {
+            type: "string",
+            enum: ["plus", "included", "none"],
+            description:
+              "VAT handling: plus = 19% added on top, included = 19% already inside, none = exempt",
+          },
+          description: {
+            type: "string",
+            description: "What is being billed (for create_draft)",
+          },
+          documentId: {
+            type: "string",
+            description: "Document id or invoice/draft number to act on",
+          },
+          officialNumber: {
+            type: "string",
+            description: "Official sequence number, if the agent explicitly provides one",
+          },
+          correctionReason: {
+            type: "string",
+            description: "Reason for a correction or resend",
+          },
+        },
+        required: ["intent"],
+      },
+    },
+  },
 ];
 
 /**

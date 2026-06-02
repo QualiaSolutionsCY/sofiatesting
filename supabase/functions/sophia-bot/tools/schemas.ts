@@ -361,11 +361,33 @@ export const sendEmailSchema = z.object({
   attachmentName: optionalString(200),
 });
 
+const manageInvoiceSchema = z.object({
+  intent: z.enum([
+    "create_draft",
+    "list_drafts",
+    "query_status",
+    "approve",
+    "request_correction",
+    "mark_paid",
+    "issue_receipt",
+    "issue_credit_note",
+    "resend",
+  ]),
+  client: z.string().max(200).optional(),
+  amount: z.number().min(0).max(100_000_000).optional(),
+  vatMode: z.enum(["plus", "included", "none"]).optional(),
+  description: z.string().max(2000).optional(),
+  documentId: z.string().max(120).optional(),
+  officialNumber: z.string().max(120).optional(),
+  correctionReason: z.string().max(1000).optional(),
+});
+
 /**
  * Lookup map for all tool schemas
  * Used by validation.ts to find the appropriate schema
  */
 export const TOOL_SCHEMAS: Record<string, z.ZodSchema> = {
+  manageInvoice: manageInvoiceSchema,
   createPropertyListing: createPropertyListingSchema,
   createLandListing: createLandListingSchema,
   calculateVAT: calculateVATSchema,
