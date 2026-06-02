@@ -40,8 +40,13 @@ export async function storeDocumentPdfInSupabase(
     return { ok: false, reason: error.message };
   }
 
-  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-  return { ok: true, file: { path, publicUrl: data.publicUrl } };
+  const { data: signed, error: signError } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(path, 60 * 60 * 24 * 7);
+  if (signError || !signed?.signedUrl) {
+    return { ok: false, reason: signError?.message ?? "Could not sign the stored PDF URL." };
+  }
+  return { ok: true, file: { path, publicUrl: signed.signedUrl } };
 }
 
 export async function retrieveDocumentPdfMetadata(
@@ -62,6 +67,8 @@ export async function retrieveDocumentPdfMetadata(
     };
   }
 
-  const { data } = supabase.storage.from(SUPABASE_BUCKETS.invoices).getPublicUrl(document.storagePath);
-  return { ok: true, file: { path: document.storagePath, publicUrl: data.publicUrl } };
+  const { data: signed } = await supabase.storage
+    .from(SUPABASE_BUCKETS.invoices)
+    .createSignedUrl(document.storagePath, 60 * 60 * 24 * 7);
+  return { ok: true, file: { path: document.storagePath, publicUrl: signed?.signedUrl } };
 }
