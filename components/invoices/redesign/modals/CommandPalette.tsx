@@ -59,7 +59,6 @@ export function CommandPalette({ open, onClose, onAction }: CommandPaletteProps)
 
     const actionList: PaletteItem[] = ([
       { id: "new-invoice", type: "action" as const, action: "new-invoice", title: "New invoice draft", subtitle: "Open the composer", icon: <Plus size={14} strokeWidth={1.6} /> },
-      { id: "new-credit", type: "action" as const, action: "new-credit", title: "New credit note", subtitle: "Link it to an existing invoice", icon: <FileMinus size={14} strokeWidth={1.6} /> },
       { id: "run-monthly", type: "action" as const, action: "run-monthly", title: "Preview monthly run", subtitle: "11 drafts · ready 1 June 08:00", icon: <Repeat size={14} strokeWidth={1.6} /> },
       { id: "filter-marios", type: "action" as const, action: "filter-marios", title: "Filter — needs Marios", subtitle: "Sent to review + corrections", icon: <Filter size={14} strokeWidth={1.6} /> },
       { id: "filter-unpaid", type: "action" as const, action: "filter-unpaid", title: "Filter — unpaid issued", subtitle: "Numbered, awaiting payment", icon: <Clock size={14} strokeWidth={1.6} /> },

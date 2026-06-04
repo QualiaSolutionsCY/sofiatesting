@@ -80,6 +80,10 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
   const vat = (sub * (Number(vatRate) || 0)) / 100;
   const total = sub + vat;
 
+  // Due is entered as a number of days to pay; stored as an actual date (issue + days).
+  const dueDays =
+    issued && due ? String(Math.max(0, Math.round((Date.parse(due) - Date.parse(issued)) / 86400000))) : "";
+
   const isNewClient = client === "__new__";
 
   const previewDoc: Doc = useMemo(
@@ -198,9 +202,11 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
           <button type="button" className={kind === "invoice" ? "active" : ""} onClick={() => setKind("invoice")}>
             <FileText size={13} strokeWidth={1.6} /> Invoice
           </button>
-          <button type="button" className={kind === "credit" ? "active" : ""} onClick={() => setKind("credit")}>
-            <FileMinus size={13} strokeWidth={1.6} /> Credit note
-          </button>
+          {kind === "credit" ? (
+            <button type="button" className="active">
+              <FileMinus size={13} strokeWidth={1.6} /> Credit note
+            </button>
+          ) : null}
           <button type="button" className={kind === "receipt" ? "active" : ""} onClick={() => setKind("receipt")}>
             <ReceiptIcon size={13} strokeWidth={1.6} /> Receipt
           </button>
@@ -271,8 +277,28 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
             <input type="date" value={issued} onChange={(event) => setIssued(event.target.value)} />
           </label>
           <label>
-            <span>{kind === "receipt" ? "Reference invoice" : "Due date"}</span>
-            <input type={kind === "receipt" ? "text" : "date"} value={due} onChange={(event) => setDue(event.target.value)} />
+            <span>{kind === "receipt" ? "Reference invoice" : "Due (days to pay)"}</span>
+            {kind === "receipt" ? (
+              <input type="text" value={due} onChange={(event) => setDue(event.target.value)} />
+            ) : (
+              <input
+                type="number"
+                min={0}
+                placeholder="e.g. 30"
+                value={dueDays}
+                onChange={(event) => {
+                  const raw = event.target.value;
+                  if (!raw) {
+                    setDue("");
+                    return;
+                  }
+                  const days = Math.max(0, Number(raw) || 0);
+                  const base = issued ? new Date(issued) : new Date();
+                  base.setDate(base.getDate() + days);
+                  setDue(base.toISOString().slice(0, 10));
+                }}
+              />
+            )}
           </label>
         </div>
 

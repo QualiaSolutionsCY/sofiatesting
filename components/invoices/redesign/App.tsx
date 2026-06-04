@@ -278,23 +278,23 @@ export default function App({ initialDocs, initialClients, persistenceMode }: Ap
         setToast(`Downloading ${selected.pdf || "draft PDF"}…`);
         break;
       case "credit": {
-        const cl = clientById(selected.client);
-        const creditPrefill: Partial<Doc> = {
-          kind: "credit",
-          client: selected.client,
-          period: selected.period,
-          due: selected.due,
-          description: `Credit re: Invoice ${selected.officialNo} — ${cl.property}.`,
-          lines: [
-            {
-              desc: `Credit re: Invoice ${selected.officialNo}`,
-              qty: 1,
-              unitPrice: selected.lines?.[0]?.unitPrice ?? selected.total / 1.19
-            }
-          ]
-        };
-        setComposerPrefill(creditPrefill);
-        setComposerOpen(true);
+        // Credit notes are only ever created from an existing invoice — never from scratch.
+        if (selected.kind !== "invoice" || !selected.officialNo) {
+          setToast("Credit notes can only be issued from a numbered invoice.");
+          break;
+        }
+        setConfirmState({
+          title: "Issue a credit note?",
+          body: `This creates a credit note that cancels invoice ${selected.officialNo ? "№ " + selected.officialNo : selected.draftNo} in full and links the two.`,
+          confirmLabel: "Issue credit note",
+          onConfirm: () => {
+            startTransition(async () => {
+              const result = await cancelWithCreditNoteAction(selected.id);
+              reconcile(result.documents, result.selectedId ?? selected.id);
+              setToast("Credit note issued against the invoice.");
+            });
+          }
+        });
         break;
       }
       case "regenerate":
@@ -397,10 +397,6 @@ export default function App({ initialDocs, initialClients, persistenceMode }: Ap
       switch (item.action) {
         case "new-invoice":
           setComposerPrefill(null);
-          setComposerOpen(true);
-          break;
-        case "new-credit":
-          setComposerPrefill({ kind: "credit" as DocKind });
           setComposerOpen(true);
           break;
         case "run-monthly":

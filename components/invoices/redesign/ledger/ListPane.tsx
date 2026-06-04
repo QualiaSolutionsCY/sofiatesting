@@ -20,20 +20,23 @@ interface ListPaneProps {
 
 export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: ListPaneProps) {
   const filtered = useMemo(() => {
-    return docs.filter((doc) => {
-      if (filters.kind !== "all" && doc.kind !== filters.kind) return false;
-      if (filters.stage !== "all" && doc.stage !== filters.stage) return false;
-      if (filters.q) {
-        const q = filters.q.toLowerCase();
-        const cl = clientById(doc.client);
-        const hay = [cl.name, cl.property, doc.officialNo, doc.draftNo, doc.pdf, doc.receiptNo]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
+    return docs
+      .filter((doc) => {
+        if (filters.kind !== "all" && doc.kind !== filters.kind) return false;
+        if (filters.stage !== "all" && doc.stage !== filters.stage) return false;
+        if (filters.q) {
+          const q = filters.q.toLowerCase();
+          const cl = clientById(doc.client);
+          const hay = [cl.name, cl.property, doc.officialNo, doc.draftNo, doc.pdf, doc.receiptNo]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      })
+      // Always ordered by issue date, newest first.
+      .sort((a, b) => (b.issued || "").localeCompare(a.issued || ""));
   }, [docs, filters]);
 
   const kindIcon = (kind: DocKind): ReactNode => {

@@ -1,4 +1,4 @@
-import { documentKindLabel, formatDate, getDisplayNumber, recurrenceLabel } from "@/lib/invoices/format";
+import { documentKindLabel, formatDate, getDisplayNumber } from "@/lib/invoices/format";
 import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 
 /**
@@ -92,8 +92,10 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
     ["Number", getDisplayNumber(document)],
     ["Date", formatDate(document.issueDate)]
   ];
-  if (!isCredit && !isReceipt && document.dueDate) meta.push(["Due", formatDate(document.dueDate)]);
-  if (document.recurrence !== "none") meta.push(["Billing", recurrenceLabel(document.recurrence)]);
+  if (!isCredit && !isReceipt && document.dueDate) {
+    const dueDays = Math.round((Date.parse(document.dueDate) - Date.parse(document.issueDate)) / 86400000);
+    meta.push(["Due", Number.isFinite(dueDays) ? `in ${Math.max(0, dueDays)} days` : formatDate(document.dueDate)]);
+  }
   if (isCredit && document.sourceInvoiceNumber) meta.push(["Applies to", document.sourceInvoiceNumber]);
 
   let metaY = 772;
@@ -127,9 +129,8 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   // ---- Line-item table ----
   const colNum = ML + 10;
   const colDesc = ML + 44;
-  const xDescEnd = 348;
-  const qtyR = 404;
-  const unitR = 470;
+  const xDescEnd = 404; // description wraps before the Unit column
+  const unitR = 468;
   const totalR = MR - 8;
   const headerH = 22;
   const tableTop = y;
@@ -138,7 +139,6 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   const hb = tableTop - 15;
   text(colNum, hb, "#", 8.5, true, 0.25);
   text(colDesc, hb, "Description", 8.5, true, 0.25);
-  textRight(qtyR, hb, "Qty", 8.5, true, 0.25);
   textRight(unitR, hb, "Unit · €", 8.5, true, 0.25);
   textRight(totalR, hb, "Total · €", 8.5, true, 0.25);
 
@@ -149,7 +149,6 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   const rb = bodyTop - 18;
   text(colNum, rb, "1", 9.5, false, 0.2);
   descLines.forEach((ln, i) => text(colDesc, rb - i * lineH, ln, 9.5, false, 0.15));
-  textRight(qtyR, rb, "1", 9.5, false, 0.15);
   textRight(unitR, rb, money(document.amount), 9.5, false, 0.15);
   textRight(totalR, rb, money(document.amount), 9.5, false, 0.15);
 
@@ -160,7 +159,7 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   line(ML, bottom, MR, bottom, 0.6, 0.78);
   line(ML, tableTop, ML, bottom, 0.6, 0.78);
   line(MR, tableTop, MR, bottom, 0.6, 0.78);
-  for (const vx of [ML + 32, xDescEnd, 410, 474]) line(vx, tableTop, vx, bottom, 0.5, 0.86);
+  for (const vx of [ML + 32, 410, 474]) line(vx, tableTop, vx, bottom, 0.5, 0.86);
 
   // ---- Totals ----
   const rate = document.amount > 0 ? Math.round((document.vatAmount / document.amount) * 100) : document.vatMode === "no-vat" ? 0 : 19;

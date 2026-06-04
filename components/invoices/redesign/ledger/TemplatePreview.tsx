@@ -25,6 +25,8 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
   const sub = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
   const vat = (sub * (doc.vatRate || 0)) / 100;
   const total = sub + vat;
+  const dueDays =
+    doc.due && doc.issued ? Math.max(0, Math.round((Date.parse(doc.due) - Date.parse(doc.issued)) / 86400000)) : null;
 
   return (
     <article className="template-preview" aria-label={`${title} preview`}>
@@ -55,16 +57,10 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
               <dt>Date</dt>
               <dd>{doc.issued}</dd>
             </div>
-            {doc.due && !isCredit && !isReceipt ? (
+            {dueDays !== null && !isCredit && !isReceipt ? (
               <div>
                 <dt>Due</dt>
-                <dd>{doc.due}</dd>
-              </div>
-            ) : null}
-            {doc.period ? (
-              <div>
-                <dt>Period</dt>
-                <dd>{doc.period}</dd>
+                <dd>in {dueDays} days</dd>
               </div>
             ) : null}
             {isCredit && doc.appliesTo ? (
@@ -100,7 +96,6 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
           <tr>
             <th>#</th>
             <th>Description</th>
-            <th>Qty</th>
             <th>Unit · €</th>
             <th>Total · €</th>
           </tr>
@@ -110,14 +105,13 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
             <tr key={i}>
               <td>{i + 1}</td>
               <td>{l.desc}</td>
-              <td>{l.qty}</td>
               <td>{l.unitPrice.toLocaleString("en-GB", { minimumFractionDigits: 2 })}</td>
               <td>{(l.qty * l.unitPrice).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</td>
             </tr>
           ))}
           {isCredit && doc.appliesTo ? (
             <tr className="template-source-row">
-              <td colSpan={5} style={{ textAlign: "left" }}>
+              <td colSpan={4} style={{ textAlign: "left" }}>
                 Reference — original Invoice {doc.appliesTo}, issued {doc.issued}, fully credited.
               </td>
             </tr>
