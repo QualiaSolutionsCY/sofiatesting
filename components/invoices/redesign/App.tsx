@@ -57,6 +57,8 @@ interface AppProps {
   initialDocs: Doc[];
   initialClients: Client[];
   persistenceMode: "supabase" | "fallback";
+  /** When true, access was already enforced server-side (the /access code gate); skip the in-app access screen. */
+  preAuthed?: boolean;
 }
 
 function vatRateToMode(rate: number): "plus-vat" | "no-vat" {
@@ -79,10 +81,10 @@ function formToDocumentInput(form: ComposerForm): DocumentInput {
   };
 }
 
-export default function App({ initialDocs, initialClients, persistenceMode }: AppProps) {
+export default function App({ initialDocs, initialClients, persistenceMode, preAuthed = false }: AppProps) {
   useMemo(() => replaceClientRegistry(initialClients), [initialClients]);
 
-  const [operator, setOperator] = useState<string>("");
+  const [operator, setOperator] = useState<string>(preAuthed ? "Operator" : "");
   const [docs, setDocs] = useState<Doc[]>(initialDocs);
   const [selectedId, setSelectedId] = useState<string | null>(initialDocs[0]?.id ?? null);
   const [filters, setFilters] = useState<Filters>({ kind: "all", stage: "all", q: "", from: "", to: "" });
@@ -104,9 +106,10 @@ export default function App({ initialDocs, initialClients, persistenceMode }: Ap
   const [, startTransition] = useTransition();
 
   useEffect(() => {
+    if (preAuthed) return;
     const saved = typeof window !== "undefined" ? window.localStorage.getItem("sophia.operator") : "";
     if (saved) setOperator(saved);
-  }, []);
+  }, [preAuthed]);
 
   useEffect(() => {
     if (!operator) return;

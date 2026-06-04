@@ -50,7 +50,7 @@ const navigationItems = [
   },
   {
     name: "Invoices",
-    href: "/admin/invoices",
+    href: "/invoices",
     icon: Receipt,
     requiredPermission: null,
   },
