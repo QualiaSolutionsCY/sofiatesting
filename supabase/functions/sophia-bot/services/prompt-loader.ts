@@ -49,6 +49,7 @@ const VERSION_CHECK_INTERVAL_MS = 30_000;
 let loadingPromise: Promise<Map<string, string>> | null = null;
 
 import { DOCUMENT_ROUTING } from "../prompts/behaviors/document-routing.ts";
+import { INVOICING } from "../prompts/behaviors/invoicing.ts";
 import { PROPERTY_UPLOAD } from "../prompts/behaviors/property-upload.ts";
 import { RESERVATION_LOAN_VAT_REQUIRED } from "../prompts/behaviors/reservation-loan-vat.ts";
 import { RESPONSE_FORMAT } from "../prompts/behaviors/response-format.ts";
@@ -66,6 +67,7 @@ const FALLBACK_PROMPTS: Record<string, string> = {
   reservation_loan_vat_required: RESERVATION_LOAN_VAT_REQUIRED,
   document_routing: DOCUMENT_ROUTING,
   property_upload: PROPERTY_UPLOAD,
+  invoicing: INVOICING,
   response_format: RESPONSE_FORMAT,
   calculators: CALCULATOR_CAPABILITIES,
   cyprus_knowledge: CYPRUS_KNOWLEDGE,
@@ -334,6 +336,7 @@ export async function loadSystemPrompt(
     "reservation_loan_vat_required", // MUST load before document_routing
     "document_routing",
     "property_upload",
+    "invoicing", // priority 45 — always route invoicing requests to the manageInvoice tool
     "response_format",
     "calculators",
     "cyprus_knowledge",
