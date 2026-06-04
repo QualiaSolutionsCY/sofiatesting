@@ -1,9 +1,14 @@
 "use client";
 
-import { FileMinus, FileText, Receipt as ReceiptIcon, Search } from "lucide-react";
+import { ChevronDown, FileMinus, FileText, Receipt as ReceiptIcon, Search } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 import { STAGES, clientById, fmt } from "@/lib/invoices/redesign/data";
 import type { Doc, DocKind, Filters, Stage } from "@/lib/invoices/redesign/types";
+
+const STAGE_OPTIONS: Array<{ value: "all" | Stage; label: string }> = [
+  { value: "all", label: "All statuses" },
+  ...Object.values(STAGES).map((s) => ({ value: s.id, label: s.label }))
+];
 
 interface ListPaneProps {
   docs: Doc[];
@@ -51,6 +56,25 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
           value={filters.q}
           onChange={(event) => setFilters({ ...filters, q: event.target.value })}
         />
+      </div>
+
+      <div className="list-stage-filter">
+        <label className="stage-select-wrapper">
+          <span className="sr-only">Filter by status</span>
+          <select
+            value={filters.stage}
+            onChange={(event) =>
+              setFilters({ ...filters, stage: event.target.value as Filters["stage"] })
+            }
+          >
+            {STAGE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown size={11} strokeWidth={2} className="stage-select-icon" aria-hidden />
+        </label>
       </div>
 
       <div className="list-count">

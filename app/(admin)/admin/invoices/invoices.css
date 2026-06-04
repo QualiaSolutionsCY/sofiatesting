@@ -7233,6 +7233,61 @@ kbd {
   flex-shrink: 0;
 }
 
+/* Status filter dropdown — sits between search and count */
+.sidebar .list-stage-filter {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  background: oklch(0.985 0 0);
+  flex-shrink: 0;
+}
+
+.sidebar .stage-select-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.sidebar .stage-select-wrapper select {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: oklch(0.15 0 0);
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 5px 24px 5px 8px;
+  min-height: 28px;
+  cursor: pointer;
+  transition: border-color 140ms var(--ease), background 140ms var(--ease);
+}
+
+.sidebar .stage-select-wrapper select:hover {
+  border-color: oklch(0.7 0 0);
+}
+
+.sidebar .stage-select-wrapper select:focus-visible {
+  outline: none;
+  border-color: var(--brand, oklch(0.46 0.115 174));
+  box-shadow: 0 0 0 2px oklch(0.46 0.115 174 / 0.14);
+}
+
+.sidebar .stage-select-icon {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: oklch(0.45 0 0);
+  pointer-events: none;
+}
+
+/* Also ensure the non-sidebar version has sensible defaults */
+.list-stage-filter {
+  flex-shrink: 0;
+}
+
 .sidebar .document-list {
   flex: 1;
   min-height: 0;
