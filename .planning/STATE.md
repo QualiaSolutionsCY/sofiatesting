@@ -6,8 +6,9 @@ See: .planning/PROJECT.md
 ## Current Position
 Phase: 1 of 4 — Read-only port
 Status: setup
-Assigned to: 
-Last activity: 2026-05-28 — Project initialized
+Assigned to: Last activity: 2026-05-28 — Project initialized
+Profile: strict
+Last activity: 2026-06-04 — Session report QS-REPORT-02 generated
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -23,6 +24,6 @@ Progress: [░░░░░░░░░░] 0%
 None.
 
 ## Session
-Last session: 2026-05-28
-Last worked by: 
+Last session: 2026-06-04
+Last worked by: Last activity: 2026-05-28 — Project initialized
 Resume: —
