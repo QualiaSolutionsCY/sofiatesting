@@ -93,8 +93,7 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
     ["Date", formatDate(document.issueDate)]
   ];
   if (!isCredit && !isReceipt && document.dueDate) {
-    const dueDays = Math.round((Date.parse(document.dueDate) - Date.parse(document.issueDate)) / 86400000);
-    meta.push(["Due", Number.isFinite(dueDays) ? `in ${Math.max(0, dueDays)} days` : formatDate(document.dueDate)]);
+    meta.push(["Due Date", formatDate(document.dueDate)]);
   }
   if (isCredit && document.sourceInvoiceNumber) meta.push(["Applies to", document.sourceInvoiceNumber]);
 
@@ -116,10 +115,6 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   y -= 15;
   text(ML, y, document.clientName, 12, true, 0.12);
   y -= 14;
-  if (document.billToLabel && document.billToLabel !== document.clientName) {
-    text(ML, y, document.billToLabel, 9, false, 0.42);
-    y -= 12;
-  }
   if (document.clientEmail) {
     text(ML, y, document.clientEmail, 9, false, 0.42);
     y -= 12;
@@ -200,21 +195,6 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
     ty -= 12;
   }
   ty -= 14;
-
-  // ---- Note ----
-  text(ML, ty, "NOTE", 7.5, true, 0.5);
-  ty -= 14;
-  for (const ln of wrapText(document.description || "—", MR - ML, 9, false)) {
-    text(ML, ty, ln, 9, false, 0.38);
-    ty -= 12;
-  }
-  if (document.correctionReason) {
-    ty -= 4;
-    for (const ln of wrapText(`Correction: ${document.correctionReason}`, MR - ML, 9, false)) {
-      text(ML, ty, ln, 9, false, 0.45);
-      ty -= 12;
-    }
-  }
 
   const stream = ops.join("\n");
   const objects = [
