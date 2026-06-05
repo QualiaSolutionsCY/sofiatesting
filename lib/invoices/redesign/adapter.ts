@@ -94,7 +94,10 @@ export function deriveClients(invoices: InvoiceDocument[]): Client[] {
 }
 
 export function invoicesToDocs(invoices: InvoiceDocument[]): { docs: Doc[]; clients: Client[] } {
-  const docs = invoices.map(invoiceToDoc).sort((a, b) => b.issued.localeCompare(a.issued));
+  // Preserve the repository order (updated_at desc — see listInvoiceDocuments)
+  // so the most recently created/updated invoice is always on top. Sorting by
+  // issue date here buried freshly created invoices below future-dated ones.
+  const docs = invoices.map(invoiceToDoc);
   const clients = deriveClients(invoices);
   // Cross-link credit notes ↔ invoices
   for (const doc of docs) {

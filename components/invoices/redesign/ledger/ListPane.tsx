@@ -34,9 +34,9 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
           if (!hay.includes(q)) return false;
         }
         return true;
-      })
-      // Always ordered by issue date, newest first.
-      .sort((a, b) => (b.issued || "").localeCompare(a.issued || ""));
+      });
+    // No re-sort: order is inherited from the repository (updated_at desc),
+    // so the most recently created/updated invoice stays on top.
   }, [docs, filters]);
 
   const kindIcon = (kind: DocKind): ReactNode => {
