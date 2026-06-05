@@ -28,6 +28,11 @@ import {
   queueReceiptDelivery
 } from "@/lib/invoices/supabase/integration-repository";
 import { storeDocumentPdfInSupabase } from "@/lib/invoices/storage";
+import { INVOICE_AUTHORIZED_AGENTS } from "@/lib/invoices/constants";
+import { getDisplayNumber, getUnifiedFilename } from "@/lib/invoices/format";
+import { buildDocumentPdfBytes } from "@/lib/invoices/pdf";
+import { createLogger } from "@/lib/logger";
+import { getWhatsAppClient } from "@/lib/whatsapp/client";
 import type { DeliveryRecord } from "@/lib/invoices/types/deliveries";
 import {
   applyOfficialNumberToDocument,
@@ -95,7 +100,60 @@ export async function sendToMariosAction(id: string): Promise<DocumentsActionRes
   const updated = sendDraftToMarios(document);
   const result = await saveInvoiceDocument(updated, "Draft sent to Marios");
   await queueDraftToMarios(updated);
+  await notifyMariosOverWhatsApp(updated);
   return { ...result, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
+}
+
+const sendLogger = createLogger("invoices:send-to-marios");
+
+/**
+ * Actually deliver the review request to Marios over WhatsApp (PDF + caption),
+ * using the same WaSenderAPI client the rest of the app sends with. Best-effort:
+ * a send failure is logged but never breaks the status transition above.
+ */
+async function notifyMariosOverWhatsApp(document: InvoiceDocument): Promise<void> {
+  const marios = INVOICE_AUTHORIZED_AGENTS.find((agent) => agent.name === "Marios Polyviou");
+  if (!marios) {
+    sendLogger.warn("Marios is not in INVOICE_AUTHORIZED_AGENTS; skipping WhatsApp send");
+    return;
+  }
+
+  const displayNumber = getDisplayNumber(document);
+  const correctionLine = document.correctionReason
+    ? `\nCorrection: ${document.correctionReason}. Please ignore the previous version.`
+    : "";
+  const caption =
+    `Invoice for review: ${displayNumber}\n` +
+    `Client: ${document.clientName}${correctionLine}\n\n` +
+    `Reply ✓ to approve, or reply with the correction needed.`;
+
+  try {
+    const client = getWhatsAppClient();
+    if (!client.isConfigured()) {
+      sendLogger.warn("WhatsApp client not configured; review request not sent to Marios");
+      return;
+    }
+
+    const pdf = Buffer.from(buildDocumentPdfBytes(document));
+    const sent = await client.sendDocument({
+      to: marios.msisdn,
+      document: pdf,
+      filename: getUnifiedFilename(document),
+      caption,
+    });
+
+    if (!sent.success) {
+      sendLogger.error("WhatsApp document send to Marios failed; falling back to text", undefined, {
+        documentId: document.id,
+        error: sent.error,
+      });
+      await client.sendMessage({ to: marios.msisdn, text: caption });
+    }
+  } catch (error) {
+    sendLogger.error("Unexpected error sending review request to Marios", error, {
+      documentId: document.id,
+    });
+  }
 }
 
 export async function approveDocumentAction(id: string): Promise<DocumentsActionResult> {
