@@ -708,16 +708,34 @@ export async function markSophiaEmailAsRead(uid: number): Promise<void> {
 }
 
 /**
- * Send a reply from sophia@zyprus.com via Resend API
+ * Send an AI-composed reply via Resend API.
+ *
+ * Generic version of sendSophiaReply — caller chooses the from-address and
+ * from-name. Used for both sophia@ replies (sophia inbox) and info@ replies
+ * (info inbox Paphos AI auto-reply). Log prefix is derived from fromName so
+ * the two callers stay distinguishable in Railway logs.
  */
-export async function sendSophiaReply(
-  toEmail: string,
-  _toName: string,
-  subject: string,
-  replyBody: string,
-  inReplyToMessageId: string,
-  resendApiKey: string
-): Promise<boolean> {
+export async function sendAiReply(opts: {
+  fromAddress: string;
+  fromName: string;
+  toEmail: string;
+  subject: string;
+  replyBody: string;
+  inReplyToMessageId: string;
+  resendApiKey: string;
+}): Promise<boolean> {
+  const {
+    fromAddress,
+    fromName,
+    toEmail,
+    subject,
+    replyBody,
+    inReplyToMessageId,
+    resendApiKey,
+  } = opts;
+
+  const logPrefix =
+    fromName.toUpperCase() === "SOPHIA" ? "[Sophia]" : `[${fromName}]`;
   const replySubject = subject.startsWith("Re:") ? subject : `Re: ${subject}`;
   const htmlBody = markdownToHtml(replyBody);
 
@@ -729,7 +747,7 @@ export async function sendSophiaReply(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "SOPHIA <sophia@zyprus.com>",
+        from: `${fromName} <${fromAddress}>`,
         to: toEmail,
         subject: replySubject,
         html: htmlBody,
@@ -744,16 +762,40 @@ export async function sendSophiaReply(
 
     if (!response.ok) {
       const err = await response.text();
-      console.error(`[Sophia] Resend API error (${response.status}):`, err);
+      console.error(`${logPrefix} Resend API error (${response.status}):`, err);
       return false;
     }
 
     console.log(
-      `[Sophia] Sent reply to ${toEmail} for "${subject}" via Resend`
+      `${logPrefix} Sent reply to ${toEmail} for "${subject}" via Resend`
     );
     return true;
   } catch (err) {
-    console.error(`[Sophia] Failed to send reply to ${toEmail}:`, err);
+    console.error(`${logPrefix} Failed to send reply to ${toEmail}:`, err);
     return false;
   }
+}
+
+/**
+ * Send a reply from sophia@zyprus.com via Resend API.
+ * Thin wrapper over sendAiReply preserved for backwards compatibility with
+ * the existing sophia-handler.ts call site.
+ */
+export async function sendSophiaReply(
+  toEmail: string,
+  _toName: string,
+  subject: string,
+  replyBody: string,
+  inReplyToMessageId: string,
+  resendApiKey: string
+): Promise<boolean> {
+  return sendAiReply({
+    fromAddress: "sophia@zyprus.com",
+    fromName: "SOPHIA",
+    toEmail,
+    subject,
+    replyBody,
+    inReplyToMessageId,
+    resendApiKey,
+  });
 }

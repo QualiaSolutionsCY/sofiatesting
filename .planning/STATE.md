@@ -7,9 +7,9 @@ See: .planning/PROJECT.md
 Phase: 27 of 27 — Business Rules & Cleanup (v1.6 final)
 Status: shipped
 Assigned to: Last activity: 2026-03-20 — v1.6 Upload Pipeline Production Hardening shipped (commit 08c4493). Project is in MAINTENANCE MODE — new work lands as hotfix commits on `main` or via `/qualia-quick`.
-Last activity: 2026-05-11 — Fixed Zyprus property type radio: rewrote PROPERTY_TYPE_FALLBACKS with 15 verified leaf UUIDs, blocked parent UUIDs, deployed sophia-bot. Edit page now ticks correct radio.
+Last activity: 2026-05-28 — Fix: portal-scraper schema/prompts hardened for all 4 bank portals
 
-Progress: [██████████] 96%
+Progress: [██████████] 100%
 
 ## Roadmap
 | # | Phase | Goal | Status |
@@ -26,6 +26,6 @@ Progress: [██████████] 96%
 None.
 
 ## Session
-Last session: 2026-05-11
+Last session: 2026-05-28
 Last worked by: Last activity: 2026-03-20 — v1.6 Upload Pipeline Production Hardening shipped (commit 08c4493). Project is in MAINTENANCE MODE — new work lands as hotfix commits on `main` or via `/qualia-quick`.
 Resume: —

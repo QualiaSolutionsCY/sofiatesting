@@ -4,6 +4,7 @@ import {
   Activity,
   Bot,
   Building2,
+  DollarSign,
   FileEdit,
   FileText,
   LayoutDashboard,
@@ -52,6 +53,12 @@ const navigationItems = [
     href: "/admin/prompts",
     icon: FileEdit,
     requiredPermission: "manage_prompts",
+  },
+  {
+    name: "Finance",
+    href: "/admin/finance",
+    icon: DollarSign,
+    requiredPermission: "view_finance",
   },
   {
     name: "Execution Logs",
