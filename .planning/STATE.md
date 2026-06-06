@@ -6,8 +6,9 @@ See: .planning/PROJECT.md
 ## Current Position
 Phase: 1 of 4 — Read-only port
 Status: setup
-Assigned to: 
-Last activity: 2026-05-28 — Project initialized
+Assigned to: Last activity: 2026-05-28 — Project initialized
+Profile: strict
+Last activity: 2026-06-05 — Invoice list: newest-first sort fix; PDF template: due date top, removed notes + redundant Bill To; deployed
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -23,6 +24,6 @@ Progress: [░░░░░░░░░░] 0%
 None.
 
 ## Session
-Last session: 2026-05-28
-Last worked by: 
+Last session: 2026-06-05
+Last worked by: Last activity: 2026-05-28 — Project initialized
 Resume: —
