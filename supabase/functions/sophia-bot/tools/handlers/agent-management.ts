@@ -60,21 +60,6 @@ function normalizeCyprusPhone(raw: string): string {
   return digits.startsWith("357") ? `+${digits}` : digits;
 }
 
-/**
- * Build a synthetic email when the admin doesn't supply one. The agents
- * table requires NOT NULL on communication_email / listing_owner_email.
- */
-function fallbackEmail(fullName: string): string {
-  const slug =
-    fullName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 40) || "agent";
-  const suffix = Math.random().toString(36).slice(2, 8);
-  return `${slug}-${suffix}@pending.zyprus.local`;
-}
-
 /** Refusal returned when a non-admin tries an admin-only tool. */
 function adminRefusal(): ToolResult {
   return {
@@ -134,6 +119,12 @@ export async function handleAddAgent(
       question: `What's ${fullName}'s mobile number? I need it to recognise them on WhatsApp.`,
     };
   }
+  if (!emailRaw) {
+    return {
+      needsInput: true,
+      question: `What's ${fullName}'s Zyprus email? I need it to recognise their emails — without it, only WhatsApp would work.`,
+    };
+  }
   if (!regionRaw) {
     return {
       needsInput: true,
@@ -161,13 +152,13 @@ export async function handleAddAgent(
     };
   }
 
-  const email = emailRaw || fallbackEmail(fullName);
-  if (emailRaw && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)) {
     return {
       success: false,
-      error: `"${emailRaw}" doesn't look like a valid email. Send it again or skip it.`,
+      error: `"${emailRaw}" doesn't look like a valid email. Send the agent's real Zyprus email so they're recognised on email too.`,
     };
   }
+  const email = emailRaw;
 
   const supabase = getSupabaseAdmin();
 
@@ -242,7 +233,7 @@ export async function handleAddAgent(
 
   return {
     success: true,
-    message: `Added ${created.full_name} to ${regionRaw} as ${roleRaw}. Mobile ${created.mobile}. They'll be recognised on WhatsApp from now on.`,
+    message: `Added ${created.full_name} to ${regionRaw} as ${roleRaw}. Mobile ${created.mobile}, email ${email}. They'll be recognised on BOTH WhatsApp and email from now on. (Telegram group lead routing is configured separately.)`,
     data: {
       id: created.id,
       fullName: created.full_name,

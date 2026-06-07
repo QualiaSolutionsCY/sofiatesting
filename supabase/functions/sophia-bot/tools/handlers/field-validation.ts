@@ -7,6 +7,7 @@
 import { getSupabaseAdmin } from "../../../_shared/db.ts";
 import { type Agent, getAgentByEmail } from "../../agents/identifier.ts";
 import { REGIONAL_EMAILS } from "../../config/business-rules.ts";
+import { isBankPropertyUrl } from "../../rules/bank-detection.ts";
 import {
   determineRegion,
   validateRegionalAccess,
@@ -578,11 +579,16 @@ export async function validateAndPrepareFields(
   }
 
   // 6. Get reviewer assignments
+  // Bank-owned listings (scraped from a bank portal) route ownership to the
+  // regional office. bankUrl is the signal; validated by detectBankFromUrl.
+  const bankUrl = args.bankUrl as string | undefined;
+  const isBankListing = !!bankUrl && isBankPropertyUrl(bankUrl);
   const reviewers = assignReviewers(
     agent,
     listingType,
     propertyRegion,
-    args.assignTo as string | undefined
+    args.assignTo as string | undefined,
+    isBankListing
   );
 
   // 6b. Resolve listing owner name for Reference ID

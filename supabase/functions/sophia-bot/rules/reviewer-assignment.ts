@@ -40,7 +40,8 @@ export function assignReviewers(
   agent: Agent,
   propertyType: "sale" | "rent",
   propertyRegion: string,
-  assignTo?: string
+  assignTo?: string,
+  isBankListing?: boolean
 ): ReviewerAssignment {
   // SPECIAL CASE: Michelle rentals → Demetra as owner, Michelle as instructor
   // Michelle's communication email is limassol@zyprus.com
@@ -71,6 +72,21 @@ export function assignReviewers(
       reviewer2: null,
       listingOwner,
       listingInstructor: listingOwner, // CRITICAL: Must be same as listingOwner
+    };
+  }
+
+  // BANK SALE: bank-owned property scraped from a bank portal. The regional
+  // office owns/instructs the listing (NOT the requesting agent), while Lauren
+  // + the regional office review it. Only applies to sale; rent / Michelle
+  // branches above are untouched. Falls back to standard logic if the region
+  // has no regional office email (keeps existing behavior).
+  if (isBankListing && REGIONAL_EMAILS[propertyRegion]) {
+    const regionalOffice = REGIONAL_EMAILS[propertyRegion];
+    return {
+      reviewer1: "zyprus@zyprus.com",
+      reviewer2: regionalOffice,
+      listingOwner: regionalOffice,
+      listingInstructor: regionalOffice, // Always same as listingOwner
     };
   }
 

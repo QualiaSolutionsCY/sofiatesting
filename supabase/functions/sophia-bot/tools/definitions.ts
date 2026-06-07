@@ -308,6 +308,11 @@ export const TOOLS: ToolDefinition[] = [
             description:
               "GPS coordinates for the property location. Extract from Google Maps URL if provided (the @lat,lon part). Otherwise use approximate city coordinates. Cyprus coordinates: Nicosia (35.17, 33.36), Limassol (34.68, 33.04), Paphos (34.77, 32.42), Larnaca (34.92, 33.63), Famagusta (35.12, 33.95)",
           },
+          bankUrl: {
+            type: "string",
+            description:
+              "When this is a bank-owned property scraped from a bank portal (Gordian/Altamira/REMU/Bank of Cyprus/Hellenic), the bank portal listing URL. Used as the listing Reference ID and to assign the regional office as listing owner.",
+          },
         },
         required: [
           "listingType",
@@ -491,6 +496,11 @@ export const TOOLS: ToolDefinition[] = [
             },
             description:
               "GPS coordinates for the land location. Extract from Google Maps URL if provided (the @lat,lon part). Otherwise use approximate city coordinates. Cyprus coordinates: Nicosia (35.17, 33.36), Limassol (34.68, 33.04), Paphos (34.77, 32.42), Larnaca (34.92, 33.63), Famagusta (35.12, 33.95)",
+          },
+          bankUrl: {
+            type: "string",
+            description:
+              "When this is a bank-owned property scraped from a bank portal (Gordian/Altamira/REMU/Bank of Cyprus/Hellenic), the bank portal listing URL. Used as the listing Reference ID and to assign the regional office as listing owner.",
           },
         },
         required: [

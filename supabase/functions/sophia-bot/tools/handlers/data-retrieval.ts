@@ -253,9 +253,10 @@ export async function handleExtractFromBazaraki(
       mustCopy.push(`  features: ${JSON.stringify(listing.features)}`);
     if (listing.imageUrls.length > 0)
       mustCopy.push(`  imageUrls: [${listing.imageUrls.length} URLs — pass through verbatim]`);
-    mustCopy.push(`  owner_name: "${url}"`);
+    mustCopy.push(`  bankUrl: "${url}"    // bank portal link — becomes the Reference ID automatically AND assigns the regional office as listing owner`);
+    mustCopy.push(`  owner_name: ""       // bank-owned: no private seller, leave empty`);
     mustCopy.push(`  owner_phone: ""`);
-    mustCopy.push(`  locationUrl: ""    // IMPORTANT: leave empty. The bank URL belongs in owner_name only — it must NOT appear in locationUrl or My Notes will leak it.`);
+    mustCopy.push(`  locationUrl: ""    // IMPORTANT: leave empty. The bank URL goes in bankUrl only — it must NOT appear in locationUrl/owner_name or My Notes will leak it.`);
     mustCopy.push(`  title_deed_status: "pending"`);
 
     const summary =
@@ -265,12 +266,15 @@ export async function handleExtractFromBazaraki(
       `\n=== END MUST-COPY ===\n` +
       `\nBANK-PORTAL UPLOAD RULES:\n` +
       `1. EVERY field in MUST-COPY above is already known. Copy each value into your createPropertyListing call exactly as shown. NEVER ask the agent for any of these fields — re-asking for an already-extracted field is forbidden.\n` +
-      `2. Owner name: bank-owned listings NEVER disclose an owner. Use the source URL ("${url}") as owner_name — it becomes the Own Reference ID on Zyprus. Owner phone is empty. Do NOT ask the agent. Do NOT also pass the URL as locationUrl — locationUrl is for Google Maps links only; passing the bank URL there will pollute the My Notes field.\n` +
-      `3. Photos: ${listing.imageUrls.length} image URL(s) extracted — pass them through. Do NOT ask the agent to resend photos via WhatsApp.\n` +
+      `2. Bank link + owner: pass the source URL ("${url}") as the bankUrl argument — it automatically becomes the Own Reference ID AND assigns the regional office (request{region}@zyprus.com) as the listing owner. Bank-owned listings NEVER disclose a private seller: leave owner_name and owner_phone EMPTY and NEVER ask the agent for them. Do NOT pass the URL as locationUrl or owner_name — bankUrl is the only place it belongs.\n` +
+      `2b. Location pin: if a "COORDINATES (bank map ...)" line appears in the summary above, pass those EXACT latitude/longitude values as the coordinates argument. NEVER guess coordinates from the area name — a guessed pin lands kilometres away.\n` +
+      (listing.imageUrls.length > 0
+        ? `3. Photos: ${listing.imageUrls.length} image URL(s) extracted — pass them through. Do NOT ask the agent to resend photos via WhatsApp.\n`
+        : `3. Photos: 0 images were auto-read from the bank page. ⛔ Bank images ARE usable — NEVER claim "CDN blocks external access", "Cloudflare protection", or any similar invented reason for a bank link (that excuse is ONLY ever valid for Bazaraki, NEVER for bank portals). Say plainly: the gallery on this bank page could not be auto-read, and ask the agent to PASTE the photo URLs directly from the bank page (right-click each photo → copy image address). Do NOT say the images failed, are blocked, or are inaccessible.\n`) +
       `4. Title deed: default "pending"; do not block.\n` +
       `5. Bank name: detect from URL host (altamira/altia/remu/gogordian).\n` +
       `6. NEVER claim "Cloudflare protection", "page didn't show price", or any other invented reason if a value IS in MUST-COPY above. State plainly only what is genuinely absent.\n` +
-      `7. The ONLY thing you should ask the agent for is the assigned agent (which Zyprus user to route to). Everything else is extracted.`;
+      `7. Bank-owned listings are owned by the regional office (assigned automatically from the property's region via bankUrl) — you do NOT need to ask who to route it to. Proceed to create the draft; everything is extracted.`;
 
     return {
       success: true,

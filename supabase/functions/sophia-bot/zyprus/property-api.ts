@@ -62,6 +62,9 @@ export interface ListingData {
   ownerEmail?: string;
   registrationNumber?: string;
   buildingName?: string; // Name of building/complex for Reference ID
+  // Bank portal listing URL (Gordian/Altamira/REMU/Bank of Cyprus/Hellenic).
+  // When present, becomes the Own Reference ID (instead of the owner-name chain).
+  bankUrl?: string;
 }
 
 export interface CreateResult {
@@ -134,8 +137,16 @@ function generateOwnReferenceId(
   ownerPhone?: string,
   ownerEmail?: string,
   registrationNumber?: string,
-  buildingName?: string
+  buildingName?: string,
+  bankUrl?: string
 ): string {
+  // Bank-owned listings: the bank portal link IS the reference id. Reviewers
+  // open it to verify against the bank source. Do NOT append the owner-name
+  // chain (the owner is the bank/regional office, not a private seller).
+  if (bankUrl) {
+    return bankUrl;
+  }
+
   const parts: string[] = ["Owner"];
 
   if (agentName) {
@@ -197,7 +208,8 @@ function buildJsonApiPayload(
     listing.ownerPhone,
     listing.ownerEmail,
     listing.registrationNumber,
-    listing.buildingName
+    listing.buildingName,
+    listing.bankUrl
   );
 
   // Build proper title: "2 Bedroom Bungalow (125m²) For Sale in Kamares, Tala"

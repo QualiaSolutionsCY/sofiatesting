@@ -66,7 +66,38 @@ export async function processListingImages(
       return true;
     });
 
-    if (pendingImages.length > 0) {
+    // P4a: When the tool call already carries a gallery (args.imageUrls — the
+    // bank/portal scrape flow extracts photos directly), USE those and do NOT
+    // let stale pending_images (left over from a PREVIOUS property) override
+    // them. Only fall back to pending_images when no direct URLs were provided
+    // (the normal WhatsApp flow where photos arrive as separate messages).
+    if (directUrls.length > 0) {
+      logger.info(
+        "Using direct imageUrls from tool args (ignoring pending_images to avoid stale photos)",
+        {
+          category: LogCategory.IMAGE,
+          operation: "processListingImages",
+          directCount: directUrls.length,
+          pendingCount: pendingImages.length,
+          source: "args.imageUrls",
+        }
+      );
+      imageUrls = directUrls.filter((url) => {
+        const isFake =
+          url.includes("images.zyprus.com") ||
+          (url.includes("ibb.co") && !url.includes("i.ibb.co")) ||
+          url.includes("placeholder") ||
+          url.includes("example.com");
+        if (isFake) {
+          logger.warn("Filtered out fake/hallucinated URL", {
+            category: LogCategory.IMAGE,
+            operation: "processListingImages",
+            urlPreview: url.substring(0, 100),
+          });
+        }
+        return !isFake;
+      });
+    } else if (pendingImages.length > 0) {
       logger.info("Using images from pending_images table", {
         category: LogCategory.IMAGE,
         operation: "processListingImages",

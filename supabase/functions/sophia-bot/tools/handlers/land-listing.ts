@@ -9,6 +9,7 @@ import {
   DEFAULT_COORDINATES,
   REGIONAL_EMAILS,
 } from "../../config/business-rules.ts";
+import { isBankPropertyUrl } from "../../rules/bank-detection.ts";
 import {
   determineRegion,
   validateRegionalAccess,
@@ -353,11 +354,16 @@ export async function handleCreateLandListing(
   }
 
   // 6. Get reviewer assignments
+  // Bank-owned listings (scraped from a bank portal) route ownership to the
+  // regional office. bankUrl is the signal; validated by detectBankFromUrl.
+  const bankUrl = args.bankUrl as string | undefined;
+  const isBankListing = !!bankUrl && isBankPropertyUrl(bankUrl);
   const reviewers = assignReviewers(
     agent,
     listingType,
     propertyRegion,
-    args.assignTo as string | undefined
+    args.assignTo as string | undefined,
+    isBankListing
   );
 
   // 6b. Resolve listing owner name for Reference ID
@@ -402,7 +408,39 @@ export async function handleCreateLandListing(
       return true;
     });
 
-    if (pendingImages.length > 0) {
+    // P4a: When the tool call already carries a gallery (args.imageUrls — the
+    // bank/portal scrape flow extracts photos directly), USE those and do NOT
+    // let stale pending_images (left over from a PREVIOUS property) override
+    // them. Only fall back to pending_images when no direct URLs were provided
+    // (the normal WhatsApp flow where photos arrive as separate messages).
+    if (directUrls.length > 0) {
+      imageUrls = directUrls.filter((url) => {
+        const isFake =
+          url.includes("images.zyprus.com") ||
+          (url.includes("ibb.co") && !url.includes("i.ibb.co")) ||
+          url.includes("placeholder") ||
+          url.includes("example.com");
+        if (isFake) {
+          logger.warn("Filtered out fake/hallucinated URL", {
+            category: LogCategory.IMAGE,
+            operation: "createLandListing",
+            urlPreview: url.substring(0, 100),
+          });
+        }
+        return !isFake;
+      });
+      logger.info(
+        "Using direct imageUrls from tool args (ignoring pending_images to avoid stale photos)",
+        {
+          category: LogCategory.IMAGE,
+          operation: "createLandListing",
+          directCount: directUrls.length,
+          pendingCount: pendingImages.length,
+          imageCount: imageUrls.length,
+          source: "args.imageUrls",
+        }
+      );
+    } else if (pendingImages.length > 0) {
       logger.info("Using images from pending_images table", {
         category: LogCategory.IMAGE,
         operation: "createLandListing",
@@ -670,6 +708,20 @@ export async function handleCreateLandListing(
       return;
     })() ||
     (() => {
+      // P3: never pin a bank listing to the area centroid. If no real
+      // coordinates were scraped from the bank page, leave the map unset.
+      if (isBankListing) {
+        logger.warn(
+          "Bank land listing has no scraped coordinates — leaving map PIN unset (no centroid fallback)",
+          {
+            category: LogCategory.TOOL,
+            operation: "createLandListing",
+            location,
+          }
+        );
+        return;
+      }
+
       const locationLower = location.toLowerCase();
       let bestMatch: {
         key: string;
@@ -786,6 +838,14 @@ export async function handleCreateLandListing(
     myNotesLines.push(`Reviewer 2: ${reviewers.reviewer2}`);
   }
 
+  // P3: warn the reviewer when a bank listing has no usable coordinates so a
+  // human sets the correct PIN rather than trusting a missing/centroid one.
+  if (isBankListing && !resolvedCoordinates) {
+    myNotesLines.push(
+      "\nMAP PIN MISSING — bank listing had no usable coordinates; please set the map location manually from the bank page."
+    );
+  }
+
   // Duplicate warnings
   if (potentialDuplicateNote) {
     myNotesLines.push(`\n${potentialDuplicateNote}`);
@@ -836,6 +896,9 @@ export async function handleCreateLandListing(
       ownerPhone: args.ownerPhone as string,
       ownerEmail: args.ownerEmail as string | undefined,
       registrationNumber: args.registrationNumber as string | undefined,
+      // Bank portal URL → used as the Own Reference ID (P6) when this is a
+      // bank-owned listing. Undefined for normal listings (existing behavior).
+      bankUrl: bankUrl,
     });
 
     // Track listing for publication notification (non-blocking, fire-and-forget)
