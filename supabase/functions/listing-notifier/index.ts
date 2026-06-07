@@ -14,6 +14,7 @@
  */
 
 import {
+  getAgentEmailByPhone,
   getPendingListingUploads,
   markListingExpired,
   markListingPublished,
@@ -27,6 +28,49 @@ import {
 const ZYPRUS_API_URL =
   Deno.env.get("ZYPRUS_API_URL") || "https://dev9.zyprus.com";
 const MAX_DRAFT_AGE_DAYS = 30;
+
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+
+/**
+ * Send the publication confirmation email to the agent via Resend.
+ * Best-effort: returns false on any failure (missing key, agent without an
+ * email, Resend error) so the caller can continue without throwing.
+ */
+async function sendPublishedEmail(
+  email: string,
+  propertyTitle: string,
+  viewUrl: string
+): Promise<boolean> {
+  if (!RESEND_API_KEY) return false;
+
+  const subject = `Your listing is live: ${propertyTitle}`;
+  const html =
+    `<p>Good news — your listing <strong>${propertyTitle}</strong> has been ` +
+    `published and is now live on Zyprus.com.</p>` +
+    `<p><a href="${viewUrl}">View it here</a><br>${viewUrl}</p>` +
+    `<p>If you need any changes, please contact the office.</p>` +
+    `<p>— SOPHIA</p>`;
+
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "SOPHIA <sophia@zyprus.com>",
+        to: email,
+        subject,
+        html,
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
 
 // Get Zyprus credentials from environment (set via supabase secrets)
 const ZYPRUS_CLIENT_ID = Deno.env.get("ZYPRUS_CLIENT_ID");
@@ -95,7 +139,7 @@ async function fetchListingStatus(
   nodeType: "land" | "property",
   token: string
 ): Promise<{ published: boolean; publicUrl?: string } | null> {
-  const url = `${ZYPRUS_API_URL}/jsonapi/node/${nodeType}/${listingId}?fields[node--${nodeType}]=status,path,drupal_internal__nid`;
+  const url = `${ZYPRUS_API_URL}/jsonapi/node/${nodeType}/${listingId}?fields[node--${nodeType}]=status,field_ai_state,path,drupal_internal__nid`;
 
   const response = await fetch(url, {
     headers: {
@@ -111,8 +155,16 @@ async function fetchListingStatus(
   }
 
   const data = await response.json();
-  const published = data.data?.attributes?.status === true;
-  const pathAlias = data.data?.attributes?.path?.alias;
+  const attributes = data.data?.attributes;
+  // A listing is live either when Drupal flips the base `status` field to true,
+  // OR when the AI workflow state advances to "published" (draft → published →
+  // archived, per the Zyprus enum). Reviewers can move a node to the published
+  // workflow state without the base `status` flipping — that path left ~32
+  // live listings stuck as "draft" on the dashboard with no agent confirmation.
+  const published =
+    attributes?.status === true ||
+    attributes?.field_ai_state === "published";
+  const pathAlias = attributes?.path?.alias;
   const publicUrl =
     published && pathAlias ? `${ZYPRUS_API_URL}${pathAlias}` : undefined;
 
@@ -154,6 +206,7 @@ Deno.serve(async (req: Request) => {
     const results = {
       checked: 0,
       notified: 0,
+      emailed: 0,
       expired: 0,
       errors: [] as string[],
     };
@@ -195,10 +248,11 @@ Deno.serve(async (req: Request) => {
             );
 
             if (status.published) {
+              const viewUrl = status.publicUrl || listing.listing_url;
+
               // Send WhatsApp notification to the agent with the public URL
               const phone = formatPhoneNumber(listing.agent_phone);
               if (phone) {
-                const viewUrl = status.publicUrl || listing.listing_url;
                 const message =
                   `Your listing "${listing.property_title}" has been published and is now live on Zyprus.com.\n\n` +
                   `View it here: ${viewUrl}\n\n` +
@@ -206,6 +260,30 @@ Deno.serve(async (req: Request) => {
 
                 await sendTextMessage(phone, message);
                 results.notified++;
+              }
+
+              // Also send the publication confirmation by email (Lauren: agents
+              // were not receiving the email with the live link). Best-effort —
+              // never let a missing email or Resend hiccup block marking the
+              // listing published.
+              try {
+                const agentEmail = await getAgentEmailByPhone(
+                  listing.agent_phone
+                );
+                if (agentEmail) {
+                  const sent = await sendPublishedEmail(
+                    agentEmail,
+                    listing.property_title,
+                    viewUrl
+                  );
+                  if (sent) results.emailed++;
+                }
+              } catch (emailErr) {
+                results.errors.push(
+                  `Email notify failed for ${listing.zyprus_listing_id}: ${
+                    emailErr instanceof Error ? emailErr.message : String(emailErr)
+                  }`
+                );
               }
 
               await markListingPublished(listing.id);
@@ -229,7 +307,7 @@ Deno.serve(async (req: Request) => {
     }
 
     logger.info(
-      `[Listing Notifier] Checked ${results.checked}, notified ${results.notified}, expired ${results.expired}`,
+      `[Listing Notifier] Checked ${results.checked}, notified ${results.notified}, emailed ${results.emailed}, expired ${results.expired}`,
       {
         category: LogCategory.DATABASE,
       }
