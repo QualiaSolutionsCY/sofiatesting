@@ -38,6 +38,14 @@ export interface PortalListing {
   coveredVeranda?: number;
   uncoveredVeranda?: number;
   energyCategory?: string;
+  // Land/plot planning fields (bank LAND listings — P9). Numeric where the
+  // page gives a ratio/count/height; planningZone is a free-text zone code.
+  buildingDensity?: number;
+  siteCoverage?: number;
+  buildingCoefficient?: number;
+  maxFloors?: number;
+  maxHeight?: number;
+  planningZone?: string;
   reference?: string;
   description?: string;
   imageUrls: string[];
@@ -151,6 +159,36 @@ const EXTRACTION_SCHEMA = {
       description:
         "Plot/land area in square metres as a raw number. Strip units and separators. Look for 'Plot Size', 'Plot Area', 'Land Area', 'Land Size', or 'Lot Size'.",
     },
+    buildingDensity: {
+      type: "number",
+      description:
+        "Building density / building coefficient ratio for land/plots, as a raw number (e.g. '90%' → 90, '1.5' → 1.5). Look for 'Building Density', 'Density Coefficient', 'Building Factor', or the Greek label 'Συντελεστής Δόμησης'. Return only the number.",
+    },
+    siteCoverage: {
+      type: "number",
+      description:
+        "Site coverage ratio for land/plots, as a raw number (e.g. '50%' → 50). Look for 'Site Coverage', 'Coverage Coefficient', 'Coverage Factor', or the Greek label 'Συντελεστής Κάλυψης'. Return only the number.",
+    },
+    buildingCoefficient: {
+      type: "number",
+      description:
+        "Building coefficient for land/plots when the page lists it separately from building density, as a raw number. Look for 'Building Coefficient' / 'Συντελεστής Δόμησης'. If the page gives only one density/coefficient value, put it in buildingDensity and leave this null.",
+    },
+    maxFloors: {
+      type: "number",
+      description:
+        "Maximum number of floors allowed on the plot as an integer. Look for 'Max Floors', 'Maximum Floors', 'Number of Floors', 'Storeys', or 'Όροφοι'.",
+    },
+    maxHeight: {
+      type: "number",
+      description:
+        "Maximum building height allowed on the plot in metres, as a raw number. Strip 'm'/'metres'. Look for 'Max Height', 'Maximum Height', 'Building Height', or 'Ύψος'.",
+    },
+    planningZone: {
+      type: "string",
+      description:
+        "Planning zone / town-planning zone code for land/plots (e.g. 'Ka5', 'H2', 'Residential Zone'). Look for 'Planning Zone', 'Town Planning Zone', 'Zone', or 'Πολεοδομική Ζώνη'.",
+    },
     coveredVeranda: {
       type: "number",
       description:
@@ -212,6 +250,7 @@ const PORTAL_PROMPTS: Record<
     "The listing's main attributes appear in a 'Property Details' / 'Características' panel: read 'Surface' or 'Built area' → coveredArea, 'Plot' or 'Land surface' → plotSize, 'Bedrooms' / 'Habitaciones' → bedrooms, 'Bathrooms' / 'Baños' → bathrooms. " +
     "Location is usually 'Province, Municipality' or in breadcrumbs above the title — combine into 'District, Area'. " +
     "If the price is hidden behind a 'Solicitar precio' / 'Request price' / 'Show price' button or shows 'A consultar', return price as null. " +
+    "For land/plots, also extract planning data: 'Building Density' / 'Συντελεστής Δόμησης' → buildingDensity, 'Site Coverage' / 'Συντελεστής Κάλυψης' → siteCoverage, separate building coefficient → buildingCoefficient, max floors/storeys → maxFloors, max building height (m) → maxHeight, planning/town-planning zone → planningZone. " +
     "Collect every photo URL from the gallery carousel — they are typically on cdn.altia or img.altia.",
   altamira:
     "Extract every field of the provided schema from this Altamira Real Estate listing page (altamirarealestate.com.cy). Altamira pages are server-rendered HTML — every field below is in the page; do NOT claim Cloudflare protection, none exists. " +
@@ -227,7 +266,8 @@ const PORTAL_PROMPTS: Record<
     "9. 'Energy Category' section with a single letter on a house icon (A, B, C, D, E, F, or G) → energyCategory='C'. " +
     "Property type: trust the URL slug ('detached-house-for-sale' → 'detached house', 'apartment-for-sale' → 'apartment'). " +
     "Location string: combine breadcrumb / header as '{District}, {Area}' (e.g. 'Limassol, Ypsonas'). " +
-    "Some listings are commercial (offices, shops, warehouses, plots) — use the lowercase type as-is.",
+    "Some listings are commercial (offices, shops, warehouses, plots) — use the lowercase type as-is. " +
+    "For land/plot listings, also extract the planning data from the specs / planning section: 'Building Density' / 'Συντελεστής Δόμησης' → buildingDensity, 'Site Coverage' / 'Συντελεστής Κάλυψης' → siteCoverage, a separate building coefficient → buildingCoefficient, max floors/storeys → maxFloors, max building height in metres → maxHeight, planning/town-planning zone code → planningZone.",
   remu:
     "Extract every field of the provided schema from this REMU Properties listing page (remuproperties.com). " +
     "REMU is a Bank of Cyprus portal and the page is a JS-rendered SPA — make sure to read the rendered 'Property Details' / 'Specifications' table, not just the initial HTML. " +
@@ -235,6 +275,7 @@ const PORTAL_PROMPTS: Record<
     "Price is labelled 'Price' or 'Asking Price' in EUR — return integer (strip €, commas). If marked 'POA' / 'Price on Application', return null. " +
     "Location: read the 'Location' table row AND the breadcrumb; combine into 'District, Area' (e.g. 'Limassol, Agios Athanasios'). " +
     "REMU also lists many commercial / land assets — accept any property type, lowercase. " +
+    "For land/plots, also extract planning data from the specifications table: 'Building Density' / 'Συντελεστής Δόμησης' → buildingDensity, 'Site Coverage' / 'Συντελεστής Κάλυψης' → siteCoverage, separate building coefficient → buildingCoefficient, max floors → maxFloors, max building height (m) → maxHeight, planning zone → planningZone. " +
     "Gather all gallery image URLs from the photo carousel — ignore the small map thumbnail.",
   gogordian:
     "Extract every field of the provided schema from this Gordian listing page (gogordian.com). Gordian is a JS-rendered SPA — the price and details only appear after the main content loads. " +
@@ -242,6 +283,7 @@ const PORTAL_PROMPTS: Record<
     "Price is shown as '€ 350,000' — strip € and commas to return integer. " +
     "The URL slug encodes bedrooms, type, area and district (e.g. /property/3-bedroom-house-in-agios-theodoros--larnaca-8885). Cross-check the slug with the page's 'Region' / 'District' / 'Location' fields and combine as 'District, Area'. " +
     "Property type: trust the page's 'Type' field over the slug when they disagree (the slug uses 'house' for many subtypes). " +
+    "For land/plots, also extract planning data: 'Building Density' / 'Συντελεστής Δόμησης' → buildingDensity, 'Site Coverage' / 'Συντελεστής Κάλυψης' → siteCoverage, separate building coefficient → buildingCoefficient, max floors → maxFloors, max building height (m) → maxHeight, planning/town-planning zone → planningZone. " +
     "Collect every gallery photo URL — Gordian uses its own CDN. Exclude any agent avatar.",
 };
 
@@ -536,6 +578,65 @@ function backfillFromMarkdown(md: string, result: PortalListing): void {
     }
   }
 
+  // Land/plot planning fields (P9). Bank pages label these in EN or GR.
+  // Building density / density coefficient — "Building Density: 90%" /
+  // "Density Coefficient 1.5" / "Συντελεστής Δόμησης 0.90".
+  if (result.buildingDensity === undefined) {
+    const m = text.match(
+      /(?:Building\s+Density|Density\s+Coefficient|Building\s+Factor|Συντελεστής\s+Δόμησης)[^\d]{0,15}([\d.,]+)\s*%?/i
+    );
+    if (m) {
+      const n = coerceNumber(m[1]);
+      if (n && n > 0 && n <= 1000) result.buildingDensity = n;
+    }
+  }
+
+  // Site coverage / coverage coefficient — "Site Coverage 50%" /
+  // "Coverage Coefficient 0.5" / "Συντελεστής Κάλυψης 50%".
+  if (result.siteCoverage === undefined) {
+    const m = text.match(
+      /(?:Site\s+Coverage|Coverage\s+Coefficient|Coverage\s+Factor|Συντελεστής\s+Κάλυψης)[^\d]{0,15}([\d.,]+)\s*%?/i
+    );
+    if (m) {
+      const n = coerceNumber(m[1]);
+      if (n && n > 0 && n <= 1000) result.siteCoverage = n;
+    }
+  }
+
+  // Max floors / storeys — "Max Floors: 3" / "Number of Floors 2" / "Όροφοι 3".
+  if (result.maxFloors === undefined) {
+    const m = text.match(
+      /(?:Max(?:imum)?\s+Floors?|Number\s+of\s+Floors?|Storeys?|Όροφοι)[^\d]{0,15}(\d{1,2})\b/i
+    );
+    if (m) {
+      const n = Number.parseInt(m[1], 10);
+      if (n > 0 && n <= 50) result.maxFloors = n;
+    }
+  }
+
+  // Max height — "Max Height 10.5m" / "Building Height: 12 m" / "Ύψος 10m".
+  if (result.maxHeight === undefined) {
+    const m = text.match(
+      /(?:Max(?:imum)?\s+Height|Building\s+Height|Ύψος)[^\d]{0,15}([\d.,]+)\s*(?:m|metres?|meters?)\b/i
+    );
+    if (m) {
+      const n = coerceNumber(m[1]);
+      if (n && n > 0 && n <= 200) result.maxHeight = n;
+    }
+  }
+
+  // Planning zone — "Planning Zone: Ka5" / "Town Planning Zone H2" /
+  // "Πολεοδομική Ζώνη Ka5".
+  if (result.planningZone === undefined) {
+    const m = text.match(
+      /(?:Town\s+)?Planning\s+Zone[:\s]+([A-Za-zΑ-Ωα-ω0-9][A-Za-zΑ-Ωα-ω0-9 .\-]{0,30}?)(?:\s{2,}|$|[,;|])/i
+    ) || text.match(/Πολεοδομική\s+Ζώνη[:\s]+([A-Za-zΑ-Ωα-ω0-9.\-]{1,20})/i);
+    if (m) {
+      const zone = m[1].trim();
+      if (zone) result.planningZone = zone;
+    }
+  }
+
   // Coordinates: "(34.686935, 32.978161)" — Altamira format.
   if (result.latitude === undefined || result.longitude === undefined) {
     const m = text.match(/\(\s*(3[4-6]\.\d{3,})\s*,\s*(3[2-5]\.\d{3,})\s*\)/);
@@ -717,6 +818,31 @@ function mergeFirecrawlData(
   if (uncoveredVeranda && uncoveredVeranda > 0) {
     result.uncoveredVeranda = uncoveredVeranda;
   }
+  // Land/plot planning fields (P9).
+  const buildingDensity = coerceNumber(scraped.buildingDensity);
+  if (buildingDensity && buildingDensity > 0) {
+    result.buildingDensity = buildingDensity;
+  }
+  const siteCoverage = coerceNumber(scraped.siteCoverage);
+  if (siteCoverage && siteCoverage > 0) {
+    result.siteCoverage = siteCoverage;
+  }
+  const buildingCoefficient = coerceNumber(scraped.buildingCoefficient);
+  if (buildingCoefficient && buildingCoefficient > 0) {
+    result.buildingCoefficient = buildingCoefficient;
+  }
+  const maxFloors = coerceNumber(scraped.maxFloors);
+  if (maxFloors && maxFloors > 0) {
+    result.maxFloors = Math.round(maxFloors);
+  }
+  const maxHeight = coerceNumber(scraped.maxHeight);
+  if (maxHeight && maxHeight > 0) {
+    result.maxHeight = maxHeight;
+  }
+  if (scraped.planningZone && typeof scraped.planningZone === "string") {
+    const zone = scraped.planningZone.trim();
+    if (zone) result.planningZone = zone;
+  }
   const latitude = coerceNumber(scraped.latitude);
   if (latitude !== null && latitude >= 34 && latitude <= 36) {
     result.latitude = latitude;
@@ -743,10 +869,15 @@ function mergeFirecrawlData(
       result.listingType = lt;
     }
   }
-  // Images — bank portals don't have CDN blocks, keep them
+  // Images — bank portals don't have CDN blocks, keep them. But drop bank
+  // logos/avatars/marketing branding thumbnails (P4b) so they never leak into
+  // the Zyprus gallery.
   if (Array.isArray(scraped.imageUrls)) {
     result.imageUrls = scraped.imageUrls.filter(
-      (u): u is string => typeof u === "string" && u.startsWith("https")
+      (u): u is string =>
+        typeof u === "string" &&
+        u.startsWith("https") &&
+        !/logo|avatar|icon|sprite|pixel|brand|watermark/i.test(u)
     );
   }
   // Features
@@ -945,15 +1076,31 @@ export function formatPortalSummary(listing: PortalListing): string {
   if (listing.listingType) parts.push(`For: ${listing.listingType}`);
   if (listing.price) parts.push(`Price: €${listing.price.toLocaleString()}`);
   if (listing.location) parts.push(`Location: ${listing.location}`);
-  if (listing.latitude !== undefined && listing.longitude !== undefined)
+  if (listing.latitude !== undefined && listing.longitude !== undefined) {
     parts.push(
       `Coordinates: ${listing.latitude}, ${listing.longitude} (from listing's Google Map)`
     );
+    parts.push(
+      `COORDINATES (bank map — pass these EXACT values as the coordinates argument, DO NOT guess from the area name): ${listing.latitude}, ${listing.longitude}`
+    );
+  }
   if (listing.bedrooms !== undefined)
     parts.push(`Bedrooms: ${listing.bedrooms}`);
   if (listing.bathrooms) parts.push(`Bathrooms: ${listing.bathrooms}`);
   if (listing.coveredArea) parts.push(`Covered area: ${listing.coveredArea} sqm`);
   if (listing.plotSize) parts.push(`Plot: ${listing.plotSize} sqm`);
+  if (listing.buildingDensity !== undefined)
+    parts.push(`Building density: ${listing.buildingDensity}`);
+  if (listing.siteCoverage !== undefined)
+    parts.push(`Site coverage: ${listing.siteCoverage}`);
+  if (listing.buildingCoefficient !== undefined)
+    parts.push(`Building coefficient: ${listing.buildingCoefficient}`);
+  if (listing.maxFloors !== undefined)
+    parts.push(`Max floors: ${listing.maxFloors}`);
+  if (listing.maxHeight !== undefined)
+    parts.push(`Max height: ${listing.maxHeight} m`);
+  if (listing.planningZone)
+    parts.push(`Planning zone: ${listing.planningZone}`);
   if (listing.coveredVeranda)
     parts.push(`Covered veranda: ${listing.coveredVeranda} sqm`);
   if (listing.uncoveredVeranda)

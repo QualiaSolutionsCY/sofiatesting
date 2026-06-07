@@ -6,6 +6,7 @@
 import { trackListingUpload } from "../../../_shared/db.ts";
 import { type Agent, getAgentByEmail } from "../../agents/identifier.ts";
 import { DEFAULT_COORDINATES } from "../../config/business-rules.ts";
+import { isBankPropertyUrl } from "../../rules/bank-detection.ts";
 import { checkForDuplicates } from "../../services/duplicate-checker.ts";
 import {
   generateImageWarnings,
@@ -69,6 +70,12 @@ export async function handleCreatePropertyListing(
   } = validated;
 
   const agentPhone = agent!.mobile?.replace(/\D/g, "") || "";
+
+  // P3: bank listings carry real coordinates scraped from the bank page. If
+  // those are missing we must NOT pin to the area centroid (a wrong PIN) — the
+  // map is left unset and the reviewer is warned. bankUrl is the signal.
+  const bankUrl = args.bankUrl as string | undefined;
+  const isBankListing = !!bankUrl && isBankPropertyUrl(bankUrl);
 
   // Step 7-7b: Process images
   const {
@@ -185,6 +192,20 @@ export async function handleCreatePropertyListing(
       return;
     })() ||
     (() => {
+      // P3: never pin a bank listing to the area centroid. If no real
+      // coordinates were scraped from the bank page, leave the map unset.
+      if (isBankListing) {
+        logger.warn(
+          "Bank listing has no scraped coordinates — leaving map PIN unset (no centroid fallback)",
+          {
+            category: LogCategory.TOOL,
+            operation: "createPropertyListing",
+            location,
+          }
+        );
+        return;
+      }
+
       const locationLower = location.toLowerCase();
       let bestMatch: {
         key: string;
@@ -212,6 +233,15 @@ export async function handleCreatePropertyListing(
       }
       return;
     })();
+
+  // P3: when a bank listing ended up with no coordinates, surface it in the
+  // reviewer notes (potentialDuplicateNote is appended to My Notes downstream)
+  // so a human sets the correct PIN rather than trusting a missing/centroid one.
+  let bankCoordsNote = "";
+  if (isBankListing && !resolvedCoordinates) {
+    bankCoordsNote =
+      "MAP PIN MISSING — bank listing had no usable coordinates; please set the map location manually from the bank page.";
+  }
 
   // Check we have at least 1 valid image
   if (validImages.length === 0) {
@@ -424,7 +454,7 @@ export async function handleCreatePropertyListing(
         listingInstructor: reviewers.listingInstructor,
       },
       listingOwnerName,
-      potentialDuplicateNote,
+      [potentialDuplicateNote, bankCoordsNote].filter(Boolean).join("\n"),
       validImages.map((img) => img.url),
       titleDeedImageUrls,
       floorPlanUrls,
@@ -522,6 +552,9 @@ export async function handleCreatePropertyListing(
       buildingName: args.buildingName as string | undefined,
       energyClass: args.energyClass as string | undefined,
       coordinates: resolvedCoordinates,
+      // Bank portal URL → used as the Own Reference ID (P6) when this is a
+      // bank-owned listing. Undefined for normal listings (existing behavior).
+      bankUrl: args.bankUrl as string | undefined,
     });
 
     logger.info("Draft listing created successfully", {

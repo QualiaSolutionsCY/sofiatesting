@@ -181,6 +181,10 @@ export const createPropertyListingSchema = z.object({
       lon: z.number().min(-180).max(180),
     })
     .optional(),
+  // Bank-owned property scraped from a bank portal (Gordian/Altamira/REMU/Bank
+  // of Cyprus/Hellenic). When present, signals a bank listing: used as the
+  // listing Reference ID and to assign the regional office as listing owner.
+  bankUrl: optionalUrl(),
 });
 
 /**
@@ -255,6 +259,10 @@ export const createLandListingSchema = z.object({
       lon: z.number().min(-180).max(180),
     })
     .optional(),
+  // Bank-owned land scraped from a bank portal (Gordian/Altamira/REMU/Bank of
+  // Cyprus/Hellenic). When present, signals a bank listing: used as the listing
+  // Reference ID and to assign the regional office as listing owner.
+  bankUrl: optionalUrl(),
 });
 
 /**

@@ -52,6 +52,9 @@ export interface LandListingData {
   ownerPhone?: string;
   ownerEmail?: string;
   registrationNumber?: string;
+  // Bank portal listing URL (Gordian/Altamira/REMU/Bank of Cyprus/Hellenic).
+  // When present, becomes the Own Reference ID (instead of the owner-name chain).
+  bankUrl?: string;
 }
 
 export interface CreateResult {
@@ -122,8 +125,16 @@ function generateOwnReferenceId(
   ownerName?: string,
   ownerPhone?: string,
   ownerEmail?: string,
-  registrationNumber?: string
+  registrationNumber?: string,
+  bankUrl?: string
 ): string {
+  // Bank-owned listings: the bank portal link IS the reference id. Reviewers
+  // open it to verify against the bank source. Do NOT append the owner-name
+  // chain (the owner is the bank/regional office, not a private seller).
+  if (bankUrl) {
+    return bankUrl;
+  }
+
   const parts: string[] = ["Owner"];
 
   if (agentName) {
@@ -176,7 +187,8 @@ function buildJsonApiPayloadLand(
     listing.ownerName,
     listing.ownerPhone,
     listing.ownerEmail,
-    listing.registrationNumber
+    listing.registrationNumber,
+    listing.bankUrl
   );
 
   // Build proper title: "Residential Land 3,679 SQM For Sale in Kallepia, Paphos"

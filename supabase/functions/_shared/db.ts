@@ -398,6 +398,11 @@ export const getPendingListingUploads = async (): Promise<
   // (gives reviewer time to publish before we start polling)
   const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
+  // Check the newest drafts first and raise the cap well above the realistic
+  // backlog. The old oldest-first limit of 20 let a pile of stale, never-
+  // published drafts starve recent listings out of the polling window — so a
+  // listing published this week never got checked (no status flip, no agent
+  // confirmation) until the old drafts aged out at 30 days.
   const { data, error } = await supabase
     .from("listing_uploads")
     .select(
@@ -405,14 +410,47 @@ export const getPendingListingUploads = async (): Promise<
     )
     .eq("status", "draft")
     .lt("created_at", fiveMinAgo)
-    .order("created_at", { ascending: true })
-    .limit(20);
+    .order("created_at", { ascending: false })
+    .limit(100);
 
   if (error || !data) {
     return [];
   }
 
   return data;
+};
+
+/**
+ * Resolve an agent's contact email from the phone number stored on a
+ * listing_upload row. Matches on digits-only so the bare `35799…` upload phone
+ * lines up with the agents table `mobile` (`+35799…`, sometimes with spaces).
+ * Returns null for unknown agents or synthetic placeholder addresses so the
+ * notifier silently skips the email rather than mailing a fake inbox.
+ */
+export const getAgentEmailByPhone = async (
+  phone: string
+): Promise<string | null> => {
+  const normalized = phone.replace(/\D/g, "");
+  if (!normalized) return null;
+
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("agents")
+    .select("mobile, communication_email")
+    .not("communication_email", "is", null);
+
+  if (error || !data) return null;
+
+  const match = data.find(
+    (a: { mobile: string | null; communication_email: string | null }) =>
+      a.mobile && a.mobile.replace(/\D/g, "") === normalized
+  );
+
+  const email = match?.communication_email?.trim() || null;
+  if (!email || !email.includes("@") || email.endsWith("@pending.zyprus.local")) {
+    return null;
+  }
+  return email;
 };
 
 /**
