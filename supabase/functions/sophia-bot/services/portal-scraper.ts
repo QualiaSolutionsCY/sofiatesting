@@ -356,30 +356,36 @@ export async function extractFromBankPortal(
     );
   }
 
-  // Phase 3 — Direct-fetch raw-HTML parse. Firecrawl is unreliable on bank
-  // portals; the pages themselves are server-rendered HTML, so we can fetch
-  // them ourselves and regex-extract from the raw markup. This runs whenever
-  // we still lack the core fields after Firecrawl.
-  const stillMissingCore =
-    !result.price || result.bedrooms === undefined || !result.coveredArea;
-  if (stillMissingCore) {
-    try {
-      const html = await fetchPageHtml(url);
-      if (html) {
-        const before = describeResult(result);
-        backfillFromHtml(html, result);
-        const after = describeResult(result);
-        logger.info(
-          `Direct HTML backfill for ${portal}: ${html.length}B in, before=${before}, after=${after}`,
-          { category: LogCategory.GENERAL }
-        );
-      }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      logger.warn(`Direct fetch failed for ${portal}: ${msg}`, {
-        category: LogCategory.GENERAL,
-      });
+  // Phase 3 — Direct-fetch raw-HTML parse. Firecrawl's LLM extract + regex on
+  // rendered text is unreliable on these portals (wrong price/pin/photos). The
+  // pages carry the REAL data in structured form (price JSON, the property's
+  // own map URL, deterministic gallery paths), so we ALWAYS fetch the raw HTML
+  // for a bank portal and parse that structure first — it is authoritative —
+  // then fall back to the generic regex backfill for anything still missing.
+  // Each field/value below was verified against the live Altia/Gordian/REMU/
+  // Altamira pages (2026-06-08).
+  try {
+    const html = await fetchPageHtml(url);
+    if (html) {
+      const before = describeResult(result);
+      parsePortalStructured(html, portal, result);
+      const stillMissingCore =
+        !result.price || result.bedrooms === undefined || !result.coveredArea;
+      if (stillMissingCore) backfillFromHtml(html, result);
+      // Drop features the page text does not actually contain (kills the
+      // Firecrawl LLM "common pool" style hallucination).
+      groundFeatures(result, html);
+      const after = describeResult(result);
+      logger.info(
+        `Direct HTML parse for ${portal}: ${html.length}B in, before=${before}, after=${after}`,
+        { category: LogCategory.GENERAL }
+      );
     }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    logger.warn(`Direct fetch/parse failed for ${portal}: ${msg}`, {
+      category: LogCategory.GENERAL,
+    });
   }
 
   const haveCore = !!(result.price || result.bedrooms || result.coveredArea);
@@ -886,6 +892,117 @@ function mergeFirecrawlData(
       (f): f is string => typeof f === "string" && f.length > 0
     );
   }
+}
+
+/** A coordinate is plausible only inside the Cyprus bounding box. */
+function inCyprusBbox(lat: number, lng: number): boolean {
+  return lat > 34 && lat < 36 && lng > 32 && lng < 35;
+}
+
+/**
+ * Parse the REAL structured data out of a bank portal's raw HTML. This is the
+ * authoritative path — every pattern here was verified against the live
+ * Altia/Gordian/REMU/Altamira listing pages (2026-06-08), because Firecrawl's
+ * LLM extract + generic regex were returning a wrong price (first € on the
+ * page), a wrong/region map pin, and wrong/404 photos.
+ *
+ * Fail-soft by design: only OVERWRITES a field when it confidently finds the
+ * property's own value; otherwise leaves whatever earlier phases produced.
+ */
+function parsePortalStructured(
+  html: string,
+  portal: PortalName,
+  result: PortalListing
+): void {
+  // --- Coordinates: the property's own pin (NOT a region/center map) ---
+  // Priority: a google "maps/place/LAT,LNG" link (Gordian, Altamira) →
+  // a QUOTED marker array value (REMU) → a server-rendered property
+  // staticmap (never for Altia, whose static "center" is a Nicosia default).
+  const coord =
+    html.match(/maps\/place\/(3[4-6]\.\d{3,}),(3[2-5]\.\d{3,})/i) ||
+    html.match(
+      /"lat"\s*:\s*'(3[4-6]\.\d{3,})'[\s\S]{0,40}?"l(?:ng|on)"\s*:\s*'(3[2-5]\.\d{3,})'/i
+    ) ||
+    (portal !== "altia"
+      ? html.match(
+          /staticmap[^"'\s]*?[?&]center=(3[4-6]\.\d{3,}),(3[2-5]\.\d{3,})/i
+        )
+      : null);
+  if (coord) {
+    const lat = Number(coord[1]);
+    const lng = Number(coord[2]);
+    if (inCyprusBbox(lat, lng)) {
+      result.latitude = lat;
+      result.longitude = lng;
+    }
+  }
+
+  // --- Price: from structured sources only (authoritative) ---
+  if (portal === "altia") {
+    // Vue/Apollo SSR state: "price":{"amount":240000,...}
+    const m = html.match(/"price"\s*:\s*\{\s*"amount"\s*:\s*(\d{4,})/);
+    if (m) result.price = Number(m[1]);
+  } else if (portal === "altamira") {
+    const m =
+      html.match(/id="precio"[^>]*value="([\d.,]{4,})"/i) ||
+      html.match(/var\s+precio\s*=\s*'([\d.,]{4,})'/i);
+    if (m) {
+      const n = Number(m[1].replace(/[.,]/g, ""));
+      if (n >= 1000) result.price = n;
+    }
+  }
+
+  // --- Gallery: deterministic per-portal CDN paths (authoritative when found) ---
+  const gallery = new Set<string>();
+  if (portal === "altamira") {
+    for (const m of html.matchAll(
+      /\/estaticos\/activos\/inmuebles\/fotos\/grandes\/[0-9]+\/[0-9_]+\.jpe?g/gi
+    )) {
+      gallery.add("https://www.altamirarealestate.com.cy" + m[0]);
+    }
+  } else if (portal === "altia") {
+    for (const m of html.matchAll(
+      /https:\\?\/\\?\/d1n097d7cl303k\.cloudfront\.net\\?\/[A-Za-z0-9=_\\/-]{20,}/g
+    )) {
+      gallery.add(m[0].replace(/\\\//g, "/").split('"')[0]);
+    }
+  } else if (portal === "gogordian") {
+    for (const m of html.matchAll(
+      /(?:https:\/\/gogordian\.com)?\/inmuebles\/fotos\/[0-9]+\/[0-9_]+\.jpe?g/gi
+    )) {
+      gallery.add(m[0].startsWith("/") ? "https://gogordian.com" + m[0] : m[0]);
+    }
+  }
+  // Only override the gallery when the structured set is meaningfully complete
+  // (≥3) or when earlier phases found nothing — never replace a real gallery
+  // with a single JSON-LD thumbnail.
+  if (gallery.size >= 3 || (gallery.size > 0 && result.imageUrls.length === 0)) {
+    result.imageUrls = Array.from(gallery);
+  }
+}
+
+/**
+ * Remove features that the page text does not actually contain. Firecrawl's
+ * extract LLM occasionally invents amenities (e.g. a "common pool" that is
+ * nowhere on the Gordian page). We keep a feature only when its salient word
+ * appears in the rendered HTML/text.
+ */
+function groundFeatures(result: PortalListing, html: string): void {
+  if (!result.features.length) return;
+  const text = html
+    .replace(/<[^>]+>/g, " ")
+    .toLowerCase();
+  result.features = result.features.filter((f) => {
+    const key = f.toLowerCase().replace(/[^a-z ]/g, "").trim();
+    if (!key) return false;
+    // keep if the whole phrase is on the page, or ANY salient word (≥4 chars)
+    // of it is — so "Swimming Pool" survives a page that only says "pool", but
+    // an invented "common pool" (no "common"/"pool" anywhere) is dropped.
+    if (text.includes(key)) return true;
+    return key
+      .split(/\s+/)
+      .some((w) => w.length >= 4 && text.includes(w));
+  });
 }
 
 /**
