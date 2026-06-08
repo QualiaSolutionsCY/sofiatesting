@@ -7,7 +7,11 @@
 import { getSupabaseAdmin } from "../../../_shared/db.ts";
 import { type Agent, getAgentByEmail } from "../../agents/identifier.ts";
 import { REGIONAL_EMAILS } from "../../config/business-rules.ts";
-import { isBankPropertyUrl } from "../../rules/bank-detection.ts";
+// Use the portal-scraper's detection (recognises ALL real bank-portal domains:
+// marketplace.altia.com.cy, altamirarealestate.com.cy, remuproperties.com,
+// gogordian.com) rather than rules/bank-detection.ts which has a narrower list
+// and missed Altia/Altamira — so the regional-office owner never auto-assigned.
+import { isBankPortalUrl } from "../../services/portal-scraper.ts";
 import {
   determineRegion,
   validateRegionalAccess,
@@ -582,7 +586,7 @@ export async function validateAndPrepareFields(
   // Bank-owned listings (scraped from a bank portal) route ownership to the
   // regional office. bankUrl is the signal; validated by detectBankFromUrl.
   const bankUrl = args.bankUrl as string | undefined;
-  const isBankListing = !!bankUrl && isBankPropertyUrl(bankUrl);
+  const isBankListing = !!bankUrl && isBankPortalUrl(bankUrl);
   const reviewers = assignReviewers(
     agent,
     listingType,
