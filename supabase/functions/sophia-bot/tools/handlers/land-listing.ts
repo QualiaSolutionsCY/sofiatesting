@@ -9,7 +9,9 @@ import {
   DEFAULT_COORDINATES,
   REGIONAL_EMAILS,
 } from "../../config/business-rules.ts";
-import { isBankPropertyUrl } from "../../rules/bank-detection.ts";
+// Use portal-scraper detection (recognises all real bank-portal domains incl.
+// Altia/Altamira) instead of the narrower rules/bank-detection.ts list.
+import { isBankPortalUrl } from "../../services/portal-scraper.ts";
 import {
   determineRegion,
   validateRegionalAccess,
@@ -357,7 +359,7 @@ export async function handleCreateLandListing(
   // Bank-owned listings (scraped from a bank portal) route ownership to the
   // regional office. bankUrl is the signal; validated by detectBankFromUrl.
   const bankUrl = args.bankUrl as string | undefined;
-  const isBankListing = !!bankUrl && isBankPropertyUrl(bankUrl);
+  const isBankListing = !!bankUrl && isBankPortalUrl(bankUrl);
   const reviewers = assignReviewers(
     agent,
     listingType,

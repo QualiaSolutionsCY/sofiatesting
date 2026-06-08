@@ -14,7 +14,6 @@
  */
 
 import {
-  getAgentEmailByPhone,
   getPendingListingUploads,
   markListingExpired,
   markListingPublished,
@@ -28,49 +27,6 @@ import {
 const ZYPRUS_API_URL =
   Deno.env.get("ZYPRUS_API_URL") || "https://dev9.zyprus.com";
 const MAX_DRAFT_AGE_DAYS = 30;
-
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-
-/**
- * Send the publication confirmation email to the agent via Resend.
- * Best-effort: returns false on any failure (missing key, agent without an
- * email, Resend error) so the caller can continue without throwing.
- */
-async function sendPublishedEmail(
-  email: string,
-  propertyTitle: string,
-  viewUrl: string
-): Promise<boolean> {
-  if (!RESEND_API_KEY) return false;
-
-  const subject = `Your listing is live: ${propertyTitle}`;
-  const html =
-    `<p>Good news — your listing <strong>${propertyTitle}</strong> has been ` +
-    `published and is now live on Zyprus.com.</p>` +
-    `<p><a href="${viewUrl}">View it here</a><br>${viewUrl}</p>` +
-    `<p>If you need any changes, please contact the office.</p>` +
-    `<p>— SOPHIA</p>`;
-
-  try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: "SOPHIA <sophia@zyprus.com>",
-        to: email,
-        subject,
-        html,
-      }),
-      signal: AbortSignal.timeout(30_000),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
 
 // Get Zyprus credentials from environment (set via supabase secrets)
 const ZYPRUS_CLIENT_ID = Deno.env.get("ZYPRUS_CLIENT_ID");
@@ -206,7 +162,6 @@ Deno.serve(async (req: Request) => {
     const results = {
       checked: 0,
       notified: 0,
-      emailed: 0,
       expired: 0,
       errors: [] as string[],
     };
@@ -262,29 +217,9 @@ Deno.serve(async (req: Request) => {
                 results.notified++;
               }
 
-              // Also send the publication confirmation by email (Lauren: agents
-              // were not receiving the email with the live link). Best-effort —
-              // never let a missing email or Resend hiccup block marking the
-              // listing published.
-              try {
-                const agentEmail = await getAgentEmailByPhone(
-                  listing.agent_phone
-                );
-                if (agentEmail) {
-                  const sent = await sendPublishedEmail(
-                    agentEmail,
-                    listing.property_title,
-                    viewUrl
-                  );
-                  if (sent) results.emailed++;
-                }
-              } catch (emailErr) {
-                results.errors.push(
-                  `Email notify failed for ${listing.zyprus_listing_id}: ${
-                    emailErr instanceof Error ? emailErr.message : String(emailErr)
-                  }`
-                );
-              }
+              // Publication confirmation goes out on WhatsApp ONLY (Lauren,
+              // 2026-06-08: agents were getting two confirmations — one WhatsApp
+              // and one email — she wants a single WhatsApp message). No email.
 
               await markListingPublished(listing.id);
             } else {
@@ -307,7 +242,7 @@ Deno.serve(async (req: Request) => {
     }
 
     logger.info(
-      `[Listing Notifier] Checked ${results.checked}, notified ${results.notified}, emailed ${results.emailed}, expired ${results.expired}`,
+      `[Listing Notifier] Checked ${results.checked}, notified ${results.notified}, expired ${results.expired}`,
       {
         category: LogCategory.DATABASE,
       }
