@@ -98,6 +98,53 @@ async function lookupAgentFromSupabase(email: string): Promise<string | null> {
   }
 }
 
+/**
+ * Normalize a location word for fuzzy comparison: lowercase, strip accents,
+ * keep letters only. Smooths out Greek transliteration noise.
+ */
+function normalizeLocWord(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z]/g, "");
+}
+
+/** Levenshtein edit distance (small strings only). */
+function editDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+  let curr = new Array(n + 1).fill(0);
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+    }
+    [prev, curr] = [curr, prev];
+  }
+  return prev[n];
+}
+
+/**
+ * Fuzzy-equal for area names — true when normalized forms are equal or within
+ * a small edit distance (~20%, min 1). Catches transliteration variants like
+ * "Omonoia" ↔ "Omonia" and "Mouttagiaka" ↔ "Mouttayiaka". Requires both words
+ * to be reasonably long so short generic words don't false-match.
+ */
+function fuzzyAreaEq(a: string, b: string): boolean {
+  const na = normalizeLocWord(a);
+  const nb = normalizeLocWord(b);
+  if (na.length < 4 || nb.length < 4) return na === nb;
+  if (na === nb) return true;
+  const d = editDistance(na, nb);
+  const tol = Math.max(1, Math.floor(Math.max(na.length, nb.length) * 0.2));
+  return d <= tol;
+}
+
 /** Result from location UUID lookup — includes matched taxonomy name for title/description */
 export interface LocationResult {
   uuid: string;
@@ -261,10 +308,20 @@ export async function findLocationUuid(
     let districtFallbackNode: TaxonomyCache["locations"][0] | null = null;
     if (specifiedDistrict) {
       const terms = regionNameTerms[specifiedDistrict] || [];
+      // Prefer the MOST GENERIC district node (e.g. "Limassol City Centre")
+      // over a specific-area node that merely contains the district term
+      // (e.g. "Agios Nektarios, Limassol City Centre"). Fewest words = most
+      // generic. This is the safe fallback when the exact area can't be matched.
       districtFallbackNode =
-        taxonomy.locations.find((loc) =>
-          terms.some((t) => loc.name.toLowerCase().includes(t))
-        ) || null;
+        taxonomy.locations
+          .filter((loc) =>
+            terms.some((t) => loc.name.toLowerCase().includes(t))
+          )
+          .sort(
+            (a, b) =>
+              a.name.split(/[\s,]+/).filter(Boolean).length -
+              b.name.split(/[\s,]+/).filter(Boolean).length
+          )[0] || null;
       if (districtFallbackNode) {
         logger.debug(
           `[Taxonomy] District fallback for ${specifiedDistrict}: "${districtFallbackNode.name}"`,
@@ -279,6 +336,7 @@ export async function findLocationUuid(
       score: number;
       matchedWords: string[];
       bonusReason: string;
+      specificAreaMatched: boolean;
     }> = [];
 
     for (const loc of taxonomy.locations) {
@@ -302,13 +360,29 @@ export async function findLocationUuid(
         }
       }
 
+      // Did the SPECIFIC area (first word) match — exactly OR via a
+      // transliteration-tolerant fuzzy match (e.g. "Omonoia" ↔ "Omonia")?
+      // The fuzzy path also rescues nodes that share no exact word with the
+      // input so they aren't dropped by the matchedWords check below.
+      let specificAreaMatched = false;
+      if (firstWord) {
+        if (locNameLower.includes(firstWord)) {
+          specificAreaMatched = true;
+        } else if (locWords.some((lw) => fuzzyAreaEq(firstWord, lw))) {
+          specificAreaMatched = true;
+          if (!matchedWords.includes(firstWord)) matchedWords.push(firstWord);
+          score += 4; // treat the fuzzy area hit like an exact area-word match
+          bonusReason += `fuzzy:${firstWord} `;
+        }
+      }
+
       if (matchedWords.length === 0) {
         continue; // Skip locations with no matches
       }
 
       // CRITICAL: Strong bonus for matching the FIRST word (the specific location)
       // "Neapoli" should match "Neapoli" in the specified district
-      if (firstWord && locNameLower.includes(firstWord)) {
+      if (specificAreaMatched) {
         score += 20; // Very strong bonus for matching the specific location name
         bonusReason += `first-word:${firstWord} `;
       }
@@ -391,13 +465,36 @@ export async function findLocationUuid(
         }
       }
 
-      scoredMatches.push({ location: loc, score, matchedWords, bonusReason });
+      scoredMatches.push({
+        location: loc,
+        score,
+        matchedWords,
+        bonusReason,
+        specificAreaMatched,
+      });
     }
 
     // Sort by score descending, return best match
     if (scoredMatches.length > 0) {
       scoredMatches.sort((a, b) => b.score - a.score);
       const best = scoredMatches[0];
+
+      // GUARD: If the best match never matched the specific AREA (only the
+      // district word), do NOT return an arbitrary specific-area node — that is
+      // exactly how every unmatched Limassol area used to resolve to "Agios
+      // Nektarios". Prefer the generic district node and flag for manual review.
+      if (
+        specifiedDistrict &&
+        !best.specificAreaMatched &&
+        districtFallbackNode &&
+        districtFallbackNode.id !== best.location.id
+      ) {
+        logger.warn(
+          `[Taxonomy] No specific-area match for "${locationName}" — using district node "${districtFallbackNode.name}" instead of arbitrary "${best.location.name}". Reviewer should set the exact area.`,
+          { category: LogCategory.ZYPRUS }
+        );
+        return buildResult(districtFallbackNode, specifiedDistrict);
+      }
 
       // CRITICAL: When a district is specified, ONLY accept matches in that district
       // If the best match is in the wrong district, discard all matches and use fallback

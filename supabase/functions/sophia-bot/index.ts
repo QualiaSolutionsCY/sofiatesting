@@ -111,9 +111,20 @@ serve(async (req) => {
   // Taxonomy debug endpoint (temporary, unauthenticated, read-only)
   if (url.pathname.endsWith("/taxonomy-debug") && req.method === "GET") {
     const { loadTaxonomy } = await import("./zyprus/taxonomy-cache.ts");
+    // ?match=<location string> → run the real findLocationUuid resolver and
+    // return the node it maps to. Read-only diagnostic for location matching.
+    const matchInput = (url.searchParams.get("match") || "").trim();
+    if (matchInput) {
+      const { findLocationUuid } = await import("./zyprus/locations.ts");
+      const result = await findLocationUuid(matchInput);
+      return new Response(JSON.stringify({ input: matchInput, result }, null, 2), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     const query = (url.searchParams.get("q") || "").toLowerCase().trim();
     if (!query) {
-      return new Response(JSON.stringify({ error: "Missing ?q= param" }), {
+      return new Response(JSON.stringify({ error: "Missing ?q= or ?match= param" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
