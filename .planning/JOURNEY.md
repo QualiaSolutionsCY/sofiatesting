@@ -15,14 +15,14 @@ Full project — Zyprus Sophia WhatsApp/email assistant + admin panel.
 | 5 | v1.4 Security & Performance Hardening | CLOSED | 18-20 | 2026-03-01 |
 | 6 | v1.5 Audit Excellence | CLOSED | 21-25 | 2026-03-02 |
 | 7 | v1.6 Upload Pipeline Production Hardening | CLOSED | 26-27 | 2026-03-20 |
-| 8 | **v1.7 Sophia Invoice Embed** | **CURRENT** | 1-4 | - |
-| 9 | Handoff | OPEN | rolling | - |
+| 8 | v1.7 Sophia Invoice Embed | CLOSED | 1-4 | 2026-06-09 |
+| 9 | Handoff | CURRENT | 1-4 | - |
 
-> Milestones 1–7 are the historical shipped record (compressed view; the per-phase artifacts live in `.planning/archive/` if needed). Milestone 8 is the active port of `sophiainvoice` into this Vercel project per `.planning/decisions/001-sophiainvoice-embedded-port.md`.
+> Milestones 1–8 are the historical shipped record (compressed view; the per-phase artifacts live in `.planning/archive/` if needed). Milestone 8 (`sophiainvoice` embed per `.planning/decisions/001-sophiainvoice-embedded-port.md`) shipped to production and closed 2026-06-09. Milestone 9 (Handoff) is the active milestone.
 
 ---
 
-## Milestone 8: v1.7 Sophia Invoice Embed (CURRENT)
+## Milestone 8: v1.7 Sophia Invoice Embed (CLOSED — shipped + closed 2026-06-09)
 
 **Why now:** `sophiainvoice` shipped its own Milestone 3 (provider-agnostic integration queue, WasenderAPI-compatible webhook parser, dashboard delivery controls). With sophia-bot already on WasenderAPI in this repo, the cleanest next step is to vendor-port the invoicing UI + API into `sofiatesting` so the same Sophia, the same WhatsApp number, and the same authorized agents drive invoicing without a second deployment.
 
@@ -63,7 +63,7 @@ Full project — Zyprus Sophia WhatsApp/email assistant + admin panel.
 
 ---
 
-## Milestone 9: Handoff (OPEN)
+## Milestone 9: Handoff (CURRENT)
 
 **Goal:** Final production-readiness pass + client documentation for the unified Sophia + invoicing system.
 

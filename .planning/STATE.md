@@ -4,26 +4,26 @@
 See: .planning/PROJECT.md
 
 ## Current Position
-Phase: 1 of 4 — Read-only port
+Phase: 1 of 4 — Polish
 Status: setup
-Assigned to: Last activity: 2026-05-28 — Project initialized
+Assigned to: Profile: strict
 Profile: strict
-Last activity: 2026-06-07 — Session report QS-REPORT-02 generated
+Last activity: 2026-06-09 — Lauren QA fixes: bank-portal deed/location/year/features; sophia-bot deployed
 
 Progress: [░░░░░░░░░░] 0%
 
 ## Roadmap
 | # | Phase | Goal | Status |
 |---|-------|------|--------|
-| 1 | Read-only port | Lift invoicing UI/lib into /admin/invoices behind NextAuth with a second Supabase client. | ready |
-| 2 | Mutations + queue + manual provider | Wire dashboard mutations through the integration queue and manual provider. | — |
-| 3 | Sophia tool + intent endpoint | Expose /api/sophia/intent (HMAC) and add manageInvoice tool to sophia-bot with Fawzi-only allowlist. | — |
-| 4 | Marios reply forwarding + remaining intents + archive | Forward Marios replies to webhook, complete the intent set, archive sophiainvoice Vercel project. | — |
+| 1 | Polish | UX consistency, design tokens, copy, microcopy across the unified Sophia + invoicing admin surface. | ready |
+| 2 | Content + SEO | Admin docs, runbook, env reference, agent allowlist documentation. | — |
+| 3 | Final QA | Full regression (Sophia property uploads + invoicing) on staging + prod. | — |
+| 4 | Handoff | Credentials reference, walkthrough, archival of legacy sophiainvoice repo, final ERP closure. | — |
 
 ## Blockers
 None.
 
 ## Session
-Last session: 2026-06-07
-Last worked by: Last activity: 2026-05-28 — Project initialized
+Last session: 2026-06-09
+Last worked by: Profile: strict
 Resume: —
