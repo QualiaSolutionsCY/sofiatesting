@@ -47,6 +47,8 @@ export interface PortalListing {
   maxHeight?: number;
   planningZone?: string;
   reference?: string;
+  yearBuilt?: number;
+  titleDeedHint?: string;
   description?: string;
   imageUrls: string[];
   features: string[];
@@ -219,6 +221,16 @@ const EXTRACTION_SCHEMA = {
       description:
         "Listing reference / catalog code (e.g. 'PR40712', 'REF12345'). Usually labelled 'Ref.', 'Reference', 'Property No.', or 'Listing ID'.",
     },
+    yearBuilt: {
+      type: "number",
+      description:
+        "Construction year as a 4-digit integer (e.g. 2008). Look for 'Year of Build', 'Year Built', 'Construction Year', 'Built in', or 'Year of Construction'. Return null if not shown on the page.",
+    },
+    titleDeed: {
+      type: "string",
+      description:
+        "Title-deed status EXACTLY as written on the page — do not infer. Common bank-portal wording: 'Separate title deed', 'Title deed available', 'Title deed pending', 'Under division', 'Share of land'. If the page does not mention title deeds at all, return null (do NOT guess).",
+    },
     description: {
       type: "string",
       description: "Full property description / about / details text",
@@ -233,7 +245,7 @@ const EXTRACTION_SCHEMA = {
       type: "array",
       items: { type: "string" },
       description:
-        "Array of property features/amenities (e.g. 'swimming pool', 'air conditioning', 'parking', 'sea view', 'furnished'). Look under 'Features', 'Amenities', 'Characteristics', 'Specifications', or icon lists.",
+        "Array of property features/amenities ONLY where they are explicitly listed in a 'Features', 'Amenities', 'Services and facilities', 'Characteristics', or 'Specifications' section or icon list on the page. Do NOT infer features from photos, from the free-text description, or from the surrounding area. In particular, do NOT add any pool ('swimming pool', 'common pool', 'communal pool') unless the page explicitly lists a pool. If no features section exists, return an empty array.",
     },
   },
   required: ["title"],
@@ -670,6 +682,53 @@ function backfillFromMarkdown(md: string, result: PortalListing): void {
     if (m) result.reference = m[1];
   }
 
+  // Location — anchored on the 5 Cyprus districts so we never grab junk.
+  // Matches "District, Area" or "Area, District" near a known district name.
+  // Leaving location EMPTY when the page doesn't state it is correct — Sophia
+  // must then ask the agent rather than default to a guessed area.
+  if (!result.location) {
+    const DISTRICT = "(?:Nicosia|Lefkosia|Limassol|Lemesos|Larnaca|Larnaka|Paphos|Pafos|Famagusta|Ammochostos)";
+    // "Limassol, Ypsonas" / "Paphos - Kathikas"
+    const districtFirst = text.match(
+      new RegExp(`\\b(${DISTRICT})\\s*[,\\-–]\\s*([A-Z][A-Za-zΑ-Ωα-ω'’ -]{2,30})`)
+    );
+    // "Kathikas, Paphos"
+    const areaFirst = text.match(
+      new RegExp(`\\b([A-Z][A-Za-zΑ-Ωα-ω'’ -]{2,30})\\s*[,\\-–]\\s*(${DISTRICT})\\b`)
+    );
+    // Labelled "Location: …" / "Area: …" / "Region: …"
+    const labelled = text.match(
+      /(?:Location|Area|Region|Municipality)\s*[:\-–]\s*([A-Z][A-Za-zΑ-Ωα-ω'’ ,-]{3,40})/
+    );
+    const clean = (s: string) => s.replace(/\s+/g, " ").trim().replace(/[,\-–]\s*$/, "");
+    if (districtFirst) {
+      result.location = `${clean(districtFirst[1])}, ${clean(districtFirst[2])}`;
+    } else if (areaFirst) {
+      result.location = `${clean(areaFirst[2])}, ${clean(areaFirst[1])}`;
+    } else if (labelled) {
+      result.location = clean(labelled[1]);
+    }
+  }
+
+  // Year of build: "Year of Build 2008" / "Construction Year: 2012" / "Built in 1999".
+  if (result.yearBuilt === undefined) {
+    const m = text.match(
+      /(?:Year\s+(?:of\s+)?(?:Build|Built|Construction)|Construction\s+Year|Built\s+in)[^\d]{0,15}((?:19|20)\d{2})/i
+    );
+    if (m) {
+      const y = Number.parseInt(m[1], 10);
+      if (y >= 1900 && y <= 2100) result.yearBuilt = y;
+    }
+  }
+
+  // Title-deed hint — capture the page's exact wording; never inferred.
+  if (!result.titleDeedHint) {
+    const m = text.match(
+      /(Separate\s+title\s+deeds?|Title\s+deeds?\s+available|Title\s+deeds?\s+pending|Title\s+deeds?\s+not\s+available|Under\s+division|Share\s+of\s+land)/i
+    );
+    if (m) result.titleDeedHint = m[1].replace(/\s+/g, " ").trim();
+  }
+
   // Title: when extract returned nothing but the page has an H1.
   if (!result.title) {
     const m = text.match(/^#\s+(.{3,200})$/m);
@@ -865,6 +924,14 @@ function mergeFirecrawlData(
   }
   if (scraped.reference && typeof scraped.reference === "string") {
     result.reference = scraped.reference.trim();
+  }
+  const yearBuilt = coerceNumber(scraped.yearBuilt);
+  if (yearBuilt && yearBuilt >= 1900 && yearBuilt <= 2100) {
+    result.yearBuilt = Math.round(yearBuilt);
+  }
+  if (scraped.titleDeed && typeof scraped.titleDeed === "string") {
+    const td = scraped.titleDeed.trim();
+    if (td.length > 0 && td.length < 80) result.titleDeedHint = td;
   }
   if (scraped.propertyType && typeof scraped.propertyType === "string") {
     result.propertyType = scraped.propertyType.toLowerCase().trim();
@@ -1224,6 +1291,11 @@ export function formatPortalSummary(listing: PortalListing): string {
     parts.push(`Uncovered veranda: ${listing.uncoveredVeranda} sqm`);
   if (listing.energyCategory)
     parts.push(`Energy category: ${listing.energyCategory}`);
+  if (listing.yearBuilt) parts.push(`Year of build: ${listing.yearBuilt}`);
+  if (listing.titleDeedHint)
+    parts.push(
+      `Title deed (page wording — use this, do not reinterpret): ${listing.titleDeedHint}`
+    );
   if (listing.description) parts.push(`Description: ${listing.description}`);
   if (listing.features.length > 0)
     parts.push(`Features: ${listing.features.join(", ")}`);
@@ -1250,6 +1322,21 @@ export function formatPortalSummary(listing: PortalListing): string {
       `\nFields not found on the listing page: ${missing.join(", ")}. These specific fields were absent from the rendered HTML — do NOT invent reasons like "Cloudflare protection" or "limited data". Check the agent's message for any of these values they already gave; only ask for what's still missing. For bank-portal uploads, follow the BANK-PORTAL UPLOAD RULES above — never ask for owner name/phone or for photos to be resent.`
     );
   }
+
+  // Anti-hallucination guards for the fields agents most often catch wrong.
+  if (!listing.location) {
+    parts.push(
+      `\n⚠️ LOCATION was NOT found on this page. Do NOT guess it and do NOT fall back to any default area (never invent "Agios Nektarios" or similar). Ask the agent for the exact District + Area, or read it from the bank's reference link if they provided one.`
+    );
+  }
+  if (!listing.titleDeedHint) {
+    parts.push(
+      `\n⚠️ TITLE-DEED status was NOT stated on this page. Do NOT guess it (do not assume "pending" or "available"). Leave titleDeedStatus as "unknown" unless the agent or the bank's reference link explicitly states it.`
+    );
+  }
+  parts.push(
+    `\n⚠️ Only include features/amenities (pool, etc.) that are explicitly listed above under "Features". Never add "common pool" or any amenity that is not on the page.`
+  );
 
   return parts.join("\n");
 }

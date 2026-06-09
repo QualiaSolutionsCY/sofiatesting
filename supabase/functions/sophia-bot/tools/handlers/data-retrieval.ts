@@ -31,6 +31,21 @@ export interface ToolResult {
 }
 
 /**
+ * Map a bank-portal page's title-deed wording to the createPropertyListing
+ * titleDeedStatus enum. Only the page's own words are used — never inferred.
+ * Returns "unknown" for anything not clearly recognisable so the AI asks the
+ * agent rather than guessing.
+ */
+function mapDeedHintToStatus(hint: string): string {
+  const h = hint.toLowerCase();
+  if (/share\s+of\s+land/.test(h)) return "share_of_land";
+  if (/not\s+available/.test(h)) return "pending"; // Zyprus maps "pending" → "Not Available"
+  if (/pending|under\s+division|in\s+process/.test(h)) return "in_process";
+  if (/separate|available/.test(h)) return "separate";
+  return "unknown";
+}
+
+/**
  * Handle Zyprus data retrieval
  */
 export async function handleGetZyprusData(
@@ -257,7 +272,21 @@ export async function handleExtractFromBazaraki(
     mustCopy.push(`  owner_name: ""       // bank-owned: no private seller, leave empty`);
     mustCopy.push(`  owner_phone: ""`);
     mustCopy.push(`  locationUrl: ""    // IMPORTANT: leave empty. The bank URL goes in bankUrl only — it must NOT appear in locationUrl/owner_name or My Notes will leak it.`);
-    mustCopy.push(`  title_deed_status: "pending"`);
+    if (listing.yearBuilt)
+      mustCopy.push(`  year_built: ${listing.yearBuilt}`);
+    // Title deed: ONLY from the page's stated wording — never hardcode. Bank
+    // pages rarely state it; when absent, leave "unknown" and ask the agent.
+    // (Previously hardcoded "pending", which maps to "Not Available" on Zyprus
+    // and was wrong for properties that actually have a separate deed.)
+    if (listing.titleDeedHint) {
+      mustCopy.push(
+        `  title_deed_status: "${mapDeedHintToStatus(listing.titleDeedHint)}"    // from page wording: "${listing.titleDeedHint}"`
+      );
+    } else {
+      mustCopy.push(
+        `  title_deed_status: "unknown"    // page did NOT state deeds — confirm with agent; do NOT default to "pending"`
+      );
+    }
 
     const summary =
       formatPortalSummary(listing) +
@@ -265,16 +294,18 @@ export async function handleExtractFromBazaraki(
       mustCopy.join("\n") +
       `\n=== END MUST-COPY ===\n` +
       `\nBANK-PORTAL UPLOAD RULES:\n` +
-      `1. EVERY field in MUST-COPY above is already known. Copy each value into your createPropertyListing call exactly as shown. NEVER ask the agent for any of these fields — re-asking for an already-extracted field is forbidden.\n` +
+      `1. EVERY field in MUST-COPY above is already known. Copy each value into your createPropertyListing call exactly as shown. NEVER re-ask the agent for an already-extracted field that has a real value — the ONLY exceptions are fields explicitly flagged "unknown" or "confirm" (see rules 4 & 5 for title deed and location).\n` +
       `2. Bank link + owner: pass the source URL ("${url}") as the bankUrl argument — it automatically becomes the Own Reference ID AND assigns the regional office (request{region}@zyprus.com) as the listing owner. Bank-owned listings NEVER disclose a private seller: leave owner_name and owner_phone EMPTY and NEVER ask the agent for them. Do NOT pass the URL as locationUrl or owner_name — bankUrl is the only place it belongs.\n` +
       `2b. Location pin: if a "COORDINATES (bank map ...)" line appears in the summary above, pass those EXACT latitude/longitude values as the coordinates argument. NEVER guess coordinates from the area name — a guessed pin lands kilometres away.\n` +
       (listing.imageUrls.length > 0
         ? `3. Photos: ${listing.imageUrls.length} image URL(s) extracted — pass them through. Do NOT ask the agent to resend photos via WhatsApp.\n`
         : `3. Photos: 0 images were auto-read from the bank page. ⛔ Bank images ARE usable — NEVER claim "CDN blocks external access", "Cloudflare protection", or any similar invented reason for a bank link (that excuse is ONLY ever valid for Bazaraki, NEVER for bank portals). Say plainly: the gallery on this bank page could not be auto-read, and ask the agent to PASTE the photo URLs directly from the bank page (right-click each photo → copy image address). Do NOT say the images failed, are blocked, or are inaccessible.\n`) +
-      `4. Title deed: default "pending"; do not block.\n` +
-      `5. Bank name: detect from URL host (altamira/altia/remu/gogordian).\n` +
-      `6. NEVER claim "Cloudflare protection", "page didn't show price", or any other invented reason if a value IS in MUST-COPY above. State plainly only what is genuinely absent.\n` +
-      `7. Bank-owned listings are owned by the regional office (assigned automatically from the property's region via bankUrl) — you do NOT need to ask who to route it to. Proceed to create the draft; everything is extracted.`;
+      `4. Title deed: use ONLY the title_deed_status value in MUST-COPY (it reflects the page wording, or "unknown" if the page was silent). NEVER default to "pending" or "available" yourself. If it is "unknown", ASK the agent for the deed status before finalising — but do not block the other fields on it.\n` +
+      `5. Location: if the location in MUST-COPY is missing or only a city/district (no specific area), ASK the agent to confirm the exact area before uploading. Never substitute a default area.\n` +
+      `6. Features: include ONLY the features listed in MUST-COPY. If an amenity (pool, garden, gym…) is NOT in MUST-COPY, it is NOT on the page — do NOT add it. Never invent "common pool", "swimming pool", or any amenity the page does not list.\n` +
+      `7. Bank name: detect from URL host (altamira/altia/remu/gogordian).\n` +
+      `8. NEVER claim "Cloudflare protection", "page didn't show price", or any other invented reason if a value IS in MUST-COPY above. State plainly only what is genuinely absent.\n` +
+      `9. Bank-owned listings are owned by the regional office (assigned automatically from the property's region via bankUrl) — you do NOT need to ask who to route it to. Proceed to create the draft once everything in MUST-COPY is set; the only things you may still ask for are fields flagged "unknown"/"confirm" above (title deed, vague location).`;
 
     return {
       success: true,

@@ -471,12 +471,19 @@ export async function findLocationUuid(
       );
     }
 
-    // Ultimate fallback: return first location if available (ONLY when no district specified)
+    // NOTE: We deliberately do NOT fall back to taxonomy.locations[0] here.
+    // Returning the first location in the API response silently mislabelled
+    // every unmatched location as whatever happened to be first in the array
+    // (the "Agios Nektarios default" agents reported on bank-portal uploads).
+    // Instead we fall through to DEFAULT_LOCATION_UUID below — a consistent,
+    // obviously-placeholder value that is easy to spot and correct — while the
+    // bank-portal upload rules instruct the AI to confirm the real area with
+    // the agent rather than rely on a guess.
     if (!specifiedDistrict && taxonomy.locations.length > 0) {
-      logger.debug(
-        `[Taxonomy] WARNING: Using first available location for "${locationName}": ${taxonomy.locations[0].name}`
+      logger.warn(
+        `[Taxonomy] No confident match for "${locationName}" and no district given — using DEFAULT location (not the arbitrary first taxonomy entry). Agent should confirm the area.`,
+        { category: LogCategory.ZYPRUS }
       );
-      return buildResult(taxonomy.locations[0], null);
     }
   } catch (error) {
     logger.error(
