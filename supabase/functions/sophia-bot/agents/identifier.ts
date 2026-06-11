@@ -4,7 +4,7 @@
  */
 
 import { getSupabaseAdmin } from "../../_shared/db.ts";
-import { USER_FALLBACKS } from "../config/business-rules.ts";
+import { REGIONAL_EMAILS, USER_FALLBACKS } from "../config/business-rules.ts";
 import { LogCategory, logger } from "../utils/logger.ts";
 
 export interface Agent {
@@ -214,4 +214,38 @@ export async function getAgentsByRegion(region: string): Promise<Agent[]> {
   }
 
   return data.map((d: Record<string, unknown>) => mapAgentData(d));
+}
+
+/**
+ * Resolve the regional managers for the office that owns a bank listing.
+ *
+ * Bank listings are owned by a regional office account
+ * (`request{region}@zyprus.com`) whose stored mobile is an unreachable
+ * placeholder (`+357 9000000x`) — so the publish confirmation must instead go
+ * to the real managers of that region (`role = 'manager'`). The office accounts
+ * themselves are `role = 'agent'`, so the role filter naturally excludes their
+ * placeholder numbers. Returns `[]` for an unknown office email so the caller
+ * can fall back to the uploader.
+ */
+export async function getOfficeManagers(
+  regionalOfficeEmail: string
+): Promise<Agent[]> {
+  // Invert REGIONAL_EMAILS (region → office email) to recover the region.
+  const region = Object.keys(REGIONAL_EMAILS).find(
+    (r) => REGIONAL_EMAILS[r] === regionalOfficeEmail
+  );
+  if (!region) return [];
+
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("agents")
+    .select("*")
+    .eq("region", region)
+    .eq("role", "manager");
+
+  if (error || !data) return [];
+
+  return data
+    .map((d: Record<string, unknown>) => mapAgentData(d))
+    .filter((a) => !!a.mobile);
 }

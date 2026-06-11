@@ -205,15 +205,23 @@ Deno.serve(async (req: Request) => {
             if (status.published) {
               const viewUrl = status.publicUrl || listing.listing_url;
 
-              // Send WhatsApp notification to the agent with the public URL
-              const phone = formatPhoneNumber(listing.agent_phone);
-              if (phone) {
-                const message =
-                  `Your listing "${listing.property_title}" has been published and is now live on Zyprus.com.\n\n` +
-                  `View it here: ${viewUrl}\n\n` +
-                  "If you need any changes, please contact the office.";
+              // Send WhatsApp notification with the public URL. agent_phone may
+              // hold a comma-separated list — bank listings notify every manager
+              // of the region — so fan out to each reachable recipient.
+              const message =
+                `Your listing "${listing.property_title}" has been published and is now live on Zyprus.com.\n\n` +
+                `View it here: ${viewUrl}\n\n` +
+                "If you need any changes, please contact the office.";
 
+              const recipients = listing.agent_phone
+                .split(",")
+                .map((p) => formatPhoneNumber(p.trim()))
+                .filter((p): p is string => !!p);
+
+              for (const phone of recipients) {
                 await sendTextMessage(phone, message);
+              }
+              if (recipients.length > 0) {
                 results.notified++;
               }
 

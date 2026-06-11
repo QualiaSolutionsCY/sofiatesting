@@ -4,7 +4,11 @@
  */
 
 import { trackListingUpload } from "../../../_shared/db.ts";
-import { type Agent, getAgentByEmail } from "../../agents/identifier.ts";
+import {
+  type Agent,
+  getAgentByEmail,
+  getOfficeManagers,
+} from "../../agents/identifier.ts";
 import { DEFAULT_COORDINATES } from "../../config/business-rules.ts";
 import { isBankPropertyUrl } from "../../rules/bank-detection.ts";
 import { checkForDuplicates } from "../../services/duplicate-checker.ts";
@@ -574,10 +578,27 @@ export async function handleCreatePropertyListing(
       }
     );
 
-    // Notify the listing OWNER (assignee), not the uploader, when assignTo is used
+    // Notify the listing OWNER (assignee), not the uploader, when assignTo is used.
+    // Bank listings are owned by the regional office account, whose stored mobile
+    // is an unreachable placeholder — for those, notify the region's real managers
+    // so the people who own bank listings hear about the publish (Lauren, 2026-06-11).
     let notifyPhone = agentPhone;
     let notifyName = agent!.fullName;
-    if (reviewers.listingOwner !== agent!.communicationEmail) {
+    if (isBankListing) {
+      try {
+        const managers = (
+          await getOfficeManagers(reviewers.listingOwner)
+        ).filter((m) => m.mobile);
+        if (managers.length > 0) {
+          notifyPhone = managers
+            .map((m) => m.mobile.replace(/\D/g, ""))
+            .join(",");
+          notifyName = managers.map((m) => m.fullName).join(" & ");
+        }
+      } catch {
+        /* fall back to uploader */
+      }
+    } else if (reviewers.listingOwner !== agent!.communicationEmail) {
       try {
         const assignedAgent = await getAgentByEmail(reviewers.listingOwner);
         if (assignedAgent?.mobile) {
