@@ -823,9 +823,15 @@ export async function handleCreateLandListing(
   // 11. Generate My Notes (location URL + reviewer assignments + duplicates)
   const myNotesLines: string[] = [];
 
-  // Google Maps URL
+  // Google Maps URL — user-provided link, or one built from the resolved
+  // coordinates. Bank land listings carry portal coordinates but no user link,
+  // so without this fallback the reviewer got no map pin (Lauren, 2026-06-11).
   if (locationUrl) {
     myNotesLines.push(`Google Maps: ${locationUrl}`);
+  } else if (resolvedCoordinates) {
+    myNotesLines.push(
+      `Google Maps: https://www.google.com/maps/place/${resolvedCoordinates.lat},${resolvedCoordinates.lon}`
+    );
   }
 
   // Owner contact info
@@ -970,6 +976,15 @@ export async function handleCreateLandListing(
       listingUrl: result.listingUrl,
     });
 
+    // Show the Google Maps link in the confirmation, matching property uploads:
+    // the user's link if given, else one built from the resolved coordinates
+    // (so bank land listings surface their portal pin too).
+    const mapsLink = locationUrl
+      ? locationUrl
+      : resolvedCoordinates
+        ? `https://www.google.com/maps/place/${resolvedCoordinates.lat},${resolvedCoordinates.lon}`
+        : null;
+
     return {
       success: true,
       message:
@@ -977,6 +992,7 @@ export async function handleCreateLandListing(
         `📍 Location: ${descriptionLocation}\n` +
         `📏 Land Size: ${args.landSize}m²\n` +
         `💰 Price: €${(args.price as number).toLocaleString()}\n\n` +
+        (mapsLink ? `📍 Google Maps: ${mapsLink}\n\n` : "") +
         `🔗 View on Zyprus: ${result.listingUrl}\n\n` +
         "The listing is currently UNPUBLISHED and assigned to:\n" +
         `• Reviewer 1: ${reviewers.reviewer1}\n` +
