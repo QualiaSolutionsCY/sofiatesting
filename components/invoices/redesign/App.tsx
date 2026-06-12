@@ -17,6 +17,7 @@ import {
   updateDocumentAction
 } from "@/lib/invoices/actions/documents";
 import { invoicesToDocs } from "@/lib/invoices/redesign/adapter";
+import { downloadDocumentPdf } from "@/lib/invoices/downloads";
 import { RECURRING, clientById, nowStamp, replaceClientRegistry, todayStamp } from "@/lib/invoices/redesign/data";
 import type {
   Client,
@@ -81,6 +82,45 @@ function formToDocumentInput(form: ComposerForm): DocumentInput {
   };
 }
 
+/**
+ * Build an InvoiceDocument from a redesign Doc for client-side PDF generation.
+ * Totals mirror TemplatePreview (lines treated as net, VAT from doc.vatRate) so the
+ * downloaded PDF matches the on-screen preview exactly.
+ */
+function docToInvoiceDocument(doc: Doc, clientName: string): InvoiceDocument {
+  const sub = (doc.lines ?? []).reduce((s, l) => s + l.qty * l.unitPrice, 0) || Math.abs(doc.total);
+  const rate = doc.vatRate || 0;
+  const vatAmount = (sub * rate) / 100;
+  return {
+    id: doc.id,
+    kind: doc.kind === "credit" ? "credit-note" : doc.kind,
+    clientName,
+    billToLabel: clientById(doc.client).property || "",
+    description: doc.description,
+    amount: sub,
+    vatMode: doc.vatMode,
+    vatAmount,
+    total: sub + vatAmount,
+    currency: "EUR",
+    issueDate: doc.issued,
+    dueDate: doc.due,
+    recurrence: "none",
+    draftNumber: doc.draftNo ?? "DRAFT",
+    officialNumber: doc.officialNo ?? undefined,
+    status: doc.stage,
+    paymentStatus: "not-required",
+    receiptNumber: doc.receiptNo,
+    sourceInvoiceNumber: doc.appliesTo,
+    requiresCommissionPerson: false,
+    storageStatus: "not-generated",
+    whatsappStatus: "planned",
+    mariosReviewPhone: "",
+    accountingGroupLabel: "",
+    approvalTimeline: [],
+    notes: []
+  };
+}
+
 export default function App({ initialDocs, initialClients, persistenceMode, preAuthed = false }: AppProps) {
   useMemo(() => replaceClientRegistry(initialClients), [initialClients]);
 
@@ -90,6 +130,8 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
   const [filters, setFilters] = useState<Filters>({ kind: "all", stage: "all", q: "", from: "", to: "" });
   const [sharedCc, setSharedCc] = useState("+357 99 040 117");
   const [accountingEmail, setAccountingEmail] = useState("accounting@zyprus.cy");
+  // Marios-edited delivery messages, keyed by `${docId}:${channelKey}`. Session-scoped.
+  const [messageOverrides, setMessageOverrides] = useState<Record<string, string>>({});
   const [autoRoute, setAutoRoute] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerPrefill, setComposerPrefill] = useState<Partial<Doc> | null>(null);
@@ -278,7 +320,12 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         setToast("Document link copied to clipboard.");
         break;
       case "download":
-        setToast(`Downloading ${selected.pdf || "draft PDF"}…`);
+        try {
+          downloadDocumentPdf(docToInvoiceDocument(selected, clientById(selected.client).name));
+          setToast("PDF downloaded.");
+        } catch {
+          setToast("Could not generate the PDF. Try Regenerate, then download again.");
+        }
         break;
       case "credit": {
         // Credit notes are only ever created from an existing invoice — never from scratch.
@@ -300,6 +347,24 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         });
         break;
       }
+      case "mark-paid":
+        if (selected.stage !== "numbered") {
+          setToast("Only a numbered invoice can be marked paid.");
+          break;
+        }
+        startTransition(async () => {
+          const result = await markPaidAndIssueReceiptAction(selected.id);
+          reconcile(result.documents, result.selectedId ?? selected.id);
+          setToast("Marked paid · receipt generated and sent.");
+        });
+        break;
+      case "send-marios":
+        startTransition(async () => {
+          const result = await sendToMariosAction(selected.id);
+          reconcile(result.documents, selected.id);
+          setToast("Sent to Marios via WhatsApp.");
+        });
+        break;
       case "regenerate":
         startTransition(async () => {
           const result = await regenerateStoredDocumentAction(selected.id);
@@ -454,6 +519,10 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           operator={operator}
           onAct={handleAct}
           onOpenLightbox={setLightboxDoc}
+          messageOverrides={messageOverrides}
+          onSaveMessage={(key, text) =>
+            setMessageOverrides((prev) => ({ ...prev, [key]: text }))
+          }
           onUpdateDoc={(id, form) => {
             const sub = form.lines.reduce((s, l) => s + (l.qty || 0) * (l.unitPrice || 0), 0);
             const targetDoc = docs.find((d) => d.id === id);

@@ -3,6 +3,8 @@
 import {
   Activity,
   AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
   Command,
   Copy,
   Download,
@@ -11,14 +13,15 @@ import {
   Hash,
   Mail,
   MessageCircle,
-  MoreHorizontal,
+  Pencil,
   RefreshCw,
+  Send,
   Trash2
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CLIENTS, ENTITY, clientById, fmt, metrics } from "@/lib/invoices/redesign/data";
 import { STAGES } from "@/lib/invoices/redesign/data";
-import { nextNumber, primaryAction, stageHeadline } from "@/lib/invoices/redesign/stages";
+import { nextNumber, stageHeadline } from "@/lib/invoices/redesign/stages";
 import type { Doc } from "@/lib/invoices/redesign/types";
 import { TemplatePreview } from "./TemplatePreview";
 
@@ -32,6 +35,9 @@ interface DetailPaneProps {
   onOpenLightbox: (doc: Doc) => void;
   onUpdateDoc: (docId: string, form: InlineDocFormState) => void;
   onCorrectResendDoc: (docId: string, form: InlineDocFormState, reason: string) => void;
+  /** Marios-edited delivery messages, keyed by `${docId}:${channelKey}`. */
+  messageOverrides: Record<string, string>;
+  onSaveMessage: (key: string, text: string) => void;
 }
 
 type VatMode = "plus-vat" | "included-vat" | "no-vat";
@@ -488,13 +494,25 @@ function DeliveryPlan({
   doc,
   sharedCc,
   accountingEmail,
-  onAct
+  onAct,
+  messageOverrides,
+  onSaveMessage
 }: {
   doc: Doc;
   sharedCc: string;
   accountingEmail: string;
   onAct: (action: string) => void;
+  messageOverrides: Record<string, string>;
+  onSaveMessage: (key: string, text: string) => void;
 }) {
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+
+  // Reset any open editor when switching documents.
+  useEffect(() => {
+    setEditingKey(null);
+  }, [doc.id]);
+
   const cl = clientById(doc.client);
   const hasNumber = !!doc.officialNo;
   const clientHandle = cl.name.split(",")[0].split(" ")[0];
@@ -640,31 +658,90 @@ function DeliveryPlan({
         </strong>
       </div>
       <div className="delivery-card-grid">
-        {cards.map((c) => (
-          <div key={c.key} className="delivery-card">
-            <div>
-              <span>{c.eyebrow}</span>
-              <strong>{c.title}</strong>
-            </div>
-            <div className="channels">
-              {c.channels.map((ch, i) => (
-                <div key={i} className="channel">
-                  <span className="channel-ic">{ch.ic}</span>
-                  <span className="channel-addr">{ch.addr}</span>
-                  <span className={`channel-state ${ch.state === "ready" ? "ok" : ch.state}`}>{ch.stateLabel}</span>
+        {cards.map((c) => {
+          const msgKey = `${doc.id}:${c.key}`;
+          const displayMsg = messageOverrides[msgKey] ?? c.msg;
+          const isEditing = editingKey === msgKey;
+          const isEdited = messageOverrides[msgKey] !== undefined;
+          const startEdit = () => {
+            setDraft(displayMsg);
+            setEditingKey(msgKey);
+          };
+          return (
+            <div key={c.key} className="delivery-card">
+              <div>
+                <span>{c.eyebrow}</span>
+                <strong>{c.title}</strong>
+              </div>
+              <div className="channels">
+                {c.channels.map((ch, i) => (
+                  <div key={i} className="channel">
+                    <span className="channel-ic">{ch.ic}</span>
+                    <span className="channel-addr">{ch.addr}</span>
+                    <span className={`channel-state ${ch.state === "ready" ? "ok" : ch.state}`}>{ch.stateLabel}</span>
+                  </div>
+                ))}
+              </div>
+              {isEditing ? (
+                <div className="delivery-message-edit">
+                  <textarea
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                    rows={5}
+                    aria-label={`Edit ${c.title} message`}
+                    autoFocus
+                  />
+                  <div className="delivery-edit-actions">
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={() => {
+                        onSaveMessage(msgKey, draft);
+                        setEditingKey(null);
+                      }}
+                    >
+                      Save message
+                    </button>
+                    <button type="button" className="ghost" onClick={() => setEditingKey(null)}>
+                      Cancel
+                    </button>
+                    {isEdited ? (
+                      <button
+                        type="button"
+                        className="ghost"
+                        onClick={() => {
+                          onSaveMessage(msgKey, c.msg);
+                          setEditingKey(null);
+                        }}
+                      >
+                        Reset to default
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
-              ))}
+              ) : (
+                <>
+                  <pre className="delivery-message">
+                    {displayMsg}
+                    {isEdited ? <span className="delivery-message-edited">edited</span> : null}
+                  </pre>
+                  <div className="delivery-card-actions">
+                    <button type="button" className="delivery-edit-btn" onClick={startEdit}>
+                      <Pencil size={12} strokeWidth={1.7} /> Edit message
+                    </button>
+                    {c.actions
+                      .filter((a) => !a.id.endsWith("-edit"))
+                      .map((a) => (
+                        <button key={a.id} type="button" disabled={c.disabled} onClick={() => onAct(a.id)}>
+                          {a.label}
+                        </button>
+                      ))}
+                  </div>
+                </>
+              )}
             </div>
-            <pre className="delivery-message">{c.msg}</pre>
-            <div className="delivery-card-actions">
-              {c.actions.map((a) => (
-                <button key={a.id} type="button" disabled={c.disabled} onClick={() => onAct(a.id)}>
-                  {a.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -699,8 +776,8 @@ function Timeline({ events }: { events: Doc["timeline"] }) {
   );
 }
 
-export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, onAct, onOpenLightbox, onUpdateDoc, onCorrectResendDoc }: DetailPaneProps) {
-  const [moreOpen, setMoreOpen] = useState(false);
+export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, onAct, onOpenLightbox, onUpdateDoc, onCorrectResendDoc, messageOverrides, onSaveMessage }: DetailPaneProps) {
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   if (!doc) {
     const m = metrics(allDocs);
@@ -749,7 +826,18 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, 
   const cl = clientById(doc.client);
   const stage = Object.values(STAGES).find((s) => s.id === doc.stage) ?? STAGES.DRAFT;
   const head = stageHeadline(doc.stage);
-  const action = primaryAction(doc.stage, doc);
+
+  // Which actions apply to the current document. The Actions menu is always the
+  // same shape (no scenario-dependent green button) — items that don't apply are
+  // simply disabled so the control never shifts under Marios.
+  const isInvoice = doc.kind === "invoice";
+  const canMarkPaid = doc.stage === "numbered" && doc.kind !== "credit";
+  const canCredit = isInvoice && !!doc.officialNo && doc.stage !== "credited" && doc.stage !== "cancelled";
+  const canCancel = doc.stage !== "sent-to-accounting" && doc.stage !== "cancelled" && doc.stage !== "credited";
+  const runAction = (id: string) => {
+    onAct(id);
+    setActionsOpen(false);
+  };
 
   const linked = doc.creditedBy ? allDocs.find((dd) => dd.id === doc.creditedBy) : null;
   const linkedInvoice = doc.kind === "credit" && doc.appliesToId ? allDocs.find((dd) => dd.id === doc.appliesToId) : null;
@@ -764,47 +852,49 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, 
     <aside className="detail-pane">
       <header className="detail-header">
         <div className="detail-header-actions">
-          <button type="button" className="primary-action stage-cta" onClick={() => onAct(stage.id)} title={action.small}>
-            {action.icon}
-            <span>{action.label}</span>
-          </button>
+          <details
+            className="actions-menu"
+            open={actionsOpen}
+            onToggle={(event) => setActionsOpen((event.currentTarget as HTMLDetailsElement).open)}
+          >
+            <summary aria-label="Actions" title="Actions">
+              <span>Actions</span>
+              <ChevronDown size={15} strokeWidth={1.7} />
+            </summary>
+            <div className="actions-menu-items" role="menu">
+              <button type="button" role="menuitem" onClick={() => runAction("mark-paid")} disabled={!canMarkPaid}>
+                <CheckCircle2 size={14} strokeWidth={1.7} /> Mark as paid — issue receipt
+              </button>
+              <button type="button" role="menuitem" onClick={() => runAction("credit")} disabled={!canCredit}>
+                <FileMinus size={14} strokeWidth={1.7} /> Issue a credit note
+              </button>
+              <button type="button" role="menuitem" onClick={() => runAction("regenerate")}>
+                <RefreshCw size={14} strokeWidth={1.7} /> Regenerate PDF
+              </button>
+              <button type="button" role="menuitem" onClick={() => runAction("send-marios")}>
+                <Send size={14} strokeWidth={1.7} /> Send to Marios (WhatsApp)
+              </button>
+              <button type="button" role="menuitem" onClick={() => runAction("duplicate")}>
+                <Copy size={14} strokeWidth={1.7} /> Duplicate as new draft
+              </button>
+              <div className="actions-menu-divider" role="separator" />
+              <button
+                type="button"
+                role="menuitem"
+                className="danger"
+                onClick={() => runAction("cancel")}
+                disabled={!canCancel}
+              >
+                <Trash2 size={14} strokeWidth={1.7} /> Cancel this {kindLabel.toLowerCase()}
+              </button>
+            </div>
+          </details>
           <button type="button" className="icon-button" title="Preview PDF" aria-label="Preview PDF" onClick={() => onAct("preview")}>
             <Eye size={15} strokeWidth={1.6} />
           </button>
           <button type="button" className="icon-button" title="Download PDF" aria-label="Download PDF" onClick={() => onAct("download")}>
             <Download size={15} strokeWidth={1.6} />
           </button>
-          <details
-            className="overflow-menu"
-            open={moreOpen}
-            onToggle={(event) => setMoreOpen((event.currentTarget as HTMLDetailsElement).open)}
-          >
-            <summary aria-label="More actions" title="More actions">
-              <MoreHorizontal size={15} strokeWidth={1.6} />
-            </summary>
-            <div className="overflow-menu-items" role="menu">
-              <button type="button" role="menuitem" onClick={() => { onAct("duplicate"); setMoreOpen(false); }}>
-                <Copy size={13} strokeWidth={1.7} /> Duplicate as new draft
-              </button>
-              {doc.kind === "invoice" && doc.stage === "numbered" ? (
-                <button type="button" role="menuitem" onClick={() => { onAct("credit"); setMoreOpen(false); }}>
-                  <FileMinus size={13} strokeWidth={1.7} /> Issue a credit note
-                </button>
-              ) : null}
-              <button type="button" role="menuitem" onClick={() => { onAct("regenerate"); setMoreOpen(false); }}>
-                <RefreshCw size={13} strokeWidth={1.7} /> Regenerate PDF
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="danger"
-                onClick={() => { onAct("cancel"); setMoreOpen(false); }}
-                disabled={doc.stage === "sent-to-accounting"}
-              >
-                <Trash2 size={13} strokeWidth={1.7} /> Cancel this {kindLabel.toLowerCase()}
-              </button>
-            </div>
-          </details>
         </div>
         <div className="detail-header-main">
           <p className="eyebrow">
@@ -853,7 +943,14 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, 
       />
 
       <section className="detail-section" id="sending">
-        <DeliveryPlan doc={doc} sharedCc={sharedCc} accountingEmail={accountingEmail} onAct={onAct} />
+        <DeliveryPlan
+          doc={doc}
+          sharedCc={sharedCc}
+          accountingEmail={accountingEmail}
+          onAct={onAct}
+          messageOverrides={messageOverrides}
+          onSaveMessage={onSaveMessage}
+        />
       </section>
 
       {hasRelated ? (

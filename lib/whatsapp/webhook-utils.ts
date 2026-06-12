@@ -31,8 +31,8 @@ export const verifyWebhookSignature = (
   // Use timing-safe comparison to prevent timing attacks
   try {
     return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
+      new Uint8Array(Buffer.from(signature)),
+      new Uint8Array(Buffer.from(expectedSignature))
     );
   } catch {
     // If buffers have different lengths, timingSafeEqual throws
