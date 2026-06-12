@@ -24,7 +24,9 @@ function verifySignature(raw: string, sig: string | null): boolean {
     return false;
   }
   if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+  // Wrap in a fresh Uint8Array<ArrayBuffer> — Buffer's ArrayBufferLike backing is
+  // not assignable to the timingSafeEqual ArrayBufferView param under newer @types/node.
+  return timingSafeEqual(new Uint8Array(a), new Uint8Array(b));
 }
 
 export async function POST(req: Request) {

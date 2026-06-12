@@ -3998,6 +3998,24 @@ em, i, .filters-disclosure > summary em {
     width: 100%;
     page-break-inside: avoid;
   }
+
+  /* PDF preview lightbox: when open, print ONLY its template — drop the binder
+     chrome and hide the underlying detail-pane template so nothing double-prints. */
+  .binder-backdrop {
+    position: static;
+    background: white;
+    display: block;
+    padding: 0;
+  }
+  .binder-stage { box-shadow: none; border: 0; max-width: none; width: 100%; }
+  .binder-bar,
+  .binder-foot,
+  .binder-page.behind {
+    display: none !important;
+  }
+  .binder-page { box-shadow: none; border: 0; }
+  .binder-page::after { display: none; }
+  body:has(.binder-backdrop) .detail-pane { display: none !important; }
 }
 
 
@@ -5996,7 +6014,7 @@ body {
 
 /* Sidebar */
 .sidebar {
-  width: 220px;
+  width: clamp(320px, 26vw, 440px);
   flex-shrink: 0;
   background: var(--surface);
   border-right: 1px solid var(--rule);
@@ -6493,6 +6511,113 @@ body {
 .overflow-menu-items button.danger { color: var(--red-strong); }
 .overflow-menu-items button.danger:hover { background: var(--red-weak); }
 .overflow-menu-items button[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+/* Actions dropdown — single consistent menu replacing the scenario-dependent CTA */
+.actions-menu { position: relative; }
+.actions-menu > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--paper, var(--surface));
+  border: 1px solid var(--ink);
+  cursor: pointer;
+  list-style: none;
+  white-space: nowrap;
+  transition: opacity 140ms var(--ease);
+}
+.actions-menu > summary:hover { opacity: 0.88; }
+.actions-menu > summary::-webkit-details-marker { display: none; }
+.actions-menu > summary::marker { content: ""; }
+.actions-menu > summary svg { transition: transform 160ms var(--ease); }
+.actions-menu[open] > summary svg { transform: rotate(180deg); }
+.actions-menu-items {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  min-width: 260px;
+  z-index: 30;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.actions-menu-items button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  color: var(--ink);
+  cursor: pointer;
+  width: 100%;
+  font-family: inherit;
+}
+.actions-menu-items button svg { color: var(--muted); flex-shrink: 0; }
+.actions-menu-items button:hover { background: var(--surface-2); }
+.actions-menu-items button.danger { color: var(--red-strong); }
+.actions-menu-items button.danger svg { color: var(--red-strong); }
+.actions-menu-items button.danger:hover { background: var(--red-weak); }
+.actions-menu-items button[disabled] { opacity: 0.45; cursor: not-allowed; }
+.actions-menu-items button[disabled]:hover { background: transparent; }
+.actions-menu-divider { height: 1px; background: var(--rule); margin: 4px 2px; }
+
+/* Editable delivery messages (Marios can rewrite any WhatsApp/email message) */
+.delivery-message-edited {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--brand-weak);
+  color: var(--brand-strong);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.delivery-message-edit { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; }
+.delivery-message-edit textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 88px;
+  padding: 10px 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+.delivery-message-edit textarea:focus { outline: none; border-color: var(--brand); }
+.delivery-edit-actions { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+.delivery-edit-actions button {
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid var(--rule-strong);
+  background: var(--surface);
+  color: var(--ink);
+}
+.delivery-edit-actions button.primary { background: var(--ink); color: var(--paper, var(--surface)); border-color: var(--ink); }
+.delivery-edit-actions button.ghost { background: transparent; color: var(--ink-soft); }
+.delivery-edit-actions button:hover { opacity: 0.88; }
+.delivery-card-actions .delivery-edit-btn { display: inline-flex; align-items: center; gap: 6px; }
 
 /* Stage banner — only when stage requires acknowledgement */
 .stage-banner {
