@@ -58,7 +58,7 @@ console.log(`[Startup] Sentry enabled: ${isSentryEnabled()}`);
 
 // OpenRouter API configuration
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const AI_MODEL = "google/gemini-3.1-pro-preview-customtools";
+const AI_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
 
 // Indexer URL - forward all updates so telegram-indexer keeps working
 const INDEXER_URL =

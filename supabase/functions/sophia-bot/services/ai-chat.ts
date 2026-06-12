@@ -30,10 +30,11 @@ const OPENROUTER_CIRCUIT = {
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Sonnet 4.6 for everything — fast, reliable tool calling, consistent behavior
-const PRIMARY_MODEL = "anthropic/claude-sonnet-4.6";
-const PRO_MODEL = "anthropic/claude-sonnet-4.6";
-const FALLBACK_MODEL = "google/gemini-2.5-flash";
+// Free-tier primary (Nemotron 3 Ultra 550B — strongest free model with tool calling on OpenRouter)
+// Paid fallback kicks in when the free tier rate-limits or errors
+const PRIMARY_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
+const PRO_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
+const FALLBACK_MODEL = "anthropic/claude-sonnet-4.6";
 
 interface AIResponse {
   response: string;

@@ -17,7 +17,7 @@ import { LogCategory, logger } from "../sophia-bot/utils/logger.ts";
 
 const supabase = getSupabaseAdmin();
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-const OPTIMIZER_MODEL = "google/gemini-2.0-flash-001";
+const OPTIMIZER_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
 
 // Skip list loaded from DB
 let skipKeys: Set<string> | null = null;

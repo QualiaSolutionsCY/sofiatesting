@@ -309,7 +309,7 @@ async function processRequest(
 
     // Add breadcrumb before AI call
     addBreadcrumb("Calling OpenRouter", "ai", {
-      model: "google/gemini-3.1-pro-preview",
+      model: "nvidia/nemotron-3-ultra-550b-a55b:free",
     });
 
     // Call AI
