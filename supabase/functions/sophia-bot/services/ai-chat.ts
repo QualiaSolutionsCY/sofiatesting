@@ -30,10 +30,14 @@ const OPENROUTER_CIRCUIT = {
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Sonnet 4.6 for everything — fast, reliable tool calling, consistent behavior
-const PRIMARY_MODEL = "anthropic/claude-sonnet-4.6";
-const PRO_MODEL = "anthropic/claude-sonnet-4.6";
-const FALLBACK_MODEL = "google/gemini-2.5-flash";
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+const GEMINI_URL =
+  "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+
+// Gemini 3.5 Flash as primary — direct Google API; Claude Sonnet as fallback via OpenRouter
+const PRIMARY_MODEL = "gemini-3.5-flash";
+const PRO_MODEL = "gemini-3.5-flash";
+const FALLBACK_MODEL = "anthropic/claude-sonnet-4.6";
 
 interface AIResponse {
   response: string;
@@ -360,13 +364,23 @@ async function callOpenRouter(
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       try {
-        const aiRes = await fetch(OPENROUTER_URL, {
+        const isGeminiModel =
+          model === "gemini-3.5-flash" || model === "gemini-2.5-flash";
+        const apiUrl = isGeminiModel ? GEMINI_URL : OPENROUTER_URL;
+        const apiKey = isGeminiModel ? GEMINI_API_KEY : OPENROUTER_API_KEY;
+        const extraHeaders = isGeminiModel
+          ? {}
+          : {
+              "HTTP-Referer": "https://sophia-ai.vercel.app",
+              "X-Title": "SOPHIA WhatsApp Bot",
+            };
+
+        const aiRes = await fetch(apiUrl, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://sophia-ai.vercel.app",
-            "X-Title": "SOPHIA WhatsApp Bot",
+            ...extraHeaders,
           },
           body: JSON.stringify({
             model,
@@ -475,8 +489,8 @@ export async function chat(
   identifiedAgent: Agent | null,
   phoneNumber: string
 ): Promise<AIResponse> {
-  if (!OPENROUTER_API_KEY) {
-    logger.error("CRITICAL: OPENROUTER_API_KEY is not set", undefined, {
+  if (!GEMINI_API_KEY && !OPENROUTER_API_KEY) {
+    logger.error("CRITICAL: Neither GEMINI_API_KEY nor OPENROUTER_API_KEY is set", undefined, {
       category: LogCategory.GENERAL,
     });
     return {

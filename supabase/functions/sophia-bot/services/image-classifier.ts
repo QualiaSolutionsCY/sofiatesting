@@ -7,9 +7,12 @@
 
 import { LogCategory, logger } from "../utils/logger.ts";
 
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const VISION_MODEL = "google/gemini-2.5-flash";
+const VISION_MODEL = "gemini-3.5-flash";
+const VISION_MODEL_OPENROUTER = "google/gemini-2.5-flash";
 const VISION_TIMEOUT_MS = 20_000;
 
 /** Block private/internal IPs and cloud metadata endpoints to prevent SSRF */
@@ -174,16 +177,24 @@ export async function classifyImagesWithVision(
   const timeoutId = setTimeout(() => controller.abort(), VISION_TIMEOUT_MS);
 
   try {
-    const res = await fetch(OPENROUTER_URL, {
+    const useGeminiDirect = !!GEMINI_API_KEY;
+    const visionUrl = useGeminiDirect ? GEMINI_URL : OPENROUTER_URL;
+    const visionKey = useGeminiDirect ? GEMINI_API_KEY : OPENROUTER_API_KEY;
+    const visionModelId = useGeminiDirect ? VISION_MODEL : VISION_MODEL_OPENROUTER;
+    const extraHeaders = useGeminiDirect ? {} : {
+      "HTTP-Referer": "https://sophia-ai.vercel.app",
+      "X-Title": "SOPHIA Image Classifier",
+    };
+
+    const res = await fetch(visionUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${visionKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://sophia-ai.vercel.app",
-        "X-Title": "SOPHIA Image Classifier",
+        ...extraHeaders,
       },
       body: JSON.stringify({
-        model: VISION_MODEL,
+        model: visionModelId,
         messages: [{ role: "user", content }],
         temperature: 0,
         max_tokens: 1024,
