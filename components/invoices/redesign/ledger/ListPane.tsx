@@ -3,11 +3,16 @@
 import { ChevronDown, FileMinus, FileText, Receipt as ReceiptIcon, Search } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 import { STAGES, clientById, fmt } from "@/lib/invoices/redesign/data";
-import type { Doc, DocKind, Filters, Stage } from "@/lib/invoices/redesign/types";
+import type { Doc, DocKind, Filters } from "@/lib/invoices/redesign/types";
 
-const STAGE_OPTIONS: Array<{ value: "all" | Stage; label: string }> = [
+const STAGE_OPTIONS: Array<{ value: Filters["stage"]; label: string }> = [
   { value: "all", label: "All statuses" },
-  ...Object.values(STAGES).map((s) => ({ value: s.id, label: s.label }))
+  { value: STAGES.DRAFT.id, label: STAGES.DRAFT.label },
+  { value: STAGES.SENT_TO_MARIOS.id, label: STAGES.SENT_TO_MARIOS.label },
+  { value: "approved-numbered", label: "Approved" },
+  { value: STAGES.SENT_TO_ACCOUNTING.id, label: STAGES.SENT_TO_ACCOUNTING.label },
+  { value: STAGES.CREDITED.id, label: STAGES.CREDITED.label },
+  { value: STAGES.CANCELLED.id, label: STAGES.CANCELLED.label }
 ];
 
 interface ListPaneProps {
@@ -23,15 +28,27 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
     return docs
       .filter((doc) => {
         if (filters.kind !== "all" && doc.kind !== filters.kind) return false;
-        if (filters.stage !== "all" && doc.stage !== filters.stage) return false;
+        if (filters.stage === "approved-numbered") {
+          if (doc.stage !== STAGES.APPROVED.id && doc.stage !== STAGES.NUMBERED.id) return false;
+        } else if (filters.stage !== "all" && doc.stage !== filters.stage) {
+          return false;
+        }
         if (filters.q) {
           const q = filters.q.toLowerCase();
           const cl = clientById(doc.client);
-          const hay = [cl.name, cl.property, doc.officialNo, doc.draftNo, doc.pdf, doc.receiptNo]
+          // Include the amount (raw, with and without thousands separators) so the
+          // search can match by value, e.g. "5950" or "5,950".
+          const total = Math.abs(doc.total || 0);
+          const amountForms = [
+            String(total),
+            total.toLocaleString("en-GB"),
+            total.toLocaleString("en-GB", { minimumFractionDigits: 2 })
+          ];
+          const hay = [cl.name, cl.property, doc.officialNo, doc.draftNo, doc.pdf, doc.receiptNo, doc.issued, ...amountForms]
             .filter(Boolean)
             .join(" ")
             .toLowerCase();
-          if (!hay.includes(q)) return false;
+          if (!hay.includes(q.replace(/[€,\s]/g, "") ) && !hay.includes(q)) return false;
         }
         return true;
       });
@@ -43,11 +60,6 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
     if (kind === "credit") return <FileMinus size={13} strokeWidth={1.7} />;
     if (kind === "receipt") return <ReceiptIcon size={13} strokeWidth={1.7} />;
     return <FileText size={13} strokeWidth={1.7} />;
-  };
-
-  const stageChip = (stage: Stage): ReactNode => {
-    const s = Object.values(STAGES).find((x) => x.id === stage);
-    return s ? <span className={`stage-chip ${s.chip}`}>{s.label}</span> : null;
   };
 
   return (
@@ -100,13 +112,19 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
               >
                 <span className="row-icon">{kindIcon(doc.kind)}</span>
                 <div className="row-main">
-                  <span className="row-title">{cl.name}</span>
+                  <span className="row-client">{cl.name}</span>
                   <span className="row-meta">
-                    <span className="row-number">{number}</span>
+                    <span className="row-title-number">{number}</span>
+                    <span className="row-date">{doc.issued}</span>
+                    {doc.kind !== "credit" ? (
+                      (() => {
+                        const paid = !!doc.paidOn || !!doc.receiptNo || doc.stage === STAGES.SENT_TO_ACCOUNTING.id;
+                        return <span className={`row-pay ${paid ? "is-paid" : "is-unpaid"}`}>{paid ? "Paid" : "Unpaid"}</span>;
+                      })()
+                    ) : null}
                     <span className="row-total">{fmt(doc.total)}</span>
                   </span>
                 </div>
-                {stageChip(doc.stage)}
               </button>
             );
           })

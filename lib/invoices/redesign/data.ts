@@ -15,14 +15,19 @@ export const STAGES: Record<string, StageDescriptor> = {
   CORRECTION_NEEDED: { id: "correction-needed", label: "Correction needed", chip: "stage-correction-needed" },
   CORRECTED_RESEND: { id: "corrected-resend", label: "Corrected · resend", chip: "stage-corrected-resend" },
   APPROVED: { id: "approved", label: "Approved", chip: "stage-approved" },
-  NUMBERED: { id: "numbered", label: "Numbered", chip: "stage-numbered" },
-  SENT_TO_ACCOUNTING: { id: "sent-to-accounting", label: "Paid · sent to accounting", chip: "stage-sent-to-accounting" },
+  NUMBERED: { id: "numbered", label: "Approved", chip: "stage-numbered" },
+  SENT_TO_ACCOUNTING: { id: "sent-to-accounting", label: "Receipt", chip: "stage-sent-to-accounting" },
   CREDITED: { id: "credited", label: "Credited", chip: "stage-credited" },
   CANCELLED: { id: "cancelled", label: "Cancelled", chip: "stage-cancelled" }
 };
 
-export const fmt = (n: number) =>
-  "€" + Number(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Format a number, dropping a trailing .00 to save space (keeps real cents when present).
+export const amount = (n: number) => {
+  const num = Number(n) || 0;
+  const hasCents = Math.round(Math.abs(num) * 100) % 100 !== 0;
+  return num.toLocaleString("en-GB", { minimumFractionDigits: hasCents ? 2 : 0, maximumFractionDigits: 2 });
+};
+export const fmt = (n: number) => "€" + amount(n);
 
 export const CLIENTS: Client[] = [
   { id: "c1", name: "Andreas Konstantinou", property: "Apt 4B · Limassol Marina", vat: "CY 30481299D", address: "12 Vassileos Konstantinou, 3046 Limassol" },

@@ -1,6 +1,6 @@
 "use client";
 
-import { FileMinus, FileText, Plus, Receipt as ReceiptIcon, Send, X } from "lucide-react";
+import { FileMinus, FileText, Receipt as ReceiptIcon, Send, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CLIENTS, clientById, fmt } from "@/lib/invoices/redesign/data";
 import type { Client, ComposerForm, Doc, DocKind, Line } from "@/lib/invoices/redesign/types";
@@ -25,28 +25,34 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
   const isEdit = !!initial?.id;
 
   const [kind, setKind] = useState<DocKind>("invoice");
-  const [client, setClient] = useState("c1");
+  const [client, setClient] = useState("__new__");
   const [period, setPeriod] = useState("May 2026");
   const [issued, setIssued] = useState("2026-05-26");
   const [due, setDue] = useState("2026-06-09");
   const [vatRate, setVatRate] = useState(19);
+  const [vatMode, setVatMode] = useState<"plus-vat" | "included-vat" | "no-vat">("plus-vat");
   const [description, setDescription] = useState("");
   const [recurrence, setRecurrence] = useState<"none" | "monthly" | "yearly">("none");
-  const [commission, setCommission] = useState(false);
+  const [recurrenceEmail, setRecurrenceEmail] = useState("");
+  const [commission, setCommission] = useState(true);
   const [agent, setAgent] = useState("");
   const [lines, setLines] = useState<LocalLine[]>([{ key: 1, desc: "", qty: 1, unitPrice: 0 }]);
   const [newClient, setNewClient] = useState({ name: "", property: "", address: "", vat: "" });
+  const [clientListOpen, setClientListOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setNewClient({ name: "", property: "", address: "", vat: "" });
     if (initial) {
       setKind((initial.kind as DocKind) || "invoice");
-      setClient(initial.client || "c1");
+      setClient(initial.client || CLIENTS[0]?.id || "__new__");
       setPeriod(initial.period || "May 2026");
       setIssued(initial.issued || "2026-05-26");
       setDue(initial.due || "2026-06-09");
       setVatRate(initial.vatRate ?? 19);
+      setVatMode(
+        initial.vatMode === "included-vat" ? "included-vat" : initial.vatMode === "no-vat" ? "no-vat" : "plus-vat"
+      );
       setDescription(initial.description || "");
       setCommission(!!initial.commission);
       setAgent(initial.commission?.agent ?? "");
@@ -56,14 +62,16 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
       setLines(seed);
     } else {
       setKind("invoice");
-      setClient("c1");
+      setClient("__new__");
       setPeriod("May 2026");
       setIssued("2026-05-26");
       setDue("2026-06-09");
       setVatRate(19);
+      setVatMode("plus-vat");
       setDescription("");
       setRecurrence("none");
-      setCommission(false);
+      setRecurrenceEmail("");
+      setCommission(true);
       setAgent("");
       setLines([{ key: 1, desc: "", qty: 1, unitPrice: 0 }]);
     }
@@ -77,14 +85,22 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
   }, [open, onClose]);
 
   const sub = lines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0);
-  const vat = (sub * (Number(vatRate) || 0)) / 100;
-  const total = sub + vat;
+  // "+ VAT" (plus-vat): VAT added on top. "Including VAT" (included-vat): price already
+  // contains VAT, back it out. "Excluding VAT" (no-vat): no VAT applied.
+  const rate = vatMode === "no-vat" ? 0 : Number(vatRate) || 0;
+  const vat = vatMode === "included-vat" ? sub - sub / (1 + rate / 100) : (sub * rate) / 100;
+  const total = vatMode === "included-vat" ? sub : sub + vat;
 
   // Due is entered as a number of days to pay; stored as an actual date (issue + days).
   const dueDays =
     issued && due ? String(Math.max(0, Math.round((Date.parse(due) - Date.parse(issued)) / 86400000))) : "";
 
   const isNewClient = client === "__new__";
+
+  // Typeahead: filter existing clients by the typed name. A name with no exact match
+  // is treated as a new client and auto-saved when the invoice is created.
+  const clientQuery = newClient.name.trim().toLowerCase();
+  const clientMatches = (clientQuery ? CLIENTS.filter((c) => c.name.toLowerCase().startsWith(clientQuery)) : CLIENTS).slice(0, 6);
 
   const previewDoc: Doc = useMemo(
     () => ({
@@ -99,7 +115,7 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
       due,
       period,
       vatRate,
-      vatMode: vatRate === 0 ? "no-vat" : "plus-vat",
+      vatMode,
       lines: lines.map(({ desc, qty, unitPrice }) => ({
         desc: desc || "—",
         qty: Number(qty) || 0,
@@ -110,15 +126,13 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
       commission: commission ? { agent, rate: "5%", amount: sub * 0.05 } : undefined,
       timeline: initial?.timeline ?? []
     }),
-    [kind, client, isNewClient, issued, due, period, vatRate, lines, total, description, commission, agent, sub, initial?.id, initial?.draftNo, initial?.officialNo, initial?.stage, initial?.timeline]
+    [kind, client, isNewClient, issued, due, period, vatRate, vatMode, lines, total, description, commission, agent, sub, initial?.id, initial?.draftNo, initial?.officialNo, initial?.stage, initial?.timeline]
   );
 
   if (!open) return null;
 
   const updateLine = (key: number, field: keyof LocalLine, value: string | number) =>
     setLines((ls) => ls.map((l) => (l.key === key ? { ...l, [field]: value } : l)));
-  const addLine = () =>
-    setLines((ls) => [...ls, { key: Date.now() + Math.random(), desc: "", qty: 1, unitPrice: 0 }]);
   const removeLine = (key: number) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l.key !== key) : ls));
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -158,9 +172,11 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
       issued,
       due,
       vatRate,
+      vatMode,
       lines: lines.map(({ desc, qty, unitPrice }) => ({ desc, qty: Number(qty), unitPrice: Number(unitPrice) })),
       description,
       recurrence,
+      recurrenceEmail: recurrence !== "none" ? recurrenceEmail.trim() : "",
       commission: commission ? { agent, rate: "5%", amount: sub * 0.05 } : null,
       newClient: createdClient,
       ...editingFields
@@ -213,65 +229,59 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
         </div>
 
         <div className="composer-grid">
-          <label style={{ gridColumn: "1 / -1" }}>
-            <span>Client / tenant</span>
-            <select value={client} onChange={(event) => setClient(event.target.value)}>
-              <option value="__new__">➕ Add a new client…</option>
-              <option disabled>──────</option>
-              {CLIENTS.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} · {c.property}
-                </option>
-              ))}
-            </select>
+          <label className="client-combo" style={{ gridColumn: "1 / -1", position: "relative" }}>
+            <span>Client name *</span>
+            <input
+              value={newClient.name}
+              autoComplete="off"
+              onChange={(event) => {
+                const v = event.target.value;
+                setNewClient({ ...newClient, name: v });
+                const exact = CLIENTS.find((c) => c.name.toLowerCase() === v.trim().toLowerCase());
+                setClient(exact ? exact.id : "__new__");
+                setClientListOpen(v.trim().length > 0);
+              }}
+              onFocus={() => setClientListOpen(newClient.name.trim().length > 0)}
+              onBlur={() => window.setTimeout(() => setClientListOpen(false), 150)}
+              placeholder="Start typing — pick an existing client or add a new one"
+              required
+            />
+            {clientListOpen && clientMatches.length > 0 ? (
+              <ul className="client-typeahead">
+                {clientMatches.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => {
+                        setNewClient({
+                          name: c.name,
+                          property: c.property === "—" ? "" : c.property,
+                          address: c.address === "—" ? "" : c.address,
+                          vat: c.vat === "—" ? "" : c.vat
+                        });
+                        setClient(c.id);
+                        setClientListOpen(false);
+                      }}
+                    >
+                      <strong>{c.name}</strong>
+                      {c.vat && c.vat !== "—" ? <span>{c.vat}</span> : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </label>
-          {isNewClient ? (
-            <>
-              <label style={{ gridColumn: "1 / -1" }}>
-                <span>Client name *</span>
-                <input
-                  autoFocus
-                  value={newClient.name}
-                  onChange={(event) => setNewClient({ ...newClient, name: event.target.value })}
-                  placeholder="e.g. Andreas Konstantinou — or company legal name"
-                  required
-                />
-              </label>
-              <label style={{ gridColumn: "1 / -1" }}>
-                <span>Property / reference</span>
-                <input
-                  value={newClient.property}
-                  onChange={(event) => setNewClient({ ...newClient, property: event.target.value })}
-                  placeholder="e.g. Apt 4B · Limassol Marina"
-                />
-              </label>
-              <label style={{ gridColumn: "1 / -1" }}>
-                <span>Billing address</span>
-                <input
-                  value={newClient.address}
-                  onChange={(event) => setNewClient({ ...newClient, address: event.target.value })}
-                  placeholder="Street, postcode, city"
-                />
-              </label>
-              <label>
-                <span>VAT no. (if any)</span>
-                <input
-                  value={newClient.vat}
-                  onChange={(event) => setNewClient({ ...newClient, vat: event.target.value })}
-                  placeholder="CY 1… or blank"
-                />
-              </label>
-              <label>
-                <span>Period</span>
-                <input value={period} onChange={(event) => setPeriod(event.target.value)} />
-              </label>
-            </>
-          ) : (
-            <label>
-              <span>Period</span>
-              <input value={period} onChange={(event) => setPeriod(event.target.value)} />
+          {isNewClient && newClient.name.trim() ? (
+            <label style={{ gridColumn: "1 / -1" }}>
+              <span>VAT no. (if any)</span>
+              <input
+                value={newClient.vat}
+                onChange={(event) => setNewClient({ ...newClient, vat: event.target.value })}
+                placeholder="CY 1… or blank"
+              />
             </label>
-          )}
+          ) : null}
           <label>
             <span>Issue date</span>
             <input type="date" value={issued} onChange={(event) => setIssued(event.target.value)} />
@@ -300,70 +310,79 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
               />
             )}
           </label>
+          {kind !== "receipt" ? (
+            <label>
+              <span>VAT treatment</span>
+              <select
+                value={vatMode}
+                onChange={(event) => setVatMode(event.target.value as "plus-vat" | "included-vat" | "no-vat")}
+              >
+                <option value="plus-vat">+ VAT — added on top</option>
+                <option value="included-vat">Including VAT — already in price</option>
+                <option value="no-vat">Excluding VAT — no VAT</option>
+              </select>
+            </label>
+          ) : null}
         </div>
 
         <div className="lines-editor">
           <div className="lines-editor-head">
             <h3>Lines</h3>
             <span>
-              {lines.length} item{lines.length === 1 ? "" : "s"} · VAT {vatRate}%
+              {lines.length} item{lines.length === 1 ? "" : "s"} · VAT {rate}%
             </span>
           </div>
           <div className="lines-grid">
-            <div className="lines-header">
-              <span>Description</span>
-              <span>Qty</span>
-              <span>Unit €</span>
-              <span>Line total</span>
-              <span />
-            </div>
             {lines.map((l) => (
-              <div className="line-row" key={l.key}>
-                <input
-                  value={l.desc}
-                  onChange={(event) => updateLine(l.key, "desc", event.target.value)}
-                  placeholder={`e.g. Rent — ${cl.property} · ${period}`}
-                />
-                <input
-                  className="qty"
-                  type="number"
-                  step="1"
-                  value={l.qty}
-                  onChange={(event) => updateLine(l.key, "qty", event.target.value)}
-                />
-                <input
-                  className="price"
-                  type="number"
-                  step="0.01"
-                  value={l.unitPrice}
-                  onChange={(event) => updateLine(l.key, "unitPrice", event.target.value)}
-                />
-                <span className="line-total">{fmt((Number(l.qty) || 0) * (Number(l.unitPrice) || 0))}</span>
-                <button
-                  type="button"
-                  className="line-remove"
-                  onClick={() => removeLine(l.key)}
-                  disabled={lines.length === 1}
-                  aria-label="Remove line"
-                  title="Remove line"
-                >
-                  ×
-                </button>
+              <div className="line-row-stacked" key={l.key}>
+                <label className="line-desc-field">
+                  <span className="line-field-label">Description</span>
+                  <textarea
+                    rows={3}
+                    value={l.desc}
+                    onChange={(event) => updateLine(l.key, "desc", event.target.value)}
+                    placeholder={`e.g. Rent — ${cl.property} · ${period}`}
+                  />
+                </label>
+                <div className="line-amounts">
+                  <label className="line-amt-field">
+                    <span className="line-field-label">Unit €</span>
+                    <input
+                      className="price"
+                      type="number"
+                      step="0.01"
+                      value={l.unitPrice}
+                      onChange={(event) => updateLine(l.key, "unitPrice", event.target.value)}
+                    />
+                  </label>
+                  <div className="line-amt-field">
+                    <span className="line-field-label">Line total</span>
+                    <span className="line-total">{fmt((Number(l.qty) || 0) * (Number(l.unitPrice) || 0))}</span>
+                  </div>
+                  {lines.length > 1 ? (
+                    <button
+                      type="button"
+                      className="line-remove"
+                      onClick={() => removeLine(l.key)}
+                      aria-label="Remove line"
+                      title="Remove line"
+                    >
+                      ×
+                    </button>
+                  ) : null}
+                </div>
               </div>
             ))}
           </div>
-          <button type="button" className="add-line" onClick={addLine}>
-            <Plus size={14} strokeWidth={1.6} /> Add another line
-          </button>
 
           <div className="lines-totals">
             <div className="lines-totals-card">
               <div className="row">
                 <span>Subtotal</span>
-                <b>{fmt(sub)}</b>
+                <b>{fmt(vatMode === "included-vat" ? sub - vat : sub)}</b>
               </div>
               <div className="row">
-                <span>VAT {vatRate}%</span>
+                <span>VAT {rate}%</span>
                 <b>{fmt(vat)}</b>
               </div>
               <div className="row tot">
@@ -374,34 +393,6 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
           </div>
         </div>
 
-        <label style={{ display: "grid", gap: 6, marginTop: 22 }}>
-          <span
-            style={{
-              fontSize: "0.62rem",
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              color: "var(--muted)",
-              fontWeight: 600
-            }}
-          >
-            Note to Marios (optional)
-          </span>
-          <textarea
-            rows={2}
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="Context for the review — anything Marios should know about this document."
-            style={{
-              padding: "10px 12px",
-              border: "1px solid var(--rule)",
-              borderRadius: "var(--radius)",
-              background: "var(--surface-2)",
-              fontFamily: "var(--font-sans)",
-              fontSize: "0.9rem",
-              resize: "vertical"
-            }}
-          />
-        </label>
 
         <div className="optional-composer-grid composer-grid">
           <label>
@@ -412,10 +403,21 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
               <option value="yearly">Yearly · same date each year</option>
             </select>
           </label>
+          {recurrence !== "none" ? (
+            <label style={{ gridColumn: "1 / -1" }}>
+              <span>Send recurring invoice to (email)</span>
+              <input
+                type="email"
+                value={recurrenceEmail}
+                onChange={(event) => setRecurrenceEmail(event.target.value)}
+                placeholder="client@example.com — Sophia emails each invoice here"
+              />
+            </label>
+          ) : null}
           <label>
             <span>Commission flag</span>
             <select value={commission ? "yes" : "no"} onChange={(event) => setCommission(event.target.value === "yes")}>
-              <option value="no">No commission</option>
+              <option value="no">No track agent</option>
               <option value="yes">Yes — track agent</option>
             </select>
           </label>

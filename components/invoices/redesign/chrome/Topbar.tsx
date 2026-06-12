@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Search, Settings as SettingsIcon } from "lucide-react";
+import { FileCog, Plus, Search, Settings as SettingsIcon } from "lucide-react";
 import type { Doc } from "@/lib/invoices/redesign/types";
 
 interface TopbarProps {
@@ -8,9 +8,10 @@ interface TopbarProps {
   onNew: () => void;
   onPalette: () => void;
   onOpenSettings: () => void;
+  onEditTemplate: () => void;
 }
 
-export function Topbar({ docs, onNew, onPalette, onOpenSettings }: TopbarProps) {
+export function Topbar({ docs, onNew, onPalette, onOpenSettings, onEditTemplate }: TopbarProps) {
   const needsReview = docs.filter((d) => d.stage === "sent-to-marios" || d.stage === "correction-needed").length;
 
   return (
@@ -32,6 +33,15 @@ export function Topbar({ docs, onNew, onPalette, onOpenSettings }: TopbarProps) 
           <span>Search or jump…</span>
           <kbd>⌘</kbd>
           <kbd>K</kbd>
+        </button>
+        <button
+          type="button"
+          className="icon-button topbar-settings"
+          onClick={onEditTemplate}
+          title="Edit invoice template"
+          aria-label="Edit invoice template"
+        >
+          <FileCog size={15} strokeWidth={1.6} />
         </button>
         <button
           type="button"

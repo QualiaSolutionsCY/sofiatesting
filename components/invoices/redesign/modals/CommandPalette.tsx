@@ -4,8 +4,6 @@ import {
   ChevronRight,
   Clock,
   Command,
-  FileMinus,
-  FileText,
   Filter,
   Lock,
   Plus,
@@ -15,7 +13,6 @@ import {
   Sparkles
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { DOCS, clientById, fmt } from "@/lib/invoices/redesign/data";
 import type { PaletteItem } from "@/lib/invoices/redesign/types";
 
 interface CommandPaletteProps {
@@ -36,42 +33,20 @@ export function CommandPalette({ open, onClose, onAction }: CommandPaletteProps)
 
   const groups = useMemo(() => {
     const ql = q.toLowerCase();
-    const docHits: PaletteItem[] = DOCS.filter((doc) => {
-      if (!ql) return true;
-      const cl = clientById(doc.client);
-      return (cl.name + " " + doc.officialNo + " " + doc.draftNo + " " + (doc.pdf ?? "") + " " + cl.property)
-        .toLowerCase()
-        .includes(ql);
-    })
-      .slice(0, 6)
-      .map((doc) => {
-        const cl = clientById(doc.client);
-        const num = doc.officialNo ? `№ ${doc.officialNo}` : doc.draftNo;
-        return {
-          id: "doc-" + doc.id,
-          type: "doc" as const,
-          target: doc.id,
-          title: `${cl.name} · ${num}`,
-          subtitle: `${cl.property} · ${doc.period} · ${fmt(doc.total)}`,
-          icon: <FileText size={14} strokeWidth={1.6} />
-        };
-      });
 
     const actionList: PaletteItem[] = ([
       { id: "new-invoice", type: "action" as const, action: "new-invoice", title: "New invoice draft", subtitle: "Open the composer", icon: <Plus size={14} strokeWidth={1.6} /> },
-      { id: "run-monthly", type: "action" as const, action: "run-monthly", title: "Preview monthly run", subtitle: "11 drafts · ready 1 June 08:00", icon: <Repeat size={14} strokeWidth={1.6} /> },
+      { id: "run-monthly", type: "action" as const, action: "run-monthly", title: "Preview monthly run", subtitle: "Recurring monthly drafts ready to send", icon: <Repeat size={14} strokeWidth={1.6} /> },
+      { id: "run-yearly", type: "action" as const, action: "run-yearly", title: "Preview yearly run", subtitle: "Recurring yearly drafts ready to send", icon: <Repeat size={14} strokeWidth={1.6} /> },
       { id: "filter-marios", type: "action" as const, action: "filter-marios", title: "Filter — needs Marios", subtitle: "Sent to review + corrections", icon: <Filter size={14} strokeWidth={1.6} /> },
-      { id: "filter-unpaid", type: "action" as const, action: "filter-unpaid", title: "Filter — unpaid issued", subtitle: "Numbered, awaiting payment", icon: <Clock size={14} strokeWidth={1.6} /> },
+      { id: "filter-unpaid", type: "action" as const, action: "filter-unpaid", title: "Filter — unpaid issued", subtitle: "Approved, awaiting payment", icon: <Clock size={14} strokeWidth={1.6} /> },
       { id: "open-settings", type: "action" as const, action: "open-settings", title: "Settings", subtitle: "Delivery, integrations, identity", icon: <Sliders size={14} strokeWidth={1.6} /> },
       { id: "show-shortcuts", type: "action" as const, action: "show-shortcuts", title: "Keyboard shortcuts", subtitle: "Press ? anytime", icon: <Command size={14} strokeWidth={1.6} /> },
       { id: "show-tour", type: "action" as const, action: "show-tour", title: "Replay guided tour", subtitle: "4-step intro to the ledger", icon: <Sparkles size={14} strokeWidth={1.6} /> },
       { id: "sign-out", type: "action" as const, action: "sign-out", title: "Sign out", subtitle: "Lock the ledger", icon: <Lock size={14} strokeWidth={1.6} /> }
     ] satisfies PaletteItem[]).filter((a) => !ql || (a.title + " " + a.subtitle).toLowerCase().includes(ql));
 
-    return [
-      { label: "Documents", items: docHits },
-      { label: "Actions", items: actionList }
-    ];
+    return [{ label: "Options & pages", items: actionList }];
   }, [q]);
 
   const items = useMemo(() => groups.flatMap((g) => g.items), [groups]);

@@ -328,14 +328,6 @@ function DocumentTab({
 
             <div className="inline-editor-row">
               <label className="inline-editor-field">
-                <span>Period</span>
-                <input
-                  value={form.period}
-                  onChange={(event) => updateField("period", event.target.value)}
-                  placeholder="e.g. May 2026"
-                />
-              </label>
-              <label className="inline-editor-field">
                 <span>Issue date</span>
                 <input
                   type="date"
@@ -347,12 +339,32 @@ function DocumentTab({
 
             <div className="inline-editor-row">
               <label className="inline-editor-field">
-                <span>{doc.kind === "credit" ? "Applies to invoice" : "Due date"}</span>
-                <input
-                  type={doc.kind === "credit" ? "text" : "date"}
-                  value={form.due}
-                  onChange={(event) => updateField("due", event.target.value)}
-                />
+                <span>{doc.kind === "credit" ? "Applies to invoice" : "Due (days to pay)"}</span>
+                {doc.kind === "credit" ? (
+                  <input type="text" value={form.due} onChange={(event) => updateField("due", event.target.value)} />
+                ) : (
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="e.g. 14"
+                    value={
+                      form.issued && form.due
+                        ? String(Math.max(0, Math.round((Date.parse(form.due) - Date.parse(form.issued)) / 86400000)))
+                        : ""
+                    }
+                    onChange={(event) => {
+                      const raw = event.target.value;
+                      if (!raw) {
+                        updateField("due", "");
+                        return;
+                      }
+                      const days = Math.max(0, Number(raw) || 0);
+                      const base = form.issued ? new Date(form.issued) : new Date();
+                      base.setDate(base.getDate() + days);
+                      updateField("due", base.toISOString().slice(0, 10));
+                    }}
+                  />
+                )}
               </label>
               <label className="inline-editor-field">
                 <span>VAT mode</span>
@@ -367,16 +379,6 @@ function DocumentTab({
               </label>
             </div>
 
-            <label className="inline-editor-field">
-              <span>Description / note</span>
-              <textarea
-                rows={3}
-                value={form.description}
-                onChange={(event) => updateField("description", event.target.value)}
-                placeholder="What's being billed, any context Marios should know"
-              />
-            </label>
-
             <div className="inline-editor-lines">
               <div className="inline-editor-lines-head">
                 <span>Line items</span>
@@ -387,7 +389,6 @@ function DocumentTab({
               <div className="inline-editor-lines-grid">
                 <div className="inline-editor-lines-header">
                   <span>Description</span>
-                  <span>Qty</span>
                   <span>Unit €</span>
                   <span>Line total</span>
                   <span />
@@ -398,13 +399,6 @@ function DocumentTab({
                       value={l.desc}
                       onChange={(event) => updateLine(l.key, "desc", event.target.value)}
                       placeholder="What's being billed"
-                    />
-                    <input
-                      type="number"
-                      className="qty"
-                      step="1"
-                      value={l.qty}
-                      onChange={(event) => updateLine(l.key, "qty", event.target.value)}
                     />
                     <input
                       type="number"

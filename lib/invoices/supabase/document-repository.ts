@@ -26,7 +26,8 @@ export type StoredDocumentMetadata = {
   publicUrl?: string;
 };
 
-let fallbackDocuments = cloneDocuments(sampleDocuments);
+// Start empty — no seeded sample documents in the left-hand ledger.
+let fallbackDocuments: InvoiceDocument[] = cloneDocuments([]);
 
 export async function listInvoiceDocuments(): Promise<DocumentRepositoryResult> {
   const supabase = createServiceSupabaseClient();

@@ -11,6 +11,7 @@ import {
   forwardAccountingAction,
   loadDocumentsAction,
   markPaidAndIssueReceiptAction,
+  notifyMariosApprovedAction,
   queueClientEmailAction,
   regenerateStoredDocumentAction,
   sendToMariosAction,
@@ -39,6 +40,8 @@ import { ListPane } from "./ledger/ListPane";
 import { CommandPalette } from "./modals/CommandPalette";
 import { Composer } from "./modals/Composer";
 import { ConfirmDialog } from "./modals/ConfirmDialog";
+import { TemplateEditor } from "./modals/TemplateEditor";
+import { TemplateProvider } from "@/lib/invoices/redesign/template-context";
 import { PDFLightbox } from "./modals/PDFLightbox";
 import { SettingsPanel } from "./modals/SettingsPanel";
 import { ShortcutsOverlay } from "./modals/ShortcutsOverlay";
@@ -71,9 +74,10 @@ function formToDocumentInput(form: ComposerForm): DocumentInput {
   return {
     kind: form.kind === "credit" ? "credit-note" : form.kind,
     clientName,
+    clientEmail: form.recurrenceEmail || undefined,
     description: form.description || form.lines[0]?.desc || "",
     amount: sub,
-    vatMode: vatRateToMode(form.vatRate),
+    vatMode: form.vatMode ?? vatRateToMode(form.vatRate),
     issueDate: form.issued || todayStamp(),
     dueDate: form.due,
     recurrence: form.recurrence,
@@ -95,8 +99,10 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
   const [composerPrefill, setComposerPrefill] = useState<Partial<Doc> | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [lightboxDoc, setLightboxDoc] = useState<Doc | null>(null);
+  const [batchPreview, setBatchPreview] = useState<Doc[] | null>(null);
   const [runOpen, setRunOpen] = useState(false);
   const [recurringPanelOpen, setRecurringPanelOpen] = useState(false);
   const [recurringRuns, setRecurringRuns] = useState(RECURRING);
@@ -186,9 +192,12 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
     switch (stageOrAction) {
       case "draft":
         startTransition(async () => {
-          const result = await sendToMariosAction(selected.id);
+          // Admin-panel sends are auto-approved: approve, then notify Marios it's issued
+          // (no review request). Only the Sophia-bot chat flow gates on his approval.
+          const result = await approveDocumentAction(selected.id);
+          await notifyMariosApprovedAction(selected.id);
           reconcile(result.documents, selected.id);
-          setToast("Draft sent to Marios via WhatsApp.");
+          setToast("Approved and sent to Marios.");
         });
         break;
       case "sent-to-marios":
@@ -288,13 +297,18 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         }
         setConfirmState({
           title: "Issue a credit note?",
-          body: `This creates a credit note that cancels invoice ${selected.officialNo ? "№ " + selected.officialNo : selected.draftNo} in full and links the two.`,
+          body: `This cancels invoice ${selected.officialNo ? "№ " + selected.officialNo : selected.draftNo} in full, links a credit note, and sends it to the group with your reason.`,
           confirmLabel: "Issue credit note",
-          onConfirm: () => {
+          prompt: {
+            label: "Reason for the credit note (sent to the group)",
+            placeholder: "e.g. Commission double-counted — corrected on the new invoice.",
+            required: true
+          },
+          onConfirm: (reason) => {
             startTransition(async () => {
-              const result = await cancelWithCreditNoteAction(selected.id);
+              const result = await cancelWithCreditNoteAction(selected.id, reason);
               reconcile(result.documents, result.selectedId ?? selected.id);
-              setToast("Credit note issued against the invoice.");
+              setToast("Credit note issued — original cancelled, group notified with your reason.");
             });
           }
         });
@@ -376,17 +390,39 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
     const input = formToDocumentInput(form);
 
     startTransition(async () => {
-      const result = isEdit
-        ? await updateDocumentAction(form.editingId as string, input)
-        : await createDocumentAction(input);
-
-      if ("officialNumber" in input && form.officialNo && result.documents.find((d) => d.id === (result.selectedId ?? ""))) {
-        const finalResult = await applyOfficialNumberAction(result.selectedId as string, form.officialNo);
-        reconcile(finalResult.documents, finalResult.selectedId);
-      } else {
-        reconcile(result.documents, result.selectedId);
+      if (isEdit) {
+        const result = await updateDocumentAction(form.editingId as string, input);
+        if ("officialNumber" in input && form.officialNo && result.documents.find((d) => d.id === (result.selectedId ?? ""))) {
+          const finalResult = await applyOfficialNumberAction(result.selectedId as string, form.officialNo);
+          reconcile(finalResult.documents, finalResult.selectedId);
+        } else {
+          reconcile(result.documents, result.selectedId);
+        }
+        setToast("Document updated.");
+        return;
       }
-      setToast(isEdit ? "Document updated." : "Draft prepared. Awaiting hand-off to Marios.");
+
+      const created = await createDocumentAction(input);
+      const newId = created.selectedId as string;
+
+      // Admin-panel invoices are auto-approved: approve + number, notify Marios that
+      // it's already issued (no review request), and dispatch to the client group.
+      if (form.kind === "invoice" && newId) {
+        let result = created;
+        try {
+          result = await approveDocumentAction(newId);
+          await notifyMariosApprovedAction(newId);
+          result = await queueClientEmailAction(newId, sharedCc);
+        } catch (error) {
+          console.error("Auto-dispatch failed", error);
+        }
+        reconcile(result.documents, newId);
+        setToast("Invoice approved, issued, and sent to Marios + the group.");
+        return;
+      }
+
+      reconcile(created.documents, created.selectedId);
+      setToast("Draft prepared. Awaiting hand-off to Marios.");
     });
   }
 
@@ -403,6 +439,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           setComposerOpen(true);
           break;
         case "run-monthly":
+        case "run-yearly":
           setRunOpen(true);
           break;
         case "filter-marios":
@@ -430,6 +467,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
   }
 
   return (
+    <TemplateProvider>
     <div className="app-shell" data-persistence={persistenceMode}>
       <Sidebar operator={operator} docs={docs} onSignOut={signOut}>
         <ListPane docs={docs} selectedId={selectedId} onSelect={setSelectedId} filters={filters} setFilters={setFilters} />
@@ -443,6 +481,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           }}
           onPalette={() => setPaletteOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
+          onEditTemplate={() => setTemplateOpen(true)}
         />
         <div className="workspace">
 
@@ -509,12 +548,68 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         onCreate={handleCreate}
       />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onAction={handlePaletteAction} />
-      <PDFLightbox doc={lightboxDoc} allDocs={docs} onClose={() => setLightboxDoc(null)} onNavigate={setSelectedId} />
+      <PDFLightbox
+        doc={lightboxDoc}
+        allDocs={batchPreview ?? docs}
+        onClose={() => {
+          setLightboxDoc(null);
+          setBatchPreview(null);
+        }}
+        onNavigate={(id) => {
+          if (batchPreview) return;
+          setSelectedId(id);
+        }}
+      />
       <MonthlyRunOverlay
         open={runOpen}
         onClose={() => setRunOpen(false)}
-        onApproveAll={(rows) => setToast(`Sent ${rows.length} drafts to Marios. He'll review in the CSC Review group.`)}
-        onPreview={(rows) => setToast(`Generated a ${rows.length}-page PDF batch preview.`)}
+        onApproveAll={(rows) => {
+          if (rows.length === 0) return;
+          startTransition(async () => {
+            let last = null;
+            for (const r of rows) {
+              last = await createDocumentAction({
+                kind: "invoice",
+                clientName: clientById(r.client).name,
+                description: `Recurring charge — ${r.period}`,
+                amount: r.sub,
+                vatMode: "plus-vat",
+                issueDate: todayStamp(),
+                recurrence: "monthly"
+              });
+            }
+            if (last) reconcile(last.documents, last.selectedId);
+            setRunOpen(false);
+            setToast(`Created ${rows.length} invoices — sent ahead of their due date.`);
+          });
+        }}
+        onPreview={(rows) => {
+          const previewDocs: Doc[] = rows.map((r) => ({
+            id: r.id,
+            kind: "invoice",
+            stage: "draft",
+            draftNo: r.draftNo,
+            officialNo: null,
+            client: r.client,
+            issued: todayStamp(),
+            due: "",
+            period: r.period,
+            vatRate: 19,
+            vatMode: "plus-vat",
+            lines: [
+              { desc: `Recurring charge — ${r.period}`, qty: 1, unitPrice: r.net },
+              ...(r.extra ? [{ desc: "Additional charges", qty: 1, unitPrice: r.extra }] : [])
+            ],
+            total: r.total,
+            description: "",
+            timeline: []
+          }));
+          if (previewDocs.length === 0) return;
+          setBatchPreview(previewDocs);
+          setLightboxDoc(previewDocs[0]);
+          setRunOpen(false);
+          setToast(`Previewing ${previewDocs.length} invoices — use ← → to flip through the batch.`);
+        }}
         onPause={() => {
           setRecurringRuns((r) => r.map((x) => (x.cadence === "Monthly" ? { ...x, paused: true } : x)));
           setRunOpen(false);
@@ -552,6 +647,11 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       />
       <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <ConfirmDialog state={confirmState} onClose={() => setConfirmState(null)} />
+      <TemplateEditor
+        open={templateOpen}
+        onClose={() => setTemplateOpen(false)}
+        onSaved={() => setToast("Invoice template saved.")}
+      />
       <GuidedTour
         open={tourOpen}
         onClose={() => {
@@ -561,5 +661,6 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       />
       <Toast message={toast} onDone={() => setToast("")} />
     </div>
+    </TemplateProvider>
   );
 }

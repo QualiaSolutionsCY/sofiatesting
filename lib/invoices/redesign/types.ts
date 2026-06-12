@@ -75,7 +75,8 @@ export interface Client {
 
 export interface Filters {
   kind: "all" | DocKind;
-  stage: "all" | Stage;
+  // "approved-numbered" is a merged filter that matches both Approved and Numbered docs.
+  stage: "all" | Stage | "approved-numbered";
   q: string;
   from: string;
   to: string;
@@ -113,9 +114,11 @@ export interface ComposerForm {
   issued: string;
   due: string;
   vatRate: number;
+  vatMode?: VatMode;
   lines: Line[];
   description: string;
   recurrence: "none" | "monthly" | "yearly";
+  recurrenceEmail?: string;
   commission: Commission | null;
   newClient: Client | null;
   editingId?: string;
@@ -142,5 +145,6 @@ export interface ConfirmState {
   danger?: boolean;
   confirmLabel?: string;
   cancelLabel?: string;
-  onConfirm?: () => void;
+  onConfirm?: (reason?: string) => void;
+  prompt?: { label: string; placeholder?: string; required?: boolean };
 }

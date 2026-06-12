@@ -177,7 +177,7 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
                 onClose();
               }}
             >
-              <Send size={14} strokeWidth={1.6} /> Send {pickedRows.length} to Marios
+              <Send size={14} strokeWidth={1.6} /> Create {pickedRows.length}
             </button>
           </div>
         </div>

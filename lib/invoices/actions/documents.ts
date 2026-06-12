@@ -7,7 +7,7 @@ import {
   updateDocumentDashboardControls,
   updateDocumentFromInput
 } from "@/lib/invoices/document-actions";
-import { getNextOfficialNumber } from "@/lib/invoices/numbering";
+import { getNextDraftSequence, getNextOfficialNumber } from "@/lib/invoices/numbering";
 import {
   deleteInvoiceDocument,
   listInvoiceDocuments,
@@ -67,7 +67,8 @@ export async function loadDocumentsAction(): Promise<DocumentsActionResult> {
 
 export async function createDocumentAction(input: DocumentInput): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
-  const created = createDocument(input, current.documents.length + 1);
+  const sequence = getNextDraftSequence(current.documents, input.kind);
+  const created = createDocument(input, sequence);
   const result = await saveInvoiceDocument(created, "Draft created");
   return { ...result, selectedId: created.id };
 }
@@ -104,6 +105,17 @@ export async function sendToMariosAction(id: string): Promise<DocumentsActionRes
   return { ...result, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
 }
 
+/**
+ * Admin-panel auto-approval: notify Marios that the invoice is already approved and
+ * issued (FYI message + PDF), without sending a review/approval request.
+ */
+export async function notifyMariosApprovedAction(id: string): Promise<DocumentsActionResult> {
+  const current = await listInvoiceDocuments();
+  const document = findDocument(current.documents, id);
+  await notifyMariosOverWhatsApp(document, { approved: true });
+  return { ...current, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
+}
+
 const sendLogger = createLogger("invoices:send-to-marios");
 
 /**
@@ -111,7 +123,10 @@ const sendLogger = createLogger("invoices:send-to-marios");
  * using the same WaSenderAPI client the rest of the app sends with. Best-effort:
  * a send failure is logged but never breaks the status transition above.
  */
-async function notifyMariosOverWhatsApp(document: InvoiceDocument): Promise<void> {
+async function notifyMariosOverWhatsApp(
+  document: InvoiceDocument,
+  opts: { approved?: boolean } = {}
+): Promise<void> {
   const marios = INVOICE_AUTHORIZED_AGENTS.find((agent) => agent.name === "Marios Polyviou");
   if (!marios) {
     sendLogger.warn("Marios is not in INVOICE_AUTHORIZED_AGENTS; skipping WhatsApp send");
@@ -122,10 +137,15 @@ async function notifyMariosOverWhatsApp(document: InvoiceDocument): Promise<void
   const correctionLine = document.correctionReason
     ? `\nCorrection: ${document.correctionReason}. Please ignore the previous version.`
     : "";
-  const caption =
-    `Invoice for review: ${displayNumber}\n` +
-    `Client: ${document.clientName}${correctionLine}\n\n` +
-    `Reply ✓ to approve, or reply with the correction needed.`;
+  // Admin-panel invoices are already approved, so Marios gets a notification, not a
+  // review request. He only approves via the Sophia chat flow.
+  const caption = opts.approved
+    ? `Invoice issued: ${displayNumber}\n` +
+      `Client: ${document.clientName}${correctionLine}\n\n` +
+      `Approved automatically via the admin panel — no action needed. PDF attached for your records.`
+    : `Invoice for review: ${displayNumber}\n` +
+      `Client: ${document.clientName}${correctionLine}\n\n` +
+      `Reply ✓ to approve, or reply with the correction needed.`;
 
   try {
     const client = getWhatsAppClient();
@@ -294,25 +314,76 @@ export async function markPaidAndIssueReceiptAction(id: string): Promise<Documen
   };
 }
 
-export async function cancelWithCreditNoteAction(id: string): Promise<DocumentsActionResult> {
+export async function cancelWithCreditNoteAction(id: string, reason?: string): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const invoice = findDocument(current.documents, id);
   if (invoice.kind !== "invoice") return { ...current, selectedId: id };
 
+  const trimmedReason = (reason ?? "").trim();
   const { invoice: cancelledInvoice, creditNote } = cancelInvoiceWithCreditNote(
     invoice,
-    current.documents.length + 1
+    current.documents.length + 1,
+    trimmedReason ? `Invoice cancelled. Reason: ${trimmedReason}` : undefined
   );
+  // Carry the operator's reason onto the credit note so the group message + audit trail show it.
+  const creditNoteWithReason = trimmedReason ? { ...creditNote, correctionReason: trimmedReason } : creditNote;
   const result = await saveInvoiceDocuments(
-    [cancelledInvoice, creditNote],
+    [cancelledInvoice, creditNoteWithReason],
     "Invoice cancelled with linked credit note"
   );
-  await queueCreditNoteDelivery(creditNote);
+  await queueCreditNoteDelivery(creditNoteWithReason);
+  await notifyGroupOfCreditNote(cancelledInvoice, creditNoteWithReason, trimmedReason);
   return {
     ...result,
-    selectedId: creditNote.id,
-    deliveries: await listDeliveryRecordsForDocument(creditNote.id)
+    selectedId: creditNoteWithReason.id,
+    deliveries: await listDeliveryRecordsForDocument(creditNoteWithReason.id)
   };
+}
+
+/**
+ * Send the linked credit note to the accounting/CSC group with the operator's reason,
+ * so the group reads the cancellation context alongside the credit note PDF. Best-effort.
+ */
+async function notifyGroupOfCreditNote(
+  invoice: InvoiceDocument,
+  creditNote: InvoiceDocument,
+  reason: string
+): Promise<void> {
+  const invoiceNumber = getDisplayNumber(invoice);
+  const creditNumber = getDisplayNumber(creditNote);
+  const reasonLine = reason ? ` The reason is: ${reason}.` : "";
+  const caption =
+    `Credit note ${creditNumber} regarding the cancellation of invoice ${invoiceNumber}.${reasonLine}\n\n` +
+    `Please read it alongside the attached credit note.`;
+
+  // Group number from env if configured; otherwise fall back to Marios (he's in the CSC group).
+  const groupMsisdn =
+    process.env.INVOICE_ACCOUNTING_GROUP_MSISDN ??
+    INVOICE_AUTHORIZED_AGENTS.find((agent) => agent.name === "Marios Polyviou")?.msisdn;
+  if (!groupMsisdn) {
+    sendLogger.warn("No accounting group number configured; credit-note message not sent");
+    return;
+  }
+
+  try {
+    const client = getWhatsAppClient();
+    if (!client.isConfigured()) {
+      sendLogger.warn("WhatsApp client not configured; credit-note group message not sent");
+      return;
+    }
+    const pdf = Buffer.from(buildDocumentPdfBytes(creditNote));
+    const sent = await client.sendDocument({
+      to: groupMsisdn,
+      document: pdf,
+      filename: getUnifiedFilename(creditNote),
+      caption
+    });
+    if (!sent.success) {
+      await client.sendMessage({ to: groupMsisdn, text: caption });
+    }
+  } catch (error) {
+    sendLogger.error("Failed to send credit-note group message", error, { documentId: creditNote.id });
+  }
 }
 
 export async function loadDeliveryRecordsAction(id: string): Promise<DeliveryRecord[]> {

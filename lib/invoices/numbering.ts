@@ -1,9 +1,27 @@
 import type { DocumentKind } from "@/lib/invoices/types/invoice";
 import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 
-export function createDraftNumber(kind: DocumentKind, index: number): string {
-  const prefix = kind === "invoice" ? "D-INV" : kind === "credit-note" ? "D-CN" : "D-RCPT";
-  return `${prefix}-${new Date().getFullYear()}-${String(index).padStart(4, "0")}`;
+export function createDraftNumber(kind: DocumentKind, sequence: number): string {
+  const prefix = kind === "invoice" ? "INV" : kind === "credit-note" ? "CN" : "RCPT";
+  // Draft follows the real number sequence, with -DRAFT appended until Marios approves.
+  return `${prefix}-${new Date().getFullYear()}-${String(sequence).padStart(5, "0")}-DRAFT`;
+}
+
+/** Numeric sequence from an official or draft number (ignores year/prefix and the -DRAFT suffix). */
+function extractSequence(value: string | undefined | null): number {
+  if (!value) return NaN;
+  const groups = value.replace(/-draft$/i, "").match(/\d+/g);
+  return groups ? Number(groups[groups.length - 1]) : NaN;
+}
+
+/** Next sequence for a new draft — advances past every existing official AND draft of this kind. */
+export function getNextDraftSequence(documents: InvoiceDocument[], kind: DocumentKind): number {
+  const fallbackStart = kind === "credit-note" ? 10096 : kind === "receipt" ? 10386 : 11424;
+  const used = documents
+    .filter((document) => document.kind === kind)
+    .flatMap((document) => [extractSequence(document.officialNumber), extractSequence(document.draftNumber)])
+    .filter((n) => Number.isFinite(n) && n > 0);
+  return (used.length > 0 ? Math.max(fallbackStart, ...used) : fallbackStart) + 1;
 }
 
 export function officialNumberPlaceholder(kind: DocumentKind): string {

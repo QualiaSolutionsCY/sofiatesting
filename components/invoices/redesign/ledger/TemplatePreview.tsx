@@ -1,6 +1,7 @@
 "use client";
 
-import { ENTITY, clientById } from "@/lib/invoices/redesign/data";
+import { amount, clientById } from "@/lib/invoices/redesign/data";
+import { useTemplateText } from "@/lib/invoices/redesign/template-context";
 import type { Client, Doc } from "@/lib/invoices/redesign/types";
 
 interface TemplatePreviewProps {
@@ -9,6 +10,7 @@ interface TemplatePreviewProps {
 }
 
 export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
+  const { text: tpl } = useTemplateText();
   const cl = clientOverride ?? clientById(doc.client);
   const isCredit = doc.kind === "credit";
   const isReceipt = doc.kind === "receipt";
@@ -18,15 +20,17 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
   const pdfName =
     doc.pdf ||
     (doc.officialNo
-      ? `${ENTITY.name} ${title} ${doc.officialNo}.pdf`
+      ? `${tpl.name} ${title} ${doc.officialNo}.pdf`
       : `Sophia draft — ${title.toLowerCase()} ${doc.draftNo || ""}.pdf`);
 
   const lines = doc.lines || [];
-  const sub = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
-  const vat = (sub * (doc.vatRate || 0)) / 100;
-  const total = sub + vat;
-  const dueDays =
-    doc.due && doc.issued ? Math.max(0, Math.round((Date.parse(doc.due) - Date.parse(doc.issued)) / 86400000)) : null;
+  const lineSum = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+  // Respect the document's VAT treatment so the invoice numbers match the composer.
+  const rate = doc.vatMode === "no-vat" ? 0 : doc.vatRate || 0;
+  const includesVat = doc.vatMode === "included-vat";
+  const vat = includesVat ? lineSum - lineSum / (1 + rate / 100) : (lineSum * rate) / 100;
+  const sub = includesVat ? lineSum - vat : lineSum;
+  const total = includesVat ? lineSum : lineSum + vat;
 
   return (
     <article className="template-preview" aria-label={`${title} preview`}>
@@ -37,13 +41,19 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
 
       <div className="template-header">
         <div>
-          <div style={{ fontWeight: 700, fontSize: "1.05rem", marginBottom: 6 }}>{ENTITY.name}</div>
-          <div style={{ fontSize: ".9rem", lineHeight: 1.55, color: "var(--ink-soft)" }}>
-            {ENTITY.address}
+          <div style={{ fontWeight: 700, fontSize: "1.05rem", marginBottom: 6 }}>{tpl.name}</div>
+          <div style={{ fontSize: ".85rem", lineHeight: 1.6, color: "var(--ink-soft)" }}>
+            {tpl.regNo}
             <br />
-            Reg. No.&nbsp;{ENTITY.regNo}
+            {tpl.address}
             <br />
-            VAT No.&nbsp;{ENTITY.vatNo}
+            {tpl.contactLine}
+            <br />
+            V.A.T Reg. No. : {tpl.vatNo}
+            <br />
+            CREA License No. {tpl.creaLicense}
+            <br />
+            CREA Reg No. {tpl.creaReg}
           </div>
         </div>
         <div>
@@ -57,10 +67,10 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
               <dt>Date</dt>
               <dd>{doc.issued}</dd>
             </div>
-            {dueDays !== null && !isCredit && !isReceipt ? (
+            {doc.due && !isCredit && !isReceipt ? (
               <div>
                 <dt>Due</dt>
-                <dd>in {dueDays} days</dd>
+                <dd>{doc.due}</dd>
               </div>
             ) : null}
             {isCredit && doc.appliesTo ? (
@@ -86,105 +96,109 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
           {isReceipt ? "Received from" : "Bill to"}
         </div>
         <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>{cl.name}</div>
-        <div style={{ color: "var(--ink-soft)" }}>{cl.address}</div>
         {cl.vat && cl.vat !== "—" ? <div style={{ color: "var(--ink-soft)" }}>VAT&nbsp;{cl.vat}</div> : null}
-        <div style={{ color: "var(--ink-soft)", marginTop: 4 }}>Property: {cl.property}</div>
       </div>
 
-      <table className="template-table">
+      <table className="template-table template-table-ruled">
         <thead>
           <tr>
-            <th>#</th>
+            <th>Qty</th>
+            <th>Item</th>
             <th>Description</th>
-            <th>Unit · €</th>
-            <th>Total · €</th>
+            <th>Unit Price</th>
+            <th>Total</th>
           </tr>
         </thead>
         <tbody>
           {lines.map((l, i) => (
             <tr key={i}>
+              <td>{l.qty}</td>
               <td>{i + 1}</td>
-              <td>{l.desc}</td>
-              <td>{l.unitPrice.toLocaleString("en-GB", { minimumFractionDigits: 2 })}</td>
-              <td>{(l.qty * l.unitPrice).toLocaleString("en-GB", { minimumFractionDigits: 2 })}</td>
+              <td className="template-desc-cell">
+                {isCredit ? `Credit note for invoice ${doc.appliesTo || doc.officialNo || "—"}` : l.desc}
+              </td>
+              <td>€{amount(l.unitPrice)}</td>
+              <td>€{amount(l.qty * l.unitPrice)}</td>
             </tr>
           ))}
-          {isCredit && doc.appliesTo ? (
+          {false && isCredit && doc.appliesTo ? (
             <tr className="template-source-row">
-              <td colSpan={4} style={{ textAlign: "left" }}>
+              <td colSpan={5} style={{ textAlign: "left" }}>
                 Reference — original Invoice {doc.appliesTo}, issued {doc.issued}, fully credited.
               </td>
             </tr>
           ) : null}
+          {/* Filler row stretches the ruled table to fill the page like a printed invoice. */}
+          <tr className="template-filler-row" aria-hidden>
+            <td />
+            <td />
+            <td />
+            <td />
+            <td />
+          </tr>
         </tbody>
       </table>
 
       <div className="template-totals">
         <div style={{ display: "grid", gridTemplateColumns: "auto auto", gap: "4px 24px" }}>
           <span style={{ color: "var(--ink-soft)" }}>Subtotal</span>
-          <span style={{ textAlign: "right" }}>{sub.toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span>
-          <span style={{ color: "var(--ink-soft)" }}>VAT {doc.vatRate || 0}%</span>
-          <span style={{ textAlign: "right" }}>{vat.toLocaleString("en-GB", { minimumFractionDigits: 2 })}</span>
-          <span style={{ fontWeight: 700, fontSize: "1.1rem", paddingTop: 6, borderTop: "1px solid var(--ink-soft)" }}>
-            Total {isCredit ? "credited" : "due"}
+          <span style={{ textAlign: "right" }}>€{amount(sub)}</span>
+          <span style={{ color: "var(--ink-soft)" }}>V.A.T {rate}%</span>
+          <span style={{ textAlign: "right" }}>€{amount(vat)}</span>
+          <span style={{ fontWeight: 700, paddingTop: 6, borderTop: "1px solid var(--ink-soft)" }}>
+            Total
           </span>
           <span
             style={{
               fontWeight: 700,
-              fontSize: "1.1rem",
               paddingTop: 6,
               borderTop: "1px solid var(--ink-soft)",
               textAlign: "right"
             }}
           >
-            {total.toLocaleString("en-GB", { minimumFractionDigits: 2 })}
+            €{amount(total)}
           </span>
+          <span style={{ fontWeight: 700, fontSize: "1.1rem" }}>
+            {isCredit ? "Balance credited" : "Balance Due"}
+          </span>
+          <span style={{ fontWeight: 700, fontSize: "1.1rem", textAlign: "right" }}>€{amount(total)}</span>
         </div>
       </div>
 
-      <div className="template-bank">
-        <div
-          style={{
-            fontSize: ".7rem",
-            letterSpacing: ".14em",
-            textTransform: "uppercase",
-            color: "var(--muted)",
-            marginBottom: 4
-          }}
-        >
-          {isReceipt ? "Acknowledgement" : "Settlement"}
+      {isCredit ? null : (
+        <div className="template-bank">
+          <div
+            style={{
+              fontSize: ".7rem",
+              letterSpacing: ".14em",
+              textTransform: "uppercase",
+              color: "var(--muted)",
+              marginBottom: 4
+            }}
+          >
+            {isReceipt ? "Acknowledgement" : "Settlement"}
+          </div>
+          <div style={{ color: "var(--ink-soft)", lineHeight: 1.55 }}>
+            {isReceipt ? (
+              <>{tpl.receiptNote}</>
+            ) : (
+              <>
+                {tpl.bankName}
+                <br />
+                Account Name: {tpl.accountName}
+                <br />
+                Account Number: <span style={{ fontFamily: "var(--font-mono)" }}>{tpl.accountNumber}</span>
+                <br />
+                IBAN: <span style={{ fontFamily: "var(--font-mono)" }}>{tpl.iban}</span>
+                <br />
+                BIC: <span style={{ fontFamily: "var(--font-mono)" }}>{tpl.bic}</span>
+                <br />
+                {tpl.settlementNote}
+              </>
+            )}
+          </div>
         </div>
-        <div style={{ color: "var(--ink-soft)", lineHeight: 1.55 }}>
-          {isReceipt ? (
-            <>This receipt confirms payment of Invoice {doc.appliesTo || doc.officialNo} in full. Issued by {ENTITY.name}.</>
-          ) : isCredit ? (
-            <>Credit balance applied against tenant account. No payment required.</>
-          ) : (
-            <>
-              Beneficiary: {ENTITY.name}
-              <br />
-              IBAN: <span style={{ fontFamily: "var(--font-mono)" }}>{ENTITY.iban}</span>
-              <br />
-              Bank: {ENTITY.bank}
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="template-note">
-        <div
-          style={{
-            fontSize: ".7rem",
-            letterSpacing: ".14em",
-            textTransform: "uppercase",
-            color: "var(--muted)",
-            marginBottom: 4
-          }}
-        >
-          Note
-        </div>
-        <div style={{ color: "var(--ink-soft)", lineHeight: 1.55 }}>{doc.description || "—"}</div>
-      </div>
+      )}
     </article>
   );
 }

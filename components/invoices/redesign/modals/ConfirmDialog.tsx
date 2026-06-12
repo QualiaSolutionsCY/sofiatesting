@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { ConfirmState } from "@/lib/invoices/redesign/types";
 
 interface ConfirmDialogProps {
@@ -9,11 +9,20 @@ interface ConfirmDialogProps {
 }
 
 export function ConfirmDialog({ state, onClose }: ConfirmDialogProps) {
+  const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    setReason("");
+  }, [state]);
+
+  const reasonRequired = !!state?.prompt?.required;
+  const reasonMissing = reasonRequired && reason.trim().length === 0;
+
   useEffect(() => {
     if (!state) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
-      else if (event.key === "Enter") {
+      else if (event.key === "Enter" && !state.prompt) {
         state.onConfirm?.();
         onClose();
       }
@@ -24,11 +33,29 @@ export function ConfirmDialog({ state, onClose }: ConfirmDialogProps) {
 
   if (!state) return null;
 
+  const confirm = () => {
+    if (reasonMissing) return;
+    state.onConfirm?.(reason.trim() || undefined);
+    onClose();
+  };
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="confirm-shell" onClick={(event) => event.stopPropagation()}>
         <h3>{state.title}</h3>
         <p>{state.body}</p>
+        {state.prompt ? (
+          <label className="confirm-prompt">
+            <span>{state.prompt.label}</span>
+            <textarea
+              autoFocus
+              rows={3}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder={state.prompt.placeholder}
+            />
+          </label>
+        ) : null}
         <div className="confirm-actions">
           <button type="button" onClick={onClose}>
             {state.cancelLabel || "Cancel"}
@@ -36,11 +63,9 @@ export function ConfirmDialog({ state, onClose }: ConfirmDialogProps) {
           <button
             type="button"
             className={state.danger ? "danger" : "primary"}
-            onClick={() => {
-              state.onConfirm?.();
-              onClose();
-            }}
-            autoFocus
+            onClick={confirm}
+            disabled={reasonMissing}
+            autoFocus={!state.prompt}
           >
             {state.confirmLabel || "Confirm"}
           </button>
