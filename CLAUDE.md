@@ -83,10 +83,10 @@ supabase secrets set SOPHIA_TELEGRAM_ENABLED=false --project-ref vceeheaxcrhmpqu
 | **WhatsApp (sophia-bot)** | OpenRouter -> Claude Sonnet 4.6 | `supabase/functions/sophia-bot/` calls OpenRouter directly |
 | **Email (sophia-bot /email)** | OpenRouter -> Claude Sonnet 4.6 | Same AI pipeline, triggered by email-router on Railway |
 
-**Primary Model** (via OpenRouter): `nvidia/nemotron-3-ultra-550b-a55b:free`
-**Pro Model** (for uploads): `nvidia/nemotron-3-ultra-550b-a55b:free`
-**Fallback Model**: `anthropic/claude-sonnet-4.6` (paid — kicks in on free-tier rate limits/errors)
-**Vision Model** (image classification): `nvidia/nemotron-nano-12b-v2-vl:free`
+**Primary Model** (via OpenRouter): `anthropic/claude-sonnet-4.6`
+**Pro Model** (for uploads): `anthropic/claude-sonnet-4.6`
+**Fallback Model**: `anthropic/claude-sonnet-4.6` (retries on transient OpenRouter errors/rate limits)
+**Vision Model** (image classification only): `nvidia/nemotron-nano-12b-v2-vl:free`
 
 > The **admin panel** (`app/(admin)/`) is LIVE, and `app/(auth)/` handles NextAuth. Root `/` redirects to `/admin`. All active development is on the WhatsApp bot in `supabase/functions/sophia-bot/`.
 
