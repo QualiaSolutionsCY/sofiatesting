@@ -1,6 +1,6 @@
 /**
  * AI Vision Image Classifier
- * Uses Gemini Flash via OpenRouter to auto-classify images as
+ * Uses Claude Sonnet 4.6 via OpenRouter to auto-classify images as
  * room types (exterior, living room, kitchen, etc.), title deeds, or floor plans.
  * Room-type classification enables mandatory photo ordering on all uploads.
  */
@@ -9,7 +9,7 @@ import { LogCategory, logger } from "../utils/logger.ts";
 
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const VISION_MODEL = "nvidia/nemotron-nano-12b-v2-vl:free";
+const VISION_MODEL = "anthropic/claude-sonnet-4.6";
 const VISION_TIMEOUT_MS = 20_000;
 
 /** Block private/internal IPs and cloud metadata endpoints to prevent SSRF */
