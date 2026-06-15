@@ -1108,6 +1108,57 @@ function parsePortalStructured(
     }
   }
 
+  // --- Altamira core specs from authoritative hidden inputs (Spanish field
+  // names). The visible specs row (covered m², beds, baths) is JS-rendered, so
+  // Firecrawl can miss them just like it missed the price — but the same values
+  // sit in server-rendered hidden inputs. Verified live 2026-06-15. ---
+  if (portal === "altamira") {
+    const hidden = (name: string) =>
+      html.match(new RegExp(`name="${name}"[^>]*value="([^"]+)"`, "i"))?.[1];
+    const metros = coerceNumber(hidden("metros"));
+    if (metros && metros >= 10) result.coveredArea = metros;
+    const dorm = hidden("dormitorios");
+    if (dorm !== undefined) {
+      const n = Number.parseInt(dorm, 10);
+      if (Number.isFinite(n) && n >= 0 && n <= 20) result.bedrooms = n;
+    }
+    const banos = coerceNumber(hidden("nbanos"));
+    if (banos && banos > 0 && banos <= 20) result.bathrooms = Math.round(banos);
+  }
+
+  // --- Pool & covered veranda from the description prose. Bank facility lists
+  // are JS-rendered, so Firecrawl often misses a pool the description clearly
+  // states (Lauren feedback: "said NO POOL but the bank desc mentions a pool").
+  // Add a pool ONLY on an explicit, non-negated "swimming pool" mention so we
+  // never invent one. groundFeatures keeps it (the word is on the page). ---
+  const pageText = html.replace(/<[^>]+>/g, " ");
+  if (!result.features.some((f) => /pool/i.test(f))) {
+    const poolMatch = pageText.match(
+      /(private|overflow|infinity|communal|shared|common)?\s*swimming pool/i
+    );
+    const poolNegated =
+      /\bno (?:swimming )?pool|without (?:a )?(?:swimming )?pool|provision[s]? for (?:a )?(?:swimming )?pool/i.test(
+        pageText
+      );
+    if (poolMatch && !poolNegated) {
+      const q = (poolMatch[1] || "").toLowerCase();
+      result.features.push(
+        q === "communal" || q === "shared" || q === "common"
+          ? "communal swimming pool"
+          : "swimming pool"
+      );
+    }
+  }
+  if (!result.coveredVeranda) {
+    const v = pageText.match(
+      /covered veranda[^.\d]{0,25}([\d.,]+)\s*(?:sq\.?\s?m|m²|sqm|m2)/i
+    );
+    if (v) {
+      const n = coerceNumber(v[1]);
+      if (n && n > 0 && n < 1000) result.coveredVeranda = n;
+    }
+  }
+
   // --- Gallery: deterministic per-portal CDN paths (authoritative when found) ---
   const gallery = new Set<string>();
   if (portal === "altamira") {
