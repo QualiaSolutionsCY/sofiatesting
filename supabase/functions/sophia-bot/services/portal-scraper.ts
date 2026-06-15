@@ -400,6 +400,29 @@ export async function extractFromBankPortal(
     });
   }
 
+  // REMU serves gallery photos through an .ashx handler that has NO image
+  // extension (…/imgHandler.ashx?ref=ID&order=N&serial=1), so the generic
+  // <img>/markdown extractors miss them and Firecrawl returns HTML links that
+  // fail validation. Build the deterministic handler URLs and probe until the
+  // first gap. Verified live 2026-06-15 (works with no headers). This is the
+  // authoritative REMU gallery, so it overrides any earlier (wrong) URLs.
+  if (portal === "remu") {
+    try {
+      const remuImgs = await fetchRemuGallery(url);
+      if (remuImgs.length > 0) {
+        result.imageUrls = remuImgs;
+        logger.info(`REMU gallery probe: ${remuImgs.length} image(s) found`, {
+          category: LogCategory.GENERAL,
+        });
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.warn(`REMU gallery probe failed: ${msg}`, {
+        category: LogCategory.GENERAL,
+      });
+    }
+  }
+
   const haveCore = !!(result.price || result.bedrooms || result.coveredArea);
   result.source = haveCore
     ? "firecrawl"
@@ -408,6 +431,66 @@ export async function extractFromBankPortal(
       : "url_pattern";
 
   return result;
+}
+
+/**
+ * Probe REMU's image handler to build the real gallery URL list.
+ *
+ * REMU (Bank of Cyprus) is a JS-rendered SPA whose photos are served by
+ * `{listing-dir}/imgHandler.ashx?ref={listingId}&order={N}&serial=1`, order
+ * starting at 1 and incrementing until the handler returns a 404 HTML page.
+ * The URLs carry no image extension and aren't in the raw HTML, so we derive
+ * them from the listing id and probe (cheap HEAD requests) until the first gap.
+ */
+async function fetchRemuGallery(url: string): Promise<string[]> {
+  const clean = url.split(/[?#]/)[0];
+  const idMatch = clean.match(/listing-(\d+)/i);
+  if (!idMatch) return [];
+  const ref = idMatch[1];
+  const dir = clean.slice(0, clean.lastIndexOf("/") + 1); // …/cyprus/
+  const handler = (order: number) =>
+    `${dir}imgHandler.ashx?ref=${ref}&order=${order}&serial=1`;
+
+  const found: string[] = [];
+  const MAX = 40; // hard cap — REMU listings never exceed this
+  const BATCH = 6; // probe a few orders at once to bound latency
+
+  for (let start = 1; start <= MAX; start += BATCH) {
+    const orders: number[] = [];
+    for (let i = start; i < start + BATCH && i <= MAX; i++) orders.push(i);
+
+    const results = await Promise.all(
+      orders.map(async (order) => {
+        const u = handler(order);
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 8000);
+          const r = await fetch(u, {
+            method: "HEAD",
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          const ct = r.headers.get("content-type") || "";
+          return r.ok && ct.startsWith("image/") ? u : null;
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    // Append in order; stop at the first gap (orders are sequential).
+    let hitGap = false;
+    for (const u of results) {
+      if (u) found.push(u);
+      else {
+        hitGap = true;
+        break;
+      }
+    }
+    if (hitGap) break;
+  }
+
+  return found;
 }
 
 /** One-line summary of which fields are populated — for diagnostic logs. */
@@ -1010,8 +1093,14 @@ function parsePortalStructured(
     const m = html.match(/"price"\s*:\s*\{\s*"amount"\s*:\s*(\d{4,})/);
     if (m) result.price = Number(m[1]);
   } else if (portal === "altamira") {
+    // Price lives in a hidden input. Verified live (2026-06-15): the element is
+    // <input ... name="precio" value="850000" id="formOportunidad_precio"/> —
+    // so the id is NOT "precio" and value comes BEFORE id. Match on name first,
+    // then fall back to the older id/var forms.
     const m =
-      html.match(/id="precio"[^>]*value="([\d.,]{4,})"/i) ||
+      html.match(/name="precio"[^>]*value="([\d.,]{4,})"/i) ||
+      html.match(/id="[^"]*precio[^"]*"[^>]*value="([\d.,]{4,})"/i) ||
+      html.match(/value="([\d.,]{4,})"[^>]*id="[^"]*precio[^"]*"/i) ||
       html.match(/var\s+precio\s*=\s*'([\d.,]{4,})'/i);
     if (m) {
       const n = Number(m[1].replace(/[.,]/g, ""));
