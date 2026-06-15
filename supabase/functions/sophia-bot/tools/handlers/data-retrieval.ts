@@ -225,14 +225,10 @@ export async function handleExtractFromBazaraki(
     }
   }
 
-  // Bank portal (Altia, Altamira, REMU, Gordian) — management only
-  if (agent?.role !== "management") {
-    return {
-      error:
-        "Bank portal extraction (Altia, Altamira, REMU, Gordian) is only available to management. Please ask Lauren or Charalambos to extract this listing for you.",
-    };
-  }
-
+  // Bank portal (Altia, Altamira, REMU, Gordian) — ANY agent may upload a bank
+  // listing (per Lauren, 2026-06-15). Bank-owned listings are NOT owned by the
+  // uploader: ownership is auto-routed to the regional office for the property's
+  // region (via bankUrl → assignReviewers). So there is no management gate here.
   try {
     const listing = await extractFromBankPortal(url);
 

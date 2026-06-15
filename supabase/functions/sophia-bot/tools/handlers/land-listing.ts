@@ -283,6 +283,12 @@ export async function handleCreateLandListing(
   const propertyRegion =
     regionResult.propertyRegion || determineRegion(location) || agent.region;
 
+  // Bank-owned listings (from a bank portal link) are auto-assigned to the
+  // regional office for the property's region. Compute this BEFORE the
+  // assignment questions below so we NEVER ask who to assign a bank listing.
+  const bankUrl = args.bankUrl as string | undefined;
+  const isBankListing = !!bankUrl && isBankPortalUrl(bankUrl);
+
   // 4. Handle special cases
   const specialCase = await handleSpecialCases(
     agent,
@@ -290,6 +296,7 @@ export async function handleCreateLandListing(
       listingType,
       location,
       assignTo: args.assignTo as string | undefined,
+      isBankListing,
     },
     propertyRegion
   );
@@ -302,8 +309,8 @@ export async function handleCreateLandListing(
     return { needsInput: true, question: specialCase.question };
   }
 
-  // 5. Check if management needs to specify assignment
-  if (needsAssignmentInput(agent, listingType) && !args.assignTo) {
+  // 5. Check if management needs to specify assignment (skipped for bank listings)
+  if (needsAssignmentInput(agent, listingType, isBankListing) && !args.assignTo) {
     return {
       needsInput: true,
       question:
@@ -361,9 +368,8 @@ export async function handleCreateLandListing(
 
   // 6. Get reviewer assignments
   // Bank-owned listings (scraped from a bank portal) route ownership to the
-  // regional office. bankUrl is the signal; validated by detectBankFromUrl.
-  const bankUrl = args.bankUrl as string | undefined;
-  const isBankListing = !!bankUrl && isBankPortalUrl(bankUrl);
+  // regional office. isBankListing was computed above (before the assignment
+  // questions) from the bankUrl arg.
   const reviewers = assignReviewers(
     agent,
     listingType,
