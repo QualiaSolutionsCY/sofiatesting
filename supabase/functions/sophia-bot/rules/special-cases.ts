@@ -10,6 +10,8 @@ export interface UploadRequest {
   listingType: "sale" | "rent";
   location: string;
   assignTo?: string;
+  /** Bank-owned listing (from a bank portal link) — auto-assigned to the regional office, never ask who to assign. */
+  isBankListing?: boolean;
 }
 
 export interface SpecialCaseResult {
@@ -53,7 +55,8 @@ export async function handleSpecialCases(
   if (
     agent.role === "management" &&
     agent.listingOwnerEmail === "ASK" &&
-    !request.assignTo
+    !request.assignTo &&
+    !request.isBankListing
   ) {
     return {
       needsInput: true,

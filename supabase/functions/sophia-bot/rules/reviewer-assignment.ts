@@ -127,8 +127,13 @@ export function assignReviewers(
  */
 export function needsAssignmentInput(
   agent: Agent,
-  _propertyType: "sale" | "rent"
+  _propertyType: "sale" | "rent",
+  isBankListing?: boolean
 ): boolean {
+  // Bank-owned listings are auto-assigned to the regional office for the
+  // property's region (see assignReviewers) — the listing owner is NEVER the
+  // requesting agent and NEVER something to ask about, even for management.
+  if (isBankListing) return false;
   // Management needs to specify who to assign to — applies to both sale and
   // rent because the listing owner can't be the management user themselves.
   return agent.role === "management" && agent.listingOwnerEmail === "ASK";
