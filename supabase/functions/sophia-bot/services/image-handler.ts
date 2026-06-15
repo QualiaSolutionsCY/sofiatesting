@@ -190,16 +190,26 @@ async function checkImageAccessibleWithError(
     );
 
     try {
+      // Browser User-Agent — bank-portal CDNs (REMU, Altamira, Gordian) reject
+      // header-less requests with 404/403, so a plain HEAD fails on valid images.
+      // Mirror the UA the portal scraper already uses in fetchPageHtml.
+      const browserHeaders = {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+      };
       // Try HEAD first, fall back to GET if HEAD fails (some servers like picsum don't support HEAD)
       let response = await fetch(url, {
         method: "HEAD",
+        headers: browserHeaders,
         signal: controller.signal,
       });
-      if (!response.ok && response.status === 405) {
-        // HEAD not allowed, try GET with a range to minimize data transfer
+      // Many CDNs reject HEAD specifically (403/404/405/406) while serving GET
+      // fine. Retry with a ranged GET before declaring the image inaccessible.
+      if (!response.ok && [403, 404, 405, 406].includes(response.status)) {
         response = await fetch(url, {
           method: "GET",
-          headers: { Range: "bytes=0-1024" },
+          headers: { ...browserHeaders, Range: "bytes=0-1024" },
           signal: controller.signal,
         });
       }

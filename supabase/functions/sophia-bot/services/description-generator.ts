@@ -1646,10 +1646,8 @@ export function generateLandDescription(details: LandDetails): string {
 
   // Opening: "{Type} For Sale in {Location}, {District}" format
   lines.push(`${displayType} ${listingTypeText} in ${location}`);
-  lines.push("");
   lines.push("Located in a peaceful and attractive environment");
   lines.push("It is only minutes from the community center and amenities!");
-  lines.push("");
   // Building regulations + specs — each on its own line (per Lauren's format)
   lines.push(`${formattedSize}m2 of ${displayType} area`);
   if (details.roadFrontage !== undefined && details.roadFrontage > 0) {
@@ -1689,7 +1687,6 @@ export function generateLandDescription(details: LandDetails): string {
       .map((v) => v.toLowerCase());
 
     if (viewsList.length > 0) {
-      lines.push("");
       if (viewsList.length === 1) {
         lines.push(`The land offers ${viewsList[0]}.`);
       } else if (viewsList.length === 2) {
@@ -1705,7 +1702,6 @@ export function generateLandDescription(details: LandDetails): string {
   // already cover everything. Agent-provided areaDescription is kept only if it adds
   // genuinely new info (e.g., "next to a green area", "borders with Agios Athanasios").
   if (details.areaDescription) {
-    lines.push("");
     lines.push(details.areaDescription);
   }
 
