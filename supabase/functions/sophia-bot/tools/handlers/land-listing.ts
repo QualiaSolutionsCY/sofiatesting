@@ -504,7 +504,9 @@ export async function handleCreateLandListing(
   // 7a. AI Vision classification — auto-detect title deeds
   let titleDeedImageIndices = (args.titleDeedImageIndices as number[]) || [];
   if (titleDeedImageIndices.length === 0 && imageUrls.length >= 2) {
-    const visionResult = await classifyImagesWithVision(imageUrls);
+    const visionResult = await classifyImagesWithVision(imageUrls, {
+      isBankListing,
+    });
     if (visionResult.titleDeedIndices.length > 0) {
       titleDeedImageIndices = visionResult.titleDeedIndices.map((i) => i + 1);
       logger.info("Vision auto-detected title deed images", {

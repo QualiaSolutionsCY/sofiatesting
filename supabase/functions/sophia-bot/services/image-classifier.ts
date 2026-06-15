@@ -10,6 +10,9 @@ import { LogCategory, logger } from "../utils/logger.ts";
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const VISION_MODEL = "anthropic/claude-sonnet-4.6";
+// Bank-portal listings get the strongest vision model for room-type ordering /
+// title-deed detection (their galleries are larger and less predictable).
+const VISION_MODEL_BANK = "anthropic/claude-opus-4.8";
 const VISION_TIMEOUT_MS = 20_000;
 
 /** Block private/internal IPs and cloud metadata endpoints to prevent SSRF */
@@ -119,8 +122,12 @@ The array must have exactly the same number of entries as images provided, in th
  * Graceful fallback: returns empty arrays on any failure (timeout, API error, parse error).
  */
 export async function classifyImagesWithVision(
-  imageUrls: string[]
+  imageUrls: string[],
+  opts?: { isBankListing?: boolean }
 ): Promise<ClassificationResult> {
+  // Bank listings use Opus 4.8 for photo ordering; everyone else stays on
+  // Sonnet 4.6 to control cost (vision runs on every upload).
+  const visionModel = opts?.isBankListing ? VISION_MODEL_BANK : VISION_MODEL;
   if (!OPENROUTER_API_KEY) {
     logger.warn("Vision classification skipped — no OPENROUTER_API_KEY", {
       category: LogCategory.IMAGE,
@@ -183,7 +190,7 @@ export async function classifyImagesWithVision(
         "X-Title": "SOPHIA Image Classifier",
       },
       body: JSON.stringify({
-        model: VISION_MODEL,
+        model: visionModel,
         messages: [{ role: "user", content }],
         temperature: 0,
         max_tokens: 1024,

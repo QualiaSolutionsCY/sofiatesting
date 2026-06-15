@@ -17,6 +17,7 @@ import {
   clearPendingImages,
   getPendingImages,
 } from "../../services/pending-images.ts";
+import { isBankPortalUrl } from "../../services/portal-scraper.ts";
 import { LogCategory, logger } from "../../utils/logger.ts";
 import { isDocumentUrl } from "../validators/location.ts";
 
@@ -158,7 +159,11 @@ export async function processListingImages(
   let visionRoomTypes: (RoomType | "title_deed" | "floor_plan")[] = [];
 
   if (imageUrls.length >= 2) {
-    const visionResult = await classifyImagesWithVision(imageUrls);
+    const bankUrl = args.bankUrl as string | undefined;
+    const isBankListing = !!bankUrl && isBankPortalUrl(bankUrl);
+    const visionResult = await classifyImagesWithVision(imageUrls, {
+      isBankListing,
+    });
     visionRoomTypes = visionResult.roomTypes;
 
     // Use vision-detected title deeds if agent didn't specify
