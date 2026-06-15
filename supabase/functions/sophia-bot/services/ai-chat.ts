@@ -35,6 +35,10 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const PRIMARY_MODEL = "anthropic/claude-sonnet-4.6";
 const PRO_MODEL = "anthropic/claude-sonnet-4.6";
 const FALLBACK_MODEL = "anthropic/claude-sonnet-4.6";
+// Bank-portal links (Altia / Altamira / REMU / Gordian) are the hardest
+// extraction path — many structured fields must be copied verbatim from scraped
+// data. Use the strongest model there. Slug verified on OpenRouter (2026-06-15).
+const BANK_MODEL = "anthropic/claude-opus-4.8";
 
 interface AIResponse {
   response: string;
@@ -356,8 +360,10 @@ async function callOpenRouter(
     while (retries <= maxRetries) {
       // Create fresh AbortController for each retry
       const controller = new AbortController();
-      // Generous timeout — email uploads with tool calling can take 40-60s
-      const timeoutMs = model === PRO_MODEL ? 90_000 : 60_000;
+      // Generous timeout — email uploads with tool calling can take 40-60s, and
+      // the bank-portal Opus path is slower still. Both get the longer budget.
+      const timeoutMs =
+        model === PRO_MODEL || model === BANK_MODEL ? 90_000 : 60_000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       try {
@@ -445,7 +451,8 @@ async function callOpenRouter(
     return { message: null, usage: null, error: "Max retries exceeded" };
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      const timeoutMs = model === PRO_MODEL ? 90_000 : 60_000;
+      const timeoutMs =
+        model === PRO_MODEL || model === BANK_MODEL ? 90_000 : 60_000;
       logger.error(
         `OpenRouter request timeout (${timeoutMs / 1000}s) for model ${model}`,
         error,
@@ -540,14 +547,16 @@ export async function chat(
   // Email and WhatsApp use the SAME detection — no channel-specific branching
   const lowerMessage = userMessage.toLowerCase();
   // Detect any supported property portal link (Bazaraki + bank portals)
-  const isPropertyPortalLink =
-    lowerMessage.includes("bazaraki.com/") ||
-    lowerMessage.includes("bazaraki.cy/") ||
+  const isBankPortalLink =
     lowerMessage.includes("marketplace.altia.com.cy/") ||
     lowerMessage.includes("altia.com.cy/") ||
     lowerMessage.includes("altamirarealestate.com.cy/") ||
     lowerMessage.includes("remuproperties.com/") ||
     lowerMessage.includes("gogordian.com/");
+  const isPropertyPortalLink =
+    lowerMessage.includes("bazaraki.com/") ||
+    lowerMessage.includes("bazaraki.cy/") ||
+    isBankPortalLink;
   const isEmailChannel = lowerMessage.includes("[channel: email");
   const isPropertyUploadIntent =
     (lowerMessage.includes("upload") && lowerMessage.includes("property")) ||
@@ -624,7 +633,13 @@ export async function chat(
     // Use Pro model for property uploads, portal extraction, and email uploads (better at structured extraction)
     const useProModel =
       isPropertyUploadIntent || isPropertyPortalLink || isEmailChannel;
-    const modelForCall = useProModel ? PRO_MODEL : PRIMARY_MODEL;
+    // Bank-portal links get Opus 4.8 (hardest structured-extraction path);
+    // everything else stays on the Sonnet Pro/Primary model to control cost.
+    const modelForCall = isBankPortalLink
+      ? BANK_MODEL
+      : useProModel
+        ? PRO_MODEL
+        : PRIMARY_MODEL;
 
     const openRouterResult = await callOpenRouter(
       currentMessages,
@@ -924,7 +939,7 @@ export async function chat(
         currentMessages,
         tools,
         "required",
-        PRO_MODEL
+        modelForCall
       );
 
       // Accumulate retry token usage
