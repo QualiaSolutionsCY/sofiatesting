@@ -12,6 +12,7 @@ import {
   Mail,
   MessageCircle,
   MoreHorizontal,
+  Receipt,
   RefreshCw,
   Trash2
 } from "lucide-react";
@@ -781,9 +782,14 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, 
                 <Copy size={13} strokeWidth={1.7} /> Duplicate as new draft
               </button>
               {doc.kind === "invoice" && doc.stage === "numbered" ? (
-                <button type="button" role="menuitem" onClick={() => { onAct("credit"); setMoreOpen(false); }}>
-                  <FileMinus size={13} strokeWidth={1.7} /> Issue a credit note
-                </button>
+                <>
+                  <button type="button" role="menuitem" onClick={() => { onAct("receipt"); setMoreOpen(false); }}>
+                    <Receipt size={13} strokeWidth={1.7} /> Issue a receipt
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => { onAct("credit"); setMoreOpen(false); }}>
+                    <FileMinus size={13} strokeWidth={1.7} /> Issue a credit note
+                  </button>
+                </>
               ) : null}
               <button type="button" role="menuitem" onClick={() => { onAct("regenerate"); setMoreOpen(false); }}>
                 <RefreshCw size={13} strokeWidth={1.7} /> Regenerate PDF

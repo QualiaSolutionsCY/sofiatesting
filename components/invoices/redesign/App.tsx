@@ -229,10 +229,18 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         });
         break;
       case "numbered":
+      case "receipt":
+        // A receipt is always issued against THIS numbered invoice — it can never
+        // exist standalone. markPaidAndIssueReceiptAction keys the receipt to the
+        // invoice id, so the receipt is inherently linked to the source invoice.
+        if (selected.kind !== "invoice" || !selected.officialNo) {
+          setToast("Receipts can only be issued from a numbered invoice.");
+          break;
+        }
         startTransition(async () => {
           const result = await markPaidAndIssueReceiptAction(selected.id);
           reconcile(result.documents, result.selectedId ?? selected.id);
-          setToast("Marked paid · receipt generated and sent.");
+          setToast("Marked paid · receipt generated and linked to the invoice.");
         });
         break;
       case "sent-to-accounting":
