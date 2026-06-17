@@ -241,7 +241,8 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         startTransition(async () => {
           const result = await markPaidAndIssueReceiptAction(selected.id);
           reconcile(result.documents, result.selectedId ?? selected.id);
-          setToast("Marked paid · receipt generated and linked to the invoice.");
+          setFilters((f) => ({ ...f, stage: "kind-receipt" }));
+          setToast("Receipt issued — moved to Receipts.");
         });
         break;
       case "sent-to-accounting":
@@ -422,7 +423,8 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       if (form.kind === "receipt" && form.sourceInvoiceId) {
         const result = await markPaidAndIssueReceiptAction(form.sourceInvoiceId);
         reconcile(result.documents, result.selectedId ?? form.sourceInvoiceId);
-        setToast("Receipt issued and linked to the invoice.");
+        setFilters((f) => ({ ...f, stage: "kind-receipt" }));
+        setToast("Receipt issued — moved to Receipts.");
         return;
       }
 

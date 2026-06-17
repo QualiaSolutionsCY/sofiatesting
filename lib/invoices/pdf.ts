@@ -7,13 +7,21 @@ import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
  * generated PDF matches the on-screen "Print / save as PDF" template. Kept inline here
  * to keep the PDF generator self-contained (it runs in both client and server paths).
  */
+// Kept in sync with TEMPLATE_DEFAULTS (lib/invoices/redesign/template-context.tsx)
+// so the downloaded/WhatsApp PDF matches the on-screen A4 preview exactly.
 const ENTITY = {
   name: "CSC ZYPRUS PROPERTY GROUP LTD",
-  regNo: "HE 412 339",
-  vatNo: "CY 10412339B",
-  address: "29 Christaki Kranou, Office 12, 4042 Limassol, Cyprus",
-  iban: "CY17 0020 0144 0000 0000 1247 8312",
-  bank: "Bank of Cyprus · SWIFT BCYPCY2N"
+  regNo: "HE344546",
+  vatNo: "10344546O",
+  address: "Tombs of the Kings Avenue 96, 8046 Paphos, Cyprus",
+  contactLine: "T: 77776477 E: info@zyprus.com",
+  creaLicense: "378/E",
+  creaReg: "742",
+  bankName: "Hellenic Bank",
+  accountName: "CSC ZYPRUS PROPERTY GROUP LTD",
+  accountNumber: "502-01-734364-01",
+  iban: "CY97 0050 0502 0005 0201 7343 6401",
+  bic: "HEBACY2N"
 };
 
 // Helvetica / Helvetica-Bold advance widths (1000 units/em) for WinAnsi 0x20–0x7E.
@@ -82,11 +90,21 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
     ops.push(`${gray} G ${width} w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
 
   // ---- Header: entity letterhead (left) + document title & meta (right) ----
+  // Letterhead lines mirror the on-screen template preview exactly.
   text(ML, 800, ENTITY.name, 12, true, 0.1);
   textRight(MR, 794, title, 22, true, 0.1);
-  text(ML, 783, ENTITY.address, 9, false, 0.42);
-  text(ML, 770, `Reg. No. ${ENTITY.regNo}`, 9, false, 0.42);
-  text(ML, 757, `VAT No. ${ENTITY.vatNo}`, 9, false, 0.42);
+  const headerLines = [
+    `Reg. No. ${ENTITY.regNo}`,
+    ENTITY.address,
+    ENTITY.contactLine,
+    `VAT Reg. No. ${ENTITY.vatNo}`,
+    `CREA License No. ${ENTITY.creaLicense} · CREA Reg No. ${ENTITY.creaReg}`
+  ];
+  let headerY = 786;
+  for (const ln of headerLines) {
+    text(ML, headerY, ln, 8.5, false, 0.42);
+    headerY -= 12;
+  }
 
   const meta: Array<[string, string]> = [
     ["Number", getDisplayNumber(document)],
@@ -97,7 +115,7 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   }
   if (isCredit && document.sourceInvoiceNumber) meta.push(["Applies to", document.sourceInvoiceNumber]);
 
-  let metaY = 772;
+  let metaY = 786;
   for (const [label, value] of meta) {
     text(MR - 175, metaY, label, 8, false, 0.45);
     textRight(MR, metaY, value, 9.5, false, 0.12);
@@ -105,8 +123,8 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   }
 
   // Divider sits below BOTH the left letterhead and the (variable-height) meta block
-  // so it never strikes through a meta row when there are 3–4 rows.
-  const dividerY = Math.min(752, metaY + 7) - 8;
+  // so it never strikes through a row.
+  const dividerY = Math.min(headerY, metaY) - 4;
   line(ML, dividerY, MR, dividerY, 0.6, 0.8);
 
   // ---- Bill to ----
@@ -189,7 +207,13 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
           9,
           false
         )
-      : [`Beneficiary: ${ENTITY.name}`, `IBAN: ${ENTITY.iban}`, `Bank: ${ENTITY.bank}`];
+      : [
+          ENTITY.bankName,
+          `Account Name: ${ENTITY.accountName}`,
+          `Account No: ${ENTITY.accountNumber}`,
+          `IBAN: ${ENTITY.iban}`,
+          `BIC: ${ENTITY.bic}`
+        ];
   for (const ln of settleLines) {
     text(ML, ty, ln, 9, false, 0.42);
     ty -= 12;
