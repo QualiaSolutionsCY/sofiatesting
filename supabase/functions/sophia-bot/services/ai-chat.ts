@@ -31,10 +31,16 @@ const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // Primary model: Claude Sonnet 4.6 via OpenRouter (strong tool-calling + vision)
-// Fallback retries the same model on transient OpenRouter errors/rate-limits
 const PRIMARY_MODEL = "anthropic/claude-sonnet-4.6";
 const PRO_MODEL = "anthropic/claude-sonnet-4.6";
-const FALLBACK_MODEL = "anthropic/claude-sonnet-4.6";
+// Fallback MUST be a different model from PRIMARY/PRO — otherwise a model-specific
+// outage (capacity, deprecation, a bad release) takes the whole bot down with no
+// real failover. Sonnet 4.5 is the prior snapshot: different model, same strong
+// tool-calling + vision. Slug verified on OpenRouter (2026-06-17).
+// NOTE: this does NOT protect against account-level failures (out of credits /
+// revoked key) — those fail every model on the same key. See the 402 handling in
+// callOpenRouter, which logs a distinct CRITICAL billing alert for that case.
+const FALLBACK_MODEL = "anthropic/claude-sonnet-4.5";
 // Bank-portal links (Altia / Altamira / REMU / Gordian) are the hardest
 // extraction path — many structured fields must be copied verbatim from scraped
 // data. Use the strongest model there. Slug verified on OpenRouter (2026-06-15).
@@ -426,6 +432,28 @@ async function callOpenRouter(
           continue;
         }
 
+        // 402 = account out of credits / spend cap hit. This is an ACCOUNT-level
+        // failure: it fails every model on the same key, so no model-fallback can
+        // recover it. Log a distinct CRITICAL alert so it is greppable and can be
+        // alarmed on — otherwise it hides behind the generic "technical
+        // difficulties" message (root cause of the 2026-06-17 outage).
+        const errBody = JSON.stringify(errorData);
+        const isBilling =
+          aiRes.status === 402 || /credit|insufficient|quota|billing/i.test(errBody);
+        if (isBilling) {
+          logger.error(
+            `CRITICAL: OpenRouter BILLING failure (status ${aiRes.status}) — account out of credits or spend cap reached. Top up at https://openrouter.ai/credits. Detail: ${errBody}`,
+            undefined,
+            { category: LogCategory.AI }
+          );
+          recordFailure(OPENROUTER_CIRCUIT);
+          return {
+            message: null,
+            usage: null,
+            error: `OpenRouter billing failure (${aiRes.status})`,
+          };
+        }
+
         logger.error(
           "OpenRouter Error: " + JSON.stringify(errorData, null, 2),
           undefined,
@@ -436,7 +464,11 @@ async function callOpenRouter(
         });
 
         recordFailure(OPENROUTER_CIRCUIT);
-        return { message: null, usage: null, error: "OpenRouter API error" };
+        return {
+          message: null,
+          usage: null,
+          error: `OpenRouter API error (${aiRes.status})`,
+        };
       } catch (error) {
         clearTimeout(timeoutId);
         // Re-throw to outer catch if it's an abort error
@@ -664,11 +696,26 @@ export async function chat(
       totalTokens += usage.totalTokens;
     }
     if (error || !message) {
+      // Billing failures are account-level — every model on the same key 402s.
+      // Don't waste a second call on the fallback model; fail fast and keep the
+      // circuit tripped so we stop hammering a dead account.
+      if (error?.startsWith("OpenRouter billing failure")) {
+        logger.error(
+          `[Fallback] Skipping fallback — ${error} affects all models on this key. Bot is DOWN until credits are restored.`,
+          undefined,
+          { category: LogCategory.AI }
+        );
+        return {
+          response:
+            "I'm experiencing technical difficulties right now. Please try again in a few moments.",
+          success: false,
+        };
+      }
       logger.warn(
         `[Fallback] ${modelForCall} failed (${error}), trying ${FALLBACK_MODEL}`,
         { category: LogCategory.GENERAL }
       );
-      // Reset circuit breaker before fallback — Pro failures should NOT block Flash fallback
+      // Reset circuit breaker before fallback — Pro failures should NOT block fallback model
       recordSuccess(OPENROUTER_CIRCUIT);
       const fallback = await callOpenRouter(
         currentMessages,
