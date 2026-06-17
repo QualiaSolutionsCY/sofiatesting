@@ -64,6 +64,13 @@ function money(value: number): string {
   return (Number(value) || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// Use the ASCII code "EUR" rather than the € glyph: base-14 Helvetica has no real
+// Euro glyph, so some PDF viewers fall back to a system font and render € as the
+// Saudi Riyal sign (﷼). "EUR" renders identically everywhere.
+function eur(value: number): string {
+  return `EUR ${money(value)}`;
+}
+
 export function buildDocumentPdfBlob(document: InvoiceDocument): Blob {
   return new Blob([asArrayBuffer(buildDocumentPdfBytes(document))], { type: "application/pdf" });
 }
@@ -150,10 +157,10 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
 
   rectFill(ML, tableTop - headerH, MR - ML, headerH, 0.93);
   const hb = tableTop - 15;
-  text(colNum, hb, "#", 8.5, true, 0.25);
+  text(colNum, hb, "Item", 8.5, true, 0.25);
   text(colDesc, hb, "Description", 8.5, true, 0.25);
-  textRight(unitR, hb, "Unit · €", 8.5, true, 0.25);
-  textRight(totalR, hb, "Total · €", 8.5, true, 0.25);
+  textRight(unitR, hb, "Unit Price", 8.5, true, 0.25);
+  textRight(totalR, hb, "Total", 8.5, true, 0.25);
 
   const bodyTop = tableTop - headerH;
   const descLines = wrapText(document.description || "—", xDescEnd - colDesc, 9.5, false);
@@ -162,8 +169,8 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   const rb = bodyTop - 18;
   text(colNum, rb, "1", 9.5, false, 0.2);
   descLines.forEach((ln, i) => text(colDesc, rb - i * lineH, ln, 9.5, false, 0.15));
-  textRight(unitR, rb, money(document.amount), 9.5, false, 0.15);
-  textRight(totalR, rb, money(document.amount), 9.5, false, 0.15);
+  textRight(unitR, rb, eur(document.amount), 9.5, false, 0.15);
+  textRight(totalR, rb, eur(document.amount), 9.5, false, 0.15);
 
   const bottom = bodyTop - rowH;
   // outer box + header separator + column rules
@@ -179,15 +186,15 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   const labelX = MR - 200;
   let ty = bottom - 26;
   text(labelX, ty, "Subtotal", 9.5, false, 0.42);
-  textRight(MR, ty, money(document.amount), 9.5, false, 0.12);
+  textRight(MR, ty, eur(document.amount), 9.5, false, 0.12);
   ty -= 16;
   text(labelX, ty, `VAT ${rate}%`, 9.5, false, 0.42);
-  textRight(MR, ty, money(document.vatAmount), 9.5, false, 0.12);
+  textRight(MR, ty, eur(document.vatAmount), 9.5, false, 0.12);
   ty -= 8;
   line(labelX, ty, MR, ty, 0.7, 0.6);
   ty -= 17;
   text(labelX, ty, isCredit ? "Total credited" : isReceipt ? "Total paid" : "Total due", 11.5, true, 0.1);
-  textRight(MR, ty, money(document.total), 11.5, true, 0.1);
+  textRight(MR, ty, eur(document.total), 11.5, true, 0.1);
   ty -= 34;
 
   // ---- Settlement / acknowledgement ----
