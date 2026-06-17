@@ -3,6 +3,7 @@
 import { ChevronDown, FileMinus, FileText, Receipt as ReceiptIcon, Search } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 import { STAGES, clientById, fmt } from "@/lib/invoices/redesign/data";
+import { formatDate } from "@/lib/invoices/format";
 import type { Doc, DocKind, Filters } from "@/lib/invoices/redesign/types";
 
 const STAGE_OPTIONS: Array<{ value: Filters["stage"]; label: string }> = [
@@ -121,11 +122,13 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
                   <span className="row-client">{cl.name}</span>
                   <span className="row-meta">
                     <span className="row-title-number">{number}</span>
-                    <span className="row-date">{doc.issued}</span>
+                    <span className="row-date">{formatDate(doc.issued)}</span>
                     {doc.kind !== "credit" ? (
                       (() => {
                         const paid = !!doc.paidOn || !!doc.receiptNo || doc.stage === STAGES.SENT_TO_ACCOUNTING.id;
-                        return <span className={`row-pay ${paid ? "is-paid" : "is-unpaid"}`}>{paid ? "Paid" : "Unpaid"}</span>;
+                        if (paid) return <span className="row-pay is-paid">Paid</span>;
+                        if (doc.stage === STAGES.APPROVED.id) return <span className="row-pay is-approved">Approved</span>;
+                        return <span className="row-pay is-unpaid">Unpaid</span>;
                       })()
                     ) : null}
                     <span className="row-total">{fmt(doc.total)}</span>

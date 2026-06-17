@@ -10,6 +10,7 @@ import {
   deleteDocumentAction,
   forwardAccountingAction,
   loadDocumentsAction,
+  markApprovedOnlyAction,
   markPaidAndIssueReceiptAction,
   notifyMariosApprovedAction,
   queueClientEmailAction,
@@ -419,19 +420,20 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       const created = await createDocumentAction(input);
       const newId = created.selectedId as string;
 
-      // Admin-panel invoices are auto-approved: approve + number, notify Marios that
-      // it's already issued (no review request), and dispatch to the client group.
+      // Admin-panel invoices are auto-APPROVED (status "approved"), not auto-numbered:
+      // they land in the Approved bucket and Marios is notified. The official number
+      // is applied later when the invoice is actually issued — so it never shows as a
+      // numbered/unpaid invoice straight out of creation.
       if (form.kind === "invoice" && newId) {
         let result = created;
         try {
-          result = await approveDocumentAction(newId);
+          result = await markApprovedOnlyAction(newId);
           await notifyMariosApprovedAction(newId);
-          result = await queueClientEmailAction(newId, sharedCc);
         } catch (error) {
-          console.error("Auto-dispatch failed", error);
+          console.error("Auto-approve failed", error);
         }
         reconcile(result.documents, newId);
-        setToast("Invoice approved, issued, and sent to Marios + the group.");
+        setToast("Invoice approved and sent to Marios.");
         return;
       }
 

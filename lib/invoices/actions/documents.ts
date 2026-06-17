@@ -188,6 +188,19 @@ export async function approveDocumentAction(id: string): Promise<DocumentsAction
   return { ...result, selectedId: id };
 }
 
+/**
+ * Approve WITHOUT assigning an official number. Used by the admin-panel
+ * auto-create flow so a freshly created invoice lands in the "approved" status
+ * (not "numbered"/unpaid) — the official number is applied later when it's
+ * issued. Keeps auto-approved invoices in the Approved bucket for Marios.
+ */
+export async function markApprovedOnlyAction(id: string): Promise<DocumentsActionResult> {
+  const current = await listInvoiceDocuments();
+  const document = findDocument(current.documents, id);
+  const result = await saveInvoiceDocument(markApproved(document), "Auto-approved (admin panel)");
+  return { ...result, selectedId: id };
+}
+
 export async function applyOfficialNumberAction(
   id: string,
   number: string

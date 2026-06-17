@@ -6612,6 +6612,7 @@ body {
 }
 .list-pane .row-pay.is-paid { background: oklch(0.92 0.06 150); color: oklch(0.42 0.12 150); }
 .list-pane .row-pay.is-unpaid { background: oklch(0.93 0.05 70); color: oklch(0.5 0.12 70); }
+.list-pane .row-pay.is-approved { background: oklch(0.93 0.04 235); color: oklch(0.46 0.11 235); }
 .sidebar .document-row.is-selected .row-pay { background: oklch(1 0 0 / 0.18); color: oklch(1 0 0); }
 .list-pane .row-side {
   display: flex;
