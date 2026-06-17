@@ -129,6 +129,9 @@ export interface ComposerForm {
   stage?: Stage;
   timeline?: TimelineEvent[];
   amount?: number;
+  // When kind === "receipt", the existing invoice (Doc id) this receipt is issued
+  // against. A receipt is always derived from a real invoice, never standalone.
+  sourceInvoiceId?: string;
 }
 
 export interface PaletteItem {

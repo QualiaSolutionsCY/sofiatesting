@@ -417,6 +417,15 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         return;
       }
 
+      // Receipt from the composer: issue it against the chosen existing invoice
+      // (marks the invoice paid + creates the linked receipt). Never standalone.
+      if (form.kind === "receipt" && form.sourceInvoiceId) {
+        const result = await markPaidAndIssueReceiptAction(form.sourceInvoiceId);
+        reconcile(result.documents, result.selectedId ?? form.sourceInvoiceId);
+        setToast("Receipt issued and linked to the invoice.");
+        return;
+      }
+
       const created = await createDocumentAction(input);
       const newId = created.selectedId as string;
 
@@ -562,6 +571,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         }}
         prefill={composerPrefill}
         onCreate={handleCreate}
+        invoices={docs}
       />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onAction={handlePaletteAction} />
       <PDFLightbox

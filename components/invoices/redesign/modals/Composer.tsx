@@ -19,6 +19,8 @@ interface ComposerProps {
   onClose: () => void;
   prefill: Partial<Doc> | null;
   onCreate: (form: ComposerForm) => void;
+  // All documents — used to offer existing invoices when issuing a receipt.
+  invoices?: Doc[];
 }
 
 interface LocalLine {
@@ -28,12 +30,13 @@ interface LocalLine {
   unitPrice: number;
 }
 
-export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
+export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: ComposerProps) {
   const initial = prefill ?? null;
   const isEdit = !!initial?.id;
 
   const [kind, setKind] = useState<DocKind>("invoice");
   const [client, setClient] = useState("__new__");
+  const [sourceInvoiceId, setSourceInvoiceId] = useState("");
   const [period, setPeriod] = useState(currentPeriod());
   const [issued, setIssued] = useState(todayISO());
   const [due, setDue] = useState(plus30ISO());
@@ -51,6 +54,7 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
   useEffect(() => {
     if (!open) return;
     setNewClient({ name: "", property: "", address: "", vat: "" });
+    setSourceInvoiceId("");
     if (initial) {
       setKind((initial.kind as DocKind) || "invoice");
       setClient(initial.client || CLIENTS[0]?.id || "__new__");
@@ -146,6 +150,9 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    // A receipt must be tied to a real, selected invoice.
+    if (kind === "receipt" && !sourceInvoiceId) return;
+
     let resolvedClient = client;
     let createdClient: Client | null = null;
     if (client === "__new__") {
@@ -187,6 +194,7 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
       recurrenceEmail: recurrence !== "none" ? recurrenceEmail.trim() : "",
       commission: commission ? { agent, rate: "5%", amount: sub * 0.05 } : null,
       newClient: createdClient,
+      sourceInvoiceId: kind === "receipt" ? sourceInvoiceId : undefined,
       ...editingFields
     });
     onClose();
@@ -206,6 +214,28 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
         vat: newClient.vat || "—"
       }
     : undefined;
+
+  // Receipt mode: a receipt is issued against an existing, numbered invoice for
+  // the chosen client. Offer only those invoices (not credit notes/receipts).
+  const receiptInvoices = invoices.filter(
+    (inv) => inv.kind === "invoice" && !!inv.officialNo && inv.client === client
+  );
+
+  // Picking an invoice mirrors its amount/description/VAT into the receipt so the
+  // live preview and totals are correct, and pins the source-invoice reference.
+  function selectInvoiceForReceipt(invoiceId: string) {
+    setSourceInvoiceId(invoiceId);
+    const inv = invoices.find((i) => i.id === invoiceId);
+    if (!inv) return;
+    setVatMode(inv.vatMode);
+    setVatRate(inv.vatRate);
+    setDue(inv.officialNo || "");
+    setDescription(inv.description || `Payment received for invoice ${inv.officialNo}`);
+    const seed: LocalLine[] = inv.lines && inv.lines.length
+      ? inv.lines.map((l, i) => ({ key: i + 1, desc: l.desc, qty: l.qty, unitPrice: l.unitPrice }))
+      : [{ key: 1, desc: `Invoice ${inv.officialNo}`, qty: 1, unitPrice: Math.abs(inv.total) }];
+    setLines(seed);
+  }
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -295,9 +325,22 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
             <input type="date" value={issued} onChange={(event) => setIssued(event.target.value)} />
           </label>
           <label>
-            <span>{kind === "receipt" ? "Reference invoice" : "Due (days to pay)"}</span>
+            <span>{kind === "receipt" ? "Invoice to receipt" : "Due (days to pay)"}</span>
             {kind === "receipt" ? (
-              <input type="text" value={due} onChange={(event) => setDue(event.target.value)} />
+              <select
+                value={sourceInvoiceId}
+                onChange={(event) => selectInvoiceForReceipt(event.target.value)}
+                required
+              >
+                <option value="" disabled>
+                  {receiptInvoices.length ? "Select an invoice…" : "No invoices for this client yet"}
+                </option>
+                {receiptInvoices.map((inv) => (
+                  <option key={inv.id} value={inv.id}>
+                    № {inv.officialNo} · {fmt(Math.abs(inv.total))} · {inv.issued}
+                  </option>
+                ))}
+              </select>
             ) : (
               <input
                 type="number"
@@ -333,6 +376,7 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
           ) : null}
         </div>
 
+        {kind !== "receipt" ? (
         <div className="lines-editor">
           <div className="lines-editor-head">
             <h3>Lines</h3>
@@ -394,14 +438,15 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
                 <b>{fmt(vat)}</b>
               </div>
               <div className="row tot">
-                <span>Total {kind === "credit" ? "credited" : kind === "receipt" ? "received" : "due"}</span>
+                <span>Total {kind === "credit" ? "credited" : "due"}</span>
                 <b>{fmt(total)}</b>
               </div>
             </div>
           </div>
         </div>
+        ) : null}
 
-
+        {kind !== "receipt" ? (
         <div className="optional-composer-grid composer-grid">
           <label>
             <span>Recurrence</span>
@@ -436,6 +481,7 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
             </label>
           ) : null}
         </div>
+        ) : null}
 
         <p className="composer-description">
           <span>What happens next</span>
@@ -465,7 +511,7 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
           <button type="button" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" disabled={isNewClient && !newClient.name.trim()}>
+          <button type="submit" disabled={(isNewClient && !newClient.name.trim()) || (kind === "receipt" && !sourceInvoiceId)}>
             <Send size={14} strokeWidth={1.6} />
             {isEdit
               ? "Save changes"

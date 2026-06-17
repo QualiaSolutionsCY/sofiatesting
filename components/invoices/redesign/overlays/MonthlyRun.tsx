@@ -27,19 +27,8 @@ interface MonthlyRunProps {
 export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPause }: MonthlyRunProps) {
   const run = useMemo<MonthlyRow[]>(() => {
     const period = "June 2026";
-    const seed = [
-      { client: "c1", net: 1850, extra: 145 },
-      { client: "c2", net: 3200, extra: 190 },
-      { client: "c3", net: 4200, extra: 0 },
-      { client: "c4", net: 2900, extra: 180 },
-      { client: "c5", net: 6500, extra: 0 },
-      { client: "c6", net: 1100, extra: 85 },
-      { client: "c7", net: 5400, extra: 0 },
-      { client: "c8", net: 1800, extra: 0 },
-      { client: "c9", net: 7800, extra: 0 },
-      { client: "c10", net: 950, extra: 0 },
-      { client: "c2", net: 720, extra: 0, note: "Parking #2 — top-up" } as { client: string; net: number; extra: number; note?: string }
-    ];
+    // No demo seed — recurring drafts are sourced from real recurring invoices.
+    const seed: Array<{ client: string; net: number; extra: number; note?: string }> = [];
     return seed.map((s, i) => {
       const sub = s.net + s.extra;
       return {
@@ -87,10 +76,20 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
       <div className="run-shell" onClick={(event) => event.stopPropagation()}>
         <div className="run-head">
           <div>
-            <p className="eyebrow">Monthly run · 1 June 2026 · 08:00 Europe/Nicosia</p>
-            <h2>Eleven drafts ready for your review</h2>
+            <p className="eyebrow">Monthly run · Europe/Nicosia</p>
+            <h2>
+              {run.length === 0
+                ? "No recurring drafts pending"
+                : `${run.length} draft${run.length === 1 ? "" : "s"} ready for your review`}
+            </h2>
             <p className="by-sophia">
-              <em>Sophia</em> prepared these at 08:02 from active leases. Approve all, or untick the ones to hold.
+              {run.length === 0 ? (
+                <>No active recurring leases have generated drafts yet.</>
+              ) : (
+                <>
+                  <em>Sophia</em> prepared these from active leases. Approve all, or untick the ones to hold.
+                </>
+              )}
             </p>
           </div>
           <div className="run-sum">
@@ -134,6 +133,11 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
         </div>
 
         <div className="run-list">
+          {run.length === 0 ? (
+            <div className="list-empty" style={{ padding: "32px 16px", textAlign: "center", color: "var(--muted)" }}>
+              No recurring drafts to review.
+            </div>
+          ) : null}
           {run.map((r) => {
             const cl = clientById(r.client);
             const on = picked.has(r.id);
