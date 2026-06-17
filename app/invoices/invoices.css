@@ -7678,8 +7678,10 @@ kbd {
 
 .delivery-card-grid {
   display: grid !important;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px !important;
+  /* Wrap channel cards instead of forcing 3 across — keeps them readable now
+     that the detail pane is narrower (wider left list). */
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+  gap: 16px !important;
 }
 
 .delivery-card {
