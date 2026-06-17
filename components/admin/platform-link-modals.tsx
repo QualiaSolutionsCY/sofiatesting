@@ -213,14 +213,18 @@ export function LinkWhatsAppModal({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            phoneNumber: phoneNumber.trim(),
+            // Server contract expects `whatsappPhoneNumber` (route.ts); sending
+            // `phoneNumber` made every link 400 with "whatsappPhoneNumber is required".
+            whatsappPhoneNumber: phoneNumber.trim(),
           }),
         }
       );
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Failed to link WhatsApp account");
+        throw new Error(
+          error.error || error.message || "Failed to link WhatsApp account"
+        );
       }
 
       toast.success("WhatsApp account linked successfully");
@@ -247,7 +251,9 @@ export function LinkWhatsAppModal({
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Failed to unlink WhatsApp account");
+        throw new Error(
+          error.error || error.message || "Failed to unlink WhatsApp account"
+        );
       }
 
       toast.success("WhatsApp account unlinked successfully");
