@@ -160,8 +160,98 @@ function classifyImage(url: string): ImageClassification {
   return "unknown";
 }
 
-// Image validation timeout in milliseconds
-const IMAGE_VALIDATION_TIMEOUT_MS = 5000; // 5 seconds per image
+// Image validation timeout in milliseconds. Bank-portal CDNs (REMU, Altamira,
+// Gordian) are routinely slow to answer HEAD/ranged-GET; 5s was too tight and
+// dropped valid images on a transient blip, aborting the whole listing upload.
+const IMAGE_VALIDATION_TIMEOUT_MS = 15000; // 15 seconds per image
+// One retry on a transient failure before declaring an image inaccessible, so a
+// single slow/flapping CDN response does not nuke the entire upload.
+const IMAGE_VALIDATION_MAX_ATTEMPTS = 2;
+const IMAGE_VALIDATION_RETRY_DELAY_MS = 750;
+
+/**
+ * Whether an accessibility error is worth retrying. Timeouts, network blips, and
+ * the flappy 4xx/5xx statuses bank CDNs return under load are transient; a wrong
+ * content-type is not.
+ */
+function isRetryableImageError(error: string): boolean {
+  if (error.startsWith("Timeout") || error.startsWith("Fetch failed")) {
+    return true;
+  }
+  const match = error.match(/^HTTP (\d{3})/);
+  if (match) {
+    return [403, 404, 408, 425, 429, 500, 502, 503, 504].includes(
+      Number(match[1])
+    );
+  }
+  return false;
+}
+
+/** Single accessibility probe (HEAD, then ranged GET fallback) with timeout. */
+async function attemptImageAccessible(
+  url: string
+): Promise<{ valid: boolean; error: string }> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    IMAGE_VALIDATION_TIMEOUT_MS
+  );
+
+  try {
+    // Browser User-Agent — bank-portal CDNs (REMU, Altamira, Gordian) reject
+    // header-less requests with 404/403, so a plain HEAD fails on valid images.
+    // Mirror the UA the portal scraper already uses in fetchPageHtml.
+    const browserHeaders = {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+      Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+    };
+    // Try HEAD first, fall back to GET if HEAD fails (some servers like picsum don't support HEAD)
+    let response = await fetch(url, {
+      method: "HEAD",
+      headers: browserHeaders,
+      signal: controller.signal,
+    });
+    // Many CDNs reject HEAD specifically (403/404/405/406) while serving GET
+    // fine. Retry with a ranged GET before declaring the image inaccessible.
+    if (!response.ok && [403, 404, 405, 406].includes(response.status)) {
+      response = await fetch(url, {
+        method: "GET",
+        headers: { ...browserHeaders, Range: "bytes=0-1024" },
+        signal: controller.signal,
+      });
+    }
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return {
+        valid: false,
+        error: `HTTP ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    const contentType = response.headers.get("content-type");
+    if (!contentType?.startsWith("image/")) {
+      return {
+        valid: false,
+        error: `Not an image (${contentType || "no content-type"})`,
+      };
+    }
+
+    return { valid: true, error: "" };
+  } catch (fetchErr) {
+    clearTimeout(timeoutId);
+    if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
+      return {
+        valid: false,
+        error: `Timeout after ${IMAGE_VALIDATION_TIMEOUT_MS}ms`,
+      };
+    }
+    const errorMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+    return { valid: false, error: `Fetch failed: ${errorMsg}` };
+  }
+}
 
 /**
  * Validate image URL is accessible and safe
@@ -171,81 +261,37 @@ const IMAGE_VALIDATION_TIMEOUT_MS = 5000; // 5 seconds per image
 async function checkImageAccessibleWithError(
   url: string
 ): Promise<{ valid: boolean; error: string }> {
-  try {
-    // P0 SECURITY: Validate URL before making any request (SSRF prevention)
-    const securityCheck = validateImageUrl(url);
-    if (!securityCheck.valid) {
-      logger.warn(`[Image Handler] SSRF blocked: ${securityCheck.error}`, {
-        category: LogCategory.IMAGE,
-        url: url.substring(0, 100),
-      });
-      return { valid: false, error: `Security: ${securityCheck.error}` };
-    }
-
-    // Create abort controller for timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      IMAGE_VALIDATION_TIMEOUT_MS
-    );
-
-    try {
-      // Browser User-Agent — bank-portal CDNs (REMU, Altamira, Gordian) reject
-      // header-less requests with 404/403, so a plain HEAD fails on valid images.
-      // Mirror the UA the portal scraper already uses in fetchPageHtml.
-      const browserHeaders = {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-        Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-      };
-      // Try HEAD first, fall back to GET if HEAD fails (some servers like picsum don't support HEAD)
-      let response = await fetch(url, {
-        method: "HEAD",
-        headers: browserHeaders,
-        signal: controller.signal,
-      });
-      // Many CDNs reject HEAD specifically (403/404/405/406) while serving GET
-      // fine. Retry with a ranged GET before declaring the image inaccessible.
-      if (!response.ok && [403, 404, 405, 406].includes(response.status)) {
-        response = await fetch(url, {
-          method: "GET",
-          headers: { ...browserHeaders, Range: "bytes=0-1024" },
-          signal: controller.signal,
-        });
-      }
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        return {
-          valid: false,
-          error: `HTTP ${response.status}: ${response.statusText}`,
-        };
-      }
-
-      const contentType = response.headers.get("content-type");
-      if (!contentType?.startsWith("image/")) {
-        return {
-          valid: false,
-          error: `Not an image (${contentType || "no content-type"})`,
-        };
-      }
-
-      return { valid: true, error: "" };
-    } catch (fetchErr) {
-      clearTimeout(timeoutId);
-      if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
-        return {
-          valid: false,
-          error: `Timeout after ${IMAGE_VALIDATION_TIMEOUT_MS}ms`,
-        };
-      }
-      throw fetchErr;
-    }
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    return { valid: false, error: `Fetch failed: ${errorMsg}` };
+  // P0 SECURITY: Validate URL before making any request (SSRF prevention).
+  // Not retryable — a blocked URL stays blocked.
+  const securityCheck = validateImageUrl(url);
+  if (!securityCheck.valid) {
+    logger.warn(`[Image Handler] SSRF blocked: ${securityCheck.error}`, {
+      category: LogCategory.IMAGE,
+      url: url.substring(0, 100),
+    });
+    return { valid: false, error: `Security: ${securityCheck.error}` };
   }
+
+  let last: { valid: boolean; error: string } = {
+    valid: false,
+    error: "not attempted",
+  };
+  for (let attempt = 1; attempt <= IMAGE_VALIDATION_MAX_ATTEMPTS; attempt++) {
+    last = await attemptImageAccessible(url);
+    if (last.valid || !isRetryableImageError(last.error)) {
+      return last;
+    }
+    if (attempt < IMAGE_VALIDATION_MAX_ATTEMPTS) {
+      logger.warn(
+        `[Image Handler] validation attempt ${attempt} failed (${last.error}); retrying`,
+        { category: LogCategory.IMAGE, url: url.substring(0, 100) }
+      );
+      await new Promise((resolve) =>
+        setTimeout(resolve, IMAGE_VALIDATION_RETRY_DELAY_MS)
+      );
+    }
+  }
+  return last;
 }
 
 /**
