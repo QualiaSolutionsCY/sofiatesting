@@ -59,6 +59,7 @@ export function invoiceToDoc(invoice: InvoiceDocument): Doc {
     due: invoice.dueDate,
     paidOn: invoice.paidAt,
     period: periodFromIssue(invoice.issueDate),
+    recurrence: invoice.recurrence,
     vatRate: vatRateFromMode(invoice.vatMode),
     vatMode: invoice.vatMode,
     lines,

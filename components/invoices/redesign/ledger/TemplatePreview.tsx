@@ -103,7 +103,6 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
       <table className="template-table template-table-ruled">
         <thead>
           <tr>
-            <th>Qty</th>
             <th>Item</th>
             <th>Description</th>
             <th>Unit Price</th>
@@ -113,7 +112,6 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
         <tbody>
           {lines.map((l, i) => (
             <tr key={i}>
-              <td>{l.qty}</td>
               <td>{i + 1}</td>
               <td className="template-desc-cell">
                 {isCredit ? `Credit note for invoice ${doc.appliesTo || doc.officialNo || "—"}` : l.desc}
@@ -124,14 +122,13 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
           ))}
           {false && isCredit && doc.appliesTo ? (
             <tr className="template-source-row">
-              <td colSpan={5} style={{ textAlign: "left" }}>
+              <td colSpan={4} style={{ textAlign: "left" }}>
                 Reference — original Invoice {doc.appliesTo}, issued {formatDate(doc.issued)}, fully credited.
               </td>
             </tr>
           ) : null}
           {/* Filler row stretches the ruled table to fill the page like a printed invoice. */}
           <tr className="template-filler-row" aria-hidden>
-            <td />
             <td />
             <td />
             <td />

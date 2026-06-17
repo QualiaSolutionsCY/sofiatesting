@@ -3208,19 +3208,17 @@ em, i, .filters-disclosure > summary em {
   font-weight: 600;
 }
 
-/* Ruled invoice table: Qty · Item · Description · Unit Price · Total (matches printed layout) */
+/* Ruled invoice table: Item · Description · Unit Price · Total (matches printed layout) */
 .template-table-ruled th,
 .template-table-ruled td { width: auto; text-align: left; }
 .template-table-ruled th:nth-child(1),
-.template-table-ruled td:nth-child(1) { width: 44px; text-align: center; }
+.template-table-ruled td:nth-child(1) { width: 50px; text-align: center; }
 .template-table-ruled th:nth-child(2),
-.template-table-ruled td:nth-child(2) { width: 50px; text-align: center; }
+.template-table-ruled td:nth-child(2) { width: auto; text-align: left; }
 .template-table-ruled th:nth-child(3),
-.template-table-ruled td:nth-child(3) { width: auto; text-align: left; }
+.template-table-ruled td:nth-child(3),
 .template-table-ruled th:nth-child(4),
-.template-table-ruled td:nth-child(4),
-.template-table-ruled th:nth-child(5),
-.template-table-ruled td:nth-child(5) { width: 96px; text-align: right; white-space: nowrap; }
+.template-table-ruled td:nth-child(4) { width: 96px; text-align: right; white-space: nowrap; }
 .template-table-ruled .template-desc-cell { text-align: left; }
 
 /* The filler row only stretches the table in the big/fullscreen/print views. */

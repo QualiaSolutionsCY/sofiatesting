@@ -50,6 +50,7 @@ export interface Doc {
   due?: string;
   paidOn?: string;
   period: string;
+  recurrence?: "none" | "monthly" | "yearly";
   vatRate: number;
   vatMode: VatMode;
   lines: Line[];
@@ -76,7 +77,8 @@ export interface Client {
 export interface Filters {
   kind: "all" | DocKind;
   // "approved-numbered" is a merged filter that matches both Approved and Numbered docs.
-  stage: "all" | Stage | "approved-numbered";
+  // "recurrence-monthly" / "recurrence-yearly" filter by the invoice's recurrence schedule.
+  stage: "all" | Stage | "approved-numbered" | "recurrence-monthly" | "recurrence-yearly";
   q: string;
   from: string;
   to: string;

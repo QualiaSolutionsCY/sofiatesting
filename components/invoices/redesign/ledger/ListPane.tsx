@@ -12,7 +12,9 @@ const STAGE_OPTIONS: Array<{ value: Filters["stage"]; label: string }> = [
   { value: "approved-numbered", label: "Approved" },
   { value: STAGES.SENT_TO_ACCOUNTING.id, label: STAGES.SENT_TO_ACCOUNTING.label },
   { value: STAGES.CREDITED.id, label: STAGES.CREDITED.label },
-  { value: STAGES.CANCELLED.id, label: STAGES.CANCELLED.label }
+  { value: STAGES.CANCELLED.id, label: STAGES.CANCELLED.label },
+  { value: "recurrence-monthly", label: "Monthly" },
+  { value: "recurrence-yearly", label: "Yearly" }
 ];
 
 interface ListPaneProps {
@@ -30,6 +32,10 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
         if (filters.kind !== "all" && doc.kind !== filters.kind) return false;
         if (filters.stage === "approved-numbered") {
           if (doc.stage !== STAGES.APPROVED.id && doc.stage !== STAGES.NUMBERED.id) return false;
+        } else if (filters.stage === "recurrence-monthly") {
+          if (doc.recurrence !== "monthly") return false;
+        } else if (filters.stage === "recurrence-yearly") {
+          if (doc.recurrence !== "yearly") return false;
         } else if (filters.stage !== "all" && doc.stage !== filters.stage) {
           return false;
         }
