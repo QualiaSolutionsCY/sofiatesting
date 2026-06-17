@@ -429,20 +429,19 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       const created = await createDocumentAction(input);
       const newId = created.selectedId as string;
 
-      // Admin-panel invoices are auto-APPROVED (status "approved"), not auto-numbered:
-      // they land in the Approved bucket and Marios is notified. The official number
-      // is applied later when the invoice is actually issued — so it never shows as a
-      // numbered/unpaid invoice straight out of creation.
+      // Admin-panel invoices are trusted: auto-issued with an official number
+      // immediately (not parked in the "Approved" queue — that status is reserved
+      // for the Sophia/WhatsApp approval flow). Marios is notified for his records.
       if (form.kind === "invoice" && newId) {
         let result = created;
         try {
-          result = await markApprovedOnlyAction(newId);
+          result = await approveDocumentAction(newId);
           await notifyMariosApprovedAction(newId);
         } catch (error) {
-          console.error("Auto-approve failed", error);
+          console.error("Auto-issue failed", error);
         }
         reconcile(result.documents, newId);
-        setToast("Invoice approved and sent to Marios.");
+        setToast("Invoice issued and sent to Marios.");
         return;
       }
 
@@ -553,10 +552,13 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
                 dueDate: form.due || undefined,
                 recurrence: "none"
               });
-              // 2. Mark as corrected-resend with reason + queue outbox
-              const result = await correctResendAction(id, reason);
+              // 2. Auto-approve the corrected document and save it as a normal
+              // invoice — no "sent to accounting" resend step. (reason kept for
+              // the audit note via the save above.)
+              void reason;
+              const result = await markApprovedOnlyAction(id);
               reconcile(result.documents, id);
-              setToast(`Correction queued — accounting + client will receive the updated ${targetDoc.kind === "credit" ? "credit note" : "invoice"}.`);
+              setToast(`Correction saved — ${targetDoc.kind === "credit" ? "credit note" : "invoice"} auto-approved.`);
             });
           }}
         />

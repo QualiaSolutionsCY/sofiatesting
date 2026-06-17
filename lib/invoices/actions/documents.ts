@@ -315,15 +315,21 @@ export async function markPaidAndIssueReceiptAction(id: string): Promise<Documen
   if (invoice.kind !== "invoice") return { ...current, selectedId: id };
 
   const { invoice: paidInvoice, receipt } = markPaidWithReceipt(invoice, current.documents.length + 1);
-  const result = await saveInvoiceDocuments(
-    [paidInvoice, receipt],
-    "Invoice paid and receipt draft created"
+  // Receipts issued from the admin panel are auto-approved + numbered immediately
+  // (no pending-approval step) so they land straight in the receipts list as issued.
+  const issuedReceipt = applyOfficialNumberToDocument(
+    markApproved(receipt),
+    getNextOfficialNumber(current.documents, "receipt")
   );
-  await queueReceiptDelivery(receipt);
+  const result = await saveInvoiceDocuments(
+    [paidInvoice, issuedReceipt],
+    "Invoice paid and receipt issued"
+  );
+  await queueReceiptDelivery(issuedReceipt);
   return {
     ...result,
-    selectedId: receipt.id,
-    deliveries: await listDeliveryRecordsForDocument(receipt.id)
+    selectedId: issuedReceipt.id,
+    deliveries: await listDeliveryRecordsForDocument(issuedReceipt.id)
   };
 }
 

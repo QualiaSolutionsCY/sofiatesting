@@ -6906,18 +6906,19 @@ body {
 .app-content > .workspace {
   grid-template-columns: 1fr;
 }
-/* With full width, allow inline editor to stay side-by-side longer */
+/* With full width, allow inline editor to stay side-by-side longer.
+   Editor takes the larger share; the A4 invoice preview is kept narrow. */
 @media (min-width: 1100px) {
   .detail-pane .inline-editor {
-    grid-template-columns: minmax(280px, 0.36fr) minmax(0, 0.64fr) !important;
+    grid-template-columns: minmax(340px, 0.6fr) minmax(0, 0.4fr) !important;
   }
   .detail-pane .inline-editor-preview-stage .template-preview {
-    zoom: 0.7;
+    zoom: 0.5;
   }
 }
 @media (min-width: 1500px) {
   .detail-pane .inline-editor-preview-stage .template-preview {
-    zoom: 0.85;
+    zoom: 0.58;
   }
 }
 
@@ -7419,8 +7420,8 @@ kbd {
 
 /* Sidebar: wider, scrollable list region */
 .sidebar {
-  width: 280px;
-  padding: 14px 10px 10px;
+  width: 480px;
+  padding: 14px 16px 10px;
   gap: 12px;
   overflow: hidden;
 }
