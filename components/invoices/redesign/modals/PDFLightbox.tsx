@@ -3,6 +3,9 @@
 import { ArrowLeft, ArrowRight, Download, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Doc } from "@/lib/invoices/redesign/types";
+import { docToInvoiceDocument } from "@/lib/invoices/redesign/adapter";
+import { clientById } from "@/lib/invoices/redesign/data";
+import { downloadDocumentPdf } from "@/lib/invoices/downloads";
 import { TemplatePreview } from "../ledger/TemplatePreview";
 
 interface PDFLightboxProps {
@@ -88,7 +91,12 @@ export function PDFLightbox({ doc, allDocs, onClose, onNavigate }: PDFLightboxPr
           <button type="button" className="icon-button" onClick={() => flipTo("next")} disabled={!hasNext} title="Next document (→)">
             <ArrowRight size={15} strokeWidth={1.6} />
           </button>
-          <button type="button" className="icon-button" onClick={() => window.print()} title="Print / save as PDF">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => downloadDocumentPdf(docToInvoiceDocument(displayDoc, clientById(displayDoc.client)))}
+            title="Download PDF"
+          >
             <Download size={15} strokeWidth={1.6} />
           </button>
           <button type="button" className="icon-button" onClick={onClose} title="Close (Esc)">

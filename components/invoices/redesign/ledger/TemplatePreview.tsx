@@ -1,6 +1,7 @@
 "use client";
 
 import { amount, clientById } from "@/lib/invoices/redesign/data";
+import { formatDate } from "@/lib/invoices/format";
 import { useTemplateText } from "@/lib/invoices/redesign/template-context";
 import type { Client, Doc } from "@/lib/invoices/redesign/types";
 
@@ -65,12 +66,12 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
             </div>
             <div>
               <dt>Date</dt>
-              <dd>{doc.issued}</dd>
+              <dd>{formatDate(doc.issued)}</dd>
             </div>
             {doc.due && !isCredit && !isReceipt ? (
               <div>
                 <dt>Due</dt>
-                <dd>{doc.due}</dd>
+                <dd>{formatDate(doc.due)}</dd>
               </div>
             ) : null}
             {isCredit && doc.appliesTo ? (
@@ -124,7 +125,7 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
           {false && isCredit && doc.appliesTo ? (
             <tr className="template-source-row">
               <td colSpan={5} style={{ textAlign: "left" }}>
-                Reference — original Invoice {doc.appliesTo}, issued {doc.issued}, fully credited.
+                Reference — original Invoice {doc.appliesTo}, issued {formatDate(doc.issued)}, fully credited.
               </td>
             </tr>
           ) : null}

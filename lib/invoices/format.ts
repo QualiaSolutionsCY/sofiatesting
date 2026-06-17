@@ -10,11 +10,15 @@ export function formatMoney(value: number): string {
 }
 
 export function formatDate(value: string): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  // Day · full month name · year — e.g. "17 June 2026".
   return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
+    day: "numeric",
+    month: "long",
     year: "numeric"
-  }).format(new Date(value));
+  }).format(date);
 }
 
 export function documentKindLabel(kind: DocumentKind): string {

@@ -6,6 +6,14 @@ import { CLIENTS, clientById, fmt } from "@/lib/invoices/redesign/data";
 import type { Client, ComposerForm, Doc, DocKind, Line } from "@/lib/invoices/redesign/types";
 import { TemplatePreview } from "../ledger/TemplatePreview";
 
+// Auto-defaults for a fresh document: issued today, due in 30 days, period = this month.
+const DUE_DAYS_DEFAULT = 30;
+const toISODate = (d: Date) => d.toISOString().slice(0, 10);
+const todayISO = () => toISODate(new Date());
+const plus30ISO = () => toISODate(new Date(Date.now() + DUE_DAYS_DEFAULT * 86400000));
+const currentPeriod = () =>
+  new Date().toLocaleString("en-GB", { month: "long", year: "numeric" });
+
 interface ComposerProps {
   open: boolean;
   onClose: () => void;
@@ -26,9 +34,9 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
 
   const [kind, setKind] = useState<DocKind>("invoice");
   const [client, setClient] = useState("__new__");
-  const [period, setPeriod] = useState("May 2026");
-  const [issued, setIssued] = useState("2026-05-26");
-  const [due, setDue] = useState("2026-06-09");
+  const [period, setPeriod] = useState(currentPeriod());
+  const [issued, setIssued] = useState(todayISO());
+  const [due, setDue] = useState(plus30ISO());
   const [vatRate, setVatRate] = useState(19);
   const [vatMode, setVatMode] = useState<"plus-vat" | "included-vat" | "no-vat">("plus-vat");
   const [description, setDescription] = useState("");
@@ -46,9 +54,9 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
     if (initial) {
       setKind((initial.kind as DocKind) || "invoice");
       setClient(initial.client || CLIENTS[0]?.id || "__new__");
-      setPeriod(initial.period || "May 2026");
-      setIssued(initial.issued || "2026-05-26");
-      setDue(initial.due || "2026-06-09");
+      setPeriod(initial.period || currentPeriod());
+      setIssued(initial.issued || todayISO());
+      setDue(initial.due || plus30ISO());
       setVatRate(initial.vatRate ?? 19);
       setVatMode(
         initial.vatMode === "included-vat" ? "included-vat" : initial.vatMode === "no-vat" ? "no-vat" : "plus-vat"
@@ -63,9 +71,9 @@ export function Composer({ open, onClose, prefill, onCreate }: ComposerProps) {
     } else {
       setKind("invoice");
       setClient("__new__");
-      setPeriod("May 2026");
-      setIssued("2026-05-26");
-      setDue("2026-06-09");
+      setPeriod(currentPeriod());
+      setIssued(todayISO());
+      setDue(plus30ISO());
       setVatRate(19);
       setVatMode("plus-vat");
       setDescription("");

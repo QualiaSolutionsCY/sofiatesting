@@ -17,8 +17,9 @@ import {
   sendToMariosAction,
   updateDocumentAction
 } from "@/lib/invoices/actions/documents";
-import { invoicesToDocs } from "@/lib/invoices/redesign/adapter";
-import { RECURRING, clientById, nowStamp, replaceClientRegistry, todayStamp } from "@/lib/invoices/redesign/data";
+import { docToInvoiceDocument, invoicesToDocs } from "@/lib/invoices/redesign/adapter";
+import { downloadDocumentPdf } from "@/lib/invoices/downloads";
+import { clientById, nowStamp, replaceClientRegistry, todayStamp } from "@/lib/invoices/redesign/data";
 import type {
   Client,
   ComposerForm,
@@ -27,6 +28,7 @@ import type {
   DocKind,
   Filters,
   PaletteItem,
+  RecurringRun,
   Stage,
   TimelineEvent
 } from "@/lib/invoices/redesign/types";
@@ -105,7 +107,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
   const [batchPreview, setBatchPreview] = useState<Doc[] | null>(null);
   const [runOpen, setRunOpen] = useState(false);
   const [recurringPanelOpen, setRecurringPanelOpen] = useState(false);
-  const [recurringRuns, setRecurringRuns] = useState(RECURRING);
+  const [recurringRuns, setRecurringRuns] = useState<RecurringRun[]>([]);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [tourOpen, setTourOpen] = useState(false);
   const [toast, setToast] = useState("");
@@ -280,14 +282,18 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         break;
       }
       case "print":
-        window.print();
+      case "download":
+        try {
+          downloadDocumentPdf(docToInvoiceDocument(selected, clientById(selected.client)));
+          setToast("PDF downloaded.");
+        } catch (error) {
+          console.error("PDF download failed", error);
+          setToast("Could not generate the PDF.");
+        }
         break;
       case "copy-link":
         navigator.clipboard?.writeText(`sophia://document/${selected.id}`).catch(() => {});
         setToast("Document link copied to clipboard.");
-        break;
-      case "download":
-        setToast(`Downloading ${selected.pdf || "draft PDF"}…`);
         break;
       case "credit": {
         // Credit notes are only ever created from an existing invoice — never from scratch.
