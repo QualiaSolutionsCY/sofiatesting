@@ -5097,7 +5097,7 @@ body {
   100% { transform: rotate(-7deg) scale(1); opacity: 0.72; filter: blur(0); }
 }
 .rubber-stamp.is-stamping {
-  animation: stamp-thump 700ms cubic-bezier(.2,.9,.25,1.1) both;
+  animation: stamp-thump 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .rubber-stamp { transition: opacity 220ms var(--ease); }
 
@@ -5123,13 +5123,12 @@ body {
 }
 .document-row.is-selected.is-just-picked { animation: row-pick 700ms var(--ease) both; }
 
-/* Toast slides up + bounces */
+/* Toast slides up (clean ease-out, no overshoot) */
 @keyframes toast-rise {
   0% { transform: translate(-50%, 12px); opacity: 0; }
-  60% { transform: translate(-50%, -3px); opacity: 1; }
   100% { transform: translate(-50%, 0); opacity: 1; }
 }
-.toast-rise { animation: toast-rise 360ms cubic-bezier(.2,.9,.25,1.1) both; }
+.toast-rise { animation: toast-rise 360ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 /* ── Binder lightbox ─────────────────────────────────────────────────── */
 .binder-backdrop {
