@@ -126,7 +126,9 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   }
   if (isCredit && document.sourceInvoiceNumber) meta.push(["Applies to", `Invoice ${document.sourceInvoiceNumber}`]);
 
-  let metaY = 786;
+  // Start the right-hand meta below the 22pt document title so the number never
+  // collides with the "Invoice" / "Credit Note" heading.
+  let metaY = 772;
   for (const [label, value] of meta) {
     text(MR - 175, metaY, label, 8, false, 0.45);
     textRight(MR, metaY, value, 9.5, false, 0.12);
@@ -181,7 +183,26 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   textRight(unitR, rb, eur(document.amount), 9.5, false, 0.15);
   textRight(totalR, rb, eur(document.amount), 9.5, false, 0.15);
 
-  const bottom = bodyTop - rowH;
+  // Stretch the ruled table down to fill the page — mirroring the on-screen
+  // TemplatePreview's filler row — while reserving exact room for the totals +
+  // settlement that sit beneath it. `belowTableHeight` is the distance from the
+  // table's bottom edge down to the lowest text baseline of those blocks, derived
+  // from the same ty-decrements used when they're drawn below. Falls back to the
+  // natural compact height when a long description already pushes the row past it.
+  const PAGE_BOTTOM_MARGIN = 56;
+  let belowTableHeight: number;
+  if (isCredit) {
+    belowTableHeight = 84; // totals end at "Balance credited"; no settlement block
+  } else {
+    const noteLines = isReceipt
+      ? wrapText(ENTITY.receiptNote, MR - ML, 9, false)
+      : wrapText(ENTITY.settlementNote, MR - ML, 9, false);
+    // receipt: just the note lines; invoice: 5 bank lines + the wrapped note.
+    const settleLineCount = isReceipt ? noteLines.length : 5 + noteLines.length;
+    belowTableHeight = 132 + Math.max(0, settleLineCount - 1) * 12;
+  }
+  const fillBottom = PAGE_BOTTOM_MARGIN + belowTableHeight;
+  const bottom = Math.min(bodyTop - rowH, fillBottom);
   // outer box + header separator + column rules
   line(ML, tableTop, MR, tableTop, 0.6, 0.78);
   line(ML, bodyTop, MR, bodyTop, 0.6, 0.78);
@@ -202,11 +223,14 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   ty -= 8;
   line(labelX, ty, MR, ty, 0.7, 0.6);
   ty -= 16;
+  // Credit notes store a negative total; show the magnitude (the "Balance credited"
+  // label carries the sign) so the PDF reads €7,140 like the on-screen template.
+  const totalDisplay = eur(Math.abs(document.total));
   text(labelX, ty, "Total", 10.5, true, 0.1);
-  textRight(MR, ty, eur(document.total), 10.5, true, 0.1);
+  textRight(MR, ty, totalDisplay, 10.5, true, 0.1);
   ty -= 18;
   text(labelX, ty, isCredit ? "Balance credited" : "Balance Due", 11.5, true, 0.1);
-  textRight(MR, ty, eur(document.total), 11.5, true, 0.1);
+  textRight(MR, ty, totalDisplay, 11.5, true, 0.1);
   ty -= 34;
 
   // ---- Settlement / acknowledgement ----
