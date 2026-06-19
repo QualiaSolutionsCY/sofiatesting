@@ -370,6 +370,14 @@ async function processRequest(
       });
     }
 
+    // A tool already delivered a document to the user with `aiResponse` as its
+    // caption (e.g. an invoice/credit-note PDF). Don't also send the same text as
+    // a separate chat message — the document + caption IS the reply. (History was
+    // already saved above, so context is preserved.)
+    if (aiResult.documentSent) {
+      return tokenCount;
+    }
+
     // Build updated history once (reused for both email detection and DOCX routing)
     const updatedHistory = [
       ...history,

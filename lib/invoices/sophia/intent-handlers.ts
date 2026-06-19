@@ -116,13 +116,19 @@ export async function runIntent(
       if (!params.client || typeof params.amount !== "number") {
         return { ok: false, reply: "I need the client name and the amount to create a draft." };
       }
+      const issueDate = new Date().toISOString().slice(0, 10);
+      // Default due date is 30 days from issue unless the agent specified otherwise.
+      const dueDays = typeof params.dueDays === "number" ? Math.max(0, Math.round(params.dueDays)) : 30;
+      const dueBase = new Date(issueDate);
+      dueBase.setDate(dueBase.getDate() + dueDays);
       const input: DocumentInput = {
         kind: "invoice",
         clientName: params.client,
         description: params.description || "Services rendered",
         amount: params.amount,
         vatMode: mapVat(params.vatMode),
-        issueDate: new Date().toISOString().slice(0, 10),
+        issueDate,
+        dueDate: params.dueDate || dueBase.toISOString().slice(0, 10),
         recurrence: params.recurrence ?? "none",
         recurrenceDay: params.recurrenceDay,
       };

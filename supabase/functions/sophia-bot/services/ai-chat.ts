@@ -41,6 +41,9 @@ interface AIResponse {
   success: boolean;
   toolsUsed?: string[];
   tokenCount?: number;
+  /** A tool already sent the user a document with `response` as its caption;
+   * the webhook must not also send `response` as a separate text message. */
+  documentSent?: boolean;
 }
 
 interface ChatContext {
@@ -867,6 +870,7 @@ export async function chat(
             success: true,
             toolsUsed,
             tokenCount: totalTokens > 0 ? totalTokens : undefined,
+            documentSent: (toolResult as { documentSent?: boolean }).documentSent,
           };
         }
 
@@ -993,6 +997,7 @@ export async function chat(
               success: true,
               toolsUsed,
               tokenCount: totalTokens > 0 ? totalTokens : undefined,
+              documentSent: (toolResult as { documentSent?: boolean }).documentSent,
             };
           }
           if (toolResult.needsInput && toolResult.question) {

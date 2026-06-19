@@ -18,6 +18,9 @@ export interface ToolResult {
   question?: string;
   message?: string;
   data?: unknown;
+  /** True when this tool already delivered a document to the user with `message`
+   * as its caption — the caller must NOT send `message` again as a separate text. */
+  documentSent?: boolean;
 }
 
 // Fawzi Goussous, Charalambos Pitros, Marios Polyviou — last 8 digits of `mobile`.
@@ -79,7 +82,10 @@ export async function handleManageInvoice(
     undefined
   );
 
-  // Attach the invoice PDF to the agent's WhatsApp when one was produced.
+  // Attach the invoice PDF to the agent's WhatsApp when one was produced. The PDF
+  // carries `result.reply` as its caption, so when it sends we flag documentSent
+  // and the caller skips re-sending the same text as a separate chat message.
+  let documentSent = false;
   if (result.ok && result.pdfUrl) {
     try {
       await sendDocumentByUrl(
@@ -88,6 +94,7 @@ export async function handleManageInvoice(
         result.filename || "invoice.pdf",
         result.reply
       );
+      documentSent = true;
     } catch (_e) {
       // Non-fatal — the text reply still goes out even if the file send fails.
     }
@@ -97,6 +104,7 @@ export async function handleManageInvoice(
     ? {
         success: true,
         message: result.reply,
+        documentSent,
         data: { documentId: result.documentId, pdfUrl: result.pdfUrl },
       }
     : { success: false, message: result.reply, error: result.error };
