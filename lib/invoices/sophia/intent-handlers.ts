@@ -231,8 +231,24 @@ export async function runIntent(
       const pdf = await attachPdf(doc.id);
       const dueLine = updated.dueDate ? `, due ${updated.dueDate}` : "";
 
-      // After an edit, the group must be told. Ask Marios for the message first;
-      // once provided, post the edited invoice to the accounting group.
+      // The group is only notified AFTER approval. If the invoice is still a draft
+      // (not yet approved/numbered), just apply the edit and wait — no group step.
+      const isApproved =
+        !!updated.officialNumber ||
+        updated.status === "approved" ||
+        updated.status === "numbered" ||
+        updated.status === "sent-to-accounting";
+      if (!isApproved) {
+        return {
+          ok: true,
+          documentId: doc.id,
+          ...pdf,
+          reply: `Updated ${updated.clientName} — ${numberOf(updated)} — ${money(updated.total)}${dueLine}. Still a draft — approve it whenever you're ready.`,
+        };
+      }
+
+      // Approved invoice edited: ask Marios for the group message first, then post
+      // the edited invoice to the accounting group on the follow-up call.
       if (!params.groupMessage) {
         return {
           ok: true,
