@@ -61,7 +61,7 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
           <h3>{title}</h3>
           <dl className="template-meta">
             <div>
-              <dt>Number</dt>
+              <dt>No.</dt>
               <dd>{number}</dd>
             </div>
             <div>
@@ -181,6 +181,9 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
               <>{tpl.receiptNote}</>
             ) : (
               <>
+                {tpl.settlementNote}
+                <br />
+                <br />
                 {tpl.bankName}
                 <br />
                 Account Name: {tpl.accountName}
@@ -190,8 +193,6 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
                 IBAN: <span style={{ fontFamily: "var(--font-mono)" }}>{tpl.iban}</span>
                 <br />
                 BIC: <span style={{ fontFamily: "var(--font-mono)" }}>{tpl.bic}</span>
-                <br />
-                {tpl.settlementNote}
               </>
             )}
           </div>

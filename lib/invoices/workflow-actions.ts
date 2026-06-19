@@ -115,6 +115,10 @@ export function markPaidWithReceipt(
   return {
     invoice: {
       ...invoice,
+      // Once paid + receipted the invoice leaves the Approved/Numbered bucket and
+      // moves to the terminal "Paid · receipt sent to accounting" state, so it no
+      // longer lingers under "Approved".
+      status: "sent-to-accounting",
       paymentStatus: "paid",
       paidAt: at,
       paidAmount: invoice.total,
@@ -144,7 +148,9 @@ export function cancelInvoiceWithCreditNote(
   return {
     invoice: {
       ...invoice,
-      status: "cancelled",
+      // Credited (not "cancelled"): the invoice leaves the Approved/Numbered bucket
+      // and shows as "Credited", linked to the credit note that replaces it.
+      status: "credited",
       linkedCreditNoteNumber: creditNote.draftNumber,
       storageStatus: "needs-regeneration",
       approvalTimeline: [

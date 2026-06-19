@@ -140,7 +140,7 @@ export async function runIntent(
         documentId: doc?.id,
         ...pdf,
         reply: doc
-          ? `Draft ${doc.draftNumber} created for ${doc.clientName} — ${money(doc.total)} (${doc.vatMode}). Queued to Marios for approval.`
+          ? `Draft ${doc.draftNumber} created for ${doc.clientName} — ${money(doc.total)} (${doc.vatMode}), due ${doc.dueDate}. Queued to Marios for approval.`
           : "Draft created.",
       };
     }

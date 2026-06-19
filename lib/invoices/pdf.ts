@@ -118,7 +118,7 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   }
 
   const meta: Array<[string, string]> = [
-    ["Number", getDisplayNumber(document)],
+    ["No.", getDisplayNumber(document)],
     ["Date", formatDate(document.issueDate)]
   ];
   if (!isCredit && !isReceipt && document.dueDate) {
@@ -135,10 +135,10 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
     metaY -= 15;
   }
 
-  // Divider sits below BOTH the left letterhead and the (variable-height) meta block
-  // so it never strikes through a row.
+  // Baseline for the "Bill to" block: below BOTH the left letterhead and the
+  // (variable-height) meta block. No visible rule — the header flows straight into
+  // "Bill To", matching the on-screen template (which has no divider either).
   const dividerY = Math.min(headerY, metaY) - 4;
-  line(ML, dividerY, MR, dividerY, 0.6, 0.8);
 
   // ---- Bill to ----
   let y = dividerY - 15;
@@ -197,8 +197,8 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
     const noteLines = isReceipt
       ? wrapText(ENTITY.receiptNote, MR - ML, 9, false)
       : wrapText(ENTITY.settlementNote, MR - ML, 9, false);
-    // receipt: just the note lines; invoice: 5 bank lines + the wrapped note.
-    const settleLineCount = isReceipt ? noteLines.length : 5 + noteLines.length;
+    // receipt: just the note lines; invoice: wrapped note + 1 blank gap + 5 bank lines.
+    const settleLineCount = isReceipt ? noteLines.length : noteLines.length + 1 + 5;
     belowTableHeight = 132 + Math.max(0, settleLineCount - 1) * 12;
   }
   const fillBottom = PAGE_BOTTOM_MARGIN + belowTableHeight;
@@ -242,12 +242,14 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
     const settleLines = isReceipt
       ? wrapText(ENTITY.receiptNote, MR - ML, 9, false)
       : [
+          // Settlement note sits ABOVE the bank block, separated by a blank line.
+          ...wrapText(ENTITY.settlementNote, MR - ML, 9, false),
+          "",
           ENTITY.bankName,
           `Account Name: ${ENTITY.accountName}`,
           `Account Number: ${ENTITY.accountNumber}`,
           `IBAN: ${ENTITY.iban}`,
-          `BIC: ${ENTITY.bic}`,
-          ...wrapText(ENTITY.settlementNote, MR - ML, 9, false)
+          `BIC: ${ENTITY.bic}`
         ];
     for (const ln of settleLines) {
       text(ML, ty, ln, 9, false, 0.42);
