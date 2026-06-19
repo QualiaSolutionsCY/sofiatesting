@@ -137,7 +137,9 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
                         return <span className="row-pay is-unpaid">Unpaid</span>;
                       })()
                     ) : null}
-                    <span className="row-total">{fmt(doc.total)}</span>
+                    {/* Credit notes store a negative total; show the magnitude here (the
+                        "Credited" label carries the sign) so the row reads €7,140 not €-7,140. */}
+                    <span className="row-total">{fmt(Math.abs(doc.total))}</span>
                   </span>
                 </div>
               </button>

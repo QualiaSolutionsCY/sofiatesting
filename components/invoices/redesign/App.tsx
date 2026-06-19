@@ -428,6 +428,17 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         return;
       }
 
+      // Credit note from the composer: issue it against the chosen existing
+      // invoice (cancels the invoice + creates the auto-approved credit note).
+      // Mirrors the cancel-with-credit-note action; never standalone.
+      if (form.kind === "credit" && form.sourceInvoiceId) {
+        const result = await cancelWithCreditNoteAction(form.sourceInvoiceId, form.creditReason);
+        reconcile(result.documents, result.selectedId ?? form.sourceInvoiceId);
+        setFilters((f) => ({ ...f, stage: "credited" }));
+        setToast("Credit note issued — original cancelled, group notified.");
+        return;
+      }
+
       const created = await createDocumentAction(input);
       const newId = created.selectedId as string;
 
@@ -491,6 +502,30 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       }
     }
   }
+
+  // Monthly batch is sourced from real monthly-recurring invoices so each one
+  // shows up in the run and can be issued on its date.
+  const monthlyRows = useMemo(
+    () =>
+      docs
+        .filter((d) => d.kind === "invoice" && d.recurrence === "monthly")
+        .map((d) => {
+          const sub = (d.lines || []).reduce((s, l) => s + l.qty * l.unitPrice, 0) || Math.abs(d.total);
+          const rate = d.vatMode === "no-vat" ? 0 : d.vatRate || 0;
+          const total = d.vatMode === "included-vat" ? sub : sub + (sub * rate) / 100;
+          return {
+            id: d.id,
+            client: d.client,
+            net: sub,
+            extra: 0,
+            draftNo: d.officialNo ? `№ ${d.officialNo}` : d.draftNo || "Draft",
+            period: d.period || "",
+            sub,
+            total
+          };
+        }),
+    [docs]
+  );
 
   return (
     <TemplateProvider>
@@ -592,12 +627,16 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       />
       <MonthlyRunOverlay
         open={runOpen}
+        rows={monthlyRows}
         onClose={() => setRunOpen(false)}
         onApproveAll={(rows) => {
           if (rows.length === 0) return;
           startTransition(async () => {
             let last = null;
             for (const r of rows) {
+              // Materialize a concrete one-off invoice for this period. recurrence
+              // stays "none" so the issued invoice doesn't re-enter next month's run
+              // (the recurring template invoice is what keeps the schedule).
               last = await createDocumentAction({
                 kind: "invoice",
                 clientName: clientById(r.client).name,
@@ -605,7 +644,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
                 amount: r.sub,
                 vatMode: "plus-vat",
                 issueDate: todayStamp(),
-                recurrence: "monthly"
+                recurrence: "none"
               });
             }
             if (last) reconcile(last.documents, last.selectedId);

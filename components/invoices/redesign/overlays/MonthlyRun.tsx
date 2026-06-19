@@ -4,7 +4,7 @@ import { Check, Eye, Pause, Send, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { clientById, fmt } from "@/lib/invoices/redesign/data";
 
-interface MonthlyRow {
+export interface MonthlyRow {
   id: string;
   client: string;
   net: number;
@@ -22,25 +22,12 @@ interface MonthlyRunProps {
   onApproveAll: (rows: MonthlyRow[]) => void;
   onPreview: (rows: MonthlyRow[]) => void;
   onPause: () => void;
+  // Real monthly-recurring invoices to run this batch from.
+  rows?: MonthlyRow[];
 }
 
-export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPause }: MonthlyRunProps) {
-  const run = useMemo<MonthlyRow[]>(() => {
-    const period = "June 2026";
-    // No demo seed — recurring drafts are sourced from real recurring invoices.
-    const seed: Array<{ client: string; net: number; extra: number; note?: string }> = [];
-    return seed.map((s, i) => {
-      const sub = s.net + s.extra;
-      return {
-        ...s,
-        id: `mr-${i}`,
-        draftNo: `DRAFT-2026-00${45 + i}`,
-        period,
-        sub,
-        total: sub * 1.19
-      };
-    });
-  }, []);
+export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPause, rows }: MonthlyRunProps) {
+  const run = useMemo<MonthlyRow[]>(() => rows ?? [], [rows]);
 
   const [picked, setPicked] = useState<Set<string>>(() => new Set(run.map((r) => r.id)));
 

@@ -32,6 +32,7 @@ export interface IntentParams {
   documentId?: string;
   officialNumber?: string;
   correctionReason?: string;
+  groupMessage?: string;
   recurrence?: "none" | "monthly" | "yearly";
   recurrenceDay?: number;
 }
@@ -213,7 +214,16 @@ export async function runIntent(
       const res = await loadDocumentsAction();
       const doc = findDoc(res.documents, params);
       if (!doc) return { ok: false, reply: "I couldn't find that invoice." };
-      const out = await cancelWithCreditNoteAction(doc.id);
+      // The agent is asked (by the prompt) for the message to send to the group;
+      // it arrives as groupMessage and becomes the credit-note reason/group caption.
+      const groupMessage = params.groupMessage || params.correctionReason;
+      if (!groupMessage) {
+        return {
+          ok: false,
+          reply: `Before I issue the credit note for ${doc.clientName}, what message should I send to the group along with it?`,
+        };
+      }
+      const out = await cancelWithCreditNoteAction(doc.id, groupMessage);
       const cn = out.documents.find((d) => d.id === out.selectedId);
       const pdf = cn ? await attachPdf(cn.id) : {};
       return {

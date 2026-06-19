@@ -823,7 +823,7 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, 
               </>
             ) : null}
             <span>·</span>
-            <span className="detail-amount">{fmt(doc.total)}</span>
+            <span className="detail-amount">{fmt(Math.abs(doc.total))}</span>
           </p>
         </div>
       </header>

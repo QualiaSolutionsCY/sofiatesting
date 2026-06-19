@@ -769,6 +769,11 @@ export const TOOLS: ToolDefinition[] = [
             type: "string",
             description: "Reason for a correction or resend",
           },
+          groupMessage: {
+            type: "string",
+            description:
+              "For issue_credit_note: the exact message the agent wants sent to the accounting group alongside the credit note. ALWAYS ask the agent what this message should say before issuing a credit note, then pass their answer here.",
+          },
           recurrence: {
             type: "string",
             enum: ["none", "monthly", "yearly"],

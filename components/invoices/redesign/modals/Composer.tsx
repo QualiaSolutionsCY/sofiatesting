@@ -50,11 +50,13 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
   const [lines, setLines] = useState<LocalLine[]>([{ key: 1, desc: "", qty: 1, unitPrice: 0 }]);
   const [newClient, setNewClient] = useState({ name: "", property: "", address: "", vat: "" });
   const [clientListOpen, setClientListOpen] = useState(false);
+  const [creditReason, setCreditReason] = useState("");
 
   useEffect(() => {
     if (!open) return;
     setNewClient({ name: "", property: "", address: "", vat: "" });
     setSourceInvoiceId("");
+    setCreditReason("");
     if (initial) {
       setKind((initial.kind as DocKind) || "invoice");
       setClient(initial.client || CLIENTS[0]?.id || "__new__");
@@ -108,6 +110,9 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
     issued && due ? String(Math.max(0, Math.round((Date.parse(due) - Date.parse(issued)) / 86400000))) : "";
 
   const isNewClient = client === "__new__";
+  // Receipts and credit notes are both derived from an existing invoice: same
+  // client search + invoice picker, no manual line editing.
+  const isSourceMode = kind === "receipt" || kind === "credit";
 
   // Typeahead: filter existing clients by the typed name. A name with no exact match
   // is treated as a new client and auto-saved when the invoice is created.
@@ -135,10 +140,11 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
       })),
       total: total * (kind === "credit" ? -1 : 1),
       description,
+      appliesTo: kind === "credit" ? invoices.find((i) => i.id === sourceInvoiceId)?.officialNo ?? undefined : undefined,
       commission: commission ? { agent, rate: "5%", amount: sub * 0.05 } : undefined,
       timeline: initial?.timeline ?? []
     }),
-    [kind, client, isNewClient, issued, due, period, vatRate, vatMode, lines, total, description, commission, agent, sub, initial?.id, initial?.draftNo, initial?.officialNo, initial?.stage, initial?.timeline]
+    [kind, client, isNewClient, issued, due, period, vatRate, vatMode, lines, total, description, commission, agent, sub, sourceInvoiceId, invoices, initial?.id, initial?.draftNo, initial?.officialNo, initial?.stage, initial?.timeline]
   );
 
   if (!open) return null;
@@ -150,8 +156,8 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    // A receipt must be tied to a real, selected invoice.
-    if (kind === "receipt" && !sourceInvoiceId) return;
+    // A receipt or credit note must be tied to a real, selected invoice.
+    if (isSourceMode && !sourceInvoiceId) return;
 
     let resolvedClient = client;
     let createdClient: Client | null = null;
@@ -194,7 +200,8 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
       recurrenceEmail: recurrence !== "none" ? recurrenceEmail.trim() : "",
       commission: commission ? { agent, rate: "5%", amount: sub * 0.05 } : null,
       newClient: createdClient,
-      sourceInvoiceId: kind === "receipt" ? sourceInvoiceId : undefined,
+      sourceInvoiceId: isSourceMode ? sourceInvoiceId : undefined,
+      creditReason: kind === "credit" ? creditReason.trim() : undefined,
       ...editingFields
     });
     onClose();
@@ -215,22 +222,27 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
       }
     : undefined;
 
-  // Receipt mode: a receipt is issued against an existing, numbered invoice for
-  // the chosen client. Offer only those invoices (not credit notes/receipts).
-  const receiptInvoices = invoices.filter(
+  // Source mode (receipt/credit): the document is issued against an existing,
+  // numbered invoice for the chosen client. Offer only those invoices.
+  const sourceInvoices = invoices.filter(
     (inv) => inv.kind === "invoice" && !!inv.officialNo && inv.client === client
   );
 
-  // Picking an invoice mirrors its amount/description/VAT into the receipt so the
-  // live preview and totals are correct, and pins the source-invoice reference.
-  function selectInvoiceForReceipt(invoiceId: string) {
+  // Picking an invoice mirrors its amount/description/VAT into the receipt or
+  // credit note so the live preview and totals are correct, and pins the
+  // source-invoice reference.
+  function selectInvoiceForSource(invoiceId: string) {
     setSourceInvoiceId(invoiceId);
     const inv = invoices.find((i) => i.id === invoiceId);
     if (!inv) return;
     setVatMode(inv.vatMode);
     setVatRate(inv.vatRate);
     setDue(inv.officialNo || "");
-    setDescription(inv.description || `Payment received for invoice ${inv.officialNo}`);
+    setDescription(
+      kind === "credit"
+        ? `Credit note for invoice ${inv.officialNo}`
+        : inv.description || `Payment received for invoice ${inv.officialNo}`
+    );
     const seed: LocalLine[] = inv.lines && inv.lines.length
       ? inv.lines.map((l, i) => ({ key: i + 1, desc: l.desc, qty: l.qty, unitPrice: l.unitPrice }))
       : [{ key: 1, desc: `Invoice ${inv.officialNo}`, qty: 1, unitPrice: Math.abs(inv.total) }];
@@ -256,11 +268,9 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
           <button type="button" className={kind === "invoice" ? "active" : ""} onClick={() => setKind("invoice")}>
             <FileText size={13} strokeWidth={1.6} /> Invoice
           </button>
-          {kind === "credit" ? (
-            <button type="button" className="active">
-              <FileMinus size={13} strokeWidth={1.6} /> Credit note
-            </button>
-          ) : null}
+          <button type="button" className={kind === "credit" ? "active" : ""} onClick={() => setKind("credit")}>
+            <FileMinus size={13} strokeWidth={1.6} /> Credit note
+          </button>
           <button type="button" className={kind === "receipt" ? "active" : ""} onClick={() => setKind("receipt")}>
             <ReceiptIcon size={13} strokeWidth={1.6} /> Receipt
           </button>
@@ -315,17 +325,19 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
             <input type="date" value={issued} onChange={(event) => setIssued(event.target.value)} />
           </label>
           <label>
-            <span>{kind === "receipt" ? "Invoice to receipt" : "Due (days to pay)"}</span>
-            {kind === "receipt" ? (
+            <span>
+              {kind === "receipt" ? "Invoice to receipt" : kind === "credit" ? "Invoice to credit" : "Due (days to pay)"}
+            </span>
+            {isSourceMode ? (
               <select
                 value={sourceInvoiceId}
-                onChange={(event) => selectInvoiceForReceipt(event.target.value)}
+                onChange={(event) => selectInvoiceForSource(event.target.value)}
                 required
               >
                 <option value="" disabled>
-                  {receiptInvoices.length ? "Select an invoice…" : "No invoices for this client yet"}
+                  {sourceInvoices.length ? "Select an invoice…" : "No invoices for this client yet"}
                 </option>
-                {receiptInvoices.map((inv) => (
+                {sourceInvoices.map((inv) => (
                   <option key={inv.id} value={inv.id}>
                     № {inv.officialNo} · {fmt(Math.abs(inv.total))} · {inv.issued}
                   </option>
@@ -351,7 +363,7 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
               />
             )}
           </label>
-          {kind !== "receipt" ? (
+          {!isSourceMode ? (
             <label>
               <span>VAT treatment</span>
               <select
@@ -366,7 +378,7 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
           ) : null}
         </div>
 
-        {kind !== "receipt" ? (
+        {!isSourceMode ? (
         <div className="lines-editor">
           <div className="lines-editor-head">
             <h3>Lines</h3>
@@ -428,7 +440,7 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
                 <b>{fmt(vat)}</b>
               </div>
               <div className="row tot">
-                <span>Total {kind === "credit" ? "credited" : "due"}</span>
+                <span>Total due</span>
                 <b>{fmt(total)}</b>
               </div>
             </div>
@@ -436,7 +448,21 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
         </div>
         ) : null}
 
-        {kind !== "receipt" ? (
+        {kind === "credit" ? (
+          <div className="composer-grid">
+            <label style={{ gridColumn: "1 / -1" }}>
+              <span>Reason for the credit note (sent to the group)</span>
+              <textarea
+                rows={3}
+                value={creditReason}
+                onChange={(event) => setCreditReason(event.target.value)}
+                placeholder="e.g. Invoice issued in error — cancelling and crediting in full."
+              />
+            </label>
+          </div>
+        ) : null}
+
+        {!isSourceMode ? (
         <div className="optional-composer-grid composer-grid">
           <label>
             <span>Recurrence</span>
@@ -501,7 +527,7 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
           <button type="button" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" disabled={(isNewClient && !newClient.name.trim()) || (kind === "receipt" && !sourceInvoiceId)}>
+          <button type="submit" disabled={(isNewClient && !newClient.name.trim()) || (isSourceMode && !sourceInvoiceId)}>
             <Send size={14} strokeWidth={1.6} />
             {isEdit
               ? "Save changes"

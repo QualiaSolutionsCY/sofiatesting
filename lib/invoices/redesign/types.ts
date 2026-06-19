@@ -130,9 +130,12 @@ export interface ComposerForm {
   stage?: Stage;
   timeline?: TimelineEvent[];
   amount?: number;
-  // When kind === "receipt", the existing invoice (Doc id) this receipt is issued
-  // against. A receipt is always derived from a real invoice, never standalone.
+  // When kind === "receipt" or "credit", the existing invoice (Doc id) this
+  // document is derived from. Receipts and credit notes are always issued
+  // against a real invoice, never standalone.
   sourceInvoiceId?: string;
+  // Reason for a credit note (sent to the accounting group with the credit note).
+  creditReason?: string;
 }
 
 export interface PaletteItem {

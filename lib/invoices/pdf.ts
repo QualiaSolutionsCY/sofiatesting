@@ -62,15 +62,15 @@ function wrapText(value: string, maxWidth: number, size: number, bold: boolean):
   return lines;
 }
 
-function money(value: number): string {
-  return (Number(value) || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-// Use the ASCII code "EUR" rather than the € glyph: base-14 Helvetica has no real
-// Euro glyph, so some PDF viewers fall back to a system font and render € as the
-// Saudi Riyal sign (﷼). "EUR" renders identically everywhere.
+// Mirror the on-screen template's `amount` helper (lib/invoices/redesign/data.ts):
+// "€" prefix, comma thousands, and decimals ONLY when the value has cents — so the
+// downloaded PDF reads identically to the A4 preview (€1,000 · €1,234.50). The €
+// glyph is mapped to WinAnsi 0x80 in winAnsi() and the fonts declare WinAnsiEncoding,
+// so it renders as € (not the Saudi Riyal fallback) in spec-compliant viewers.
 function eur(value: number): string {
-  return `EUR ${money(value)}`;
+  const num = Number(value) || 0;
+  const hasCents = Math.round(Math.abs(num) * 100) % 100 !== 0;
+  return `€${num.toLocaleString("en-GB", { minimumFractionDigits: hasCents ? 2 : 0, maximumFractionDigits: 2 })}`;
 }
 
 export function buildDocumentPdfBlob(document: InvoiceDocument): Blob {
