@@ -7,7 +7,9 @@ import {
   createDocumentAction,
   loadDocumentsAction,
   markPaidAndIssueReceiptAction,
+  sendDocumentToAccountingGroup,
   storeDocumentPdfAction,
+  updateDocumentAction,
 } from "@/lib/invoices/actions/documents";
 import type { DocumentInput } from "@/lib/invoices/document-actions";
 import type { InvoiceDocument, VatMode } from "@/lib/invoices/types/invoice";
@@ -17,6 +19,7 @@ export type SophiaIntent =
   | "list_drafts"
   | "query_status"
   | "approve"
+  | "edit_invoice"
   | "request_correction"
   | "mark_paid"
   | "issue_receipt"
@@ -35,6 +38,10 @@ export interface IntentParams {
   groupMessage?: string;
   recurrence?: "none" | "monthly" | "yearly";
   recurrenceDay?: number;
+  /** New due date as an ISO date (YYYY-MM-DD), for edit_invoice. */
+  dueDate?: string;
+  /** New due date expressed as days-to-pay from the issue date, for edit_invoice. */
+  dueDays?: number;
 }
 
 export interface IntentResult {
@@ -183,6 +190,67 @@ export async function runIntent(
         documentId: doc.id,
         ...pdf,
         reply: `Approved ${doc.clientName} — official number ${updated?.officialNumber ?? "assigned"}.`,
+      };
+    }
+
+    case "edit_invoice": {
+      const res = await loadDocumentsAction();
+      const doc = findDoc(res.documents, params);
+      if (!doc) return { ok: false, reply: "I couldn't find that invoice to edit." };
+
+      // Resolve the new due date: explicit ISO date, or days-to-pay from the
+      // issue date, otherwise keep what's already on the document.
+      let dueDate = doc.dueDate;
+      if (typeof params.dueDays === "number" && Number.isFinite(params.dueDays)) {
+        const base = new Date(doc.issueDate);
+        base.setDate(base.getDate() + Math.max(0, Math.round(params.dueDays)));
+        dueDate = base.toISOString().slice(0, 10);
+      } else if (params.dueDate) {
+        dueDate = params.dueDate;
+      }
+
+      // Merge the requested changes onto the document's current values so a
+      // partial edit (just description, or just due date) never wipes other fields.
+      const input: DocumentInput = {
+        kind: doc.kind,
+        clientName: doc.clientName,
+        clientEmail: doc.clientEmail,
+        description: params.description ?? doc.description,
+        amount: typeof params.amount === "number" ? params.amount : doc.amount,
+        vatMode: params.vatMode ? mapVat(params.vatMode) : doc.vatMode,
+        issueDate: doc.issueDate,
+        dueDate,
+        recurrence: doc.recurrence,
+        recurrenceDay: doc.recurrenceDay,
+        sourceInvoiceNumber: doc.sourceInvoiceNumber,
+        commissionPersonName: doc.commissionPersonName,
+      };
+
+      const out = await updateDocumentAction(doc.id, input);
+      const updated = out.documents.find((d) => d.id === doc.id) ?? doc;
+      const pdf = await attachPdf(doc.id);
+      const dueLine = updated.dueDate ? `, due ${updated.dueDate}` : "";
+
+      // After an edit, the group must be told. Ask Marios for the message first;
+      // once provided, post the edited invoice to the accounting group.
+      if (!params.groupMessage) {
+        return {
+          ok: true,
+          documentId: doc.id,
+          ...pdf,
+          reply: `Updated ${updated.clientName} — ${numberOf(updated)} — ${money(updated.total)}${dueLine}. What message should I send to the group along with the edited invoice?`,
+        };
+      }
+
+      const caption = `Edited invoice ${numberOf(updated)} — ${updated.clientName} (${money(updated.total)}). ${params.groupMessage}`;
+      const sentToGroup = await sendDocumentToAccountingGroup(updated, caption);
+      return {
+        ok: true,
+        documentId: doc.id,
+        ...pdf,
+        reply: sentToGroup
+          ? `Updated ${updated.clientName} — ${numberOf(updated)} — ${money(updated.total)}${dueLine}, and sent the edited invoice to the group.`
+          : `Updated ${updated.clientName} — ${numberOf(updated)} — ${money(updated.total)}${dueLine}. (I couldn't reach the group just now.)`,
       };
     }
 

@@ -733,6 +733,7 @@ export const TOOLS: ToolDefinition[] = [
               "list_drafts",
               "query_status",
               "approve",
+              "edit_invoice",
               "request_correction",
               "mark_paid",
               "issue_receipt",
@@ -740,7 +741,8 @@ export const TOOLS: ToolDefinition[] = [
               "resend",
               "send_pdf",
             ],
-            description: "The invoicing action to perform",
+            description:
+              "The invoicing action to perform. Use edit_invoice to actually change an existing invoice's fields (description, amount, VAT, or due date) — before OR after approval.",
           },
           client: {
             type: "string",
@@ -768,6 +770,15 @@ export const TOOLS: ToolDefinition[] = [
           correctionReason: {
             type: "string",
             description: "Reason for a correction or resend",
+          },
+          dueDate: {
+            type: "string",
+            description: "For edit_invoice: a new due date as an absolute date (YYYY-MM-DD).",
+          },
+          dueDays: {
+            type: "number",
+            description:
+              "For edit_invoice: a new due date expressed as days-to-pay from the issue date (e.g. \"due in 15 days\" → 15).",
           },
           groupMessage: {
             type: "string",

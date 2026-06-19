@@ -375,6 +375,7 @@ const manageInvoiceSchema = z.object({
     "list_drafts",
     "query_status",
     "approve",
+    "edit_invoice",
     "request_correction",
     "mark_paid",
     "issue_receipt",
@@ -390,6 +391,8 @@ const manageInvoiceSchema = z.object({
   officialNumber: z.string().max(120).optional(),
   correctionReason: z.string().max(1000).optional(),
   groupMessage: z.string().max(2000).optional(),
+  dueDate: z.string().max(40).optional(),
+  dueDays: z.number().int().min(0).max(365).optional(),
   recurrence: z.enum(["none", "monthly", "yearly"]).optional(),
   recurrenceDay: z.number().int().min(1).max(31).optional(),
 });

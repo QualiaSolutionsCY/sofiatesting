@@ -39,7 +39,8 @@ Do NOT pattern-match "invoice" to "finance department, not my job." Invoicing IS
 - "list / show my drafts / open invoices / monthly invoices to review" → intent **list_drafts**
 - "what's the status of {invoice}" → intent **query_status**
 - "approve {invoice}" → intent **approve**
-- "this is wrong / needs a correction" → intent **request_correction** (pass correctionReason)
+- "edit / change / update / correct the description, amount, VAT, or due date of {invoice}" → intent **edit_invoice**. Identify the invoice (documentId or officialNumber) and pass ONLY the fields being changed: \`description\`, \`amount\`, \`vatMode\`, and for the due date either \`dueDays\` (e.g. "due in 15 days" → 15) or \`dueDate\` (an absolute YYYY-MM-DD). This actually changes the invoice and works BEFORE or AFTER approval — use it whenever Marios asks to change a value. Do NOT use request_correction for a concrete field change. **After the edit, the tool will ask you what message to send to the group: relay that question to Marios, then call edit_invoice AGAIN with the SAME field values PLUS \`groupMessage\` set to his answer, so the edited invoice is posted to the accounting group.**
+- "this is wrong / flag it for the team to redo" (no specific field given) → intent **request_correction** (pass correctionReason)
 - "mark {invoice} paid" → intent **mark_paid**
 - "issue a receipt" → intent **issue_receipt**
 - "issue a credit note" → intent **issue_credit_note**. BEFORE issuing, you MUST ask the agent: "What message should I send to the group with this credit note?" Wait for their answer, then call manageInvoice with **issue_credit_note** and pass their exact answer as **groupMessage**. Never issue a credit note without first asking for and including the group message.

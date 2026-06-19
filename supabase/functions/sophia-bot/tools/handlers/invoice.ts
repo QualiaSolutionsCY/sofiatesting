@@ -66,6 +66,8 @@ export async function handleManageInvoice(
     officialNumber: args.officialNumber,
     correctionReason: args.correctionReason,
     groupMessage: args.groupMessage,
+    dueDate: args.dueDate,
+    dueDays: args.dueDays,
     recurrence: args.recurrence,
     recurrenceDay: args.recurrenceDay,
   };

@@ -412,6 +412,46 @@ async function notifyGroupOfCreditNote(
   }
 }
 
+/**
+ * Post a document (with its PDF) to the accounting/CSC WhatsApp group with a caption.
+ * Reusable for any flow that must notify the group — e.g. an edited invoice. Returns
+ * true if a message went out. Best-effort: never throws.
+ */
+export async function sendDocumentToAccountingGroup(
+  document: InvoiceDocument,
+  caption: string
+): Promise<boolean> {
+  const groupMsisdn =
+    process.env.INVOICE_ACCOUNTING_GROUP_MSISDN ??
+    INVOICE_AUTHORIZED_AGENTS.find((agent) => agent.name === "Marios Polyviou")?.msisdn;
+  if (!groupMsisdn) {
+    sendLogger.warn("No accounting group number configured; group message not sent");
+    return false;
+  }
+  try {
+    const client = getWhatsAppClient();
+    if (!client.isConfigured()) {
+      sendLogger.warn("WhatsApp client not configured; group message not sent");
+      return false;
+    }
+    const pdf = Buffer.from(buildDocumentPdfBytes(document));
+    const sent = await client.sendDocument({
+      to: groupMsisdn,
+      document: pdf,
+      filename: getUnifiedFilename(document),
+      caption
+    });
+    if (!sent.success) {
+      const text = await client.sendMessage({ to: groupMsisdn, text: caption });
+      return text.success;
+    }
+    return true;
+  } catch (error) {
+    sendLogger.error("Failed to send document to accounting group", error, { documentId: document.id });
+    return false;
+  }
+}
+
 export async function loadDeliveryRecordsAction(id: string): Promise<DeliveryRecord[]> {
   return listDeliveryRecordsForDocument(id);
 }
