@@ -256,6 +256,13 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
           <div>
             <p className="eyebrow">{isEdit ? "Edit document" : `New ${kindLabel}`}</p>
             <h2>{isEdit ? `Edit ${initial?.officialNo ? "№ " + initial.officialNo : initial?.draftNo}` : "Create a draft for Marios"}</h2>
+            <p className="composer-doc-number" style={{ marginTop: 4, fontSize: ".8rem", color: "var(--muted)" }}>
+              {initial?.officialNo
+                ? `Invoice № ${initial.officialNo}`
+                : initial?.draftNo
+                  ? `Draft ${initial.draftNo}`
+                  : "Number is assigned once approved"}
+            </p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
             <X size={15} strokeWidth={1.6} />
