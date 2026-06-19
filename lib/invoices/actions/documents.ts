@@ -346,16 +346,23 @@ export async function cancelWithCreditNoteAction(id: string, reason?: string): P
   );
   // Carry the operator's reason onto the credit note so the group message + audit trail show it.
   const creditNoteWithReason = trimmedReason ? { ...creditNote, correctionReason: trimmedReason } : creditNote;
-  const result = await saveInvoiceDocuments(
-    [cancelledInvoice, creditNoteWithReason],
-    "Invoice cancelled with linked credit note"
+  // Credit notes are auto-approved on creation (never left as drafts): apply the
+  // official number immediately and file the note under "Credited".
+  const numberedCreditNote = applyOfficialNumberToDocument(
+    markApproved(creditNoteWithReason),
+    getNextOfficialNumber(current.documents, "credit-note")
   );
-  await queueCreditNoteDelivery(creditNoteWithReason);
-  await notifyGroupOfCreditNote(cancelledInvoice, creditNoteWithReason, trimmedReason);
+  const approvedCreditNote: InvoiceDocument = { ...numberedCreditNote, status: "credited" };
+  const result = await saveInvoiceDocuments(
+    [cancelledInvoice, approvedCreditNote],
+    "Invoice cancelled with auto-approved credit note"
+  );
+  await queueCreditNoteDelivery(approvedCreditNote);
+  await notifyGroupOfCreditNote(cancelledInvoice, approvedCreditNote, trimmedReason);
   return {
     ...result,
-    selectedId: creditNoteWithReason.id,
-    deliveries: await listDeliveryRecordsForDocument(creditNoteWithReason.id)
+    selectedId: approvedCreditNote.id,
+    deliveries: await listDeliveryRecordsForDocument(approvedCreditNote.id)
   };
 }
 

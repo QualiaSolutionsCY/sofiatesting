@@ -33,6 +33,9 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
       .filter((doc) => {
         if (filters.kind !== "all" && doc.kind !== filters.kind) return false;
         if (filters.stage === "approved-numbered") {
+          // Approved bucket is invoices only — receipts live under "Receipts" and
+          // credit notes under "Credited", even though they're also numbered.
+          if (doc.kind !== "invoice") return false;
           if (doc.stage !== STAGES.APPROVED.id && doc.stage !== STAGES.NUMBERED.id) return false;
         } else if (filters.stage === "recurrence-monthly") {
           if (doc.recurrence !== "monthly") return false;

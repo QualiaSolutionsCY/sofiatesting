@@ -21,7 +21,9 @@ const ENTITY = {
   accountName: "CSC ZYPRUS PROPERTY GROUP LTD",
   accountNumber: "502-01-734364-01",
   iban: "CY97 0050 0502 0005 0201 7343 6401",
-  bic: "HEBACY2N"
+  bic: "HEBACY2N",
+  settlementNote: "Payment due within the stated terms. Please use the invoice number as the payment reference.",
+  receiptNote: "This receipt confirms payment in full. Thank you."
 };
 
 // Helvetica / Helvetica-Bold advance widths (1000 units/em) for WinAnsi 0x20–0x7E.
@@ -100,12 +102,14 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   // Letterhead lines mirror the on-screen template preview exactly.
   text(ML, 800, ENTITY.name, 12, true, 0.1);
   textRight(MR, 794, title, 22, true, 0.1);
+  // Mirror the on-screen TemplatePreview letterhead line-for-line.
   const headerLines = [
-    `Reg. No. ${ENTITY.regNo}`,
+    ENTITY.regNo,
     ENTITY.address,
     ENTITY.contactLine,
-    `VAT Reg. No. ${ENTITY.vatNo}`,
-    `CREA License No. ${ENTITY.creaLicense} · CREA Reg No. ${ENTITY.creaReg}`
+    `V.A.T Reg. No. : ${ENTITY.vatNo}`,
+    `CREA License No. ${ENTITY.creaLicense}`,
+    `CREA Reg No. ${ENTITY.creaReg}`
   ];
   let headerY = 786;
   for (const ln of headerLines) {
@@ -163,7 +167,12 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   textRight(totalR, hb, "Total", 8.5, true, 0.25);
 
   const bodyTop = tableTop - headerH;
-  const descLines = wrapText(document.description || "—", xDescEnd - colDesc, 9.5, false);
+  // Credit notes show a fixed reference line (matches TemplatePreview), not the
+  // inherited invoice description.
+  const descText = isCredit
+    ? `Credit note for invoice ${document.sourceInvoiceNumber || "—"}`
+    : document.description || "—";
+  const descLines = wrapText(descText, xDescEnd - colDesc, 9.5, false);
   const lineH = 13;
   const rowH = Math.max(28, 16 + descLines.length * lineH);
   const rb = bodyTop - 18;
@@ -188,44 +197,40 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   text(labelX, ty, "Subtotal", 9.5, false, 0.42);
   textRight(MR, ty, eur(document.amount), 9.5, false, 0.12);
   ty -= 16;
-  text(labelX, ty, `VAT ${rate}%`, 9.5, false, 0.42);
+  text(labelX, ty, `V.A.T ${rate}%`, 9.5, false, 0.42);
   textRight(MR, ty, eur(document.vatAmount), 9.5, false, 0.12);
   ty -= 8;
   line(labelX, ty, MR, ty, 0.7, 0.6);
-  ty -= 17;
-  text(labelX, ty, isCredit ? "Total credited" : isReceipt ? "Total paid" : "Total due", 11.5, true, 0.1);
+  ty -= 16;
+  text(labelX, ty, "Total", 10.5, true, 0.1);
+  textRight(MR, ty, eur(document.total), 10.5, true, 0.1);
+  ty -= 18;
+  text(labelX, ty, isCredit ? "Balance credited" : "Balance Due", 11.5, true, 0.1);
   textRight(MR, ty, eur(document.total), 11.5, true, 0.1);
   ty -= 34;
 
   // ---- Settlement / acknowledgement ----
-  text(ML, ty, isReceipt ? "ACKNOWLEDGEMENT" : isCredit ? "CREDIT" : "SETTLEMENT", 7.5, true, 0.5);
-  ty -= 14;
-  const settleLines = isReceipt
-    ? wrapText(
-        `This receipt confirms payment of ${document.sourceInvoiceNumber || getDisplayNumber(document)} in full. Issued by ${ENTITY.name}.`,
-        MR - ML,
-        9,
-        false
-      )
-    : isCredit
-      ? wrapText(
-          `Credit balance applied against client account. No payment required.${document.sourceInvoiceNumber ? ` Reference: original invoice ${document.sourceInvoiceNumber}.` : ""}`,
-          MR - ML,
-          9,
-          false
-        )
+  // Mirrors TemplatePreview: credit notes show no settlement block; receipts show
+  // the acknowledgement note; invoices show the full bank block + settlement note.
+  if (!isCredit) {
+    text(ML, ty, isReceipt ? "ACKNOWLEDGEMENT" : "SETTLEMENT", 7.5, true, 0.5);
+    ty -= 14;
+    const settleLines = isReceipt
+      ? wrapText(ENTITY.receiptNote, MR - ML, 9, false)
       : [
           ENTITY.bankName,
           `Account Name: ${ENTITY.accountName}`,
-          `Account No: ${ENTITY.accountNumber}`,
+          `Account Number: ${ENTITY.accountNumber}`,
           `IBAN: ${ENTITY.iban}`,
-          `BIC: ${ENTITY.bic}`
+          `BIC: ${ENTITY.bic}`,
+          ...wrapText(ENTITY.settlementNote, MR - ML, 9, false)
         ];
-  for (const ln of settleLines) {
-    text(ML, ty, ln, 9, false, 0.42);
-    ty -= 12;
+    for (const ln of settleLines) {
+      text(ML, ty, ln, 9, false, 0.42);
+      ty -= 12;
+    }
+    ty -= 14;
   }
-  ty -= 14;
 
   const stream = ops.join("\n");
   const objects = [

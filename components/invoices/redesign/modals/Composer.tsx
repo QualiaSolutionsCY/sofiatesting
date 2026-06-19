@@ -310,16 +310,6 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
               </ul>
             ) : null}
           </label>
-          {isNewClient && newClient.name.trim() ? (
-            <label style={{ gridColumn: "1 / -1" }}>
-              <span>VAT no. (if any)</span>
-              <input
-                value={newClient.vat}
-                onChange={(event) => setNewClient({ ...newClient, vat: event.target.value })}
-                placeholder="CY 1… or blank"
-              />
-            </label>
-          ) : null}
           <label>
             <span>Issue date</span>
             <input type="date" value={issued} onChange={(event) => setIssued(event.target.value)} />
