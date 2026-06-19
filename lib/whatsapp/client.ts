@@ -478,6 +478,13 @@ export class WhatsAppClient {
  * Ensures number is in correct format (no + prefix, just digits)
  */
 function formatPhoneNumber(phone: string): string {
+  // Group recipients: WaSender addresses WhatsApp groups by JID ("<id>@g.us"),
+  // not by phone number. Pass an explicit group JID through untouched, and treat
+  // a bare alphanumeric group id (letters present, no "@") as a group JID by
+  // appending the "@g.us" suffix. Never strip these like a phone number.
+  if (phone.includes("@g.us")) return phone;
+  if (/[a-zA-Z]/.test(phone) && !phone.includes("@")) return `${phone}@g.us`;
+
   // Remove any non-digit characters except leading +
   let cleaned = phone.replace(/[^\d+]/g, "");
 

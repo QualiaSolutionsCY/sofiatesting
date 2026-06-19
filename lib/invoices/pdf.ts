@@ -124,7 +124,7 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   if (!isCredit && !isReceipt && document.dueDate) {
     meta.push(["Due Date", formatDate(document.dueDate)]);
   }
-  if (isCredit && document.sourceInvoiceNumber) meta.push(["Applies to", document.sourceInvoiceNumber]);
+  if (isCredit && document.sourceInvoiceNumber) meta.push(["Applies to", `Invoice ${document.sourceInvoiceNumber}`]);
 
   let metaY = 786;
   for (const [label, value] of meta) {
