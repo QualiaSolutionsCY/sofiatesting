@@ -188,14 +188,37 @@ export async function runIntent(
       const res = await loadDocumentsAction();
       const doc = findDoc(res.documents, params);
       if (!doc) return { ok: false, reply: "I couldn't find that invoice to approve." };
-      const out = await approveDocumentAction(doc.id);
-      const updated = out.documents.find((d) => d.id === doc.id);
-      const pdf = await attachPdf(doc.id);
+
+      // Approve (idempotent — skip re-approving if already numbered, so the
+      // group-message follow-up call doesn't try to approve a second time).
+      let updated = doc;
+      if (!doc.officialNumber && doc.status !== "numbered") {
+        const out = await approveDocumentAction(doc.id);
+        updated = out.documents.find((d) => d.id === doc.id) ?? doc;
+      }
+      const pdf = await attachPdf(updated.id);
+      const num = updated.officialNumber ?? "assigned";
+
+      // After approval the invoice goes to the group — ask Marios for the message
+      // first, then post the invoice on the follow-up call (groupMessage set).
+      if (!params.groupMessage) {
+        return {
+          ok: true,
+          documentId: updated.id,
+          ...pdf,
+          reply: `Approved ${updated.clientName} — official number ${num}. What message should I send to the group along with the invoice?`,
+        };
+      }
+
+      const caption = `Invoice ${numberOf(updated)} — ${updated.clientName} (${money(updated.total)}). ${params.groupMessage}`;
+      const sentToGroup = await sendDocumentToAccountingGroup(updated, caption);
       return {
         ok: true,
-        documentId: doc.id,
+        documentId: updated.id,
         ...pdf,
-        reply: `Approved ${doc.clientName} — official number ${updated?.officialNumber ?? "assigned"}.`,
+        reply: sentToGroup
+          ? `Approved ${updated.clientName} — № ${num}, and sent the invoice to the group.`
+          : `Approved ${updated.clientName} — № ${num}. (I couldn't reach the group just now.)`,
       };
     }
 
