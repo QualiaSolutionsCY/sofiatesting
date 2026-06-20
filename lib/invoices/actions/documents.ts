@@ -382,10 +382,8 @@ async function notifyGroupOfCreditNote(
     `Credit note ${creditNumber} regarding the cancellation of invoice ${invoiceNumber}.${reasonLine}\n\n` +
     `Please read it alongside the attached credit note.`;
 
-  // Group number from env if configured; otherwise fall back to Marios (he's in the CSC group).
-  const groupMsisdn =
-    process.env.INVOICE_ACCOUNTING_GROUP_MSISDN ??
-    INVOICE_AUTHORIZED_AGENTS.find((agent) => agent.name === "Marios Polyviou")?.msisdn;
+  // Group number from env only — never fall back to anyone's personal number.
+  const groupMsisdn = process.env.INVOICE_ACCOUNTING_GROUP_MSISDN?.trim() || undefined;
   if (!groupMsisdn) {
     sendLogger.warn("No accounting group number configured; credit-note message not sent");
     return;
@@ -421,9 +419,7 @@ export async function sendDocumentToAccountingGroup(
   document: InvoiceDocument,
   caption: string
 ): Promise<boolean> {
-  const groupMsisdn =
-    process.env.INVOICE_ACCOUNTING_GROUP_MSISDN ??
-    INVOICE_AUTHORIZED_AGENTS.find((agent) => agent.name === "Marios Polyviou")?.msisdn;
+  const groupMsisdn = process.env.INVOICE_ACCOUNTING_GROUP_MSISDN?.trim() || undefined;
   if (!groupMsisdn) {
     sendLogger.warn("No accounting group number configured; group message not sent");
     return false;
