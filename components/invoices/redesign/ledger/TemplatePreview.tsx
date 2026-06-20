@@ -50,8 +50,6 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
             <br />
             {tpl.contactLine}
             <br />
-            V.A.T Reg. No. : {tpl.vatNo}
-            <br />
             CREA License No. {tpl.creaLicense}
             <br />
             CREA Reg No. {tpl.creaReg}
@@ -72,6 +70,14 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
               <div>
                 <dt>Due</dt>
                 <dd>{formatDate(doc.due)}</dd>
+              </div>
+            ) : null}
+            {!isCredit && !isReceipt && doc.recurrence && doc.recurrence !== "none" ? (
+              <div>
+                <dt>Recurring</dt>
+                <dd>
+                  {doc.recurrence === "monthly" ? "Monthly" : "Yearly"} · {doc.period}
+                </dd>
               </div>
             ) : null}
             {isCredit && doc.appliesTo ? (
