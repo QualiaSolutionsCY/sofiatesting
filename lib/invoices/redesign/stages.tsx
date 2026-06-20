@@ -88,7 +88,7 @@ export interface PrimaryActionSpec {
 export function primaryAction(stage: Stage, doc: Doc): PrimaryActionSpec {
   switch (stage) {
     case "draft":
-      return { icon: <Send size={18} strokeWidth={1.6} />, label: "Send to Marios for review", small: "WhatsApp · direct to Marios" };
+      return { icon: <Send size={18} strokeWidth={1.6} />, label: "Approve & issue invoice", small: "Auto-approved · sent to the accounting group" };
     case "sent-to-marios":
       return { icon: <RefreshCw size={18} strokeWidth={1.6} />, label: "Resend to Marios", small: "Bumps Marios directly on WhatsApp" };
     case "correction-needed":

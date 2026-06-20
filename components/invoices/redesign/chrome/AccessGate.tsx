@@ -30,7 +30,7 @@ export function AccessGate({ onEnter }: AccessGateProps) {
         <div className="access-icon">
           <Lock size={22} strokeWidth={1.6} />
         </div>
-        <p className="eyebrow">Sophia Invoice</p>
+        <p className="eyebrow">Iam Sophia · Invoice</p>
         <h1 style={{ fontFamily: "var(--serif)", fontWeight: 500, letterSpacing: "-0.02em" }}>Welcome back</h1>
         <p className="access-lede">
           Marios, Charalambous, and the duty colleague can sign in here. Enter your access code to open invoices.

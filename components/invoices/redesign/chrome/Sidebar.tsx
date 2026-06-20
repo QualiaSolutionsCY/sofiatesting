@@ -21,7 +21,7 @@ export function Sidebar({ operator, docs, onSignOut, children }: SidebarProps) {
       <div className="sidebar-brand">
         <span className="sidebar-mark" aria-hidden>S</span>
         <div>
-          <strong>Sophia</strong>
+          <strong>Iam Sophia</strong>
           <span>Invoice</span>
         </div>
       </div>

@@ -13,7 +13,7 @@ interface TourStep {
 const TOUR_STEPS: TourStep[] = [
   {
     target: ".sophia-briefing",
-    title: "Meet Sophia",
+    title: "Meet Iam Sophia",
     body: "Sophia prepares your drafts each morning, flags duplicates, and routes them to Marios. She's working below — this is her brief.",
     position: "below"
   },

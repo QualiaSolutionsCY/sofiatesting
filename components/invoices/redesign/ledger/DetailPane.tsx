@@ -91,7 +91,7 @@ function DocumentTab({
 }) {
   // Already-sent docs (numbered, sent-to-accounting) → correction-resend mode required
   const isSent = !!doc.officialNo || doc.stage === "numbered" || doc.stage === "sent-to-accounting";
-  const editable = doc.stage !== "credited"; // credited docs are final — they need a separate new invoice
+  const editable = doc.stage !== "credited" && doc.kind !== "receipt"; // credited docs and issued receipts are final — they need a separate new invoice
   const requiresCorrectionReason = isSent && editable;
   const [form, setForm] = useState<InlineDocFormState>(() => docToFormState(doc));
   const [saveState, setSaveState] = useState<"idle" | "dirty" | "saving" | "saved">("idle");
