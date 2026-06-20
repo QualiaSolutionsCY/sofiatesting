@@ -452,6 +452,21 @@ export async function sendDocumentToAccountingGroup(
   }
 }
 
+/**
+ * Notify the accounting WhatsApp GROUP that an invoice has been issued (admin
+ * panel auto-issue flow). Builds the PDF server-side and posts it with an
+ * "Invoice issued" caption via the existing group sender. Best-effort: returns
+ * false (never throws) so a send failure cannot break the issue/paid flow.
+ */
+export async function notifyAccountingGroupOfInvoiceAction(id: string): Promise<boolean> {
+  const current = await listInvoiceDocuments();
+  const document = findDocument(current.documents, id);
+  const caption =
+    `Invoice issued: ${getDisplayNumber(document)} · Client: ${document.clientName}\n\n` +
+    `Issued automatically via the admin panel — paid and receipt logged. PDF attached for accounting.`;
+  return sendDocumentToAccountingGroup(document, caption);
+}
+
 export async function loadDeliveryRecordsAction(id: string): Promise<DeliveryRecord[]> {
   return listDeliveryRecordsForDocument(id);
 }

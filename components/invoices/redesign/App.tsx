@@ -12,7 +12,7 @@ import {
   loadDocumentsAction,
   markApprovedOnlyAction,
   markPaidAndIssueReceiptAction,
-  notifyMariosApprovedAction,
+  notifyAccountingGroupOfInvoiceAction,
   queueClientEmailAction,
   regenerateStoredDocumentAction,
   sendToMariosAction,
@@ -195,12 +195,21 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
     switch (stageOrAction) {
       case "draft":
         startTransition(async () => {
-          // Admin-panel sends are auto-approved: approve, then notify Marios it's issued
-          // (no review request). Only the Sophia-bot chat flow gates on his approval.
-          const result = await approveDocumentAction(selected.id);
-          await notifyMariosApprovedAction(selected.id);
-          reconcile(result.documents, selected.id);
-          setToast("Approved and sent to Marios.");
+          // Admin-panel sends are auto-issued: number the invoice, mark it paid +
+          // issue the linked receipt, and post the PDF to the accounting group.
+          // Only the Sophia-bot chat flow gates on Marios's approval.
+          await approveDocumentAction(selected.id);
+          if (selected.kind === "invoice") {
+            const paid = await markPaidAndIssueReceiptAction(selected.id);
+            await notifyAccountingGroupOfInvoiceAction(selected.id);
+            reconcile(paid.documents, paid.selectedId ?? selected.id);
+            setFilters((f) => ({ ...f, stage: "all" }));
+            setToast("Issued, paid, receipt created — sent to the accounting group.");
+          } else {
+            const result = await approveDocumentAction(selected.id);
+            reconcile(result.documents, selected.id);
+            setToast("Approved and numbered.");
+          }
         });
         break;
       case "sent-to-marios":
@@ -442,19 +451,25 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       const created = await createDocumentAction(input);
       const newId = created.selectedId as string;
 
-      // Admin-panel invoices are trusted: auto-issued with an official number
-      // immediately (not parked in the "Approved" queue — that status is reserved
-      // for the Sophia/WhatsApp approval flow). Marios is notified for his records.
+      // Admin-panel invoices are trusted: auto-issued with an official number,
+      // marked paid, and a linked receipt is created immediately (not parked in
+      // the "Approved" queue — that status is reserved for the Sophia/WhatsApp
+      // approval flow). The PDF is posted to the accounting group, not Marios's DM.
       if (form.kind === "invoice" && newId) {
         let result = created;
+        let selectId = newId;
         try {
-          result = await approveDocumentAction(newId);
-          await notifyMariosApprovedAction(newId);
+          await approveDocumentAction(newId);
+          const paid = await markPaidAndIssueReceiptAction(newId);
+          result = paid;
+          selectId = paid.selectedId ?? newId;
+          await notifyAccountingGroupOfInvoiceAction(newId);
         } catch (error) {
           console.error("Auto-issue failed", error);
         }
-        reconcile(result.documents, newId);
-        setToast("Invoice issued and sent to Marios.");
+        reconcile(result.documents, selectId);
+        setFilters((f) => ({ ...f, stage: "all" }));
+        setToast("Invoice issued, paid, receipt created — sent to the accounting group.");
         return;
       }
 

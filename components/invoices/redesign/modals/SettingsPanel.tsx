@@ -2,6 +2,7 @@
 
 import { Check, Database, Lock, Mail, MessageCircle, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { getWhatsAppGroupStatus, type WhatsAppGroupStatus } from "@/lib/invoices/actions/whatsapp-status";
 
 interface SettingsPanelProps {
   open: boolean;
@@ -31,6 +32,8 @@ export function SettingsPanel({
   const [cc, setCc] = useState(sharedCc);
   const [auto, setAuto] = useState(autoRoute);
   const [email, setEmail] = useState(accountingEmail);
+  const [groupStatus, setGroupStatus] = useState<WhatsAppGroupStatus | null>(null);
+  const [groupStatusLoading, setGroupStatusLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -39,6 +42,25 @@ export function SettingsPanel({
       setEmail(accountingEmail);
     }
   }, [open, sharedCc, autoRoute, accountingEmail]);
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    setGroupStatusLoading(true);
+    getWhatsAppGroupStatus()
+      .then((status) => {
+        if (active) setGroupStatus(status);
+      })
+      .catch(() => {
+        if (active) setGroupStatus({ configured: false, connected: false, detail: "Status check failed" });
+      })
+      .finally(() => {
+        if (active) setGroupStatusLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -142,11 +164,21 @@ export function SettingsPanel({
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid var(--rule)" }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                <MessageCircle size={14} strokeWidth={1.6} /> WhatsApp · Sophia bot
+                <MessageCircle size={14} strokeWidth={1.6} /> WhatsApp · accounting group
               </span>
-              <span style={{ color: "var(--amber-strong)", fontFamily: "var(--font-mono)", fontSize: ".78rem" }}>
-                ● Staged · provider TBC
-              </span>
+              {groupStatusLoading || !groupStatus ? (
+                <span style={{ color: "var(--muted)", fontFamily: "var(--font-mono)", fontSize: ".78rem" }}>
+                  ● Checking…
+                </span>
+              ) : groupStatus.connected ? (
+                <span style={{ color: "var(--green-strong)", fontFamily: "var(--font-mono)", fontSize: ".78rem" }}>
+                  ● Connected{groupStatus.groupName ? ` · ${groupStatus.groupName}` : ""}
+                </span>
+              ) : (
+                <span style={{ color: "var(--amber-strong)", fontFamily: "var(--font-mono)", fontSize: ".78rem" }}>
+                  ● {groupStatus.detail ?? "Not connected"}
+                </span>
+              )}
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0" }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
