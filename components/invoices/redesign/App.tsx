@@ -198,17 +198,22 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           // Admin-panel sends are auto-issued: number the invoice, mark it paid +
           // issue the linked receipt, and post the PDF to the accounting group.
           // Only the Sophia-bot chat flow gates on Marios's approval.
-          await approveDocumentAction(selected.id);
-          if (selected.kind === "invoice") {
-            const paid = await markPaidAndIssueReceiptAction(selected.id);
-            await notifyAccountingGroupOfInvoiceAction(selected.id);
-            reconcile(paid.documents, paid.selectedId ?? selected.id);
-            setFilters((f) => ({ ...f, stage: "all" }));
-            setToast("Issued, paid, receipt created — sent to the accounting group.");
-          } else {
-            const result = await approveDocumentAction(selected.id);
-            reconcile(result.documents, selected.id);
-            setToast("Approved and numbered.");
+          try {
+            await approveDocumentAction(selected.id);
+            if (selected.kind === "invoice") {
+              const paid = await markPaidAndIssueReceiptAction(selected.id);
+              await notifyAccountingGroupOfInvoiceAction(selected.id);
+              reconcile(paid.documents, paid.selectedId ?? selected.id);
+              setFilters((f) => ({ ...f, stage: "all" }));
+              setToast("Issued, paid, receipt created — sent to the accounting group.");
+            } else {
+              const result = await approveDocumentAction(selected.id);
+              reconcile(result.documents, selected.id);
+              setToast("Approved and numbered.");
+            }
+          } catch (error) {
+            console.error("Issue from draft failed", error);
+            setToast("Couldn't issue this invoice — please try again.");
           }
         });
         break;
@@ -458,18 +463,27 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       if (form.kind === "invoice" && newId) {
         let result = created;
         let selectId = newId;
+        let fullyIssued = false;
         try {
           await approveDocumentAction(newId);
           const paid = await markPaidAndIssueReceiptAction(newId);
           result = paid;
           selectId = paid.selectedId ?? newId;
           await notifyAccountingGroupOfInvoiceAction(newId);
+          fullyIssued = true;
         } catch (error) {
           console.error("Auto-issue failed", error);
+          const fresh = await loadDocumentsAction();
+          result = fresh;
+          selectId = fresh.selectedId ?? newId;
         }
         reconcile(result.documents, selectId);
         setFilters((f) => ({ ...f, stage: "all" }));
-        setToast("Invoice issued, paid, receipt created — sent to the accounting group.");
+        setToast(
+          fullyIssued
+            ? "Invoice issued, paid, receipt created — sent to the accounting group."
+            : "Invoice numbered — mark paid manually and retry the group send."
+        );
         return;
       }
 
