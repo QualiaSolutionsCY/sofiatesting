@@ -333,7 +333,11 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
           </label>
           <label>
             <span>
-              {kind === "receipt" ? "Invoice to receipt" : kind === "credit" ? "Invoice to credit" : "Due (days to pay)"}
+              {kind === "receipt"
+                ? "Apply this receipt to which invoice?"
+                : kind === "credit"
+                  ? "Which invoice to credit?"
+                  : "Due (days to pay)"}
             </span>
             {isSourceMode ? (
               <select
@@ -510,6 +514,16 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
           <span>What happens next</span>
           {isEdit ? (
             <>Changes will be saved to the existing document. Sophia will note the edit in the audit trail.</>
+          ) : isSourceMode ? (
+            <>
+              Sophia will issue this {kindLabel} against invoice{" "}
+              <strong style={{ color: "var(--ink)" }}>
+                {sourceInvoiceId
+                  ? `№ ${sourceInvoices.find((inv) => inv.id === sourceInvoiceId)?.officialNo ?? "—"}`
+                  : "the invoice you select above"}
+              </strong>{" "}
+              and send it to the accounting group, mirroring that invoice&apos;s amount and VAT.
+            </>
           ) : (
             <>
               Sophia will prepare a draft with a fake number, route it to Marios via WhatsApp{" "}
