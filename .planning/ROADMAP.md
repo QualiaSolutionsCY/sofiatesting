@@ -10,22 +10,25 @@ Source of truth: `.planning/JOURNEY.md` (full arc). Milestone 8 (`sophiainvoice`
 
 The unified Sophia + invoicing system is live: `sofiatesting.vercel.app/admin/invoices` runs against `tijadsdysuxkxrpdlecq`, and Sophia drives the full invoice lifecycle over WhatsApp for the authorized allowlist (Fawzi, Marios, Charalambos). With the build done, the remaining work is the production-readiness and client-handoff pass that turns a shipped feature into a documented, owned system.
 
-## Phase 1: Polish
+## Phase 1: Invoice Workflow Fixes (Marios 2026-06-17)
 
 ### Goal
 
-A consistent, refined admin surface across the merged Sophia + invoicing panels — no visual seams between the ported `sophiainvoice` UI and the existing `sofiatesting` admin.
+The invoice lifecycle behaves the way Marios signed off on in the 2026-06-17 review: admin-created invoices flow straight to paid/receipt, the accounting WhatsApp group is notified on creation, receipts can reference an existing invoice, and the remaining template/label/immutability polish from the meeting is resolved. Targets the Friday follow-up deploy (`deploy/invoices-friday`).
 
 ### Success criteria
 
-- Shared design tokens (color, spacing, type) applied across `/admin` and `/admin/invoices`.
-- Microcopy + labels reviewed for consistency (invoice statuses, action buttons, empty/loading/error states).
-- No layout breaks at 375px and 1440px on the invoices dashboard + detail routes.
-- `npm run typecheck` and `next build` pass.
+- **Auto-approve → paid/receipt:** admin-created (auto-approved) invoices skip the dead-end "Approved" state and auto-advance to paid with a receipt created — no manual *Mark as paid → Issue receipt* dance.
+- **Group notification on creation:** new invoices are auto-sent to the accounting WhatsApp group (not just DM'd to Marios); `lib/invoices/actions/whatsapp-status.ts` (`getWhatsAppGroupStatus`) is wired into the send path / surfaced in the admin UI rather than left as dead code.
+- **Receipt reference selection:** issuing a receipt prompts to apply it to an existing invoice and lists that customer's invoices by number to reference.
+- **Recurrence labels:** monthly/yearly label + day-count render on the invoice template preview and PDF.
+- **Polish sweep:** V8/VAT Reg. No. line removed from the Cyprus template + PDF; the auto-approve button carries clearer approval text; receipts are immutable once issued (parity with credit notes); assistant label updated to "Iam Sophia" on the invoice view.
+- `npm run typecheck` and `next build` pass; no critical console errors on `/admin/invoices`.
 
 ### Dependencies
 
 - Milestone 8 shipped (done).
+- Grounding: 2026-06-17 read.ai meeting "Invoice workflow and UI fixes" + the code audit in this session.
 
 ---
 

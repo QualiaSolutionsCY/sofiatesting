@@ -1,0 +1,66 @@
+{
+  "ok": true,
+  "phase": 1,
+  "goal": "Close the 3 HIGH money-path gaps from phase-1 verification — no false-success toasts, no silently-swallowed errors, no silent personal-DM fallback for the accounting group.",
+  "checked": 7,
+  "failed": 0,
+  "generated_at": "2026-06-20T14:04:36.833Z",
+  "results": [
+    {
+      "task_id": "T1",
+      "task_title": "Honest toasts + error handling on both admin auto-issue paths",
+      "index": 0,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T1",
+      "task_title": "Honest toasts + error handling on both admin auto-issue paths",
+      "index": 1,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T1",
+      "task_title": "Honest toasts + error handling on both admin auto-issue paths",
+      "index": 2,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T1",
+      "task_title": "Honest toasts + error handling on both admin auto-issue paths",
+      "index": 3,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T2",
+      "task_title": "Remove silent personal-DM fallback for the accounting group + document the env var",
+      "index": 0,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T2",
+      "task_title": "Remove silent personal-DM fallback for the accounting group + document the env var",
+      "index": 1,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T2",
+      "task_title": "Remove silent personal-DM fallback for the accounting group + document the env var",
+      "index": 2,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

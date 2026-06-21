@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "phase": 1,
+  "goal": "Close the 3 HIGH money-path gaps from phase-1 verification — no false-success toasts, no silently-swallowed errors, no silent personal-DM fallback for the accounting group.",
+  "why": "Phase-1 build FAILED verification with 3 HIGH gaps on the admin invoice money path. Artifacts exist and tsc/build pass; what's broken is error-path honesty. This gap-closure fixes ONLY those 3 findings.",
+  "generated_at": "2026-06-20T13:51:28Z",
+  "generated_by": "planner",
+  "source_plan_hash": "sha256:bec4e7af395b86c15d7d41a4474fde81d0107195743a0dbd82fa3bd070d3bb83",
+  "success_criteria": [
+    "A partial failure in the admin auto-issue chain (composer or draft-act) shows an honest distinct toast, never the false full-success message.",
+    "On handleCreate partial failure the UI reconciles to the real DB state, not the stale created snapshot.",
+    "handleAct draft failures surface an error toast instead of silence.",
+    "With INVOICE_ACCOUNTING_GROUP_MSISDN unset, no invoice or credit-note notification reaches any personal number; both senders return/skip with a warn-log.",
+    "INVOICE_ACCOUNTING_GROUP_MSISDN is documented in .env.example.",
+    "npx tsc --noEmit and npm run build pass."
+  ],
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Honest toasts + error handling on both admin auto-issue paths",
+      "wave": 1,
+      "depends_on": [],
+      "persona": "frontend",
+      "files_modify": [
+        "components/invoices/redesign/App.tsx"
+      ],
+      "files_create": [],
+      "files_delete": [],
+      "acceptance_criteria": [
+        "Full approve -> mark-paid -> group-notify chain in handleCreate shows the existing full-success toast.",
+        "Any throw in that chain shows the distinct partial toast 'Invoice numbered — mark paid manually and retry the group send.' and reconciles to real DB state via loadDocumentsAction, not the stale created snapshot.",
+        "handleAct draft path (invoice and non-invoice branches) wrapped in try/catch; on throw shows 'Couldn't issue this invoice — please try again.' and console.error-logs.",
+        "npx tsc --noEmit exits 0 and npm run build exits 0."
+      ],
+      "action": "Gap 1 (handleCreate invoice branch): add let fullyIssued=false; set true as last try statement after notifyAccountingGroupOfInvoiceAction; in catch keep console.error then re-fetch via loadDocumentsAction() into result/selectId; after try/catch reconcile then setToast(fullyIssued ? full-success : partial 'Invoice numbered...'). Gap 2 (handleAct draft): wrap the whole startTransition body in try/catch with console.error + setToast('Couldn't issue this invoice — please try again.').",
+      "context_files": [
+        "components/invoices/redesign/App.tsx",
+        ".planning/phase-1-verification.md"
+      ],
+      "verification": [
+        {
+          "type": "grep-match",
+          "path": "components/invoices/redesign/App.tsx",
+          "pattern": "fullyIssued",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "components/invoices/redesign/App.tsx",
+          "pattern": "Invoice numbered — mark paid manually",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "components/invoices/redesign/App.tsx",
+          "pattern": "Couldn't issue this invoice",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "components/invoices/redesign/App.tsx",
+          "pattern": "loadDocumentsAction\\(\\)",
+          "expect": "present"
+        }
+      ]
+    },
+    {
+      "id": "T2",
+      "title": "Remove silent personal-DM fallback for the accounting group + document the env var",
+      "wave": 1,
+      "depends_on": [],
+      "persona": "backend",
+      "files_modify": [
+        "lib/invoices/actions/documents.ts",
+        ".env.example"
+      ],
+      "files_create": [],
+      "files_delete": [],
+      "acceptance_criteria": [
+        "With INVOICE_ACCOUNTING_GROUP_MSISDN set, both group senders post to that number unchanged.",
+        "With it unset, sendDocumentToAccountingGroup sends nothing to any personal number, warn-logs, and returns false.",
+        "With it unset, the credit-note group sender (was documents.ts:386-388) also sends nothing to a personal number and warn-logs.",
+        "grep -c 'Marios Polyviou' lib/invoices/actions/documents.ts returns 1 (only the DM approval path at line 130 remains).",
+        ".env.example contains INVOICE_ACCOUNTING_GROUP_MSISDN= with an explanatory comment.",
+        "npx tsc --noEmit exits 0."
+      ],
+      "action": "Replace both 'process.env.INVOICE_ACCOUNTING_GROUP_MSISDN ?? INVOICE_AUTHORIZED_AGENTS.find(Marios Polyviou)?.msisdn' fallbacks (documents.ts ~386 and ~424) with 'const groupMsisdn = process.env.INVOICE_ACCOUNTING_GROUP_MSISDN?.trim() || undefined;'. Keep the existing if(!groupMsisdn){warn;return} guards; add a warn-log to the credit-note guard if absent. Do not touch the Marios DM path at line 130. Append INVOICE_ACCOUNTING_GROUP_MSISDN= with a comment to .env.example.",
+      "context_files": [
+        "lib/invoices/actions/documents.ts",
+        "lib/invoices/constants.ts",
+        ".env.example",
+        ".planning/phase-1-verification.md"
+      ],
+      "verification": [
+        {
+          "type": "grep-match",
+          "path": "lib/invoices/actions/documents.ts",
+          "pattern": "Marios Polyviou",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "lib/invoices/actions/documents.ts",
+          "pattern": "INVOICE_ACCOUNTING_GROUP_MSISDN",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": ".env.example",
+          "pattern": "INVOICE_ACCOUNTING_GROUP_MSISDN",
+          "expect": "present"
+        }
+      ]
+    }
+  ]
+}
