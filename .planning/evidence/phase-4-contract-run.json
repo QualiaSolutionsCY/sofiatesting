@@ -1,0 +1,114 @@
+{
+  "ok": true,
+  "phase": 4,
+  "goal": "Transfer ownership cleanly: a credentials/reference doc, a system walkthrough, legacy-repo archival verification, and a pointer to ERP closure — all as builder-verifiable artifacts in docs/admin/.",
+  "checked": 13,
+  "failed": 0,
+  "generated_at": "2026-06-21T15:23:23.919Z",
+  "results": [
+    {
+      "task_id": "T1",
+      "task_title": "Credentials & reference handoff doc",
+      "index": 0,
+      "type": "file-exists",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T1",
+      "task_title": "Credentials & reference handoff doc",
+      "index": 1,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T1",
+      "task_title": "Credentials & reference handoff doc",
+      "index": 2,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T1",
+      "task_title": "Credentials & reference handoff doc",
+      "index": 3,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T2",
+      "task_title": "System walkthrough / onboarding doc",
+      "index": 0,
+      "type": "file-exists",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T2",
+      "task_title": "System walkthrough / onboarding doc",
+      "index": 1,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T2",
+      "task_title": "System walkthrough / onboarding doc",
+      "index": 2,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T2",
+      "task_title": "System walkthrough / onboarding doc",
+      "index": 3,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T2",
+      "task_title": "System walkthrough / onboarding doc",
+      "index": 4,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T3",
+      "task_title": "Legacy repo archival verification",
+      "index": 0,
+      "type": "file-exists",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T3",
+      "task_title": "Legacy repo archival verification",
+      "index": 1,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T3",
+      "task_title": "Legacy repo archival verification",
+      "index": 2,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T3",
+      "task_title": "Legacy repo archival verification",
+      "index": 3,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

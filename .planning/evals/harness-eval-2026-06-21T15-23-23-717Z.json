@@ -1,0 +1,172 @@
+{
+  "ok": true,
+  "status": "PASS",
+  "score": 95,
+  "phase": 4,
+  "generated_at": "2026-06-21T15:23:23.717Z",
+  "checks": [
+    {
+      "name": "planning_state",
+      "weight": 15,
+      "status": "pass",
+      "score": 15,
+      "evidence": "state.js check returned ok",
+      "state": {
+        "ok": true,
+        "phase": 4,
+        "phase_name": "Handoff",
+        "total_phases": 4,
+        "status": "built",
+        "assigned_to": "Profile: strict",
+        "profile": "strict",
+        "milestone": 9,
+        "milestone_name": "Handoff",
+        "milestones": [
+          {
+            "num": 1,
+            "name": "v1.0 MVP — Core SOPHIA",
+            "total_phases": 5,
+            "phases_completed": 5,
+            "tasks_completed": 0,
+            "shipped_url": "",
+            "closed_at": "2026-01-27T00:00:00.000Z",
+            "backfilled": true
+          },
+          {
+            "num": 2,
+            "name": "v1.1 Reliability & Hardening",
+            "total_phases": 4,
+            "phases_completed": 4,
+            "tasks_completed": 0,
+            "shipped_url": "",
+            "closed_at": "2026-01-29T00:00:00.000Z",
+            "backfilled": true
+          },
+          {
+            "num": 3,
+            "name": "v1.2 3CX Call Log Audit",
+            "total_phases": 5,
+            "phases_completed": 5,
+            "tasks_completed": 0,
+            "shipped_url": "",
+            "closed_at": "2026-02-26T00:00:00.000Z",
+            "backfilled": true
+          },
+          {
+            "num": 4,
+            "name": "v1.3 Production Audit Fixes",
+            "total_phases": 3,
+            "phases_completed": 3,
+            "tasks_completed": 0,
+            "shipped_url": "",
+            "closed_at": "2026-02-28T00:00:00.000Z",
+            "backfilled": true
+          },
+          {
+            "num": 5,
+            "name": "v1.4 Security & Performance Hardening",
+            "total_phases": 3,
+            "phases_completed": 3,
+            "tasks_completed": 0,
+            "shipped_url": "",
+            "closed_at": "2026-03-01T00:00:00.000Z",
+            "backfilled": true
+          },
+          {
+            "num": 6,
+            "name": "v1.5 Audit Excellence",
+            "total_phases": 5,
+            "phases_completed": 5,
+            "tasks_completed": 0,
+            "shipped_url": "",
+            "closed_at": "2026-03-02T00:00:00.000Z",
+            "backfilled": true
+          },
+          {
+            "num": 7,
+            "name": "v1.6 Upload Pipeline Production Hardening",
+            "total_phases": 2,
+            "phases_completed": 2,
+            "tasks_completed": 75,
+            "shipped_url": "https://sofiatesting.vercel.app",
+            "closed_at": "2026-05-28T16:11:21.926Z"
+          },
+          {
+            "num": 8,
+            "name": "v1.7 Sophia Invoice Embed",
+            "total_phases": 4,
+            "phases_completed": 4,
+            "tasks_completed": 0,
+            "shipped_url": "https://sofiatesting.vercel.app",
+            "closed_at": "2026-06-09T07:29:39.900Z"
+          }
+        ],
+        "lifetime": {
+          "tasks_completed": 84,
+          "phases_completed": 34,
+          "milestones_completed": 8,
+          "total_phases": 31,
+          "last_closed_milestone": 8,
+          "updates_completed": 0
+        },
+        "verification": "pending",
+        "gap_cycles": 0,
+        "gap_cycle_limit": 2,
+        "tasks_done": 3,
+        "tasks_total": 3,
+        "deployed_url": "https://sofiatesting.vercel.app",
+        "lifecycle": "build",
+        "launched_at": "",
+        "next_command": "/qualia-verify 4"
+      }
+    },
+    {
+      "name": "state_ledger",
+      "weight": 10,
+      "status": "pass",
+      "score": 10,
+      "evidence": "26 hash-chained event(s)"
+    },
+    {
+      "name": "plan_contract",
+      "weight": 20,
+      "status": "pass",
+      "score": 20,
+      "evidence": ".planning/phase-4-contract.json valid and in sync",
+      "contract": ".planning/phase-4-contract.json"
+    },
+    {
+      "name": "machine_evidence",
+      "weight": 20,
+      "status": "pass",
+      "score": 20,
+      "evidence": ".planning/evidence/phase-4-contract-run.json passed 13 check(s)"
+    },
+    {
+      "name": "verification_report",
+      "weight": 15,
+      "status": "pass",
+      "score": 15,
+      "evidence": ".planning/phase-4-verification.md verdict=pass"
+    },
+    {
+      "name": "framework_trust_score",
+      "weight": 10,
+      "status": "pass",
+      "score": 10,
+      "evidence": "trust-score=100/100 status=PASS",
+      "trust_score": 100
+    },
+    {
+      "name": "erp_linkage",
+      "weight": 10,
+      "status": "warn",
+      "score": 5,
+      "evidence": "project key exists, ERP UUID missing"
+    }
+  ],
+  "artifacts": {
+    "json": ".planning/evals/harness-eval-2026-06-21T15-23-23-717Z.json",
+    "markdown": ".planning/evals/harness-eval-2026-06-21T15-23-23-717Z.md"
+  }
+}

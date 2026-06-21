@@ -63,3 +63,9 @@ app/api.admin.disabled/
 app/(admin.disabled)/
 .vercel
 supabase/.temp/
+
+# Codex runtime config (per-machine)
+.codex/
+
+# Qualia session telemetry (may contain prompt samples)
+.planning/.session-usage.json
