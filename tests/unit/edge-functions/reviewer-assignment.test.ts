@@ -251,9 +251,7 @@ describe("Reviewer Assignment", () => {
       // Current behavior: management rentals are allowed (c5aee9b). Since
       // listingOwnerEmail is "ASK" and no assignTo is given, the rent branch
       // falls back to communicationEmail as the listing owner.
-      expect(() =>
-        assignReviewers(management, "rent", "paphos")
-      ).not.toThrow();
+      expect(() => assignReviewers(management, "rent", "paphos")).not.toThrow();
 
       const result = assignReviewers(management, "rent", "paphos");
 
@@ -275,9 +273,7 @@ describe("Reviewer Assignment", () => {
       // Current behavior: management rentals are allowed (c5aee9b). With
       // listingOwnerEmail "ASK" and no assignTo, the rent branch uses
       // communicationEmail as the listing owner.
-      expect(() =>
-        assignReviewers(lauren, "rent", "limassol")
-      ).not.toThrow();
+      expect(() => assignReviewers(lauren, "rent", "limassol")).not.toThrow();
 
       const result = assignReviewers(lauren, "rent", "limassol");
 
