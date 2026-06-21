@@ -14,7 +14,17 @@ export type AccessScope = "admin" | "invoices";
 export const ACCESS_COOKIE = "qs_gate";
 
 function secret(): string {
-  return process.env.AUTH_SECRET || "insecure-dev-secret-change-me";
+  const s = process.env.AUTH_SECRET;
+  if (s) return s;
+  // No insecure default in production: a known fallback would let an attacker
+  // forge HMAC-signed admin/invoices cookies. Fail closed instead.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "AUTH_SECRET must be set: refusing to sign/verify access cookies with an insecure default."
+    );
+  }
+  // Local development only (never reached when NODE_ENV === "production").
+  return "insecure-dev-secret-change-me";
 }
 
 async function hmacHex(message: string): Promise<string> {

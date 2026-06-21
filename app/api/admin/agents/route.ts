@@ -90,9 +90,21 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      query = query.or(
-        `full_name.ilike.%${search}%,communication_email.ilike.%${search}%`
-      );
+      // Sanitize the search term before interpolating it into the PostgREST
+      // `.or()` filter string. PostgREST has no parameter binding for filter
+      // strings, so characters with filter-syntax meaning (comma, parentheses,
+      // dot, asterisk, percent, backslash) must be stripped to prevent an
+      // attacker from injecting additional filter conditions.
+      const sanitizedSearch = search
+        .replace(/[,()*%\\.]/g, " ")
+        .trim()
+        .slice(0, 100);
+
+      if (sanitizedSearch) {
+        query = query.or(
+          `full_name.ilike.%${sanitizedSearch}%,communication_email.ilike.%${sanitizedSearch}%`
+        );
+      }
     }
 
     const { data: agents, count, error } = await query;
@@ -100,7 +112,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       logger.error("Error fetching agents", error);
       return NextResponse.json(
-        { error: "Failed to fetch agents", details: error.message },
+        { error: "Failed to fetch agents" },
         { status: 500 }
       );
     }
@@ -117,10 +129,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     logger.error("Error fetching agents", error);
     return NextResponse.json(
-      {
-        error: "Failed to fetch agents",
-        details: error instanceof Error ? error.message : String(error),
-      },
+      { error: "Failed to fetch agents" },
       { status: 500 }
     );
   }
@@ -299,12 +308,17 @@ export async function POST(request: NextRequest) {
         hint: error.hint,
         payload: insertPayload,
       });
+      // Map a unique-constraint violation to a user-friendly 409 without
+      // exposing the underlying DB error. Postgres unique violation = 23505.
+      if (error.code === "23505") {
+        return NextResponse.json(
+          { error: "Agent with this email already exists" },
+          { status: 409 }
+        );
+      }
+      // Full error details are logged above; never returned to the client.
       return NextResponse.json(
-        {
-          error: "Failed to create agent",
-          details: error.message,
-          code: error.code,
-        },
+        { error: "Failed to create agent" },
         { status: 500 }
       );
     }
@@ -319,10 +333,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logger.error("Error creating agent", error);
     return NextResponse.json(
-      {
-        error: "Failed to create agent",
-        details: error instanceof Error ? error.message : String(error),
-      },
+      { error: "Failed to create agent" },
       { status: 500 }
     );
   }

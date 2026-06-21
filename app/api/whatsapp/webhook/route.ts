@@ -1,4 +1,5 @@
 import { Redis } from "@upstash/redis";
+import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 import { createLogger } from "@/lib/logger";
 import { handleWhatsAppMessage } from "@/lib/whatsapp/message-handler";
@@ -179,8 +180,10 @@ export async function POST(request: Request): Promise<Response> {
   const rawBody = await request.text();
 
   // 4. Verify signature
-  // WaSenderAPI sends the webhook secret directly as the signature (not HMAC)
-  // Support both: direct secret match OR HMAC verification
+  // WaSenderAPI sends the webhook secret directly as the signature (not HMAC).
+  // Support both: direct secret match OR HMAC verification. Do NOT remove the
+  // direct-match path without first reconfiguring WaSenderAPI to send an HMAC
+  // header — doing so 401s every real webhook and takes the WhatsApp bot down.
   const isDirectSecretMatch = signature === webhookSecret;
   const isHmacValid = verifyWebhookSignature(rawBody, signature, webhookSecret);
 
@@ -394,14 +397,40 @@ export async function POST(request: Request): Promise<Response> {
 
           // Process message and wait for completion
           // The 60s function timeout should be enough for AI processing
+          // Correlation ID links all logs + Sentry events for this message.
+          const correlationId = crypto.randomUUID();
           try {
-            logger.debug("Starting message handler...");
+            logger.debug("Starting message handler...", {
+              correlationId,
+              from: messageData.from,
+            });
             await handleWhatsAppMessage(messageData);
-            logger.debug("Handler completed successfully");
+            logger.debug("Handler completed successfully", { correlationId });
           } catch (error) {
             logger.error("Error processing message", error, {
+              correlationId,
               from: messageData.from,
               type: messageData.type,
+            });
+            // Report to Sentry so silent handler failures are observable.
+            // The webhook still returns 200 (below) to avoid retry floods.
+            Sentry.captureException(error, {
+              tags: {
+                correlationId,
+                from: messageData.from,
+                type: messageData.type,
+              },
+              contexts: {
+                whatsapp: {
+                  correlationId,
+                  id: messageData.id,
+                  from: messageData.from,
+                  to: messageData.to,
+                  type: messageData.type,
+                  isGroup: messageData.isGroup,
+                  textLength: messageData.text?.length ?? 0,
+                },
+              },
             });
           }
         }
@@ -458,6 +487,11 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ success: true });
   } catch (error) {
     logger.error("Webhook processing error", error);
+    // Report to Sentry — the 200 below hides failures from webhook retries,
+    // so without this the error would never surface in observability.
+    Sentry.captureException(error, {
+      tags: { stage: "webhook-processing" },
+    });
 
     // Return 200 even on error to prevent webhook retries flooding
     return NextResponse.json({ success: false, error: "Processing error" });

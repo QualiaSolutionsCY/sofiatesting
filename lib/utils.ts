@@ -48,9 +48,21 @@ export async function fetchWithErrorHandlers(
   }
 }
 
+/**
+ * Reads and parses a JSON value from localStorage.
+ *
+ * CLIENT-SIDE ONLY: this touches `window`/`localStorage`, so it must only be
+ * called from the browser (e.g. inside a `useEffect` hook), never during
+ * module evaluation or server-side render, to avoid SSR hydration mismatches.
+ * Returns `[]` on the server and when the stored value is missing or invalid.
+ */
 export function getLocalStorage(key: string) {
   if (typeof window !== 'undefined') {
-    return JSON.parse(localStorage.getItem(key) || '[]');
+    try {
+      return JSON.parse(localStorage.getItem(key) || '[]');
+    } catch {
+      return [];
+    }
   }
   return [];
 }

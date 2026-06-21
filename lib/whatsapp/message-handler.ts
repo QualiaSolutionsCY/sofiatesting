@@ -1,4 +1,5 @@
 import "server-only";
+import * as Sentry from "@sentry/nextjs";
 import {
   convertToModelMessages,
   stepCountIs,
@@ -32,7 +33,11 @@ const log = logger.whatsapp.child("handler");
  * Uses EXACT same logic as web chat route for identical responses
  */
 export async function handleWhatsAppMessage(
-  messageData: WaSenderMessageData
+  messageData: WaSenderMessageData,
+  // Correlation ID propagated from the webhook so logs + Sentry events for a
+  // single inbound message can be linked end-to-end. Falls back to a fresh UUID
+  // when called without one (e.g. tests or future callers).
+  correlationId: string = generateUUID()
 ): Promise<void> {
   // Only handle text messages, skip group messages
   if (messageData.type !== "text" || !messageData.text || messageData.isGroup) {
@@ -65,10 +70,34 @@ export async function handleWhatsAppMessage(
   let sessionChatId = generateUUID();
   let hasDbChat = false;
 
+  // Tag the current Sentry scope so any captureException below (and any nested
+  // capture inside service calls) carries the correlation ID + message context.
+  Sentry.getCurrentScope().setTag("correlationId", correlationId);
+  Sentry.getCurrentScope().setContext("whatsapp", {
+    correlationId,
+    id: messageData.id,
+    from: phoneNumber,
+    type: messageData.type,
+    isGroup: messageData.isGroup,
+    textLength: userMessage.length,
+  });
+  Sentry.addBreadcrumb({
+    category: "whatsapp",
+    level: "info",
+    message: "Handler started",
+    data: { correlationId, from: phoneNumber },
+  });
+
   try {
     // Try to get or create user from DB (skip in test mode — no Supabase)
     if (!isTestEnvironment) {
       try {
+        Sentry.addBreadcrumb({
+          category: "whatsapp",
+          level: "info",
+          message: "DB lookup: getOrCreateWhatsAppUser/Chat",
+          data: { correlationId, phoneNumber },
+        });
         const dbUser = await getOrCreateWhatsAppUser(phoneNumber);
         const dbChat = await getOrCreateWhatsAppChat(dbUser.id, phoneNumber);
 
@@ -193,6 +222,13 @@ export async function handleWhatsAppMessage(
       model: DEFAULT_CHAT_MODEL,
     });
 
+    Sentry.addBreadcrumb({
+      category: "whatsapp",
+      level: "info",
+      message: "AI call start",
+      data: { correlationId, model: DEFAULT_CHAT_MODEL },
+    });
+
     // Result type inferred from streamText call
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let result: Awaited<ReturnType<typeof streamText<any>>> | null = null;
@@ -280,12 +316,41 @@ export async function handleWhatsAppMessage(
     }
 
     // Send response via WhatsApp - just send the text, no formatting or document detection
+    Sentry.addBreadcrumb({
+      category: "whatsapp",
+      level: "info",
+      message: "Sending response message",
+      data: { correlationId, responseLength: fullResponse.length },
+    });
     await client.sendLongMessage({
       to: phoneNumber,
       text: fullResponse,
     });
   } catch (error) {
     log.error("Error handling WhatsApp message", error);
+
+    // Capture to Sentry so 3am handler failures are observable with full
+    // correlation context (the webhook returns 200 to avoid retry floods, which
+    // would otherwise hide this error from observability).
+    Sentry.captureException(error, {
+      tags: {
+        correlationId,
+        from: phoneNumber,
+        type: messageData.type,
+        stage: "handler",
+      },
+      contexts: {
+        whatsapp: {
+          correlationId,
+          id: messageData.id,
+          from: phoneNumber,
+          to: messageData.to,
+          type: messageData.type,
+          isGroup: messageData.isGroup,
+          textLength: userMessage.length,
+        },
+      },
+    });
 
     // Determine error message based on error type
     let errorMessage = "I encountered an error. Please try again or rephrase.";
@@ -315,6 +380,13 @@ export async function handleWhatsAppMessage(
       });
     } catch (sendError) {
       log.error("Failed to send error message", sendError);
+      Sentry.captureException(sendError, {
+        tags: {
+          correlationId,
+          from: phoneNumber,
+          stage: "handler-error-reply",
+        },
+      });
       // ignore - can't do anything if we can't send messages
     }
   }
