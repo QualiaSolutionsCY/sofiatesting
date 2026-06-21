@@ -4,7 +4,7 @@
   "type": "full",
   "assigned_to": "",
   "team_id": "",
-  "project_id": "",
+  "project_id": "sophiainvoice",
   "erp_project_id": "",
   "client_id": "",
   "workspace_id": "",
@@ -108,7 +108,7 @@
   },
   "blockers": [],
   "session_started_at": "2026-06-09T07:29:56.378Z",
-  "last_updated": "2026-06-21T16:49:59.358Z",
+  "last_updated": "2026-06-21T17:28:46.083Z",
   "last_pushed_at": "2026-06-21T16:45:18Z",
   "last_commit": "32f376d",
   "build_count": 5,
@@ -124,6 +124,6 @@
     "last_closed_milestone": 8,
     "updates_completed": 0
   },
-  "report_seq": 7,
+  "report_seq": 8,
   "lifecycle": "build"
 }
