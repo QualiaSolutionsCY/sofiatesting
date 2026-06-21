@@ -1,0 +1,168 @@
+{
+  "version": 1,
+  "phase": 2,
+  "goal": "The operational documentation a non-author needs to run and trust the unified Sophia + invoicing system: admin runbook, env reference, and the agent allowlist.",
+  "why": "The invoicing + Sophia bridge shipped to production but is undocumented; only the author can operate it. These admin-only docs turn a shipped feature into an owned, maintainable system before Final QA and Handoff.",
+  "generated_at": "2026-06-21T12:51:51Z",
+  "generated_by": "planner",
+  "source_plan_hash": "sha256:34c83845653eabf44afb598a44e3b6ffb6ae5e2edc09447ce9777c0b97fe27aa",
+  "success_criteria": [
+    "docs/admin/invoicing-runbook.md exists and covers the invoice lifecycle, all 11 Sophia intents, the bridge request path, and the two-Supabase-project topology (vceeheaxcrhmpqueudqx + tijadsdysuxkxrpdlecq).",
+    "docs/admin/invoicing-env-reference.md documents every invoicing/bridge/access env var name, its purpose, runtime (Vercel vs. Supabase Edge), and read location in one place.",
+    "docs/admin/invoicing-allowlist.md documents INVOICE_AUTHORIZED_AGENTS, both enforcement points, and the add/remove maintenance procedure with redeploy steps.",
+    "No secret VALUES committed in any of the three docs; variable names and locations only.",
+    "The three docs cross-link each other by relative path."
+  ],
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Admin runbook",
+      "wave": 1,
+      "depends_on": [],
+      "persona": "none",
+      "files_modify": [],
+      "files_create": [
+        "docs/admin/invoicing-runbook.md"
+      ],
+      "files_delete": [],
+      "acceptance_criteria": [
+        "A non-author can explain which Supabase project holds invoices vs. app data, how an invoice moves from draft to paid/receipt, and which WhatsApp phrases trigger which Sophia action.",
+        "Lists every Sophia invoicing intent (create_draft, list_drafts, query_status, approve, edit_invoice, request_correction, mark_paid, issue_receipt, issue_credit_note, resend, send_pdf) with the triggering agent phrase and the result.",
+        "Documents the request path: WhatsApp -> manageInvoice tool (sophia-bot, allowlist check) -> invoice-bridge.ts (HMAC sign) -> POST /api/sophia/intent (HMAC verify + allowlist re-check) -> runIntent -> invoice DB tijadsdysuxkxrpdlecq + PDF bucket.",
+        "Names the two Supabase projects by ref: primary vceeheaxcrhmpqueudqx (sophia-bot, agents, listings) and invoice tijadsdysuxkxrpdlecq (invoice documents).",
+        "No secret VALUES appear anywhere."
+      ],
+      "action": "Create docs/admin/invoicing-runbook.md (admin-panel-guide.md convention) with sections: two-Supabase topology (server.ts:18, schema.ts:11-23); request path/bridge (invoice.ts:43, invoice-bridge.ts:41, route.ts:36,52); lifecycle (invoice.ts:7-16,24; approve intent-handlers.ts:187-223; mark-paid :310-324; credit note :326-348); 11-intent table (intent-handlers.ts:17-28 + invoicing.ts:38-47); group notify (whatsapp-status.ts:24). Cross-link env + allowlist docs.",
+      "context_files": [
+        "lib/invoices/sophia/intent-handlers.ts",
+        "app/api/sophia/intent/route.ts",
+        "supabase/functions/sophia-bot/services/invoice-bridge.ts",
+        "supabase/functions/sophia-bot/tools/handlers/invoice.ts",
+        "supabase/functions/sophia-bot/prompts/behaviors/invoicing.ts",
+        "lib/invoices/types/invoice.ts",
+        "lib/invoices/supabase/server.ts",
+        "lib/invoices/supabase/schema.ts",
+        "lib/invoices/actions/whatsapp-status.ts",
+        "docs/admin/admin-panel-guide.md",
+        ".planning/PROJECT.md"
+      ],
+      "verification": [
+        {
+          "type": "file-exists",
+          "path": "docs/admin/invoicing-runbook.md",
+          "pattern": "",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "docs/admin/invoicing-runbook.md",
+          "pattern": "tijadsdysuxkxrpdlecq",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "docs/admin/invoicing-runbook.md",
+          "pattern": "create_draft|issue_credit_note|mark_paid",
+          "expect": "present"
+        }
+      ]
+    },
+    {
+      "id": "T2",
+      "title": "Env reference",
+      "wave": 1,
+      "depends_on": [],
+      "persona": "security",
+      "files_modify": [],
+      "files_create": [
+        "docs/admin/invoicing-env-reference.md"
+      ],
+      "files_delete": [],
+      "acceptance_criteria": [
+        "Every env var referenced by the invoicing + bridge + access-gate code appears in one table: name, purpose, runtime (Vercel vs. Supabase Edge), required/optional, and the file:line that reads it.",
+        "Covers at minimum INVOICE_SUPABASE_URL, INVOICE_SUPABASE_SERVICE_ROLE, SOPHIA_BRIDGE_SECRET, SOPHIA_BRIDGE_URL, ADMIN_ACCESS_CODE, INVOICES_ACCESS_CODE, AUTH_SECRET, INVOICE_ACCOUNTING_GROUP_MSISDN, SUPABASE_INVOICE_BUCKET, WASENDER_API_KEY, WASENDER_PERSONAL_ACCESS_TOKEN, WASENDER_WEBHOOK_SECRET.",
+        "States SOPHIA_BRIDGE_SECRET must hold the same value in both runtimes (Vercel + Supabase Edge) for HMAC to verify, and INVOICE_SUPABASE_SERVICE_ROLE is server-only (never NEXT_PUBLIC_, never client-imported).",
+        "No secret VALUES appear; only names, purposes, and locations."
+      ],
+      "action": "Create docs/admin/invoicing-env-reference.md: one Variable|Purpose|Runtime|Required|Read-at table covering INVOICE_SUPABASE_URL + INVOICE_SUPABASE_SERVICE_ROLE (server.ts:7,18,19), SOPHIA_BRIDGE_SECRET (route.ts:13 + invoice-bridge.ts:16; both runtimes must match), SOPHIA_BRIDGE_URL (invoice-bridge.ts:14), access codes + AUTH_SECRET (gate.ts:17,39,40), INVOICE_ACCOUNTING_GROUP_MSISDN (whatsapp-status.ts:25), SUPABASE_INVOICE_BUCKET (schema.ts:26), WASENDER keys. Add rotation note; names only.",
+      "context_files": [
+        "lib/invoices/supabase/server.ts",
+        "lib/invoices/supabase/schema.ts",
+        "app/api/sophia/intent/route.ts",
+        "supabase/functions/sophia-bot/services/invoice-bridge.ts",
+        "lib/access/gate.ts",
+        "lib/invoices/actions/whatsapp-status.ts",
+        "lib/whatsapp/client.ts",
+        "CLAUDE.md",
+        ".planning/PROJECT.md"
+      ],
+      "verification": [
+        {
+          "type": "file-exists",
+          "path": "docs/admin/invoicing-env-reference.md",
+          "pattern": "",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "docs/admin/invoicing-env-reference.md",
+          "pattern": "INVOICE_SUPABASE_SERVICE_ROLE",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "docs/admin/invoicing-env-reference.md",
+          "pattern": "SOPHIA_BRIDGE_SECRET",
+          "expect": "present"
+        }
+      ]
+    },
+    {
+      "id": "T3",
+      "title": "Allowlist documentation + maintenance procedure",
+      "wave": 1,
+      "depends_on": [],
+      "persona": "security",
+      "files_modify": [],
+      "files_create": [
+        "docs/admin/invoicing-allowlist.md"
+      ],
+      "files_delete": [],
+      "acceptance_criteria": [
+        "Names the current allowlist (Fawzi Goussous, Charalambos Pitros, Marios Polyviou) and explains matching is by the last 8 digits of the agent's MSISDN.",
+        "Identifies BOTH enforcement points and that they must stay in sync: lib/invoices/constants.ts (INVOICE_AUTHORIZED_AGENTS, used by /api/sophia/intent) and supabase/functions/sophia-bot/tools/handlers/invoice.ts (ALLOWED_LAST8, the in-bot gate).",
+        "Provides numbered add-an-agent and remove-an-agent procedures including redeploy steps (vercel --prod for the constant; supabase functions deploy sophia-bot for the bot gate).",
+        "States the defense-in-depth rationale (re-check in route.ts:52) and that an unauthorized number gets a generic deflection that never reveals the allowlist."
+      ],
+      "action": "Create docs/admin/invoicing-allowlist.md. Sections: who is on it (constants.ts:10-14, last-8 :20-25); two enforcement points in sync (Vercel gate constants.ts:10->route.ts:52, deflection :54-57, documents.ts:130; in-bot invoice.ts:27 ALLOWED_LAST8->isAllowed :29 before :43); add-agent steps (edit both gates + prompt invoicing.ts:28, deploy vercel --prod AND supabase functions deploy sophia-bot); remove-agent (reverse+both deploys). Cross-link runbook+env.",
+      "context_files": [
+        "lib/invoices/constants.ts",
+        "app/api/sophia/intent/route.ts",
+        "supabase/functions/sophia-bot/tools/handlers/invoice.ts",
+        "supabase/functions/sophia-bot/prompts/behaviors/invoicing.ts",
+        "lib/invoices/actions/documents.ts",
+        "CLAUDE.md"
+      ],
+      "verification": [
+        {
+          "type": "file-exists",
+          "path": "docs/admin/invoicing-allowlist.md",
+          "pattern": "",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "docs/admin/invoicing-allowlist.md",
+          "pattern": "ALLOWED_LAST8",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "docs/admin/invoicing-allowlist.md",
+          "pattern": "supabase functions deploy sophia-bot|vercel --prod",
+          "expect": "present"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "ok": true,
+  "phase": 2,
+  "goal": "The operational documentation a non-author needs to run and trust the unified Sophia + invoicing system: admin runbook, env reference, and the agent allowlist.",
+  "checked": 9,
+  "failed": 0,
+  "generated_at": "2026-06-21T13:13:04.910Z",
+  "results": [
+    {
+      "task_id": "T1",
+      "task_title": "Admin runbook",
+      "index": 0,
+      "type": "file-exists",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T1",
+      "task_title": "Admin runbook",
+      "index": 1,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T1",
+      "task_title": "Admin runbook",
+      "index": 2,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T2",
+      "task_title": "Env reference",
+      "index": 0,
+      "type": "file-exists",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T2",
+      "task_title": "Env reference",
+      "index": 1,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T2",
+      "task_title": "Env reference",
+      "index": 2,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T3",
+      "task_title": "Allowlist documentation + maintenance procedure",
+      "index": 0,
+      "type": "file-exists",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T3",
+      "task_title": "Allowlist documentation + maintenance procedure",
+      "index": 1,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T3",
+      "task_title": "Allowlist documentation + maintenance procedure",
+      "index": 2,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

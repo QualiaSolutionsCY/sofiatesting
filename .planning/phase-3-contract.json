@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "phase": 3,
+  "goal": "A full regression across both halves of the system — property uploads and invoicing — on staging and production.",
+  "why": "Milestone 9 is a handoff; the owner needs production-green proof plus a runnable script to re-verify the WhatsApp flows no automated test can drive.",
+  "generated_at": "2026-06-21T00:00:00Z",
+  "generated_by": "planner",
+  "source_plan_hash": "sha256:8db2c88390e95e3925b929832b4f5f7b9bfc715d276d9ce99bac584233cdcbd5",
+  "success_criteria": [
+    "Automated regression suites + tsc --noEmit + pnpm build run and captured in .planning/phase-3-qa-results.md, with each env-blocked/SKIP suite explained by its missing variable.",
+    "Post-deploy 8-check + API latency + access-gate behavior captured in .planning/phase-3-deploy-check.md, with protected-route redirects documented as healthy.",
+    "Console-error sweep procedure for /admin and /admin/invoices documented (gate-passing path, env var names only) or executed.",
+    "docs/admin/phase-3-regression-checklist.md provides complete, grounded, human-runnable scripts for the WhatsApp property-upload flow and the full invoice lifecycle, every step with phrase, expected reply, and DB check."
+  ],
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Run the automated regression suites + typecheck/build and capture a results report",
+      "wave": 1,
+      "depends_on": [],
+      "persona": "backend",
+      "files_modify": [],
+      "files_create": [".planning/phase-3-qa-results.md"],
+      "files_delete": [],
+      "acceptance_criteria": [
+        ".planning/phase-3-qa-results.md exists with a row per suite (test, test:unit, test:edge-functions, production-readiness) listing command, exit status, and PASS/FAIL/SKIP counts.",
+        "npx tsc --noEmit result captured.",
+        "pnpm build (Next build) result captured with success/failure.",
+        "Each SKIP/env-blocked suite names the missing env var that caused the skip, grounded in the test file."
+      ],
+      "action": "Inventory each suite by reading its entry, then run npx tsc --noEmit, pnpm build, pnpm test:unit, pnpm test:edge-functions, pnpm test (Playwright), and pnpm exec tsx tests/production-readiness.test.ts, capturing stdout/stderr to the report. Record any suite that cannot start as ENV-BLOCKED with the exact missing variable and its citing line. Write a Regression verdict section.",
+      "context_files": ["package.json", "tests/production-readiness.test.ts", "tests/unit/README.md", "playwright.config.ts"],
+      "verification": [
+        { "type": "file-exists", "path": ".planning/phase-3-qa-results.md", "pattern": "", "expect": "present" },
+        { "type": "grep-match", "path": ".planning/phase-3-qa-results.md", "pattern": "tsc --noEmit|pnpm build|next build", "expect": "present" },
+        { "type": "grep-match", "path": ".planning/phase-3-qa-results.md", "pattern": "test:unit|test:edge-functions|production-readiness|playwright|pnpm test", "expect": "present" }
+      ]
+    },
+    {
+      "id": "T2",
+      "title": "Post-deploy 8-check + console-error sweep against production, captured to a report",
+      "wave": 1,
+      "depends_on": [],
+      "persona": "backend",
+      "files_modify": [],
+      "files_create": [".planning/phase-3-deploy-check.md"],
+      "files_delete": [],
+      "acceptance_criteria": [
+        ".planning/phase-3-deploy-check.md exists with one row per rules/deployment.md check: homepage HTTP status, auth/access-gate behavior, console errors, API latency (%{time_total}), and the UptimeRobot monitor URL.",
+        "Actual HTTP status of /, /admin, /admin/invoices recorded and explained against the access gate (redirect to /access is the healthy result for cookieless requests, per middleware.ts:32-49).",
+        "API latency measured with curl -w %{time_total} for at least one endpoint and recorded against the < 500ms target.",
+        "Console-error sweep of /admin and /admin/invoices documented: either the gate-passing path (ADMIN_ACCESS_CODE at /access, env var name only) or actual browser console output."
+      ],
+      "action": "Run curl -s -o /dev/null -w '%{http_code} %{time_total}' against /, /admin, /admin/invoices and /access; annotate each protected-route result with the middleware gate logic so redirects read as healthy. Record the UptimeRobot monitor URL. Document the console-sweep gate-passing procedure (env var names only). Add a Deploy verdict line.",
+      "context_files": ["middleware.ts", "lib/access/gate.ts", "/home/moayad-qualia/.claude/rules/deployment.md"],
+      "verification": [
+        { "type": "file-exists", "path": ".planning/phase-3-deploy-check.md", "pattern": "", "expect": "present" },
+        { "type": "grep-match", "path": ".planning/phase-3-deploy-check.md", "pattern": "sofiatesting.vercel.app", "expect": "present" },
+        { "type": "grep-match", "path": ".planning/phase-3-deploy-check.md", "pattern": "access|redirect|gate", "expect": "present" }
+      ]
+    },
+    {
+      "id": "T3",
+      "title": "Author the human-run WhatsApp regression checklists (property upload + invoice lifecycle)",
+      "wave": 2,
+      "depends_on": ["T1", "T2"],
+      "persona": "none",
+      "files_modify": [],
+      "files_create": ["docs/admin/phase-3-regression-checklist.md"],
+      "files_delete": [],
+      "acceptance_criteria": [
+        "docs/admin/phase-3-regression-checklist.md exists with sections A. Property-upload regression and B. Invoice-lifecycle regression.",
+        "Section A walks WhatsApp to draft to Zyprus with expected replies and DB checks (listing_uploads, chat_history on vceeheaxcrhmpqueudqx), naming the region restriction and min-1-image rule.",
+        "Section B covers create_draft, approve (two-step), mark_paid/issue_receipt, issue_credit_note (two-step), and PDF delivery, each with phrase, expected reply, and the invoice-DB table to inspect on tijadsdysuxkxrpdlecq.",
+        "Allowlist precondition (Fawzi/Marios/Charalambos, last-8 match) and links to the three Phase-2 docs present; every step is a checkbox with Expected and Verify-in-DB lines; no secret values."
+      ],
+      "action": "Build Section B from the runbook intent table (invoicing-runbook.md:228-247) and lifecycle section (149-217); build Section A from CLAUDE.md Property Uploads + README-UPLOADS.md. Add an Automated coverage preamble linking the Task 1/Task 2 reports and an allowlist + two-Supabase-project preconditions block linking the Phase-2 docs.",
+      "context_files": ["docs/admin/invoicing-runbook.md", "docs/admin/invoicing-allowlist.md", "tests/manual/README-UPLOADS.md", "CLAUDE.md", ".planning/phase-3-qa-results.md", ".planning/phase-3-deploy-check.md"],
+      "verification": [
+        { "type": "file-exists", "path": "docs/admin/phase-3-regression-checklist.md", "pattern": "", "expect": "present" },
+        { "type": "grep-match", "path": "docs/admin/phase-3-regression-checklist.md", "pattern": "create_draft|approve|mark_paid|issue_receipt|issue_credit_note", "expect": "present" },
+        { "type": "grep-match", "path": "docs/admin/phase-3-regression-checklist.md", "pattern": "listing_uploads|chat_history|invoice_documents|invoice_payments", "expect": "present" },
+        { "type": "grep-match", "path": "docs/admin/phase-3-regression-checklist.md", "pattern": "- \\[ \\]", "expect": "present" }
+      ]
+    }
+  ]
+}

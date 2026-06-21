@@ -1,0 +1,90 @@
+{
+  "ok": true,
+  "phase": 3,
+  "goal": "A full regression across both halves of the system — property uploads and invoicing — on staging and production.",
+  "checked": 10,
+  "failed": 0,
+  "generated_at": "2026-06-21T13:42:52.570Z",
+  "results": [
+    {
+      "task_id": "T1",
+      "task_title": "Run the automated regression suites + typecheck/build and capture a results report",
+      "index": 0,
+      "type": "file-exists",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T1",
+      "task_title": "Run the automated regression suites + typecheck/build and capture a results report",
+      "index": 1,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T1",
+      "task_title": "Run the automated regression suites + typecheck/build and capture a results report",
+      "index": 2,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T2",
+      "task_title": "Post-deploy 8-check + console-error sweep against production, captured to a report",
+      "index": 0,
+      "type": "file-exists",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T2",
+      "task_title": "Post-deploy 8-check + console-error sweep against production, captured to a report",
+      "index": 1,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T2",
+      "task_title": "Post-deploy 8-check + console-error sweep against production, captured to a report",
+      "index": 2,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T3",
+      "task_title": "Author the human-run WhatsApp regression checklists (property upload + invoice lifecycle)",
+      "index": 0,
+      "type": "file-exists",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T3",
+      "task_title": "Author the human-run WhatsApp regression checklists (property upload + invoice lifecycle)",
+      "index": 1,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T3",
+      "task_title": "Author the human-run WhatsApp regression checklists (property upload + invoice lifecycle)",
+      "index": 2,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "task_id": "T3",
+      "task_title": "Author the human-run WhatsApp regression checklists (property upload + invoice lifecycle)",
+      "index": 3,
+      "type": "grep-match",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

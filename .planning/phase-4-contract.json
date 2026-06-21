@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "phase": 4,
+  "goal": "Transfer ownership cleanly: a credentials/reference doc, a system walkthrough, legacy-repo archival verification, and a pointer to ERP closure \u2014 all as builder-verifiable artifacts in docs/admin/.",
+  "why": "Final phase of Milestone 9 \u2014 converts a shipped, documented system into an owned one the new owner can run, deploy, and trust from three docs without the original author.",
+  "generated_at": "2026-06-21T14:00:10Z",
+  "generated_by": "planner",
+  "source_plan_hash": "sha256:63cacaa2970a0f9a432f400ae2c95c4a06a28a67f40e8bc2ddeb407378d6314d",
+  "success_criteria": [
+    "docs/admin/handoff-credentials.md exists, inventories both Supabase projects + the Vercel project + all Edge/Vercel secret NAMES + third-party services, cross-links invoicing-env-reference.md, and contains zero secret values.",
+    "docs/admin/handoff-walkthrough.md exists, maps all major components (sophia-bot, admin panel, invoicing bridge, two DBs), cites deploy commands, links every operational runbook, and points ERP closure at /qualia-milestone.",
+    "docs/admin/handoff-archival.md exists, records the live gh archive status of QualiaSolutionsCY/sophiainvoice (currently isArchived: true) and the remediation command.",
+    "ERP / milestone closure for Milestone 9 is handled via the /qualia-milestone (milestone-close) flow \u2014 recorded by the pointer in docs/admin/handoff-walkthrough.md (grep -c \"qualia-milestone\" \u2192 >= 1) and noted in docs/admin/handoff-archival.md.",
+    "No task required a human meeting or external action; every AC is checkable by reading a file or running a grep/command."
+  ],
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Credentials & reference handoff doc",
+      "wave": 1,
+      "depends_on": [],
+      "persona": "none",
+      "files_modify": [],
+      "files_create": [
+        "docs/admin/handoff-credentials.md"
+      ],
+      "files_delete": [],
+      "acceptance_criteria": [
+        "Inventories both Supabase projects (primary vceeheaxcrhmpqueudqx, invoice tijadsdysuxkxrpdlecq) with refs/dashboards and the Vercel project sofiatesting.",
+        "Lists Edge Function secret NAMES (OPENROUTER_API_KEY, WASEND_API_KEY, WASEND_WEBHOOK_SECRET, RESEND_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, CX3_*, ZYPRUS_*, SOPHIA_ADMIN_SECRET, SOPHIA_BRIDGE_SECRET, SENTRY_DSN, FIRECRAWL_API_KEY) and Vercel env var NAMES, grounded in the grep inventory.",
+        "Names the third-party services: OpenRouter, WaSenderAPI, Telnyx/3CX, Resend, Zyprus API, Sentry, Firecrawl, Telegram Bot API.",
+        "Cross-links (does not duplicate) docs/admin/invoicing-env-reference.md for the invoicing/bridge variable table and rotation procedure.",
+        "Contains zero secret values \u2014 only NAMES + management surface."
+      ],
+      "action": "Write docs/admin/handoff-credentials.md with a security banner mirroring invoicing-env-reference.md:7-12, a hosting/data-projects table (two Supabase projects + Vercel project), an Edge-secrets table with supabase secrets management commands (ref vceeheaxcrhmpqueudqx, redeploy sophia-bot after change), a Vercel env-vars section that links the env reference for invoicing/bridge vars and lists broader app var NAMES, a third-party services table, and a related-docs section.",
+      "context_files": [
+        "CLAUDE.md",
+        "docs/admin/invoicing-env-reference.md",
+        ".continue-here.md"
+      ],
+      "verification": [
+        {
+          "type": "file-exists",
+          "path": "docs/admin/handoff-credentials.md",
+          "pattern": "",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "docs/admin/handoff-credentials.md",
+          "pattern": "vceeheaxcrhmpqueudqx|tijadsdysuxkxrpdlecq",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "docs/admin/handoff-credentials.md",
+          "pattern": "invoicing-env-reference.md",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "docs/admin/handoff-credentials.md",
+          "pattern": "BEGIN PRIVATE KEY|sk-or-v1-|gho_[A-Za-z0-9]",
+          "expect": "absent"
+        }
+      ]
+    },
+    {
+      "id": "T2",
+      "title": "System walkthrough / onboarding doc",
+      "wave": 1,
+      "depends_on": [],
+      "persona": "none",
+      "files_modify": [],
+      "files_create": [
+        "docs/admin/handoff-walkthrough.md"
+      ],
+      "files_delete": [],
+      "acceptance_criteria": [
+        "Contains an architecture map covering sophia-bot (Edge), the admin panel (/admin), the invoicing surface (/admin/invoices) and the Sophia->invoicing bridge (/api/sophia/intent, HMAC via SOPHIA_BRIDGE_SECRET), and the two Supabase projects.",
+        "Explains how to operate/deploy each component citing exact deploy commands from root CLAUDE.md plus the Telegram toggle.",
+        "Links every operational runbook: invoicing-runbook.md, invoicing-allowlist.md, invoicing-env-reference.md, phase-3-regression-checklist.md, admin-panel-guide.md, handoff-credentials.md, and handoff-archival.md (the archival-verification doc).",
+        "Lists day-1 operational tasks for the new owner.",
+        "States ERP/milestone closure is performed via /qualia-milestone, not a manual step."
+      ],
+      "action": "Write docs/admin/handoff-walkthrough.md with a system map (bridge ASCII flow from .continue-here.md:14-22 + a what-runs-where summary), an operating-each-component section citing root CLAUDE.md deploy commands and the Playwright deploy-gate workaround (.continue-here.md:40), a linked runbooks/references list (including handoff-archival.md), a day-1 checklist, and a milestone/ERP-closure paragraph pointing at /qualia-milestone.",
+      "context_files": [
+        ".continue-here.md",
+        "CLAUDE.md",
+        "docs/admin/invoicing-runbook.md",
+        "docs/admin/phase-3-regression-checklist.md"
+      ],
+      "verification": [
+        {
+          "type": "file-exists",
+          "path": "docs/admin/handoff-walkthrough.md",
+          "pattern": "",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "docs/admin/handoff-walkthrough.md",
+          "pattern": "sophia-bot|/admin/invoices|/api/sophia/intent",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "docs/admin/handoff-walkthrough.md",
+          "pattern": "invoicing-runbook.md|invoicing-allowlist.md|phase-3-regression-checklist.md",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "docs/admin/handoff-walkthrough.md",
+          "pattern": "qualia-milestone",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "docs/admin/handoff-walkthrough.md",
+          "pattern": "handoff-archival.md",
+          "expect": "present"
+        }
+      ]
+    },
+    {
+      "id": "T3",
+      "title": "Legacy repo archival verification",
+      "wave": 2,
+      "depends_on": [
+        "T2"
+      ],
+      "persona": "none",
+      "files_modify": [],
+      "files_create": [
+        "docs/admin/handoff-archival.md"
+      ],
+      "files_delete": [],
+      "acceptance_criteria": [
+        "Records the live archive status of QualiaSolutionsCY/sophiainvoice from a gh repo view query, including isArchived and the repo URL.",
+        "Records that the standalone Vercel project was already deleted (per .continue-here.md:6).",
+        "Provides the exact gh repo archive command for the owner to run if the repo were ever found un-archived.",
+        "States the current confirmed state (isArchived: true as verified this phase) as a recorded evidence trail."
+      ],
+      "action": "Run gh repo view QualiaSolutionsCY/sophiainvoice --json isArchived,url,name and capture the JSON into docs/admin/handoff-archival.md as the evidence block (if gh is not authed, record INSUFFICIENT EVIDENCE and still include the command). Add a Vercel-deleted note citing .continue-here.md:6, a Remediation section with gh repo archive QualiaSolutionsCY/sophiainvoice --yes, and a closing line that ERP/milestone closure is handled by /qualia-milestone.",
+      "context_files": [
+        ".continue-here.md"
+      ],
+      "verification": [
+        {
+          "type": "file-exists",
+          "path": "docs/admin/handoff-archival.md",
+          "pattern": "",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "docs/admin/handoff-archival.md",
+          "pattern": "QualiaSolutionsCY/sophiainvoice",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "docs/admin/handoff-archival.md",
+          "pattern": "isArchived",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "docs/admin/handoff-archival.md",
+          "pattern": "gh repo archive",
+          "expect": "present"
+        }
+      ]
+    }
+  ]
+}
