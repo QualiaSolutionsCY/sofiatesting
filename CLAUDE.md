@@ -156,11 +156,11 @@ For the full 8-step prompt change workflow, see `docs/CLAUDE-REFERENCE.md`.
 - Publication tracked in `listing_uploads` table; `listing-notifier` polls every 15 min
 
 ### Reviewer Assignment (`rules/reviewer-assignment.ts`)
-- FOR SALE (Paphos/Limassol/Larnaca/Nicosia): Reviewer 1 = Lauren, Reviewer 2 = regional office
+- FOR SALE (Paphos/Limassol/Larnaca/Nicosia): Reviewer 1 = Lauren (zyprus@zyprus.com), Reviewer 2 = regional office
 - FOR SALE (Famagusta): Reviewer 1 = requestfamagusta@zyprus.com, Reviewer 2 = NONE
 - FOR RENT: Reviewer 1 = agent who sent it, Reviewer 2 = NONE
 - Michelle Rentals: Reviewer 1 = demetra@zyprus.com, Reviewer 2 = requestlimassol@zyprus.com
-- Charalambos/Lauren cannot upload rentals (rejected)
+- Management agents (incl. Charalambos/Lauren) CAN upload rentals (c5aee9b); with listingOwnerEmail "ASK" and no assignTo, owner = their communicationEmail
 
 ### Region Restrictions
 - Agents can ONLY upload in their assigned region (`agents.region` field)

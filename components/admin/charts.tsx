@@ -59,6 +59,8 @@ export function OverviewChart({
 }: ChartProps) {
   useTheme();
 
+  const isEmpty = !data || data.length === 0;
+
   return (
     <Card className={className}>
       <CardHeader>
@@ -66,6 +68,11 @@ export function OverviewChart({
         <CardDescription>{description || "Activity over time"}</CardDescription>
       </CardHeader>
       <CardContent className="pl-2">
+        {isEmpty ? (
+          <div className="py-12 text-center text-muted-foreground">
+            No data available
+          </div>
+        ) : (
         <ResponsiveContainer height={350} width="100%">
           <AreaChart data={data}>
             <defs>
@@ -98,6 +105,7 @@ export function OverviewChart({
             />
           </AreaChart>
         </ResponsiveContainer>
+        )}
       </CardContent>
     </Card>
   );
@@ -154,6 +162,8 @@ export function DistributionChart({
   description,
   className,
 }: ChartProps) {
+  const isEmpty = !data || data.length === 0;
+
   return (
     <Card className={className}>
       <CardHeader>
@@ -161,6 +171,11 @@ export function DistributionChart({
         <CardDescription>{description || "Proportional view"}</CardDescription>
       </CardHeader>
       <CardContent>
+        {isEmpty ? (
+          <div className="py-12 text-center text-muted-foreground">
+            No data available
+          </div>
+        ) : (
         <ResponsiveContainer height={300} width="100%">
           <PieChart>
             <Pie
@@ -184,6 +199,7 @@ export function DistributionChart({
             <Legend />
           </PieChart>
         </ResponsiveContainer>
+        )}
       </CardContent>
     </Card>
   );

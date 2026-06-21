@@ -52,6 +52,11 @@ if (!TELEGRAM_BOT_TOKEN) {
 if (!OPENROUTER_API_KEY) {
   console.error("CRITICAL: OPENROUTER_API_KEY is not set");
 }
+if (!TELEGRAM_WEBHOOK_SECRET) {
+  console.error(
+    "CRITICAL: TELEGRAM_WEBHOOK_SECRET is not set - all webhook requests will be rejected (fail-closed)"
+  );
+}
 
 // Log Sentry status on startup
 console.log(`[Startup] Sentry enabled: ${isSentryEnabled()}`);
@@ -152,18 +157,19 @@ serve(async (req: Request): Promise<Response> => {
     // Forward to telegram-indexer (fire-and-forget, non-blocking)
     forwardToIndexer(rawBody);
 
-    // 1. Validate webhook secret - if configured
+    // 1. Validate webhook secret - fail-closed (reject if secret is unset)
     const token = req.headers.get("x-telegram-bot-api-secret-token");
-    if (TELEGRAM_WEBHOOK_SECRET && token !== TELEGRAM_WEBHOOK_SECRET) {
+    if (!TELEGRAM_WEBHOOK_SECRET || token !== TELEGRAM_WEBHOOK_SECRET) {
       console.error("[Webhook] Invalid secret token", {
         hasToken: !!token,
+        secretConfigured: !!TELEGRAM_WEBHOOK_SECRET,
         expectedSecret: TELEGRAM_WEBHOOK_SECRET?.substring(0, 5) + "...",
         receivedToken: token?.substring(0, 5) + "...",
         timestamp: new Date().toISOString(),
       });
       captureMessage("Webhook authentication failed", "warning", {
         tags: { type: "auth_failure" },
-        extra: { hasToken: !!token },
+        extra: { hasToken: !!token, secretConfigured: !!TELEGRAM_WEBHOOK_SECRET },
       });
       return new Response("Unauthorized", { status: 401 });
     }
@@ -263,6 +269,33 @@ serve(async (req: Request): Promise<Response> => {
 });
 
 /**
+ * Send a message in a command handler with graceful failure.
+ * Wraps sendMessage so a Telegram API failure is logged + captured to Sentry
+ * instead of silently aborting the handler. Returns true on success.
+ */
+const safeSendMessage = async (
+  chatId: number,
+  text: string,
+  context: string
+): Promise<boolean> => {
+  try {
+    await sendMessage(chatId, text);
+    return true;
+  } catch (error) {
+    console.error(`[${context}] sendMessage failed:`, error);
+    captureException(
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        transaction: context,
+        tags: { type: "telegram_send_failure" },
+        extra: { chat_id: chatId },
+      }
+    );
+    return false;
+  }
+};
+
+/**
  * Process a Telegram message
  */
 const processMessage = async (message: TelegramMessage): Promise<void> => {
@@ -319,7 +352,7 @@ const handleStartCommand = async (
 
 Ask me about Cyprus property, PR programs, taxes, or areas. What do you need?`;
 
-  await sendMessage(chatId, welcomeMessage);
+  await safeSendMessage(chatId, welcomeMessage, "handleStartCommand");
 };
 
 /**
@@ -335,7 +368,7 @@ Commands: /start /help /clear /register
 
 Just ask your question!`;
 
-  await sendMessage(chatId, helpMessage);
+  await safeSendMessage(chatId, helpMessage, "handleHelpCommand");
 };
 
 /**
@@ -348,9 +381,10 @@ const handleRegisterCommand = async (
   // Check if already registered
   const existingAgent = await getAgentByTelegramId(userId);
   if (existingAgent) {
-    await sendMessage(
+    await safeSendMessage(
       chatId,
-      `You're already registered as ${existingAgent.full_name} (${existingAgent.region} ${existingAgent.role}).\n\nYou will receive lead forwards from Zyprus groups.`
+      `You're already registered as ${existingAgent.full_name} (${existingAgent.region} ${existingAgent.role}).\n\nYou will receive lead forwards from Zyprus groups.`,
+      "handleRegisterCommand"
     );
     return;
   }
@@ -358,9 +392,10 @@ const handleRegisterCommand = async (
   // Set registration state in database (persists across cold starts)
   await setRegistrationState(userId, "awaiting_phone");
 
-  await sendMessage(
+  await safeSendMessage(
     chatId,
-    "To register as a Zyprus agent, please send your phone number.\n\nFormat: +35799XXXXXX\n\nThis will link your Telegram account so you can receive lead forwards from Zyprus groups."
+    "To register as a Zyprus agent, please send your phone number.\n\nFormat: +35799XXXXXX\n\nThis will link your Telegram account so you can receive lead forwards from Zyprus groups.",
+    "handleRegisterCommand"
   );
 };
 
@@ -383,9 +418,10 @@ const handlePhoneRegistration = async (
 
   // Basic validation
   if (!/^\+\d{10,15}$/.test(phone)) {
-    await sendMessage(
+    await safeSendMessage(
       chatId,
-      "Invalid phone format. Please use: +35799XXXXXX\n\nSend /register to try again."
+      "Invalid phone format. Please use: +35799XXXXXX\n\nSend /register to try again.",
+      "handlePhoneRegistration"
     );
     return;
   }
@@ -393,18 +429,20 @@ const handlePhoneRegistration = async (
   // Look up agent by phone
   const agent = await findAgentByPhone(phone);
   if (!agent) {
-    await sendMessage(
+    await safeSendMessage(
       chatId,
-      `No agent found with phone number ${phone}.\n\nPlease make sure you're using the same phone number registered in the Zyprus system. Contact management if you need to update your phone number.`
+      `No agent found with phone number ${phone}.\n\nPlease make sure you're using the same phone number registered in the Zyprus system. Contact management if you need to update your phone number.`,
+      "handlePhoneRegistration"
     );
     return;
   }
 
   // Check if agent already has a different Telegram ID
   if (agent.telegram_user_id && agent.telegram_user_id !== userId) {
-    await sendMessage(
+    await safeSendMessage(
       chatId,
-      "This phone number is already linked to another Telegram account.\n\nPlease contact management if you need to update your registration."
+      "This phone number is already linked to another Telegram account.\n\nPlease contact management if you need to update your registration.",
+      "handlePhoneRegistration"
     );
     return;
   }
@@ -412,9 +450,10 @@ const handlePhoneRegistration = async (
   // Register the Telegram ID
   const success = await registerAgentTelegram(agent.id, userId);
   if (!success) {
-    await sendMessage(
+    await safeSendMessage(
       chatId,
-      "Registration failed due to a technical error. Please try again later or contact support."
+      "Registration failed due to a technical error. Please try again later or contact support.",
+      "handlePhoneRegistration"
     );
     captureMessage("Agent registration failed", "error", {
       tags: { type: "registration_failure" },
@@ -424,9 +463,10 @@ const handlePhoneRegistration = async (
   }
 
   // Success!
-  await sendMessage(
+  await safeSendMessage(
     chatId,
-    `✓ Registered successfully!\n\nYou are now linked as:\n• ${agent.full_name}\n• ${agent.region} ${agent.role}\n\nYou will receive lead forwards from Zyprus Telegram groups.`
+    `✓ Registered successfully!\n\nYou are now linked as:\n• ${agent.full_name}\n• ${agent.region} ${agent.role}\n\nYou will receive lead forwards from Zyprus Telegram groups.`,
+    "handlePhoneRegistration"
   );
 
   console.log(
@@ -444,12 +484,17 @@ const handleClearCommand = async (
   const success = await clearHistory(userId);
 
   if (success) {
-    await sendMessage(
+    await safeSendMessage(
       chatId,
-      "Conversation cleared! Feel free to start fresh."
+      "Conversation cleared! Feel free to start fresh.",
+      "handleClearCommand"
     );
   } else {
-    await sendMessage(chatId, "Conversation cleared. How can I help you?");
+    await safeSendMessage(
+      chatId,
+      "Conversation cleared. How can I help you?",
+      "handleClearCommand"
+    );
   }
 };
 

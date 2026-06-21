@@ -10,6 +10,19 @@ import { getWhatsAppClient } from "@/lib/whatsapp/client";
 
 const logger = createLogger("api:documents:send");
 
+/**
+ * Escape HTML entities to prevent XSS when interpolating user-supplied
+ * values into an HTML email template.
+ */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
@@ -194,10 +207,10 @@ async function sendViaEmail({
       subject: `Document: ${documentTitle}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Hello ${recipientName},</h2>
-          ${message ? `<p style="color: #555;">${message}</p>` : ""}
+          <h2 style="color: #333;">Hello ${escapeHtml(recipientName)},</h2>
+          ${message ? `<p style="color: #555;">${escapeHtml(message)}</p>` : ""}
           <p style="color: #555;">
-            Please find attached the document: <strong>${documentTitle}</strong>
+            Please find attached the document: <strong>${escapeHtml(documentTitle)}</strong>
           </p>
           <p style="color: #555;">
             If you have any questions, please don't hesitate to reach out.

@@ -387,7 +387,34 @@ async function callOpenRouter(
 
         if (aiRes.ok) {
           recordSuccess(OPENROUTER_CIRCUIT);
-          const aiData = await aiRes.json();
+
+          // Parse the response body separately so a malformed JSON payload from
+          // OpenRouter is distinguishable from an AbortError/timeout. The
+          // timeout has already been cleared above, so any throw here is a
+          // genuine parse failure, not a timeout.
+          let aiData;
+          try {
+            aiData = await aiRes.json();
+          } catch (parseError) {
+            logger.error(
+              "Failed to parse OpenRouter response",
+              parseError instanceof Error
+                ? parseError
+                : new Error(String(parseError)),
+              {
+                category: LogCategory.GENERAL,
+                status: aiRes.status,
+                attempt: retries,
+                model,
+              }
+            );
+            recordFailure(OPENROUTER_CIRCUIT);
+            return {
+              message: null,
+              usage: null,
+              error: "Failed to parse OpenRouter response",
+            };
+          }
 
           // Extract usage data from OpenRouter response
           const usage = aiData.usage

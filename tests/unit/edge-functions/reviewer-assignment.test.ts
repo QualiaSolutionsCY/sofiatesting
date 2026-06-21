@@ -6,15 +6,12 @@
  * - FOR SALE listings (Famagusta only) - requestfamagusta@zyprus.com only
  * - FOR RENT listings - Agent reviews their own
  * - Michelle rentals - Special routing to Demetra
- * - Management role rentals - Rejected
+ * - Management role rentals - Allowed (uses communicationEmail as owner)
  * - Assignment input requirements for management
  */
 import { describe, expect, it } from "vitest";
 import type { Agent } from "../../../supabase/functions/sophia-bot/agents/identifier.ts";
-import {
-  assignReviewers,
-  RejectionError,
-} from "../../../supabase/functions/sophia-bot/rules/reviewer-assignment.ts";
+import { assignReviewers } from "../../../supabase/functions/sophia-bot/rules/reviewer-assignment.ts";
 
 /**
  * Create a mock agent for testing
@@ -44,7 +41,7 @@ describe("Reviewer Assignment", () => {
 
       const result = assignReviewers(agent, "sale", "paphos");
 
-      expect(result.reviewer1).toBe("listings@zyprus.com");
+      expect(result.reviewer1).toBe("zyprus@zyprus.com");
       expect(result.reviewer2).toBe("requestpaphos@zyprus.com");
       expect(result.listingOwner).toBe("paphos-owner@example.com");
       expect(result.listingInstructor).toBe("paphos-owner@example.com");
@@ -59,7 +56,7 @@ describe("Reviewer Assignment", () => {
 
       const result = assignReviewers(agent, "sale", "limassol");
 
-      expect(result.reviewer1).toBe("listings@zyprus.com");
+      expect(result.reviewer1).toBe("zyprus@zyprus.com");
       expect(result.reviewer2).toBe("requestlimassol@zyprus.com");
       expect(result.listingOwner).toBe("limassol-owner@example.com");
       expect(result.listingInstructor).toBe("limassol-owner@example.com");
@@ -74,7 +71,7 @@ describe("Reviewer Assignment", () => {
 
       const result = assignReviewers(agent, "sale", "larnaca");
 
-      expect(result.reviewer1).toBe("listings@zyprus.com");
+      expect(result.reviewer1).toBe("zyprus@zyprus.com");
       expect(result.reviewer2).toBe("requestlarnaca@zyprus.com");
       expect(result.listingOwner).toBe("larnaca-owner@example.com");
       expect(result.listingInstructor).toBe("larnaca-owner@example.com");
@@ -89,7 +86,7 @@ describe("Reviewer Assignment", () => {
 
       const result = assignReviewers(agent, "sale", "nicosia");
 
-      expect(result.reviewer1).toBe("listings@zyprus.com");
+      expect(result.reviewer1).toBe("zyprus@zyprus.com");
       expect(result.reviewer2).toBe("requestnicosia@zyprus.com");
       expect(result.listingOwner).toBe("nicosia-owner@example.com");
       expect(result.listingInstructor).toBe("nicosia-owner@example.com");
@@ -123,7 +120,7 @@ describe("Reviewer Assignment", () => {
         "specific-agent@zyprus.com"
       );
 
-      expect(result.reviewer1).toBe("listings@zyprus.com");
+      expect(result.reviewer1).toBe("zyprus@zyprus.com");
       expect(result.reviewer2).toBe("requestpaphos@zyprus.com");
       expect(result.listingOwner).toBe("specific-agent@zyprus.com");
       expect(result.listingInstructor).toBe("specific-agent@zyprus.com");
@@ -235,12 +232,14 @@ describe("Reviewer Assignment", () => {
       expect(result.reviewer1).toBe("demetra@zyprus.com");
       expect(result.reviewer2).toBe("requestlimassol@zyprus.com");
       expect(result.listingOwner).toBe("demetra@zyprus.com");
-      expect(result.listingInstructor).toBe("demetra@zyprus.com");
+      // Instructor is Michelle (the person who sent it), i.e. her
+      // communicationEmail — see reviewer-assignment.ts Michelle branch.
+      expect(result.listingInstructor).toBe("limassol@zyprus.com");
     });
   });
 
-  describe("Management Role Rentals - Rejected", () => {
-    it("should reject rental upload attempts by management (Charalambos)", () => {
+  describe("Management Role Rentals - Allowed", () => {
+    it("should allow rental upload by management (Charalambos) using communicationEmail as owner", () => {
       const management = createMockAgent({
         fullName: "Charalambos",
         communicationEmail: "charalambos@zyprus.com",
@@ -249,15 +248,22 @@ describe("Reviewer Assignment", () => {
         role: "management",
       });
 
-      expect(() => assignReviewers(management, "rent", "paphos")).toThrow(
-        RejectionError
-      );
-      expect(() => assignReviewers(management, "rent", "paphos")).toThrow(
-        /cannot use my services for adding rental properties/i
-      );
+      // Current behavior: management rentals are allowed (c5aee9b). Since
+      // listingOwnerEmail is "ASK" and no assignTo is given, the rent branch
+      // falls back to communicationEmail as the listing owner.
+      expect(() =>
+        assignReviewers(management, "rent", "paphos")
+      ).not.toThrow();
+
+      const result = assignReviewers(management, "rent", "paphos");
+
+      expect(result.reviewer1).toBe("charalambos@zyprus.com");
+      expect(result.reviewer2).toBe(null);
+      expect(result.listingOwner).toBe("charalambos@zyprus.com");
+      expect(result.listingInstructor).toBe("charalambos@zyprus.com");
     });
 
-    it("should reject rental upload attempts by management (Lauren)", () => {
+    it("should allow rental upload by management (Lauren) using communicationEmail as owner", () => {
       const lauren = createMockAgent({
         fullName: "Lauren",
         communicationEmail: "listings@zyprus.com",
@@ -266,12 +272,19 @@ describe("Reviewer Assignment", () => {
         role: "management",
       });
 
-      expect(() => assignReviewers(lauren, "rent", "limassol")).toThrow(
-        RejectionError
-      );
-      expect(() => assignReviewers(lauren, "rent", "limassol")).toThrow(
-        /cannot use my services for adding rental properties/i
-      );
+      // Current behavior: management rentals are allowed (c5aee9b). With
+      // listingOwnerEmail "ASK" and no assignTo, the rent branch uses
+      // communicationEmail as the listing owner.
+      expect(() =>
+        assignReviewers(lauren, "rent", "limassol")
+      ).not.toThrow();
+
+      const result = assignReviewers(lauren, "rent", "limassol");
+
+      expect(result.reviewer1).toBe("listings@zyprus.com");
+      expect(result.reviewer2).toBe(null);
+      expect(result.listingOwner).toBe("listings@zyprus.com");
+      expect(result.listingInstructor).toBe("listings@zyprus.com");
     });
 
     it("should allow management to upload sales properties", () => {
@@ -290,7 +303,7 @@ describe("Reviewer Assignment", () => {
         "agent@zyprus.com"
       );
       expect(result).toBeDefined();
-      expect(result.reviewer1).toBe("listings@zyprus.com");
+      expect(result.reviewer1).toBe("zyprus@zyprus.com");
     });
   });
 
@@ -304,7 +317,7 @@ describe("Reviewer Assignment", () => {
 
       const result = assignReviewers(agent, "sale", "unknown-region");
 
-      expect(result.reviewer1).toBe("listings@zyprus.com");
+      expect(result.reviewer1).toBe("zyprus@zyprus.com");
       expect(result.reviewer2).toBe(null); // No regional email for unknown region
       expect(result.listingOwner).toBe("agent-owner@example.com");
       expect(result.listingInstructor).toBe("agent-owner@example.com");
