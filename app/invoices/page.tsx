@@ -14,8 +14,8 @@ export default async function InvoicesPage() {
   // in-app access screen is skipped here.
   return (
     <App
-      initialDocs={docs}
       initialClients={clients}
+      initialDocs={docs}
       persistenceMode={initialState.persistenceMode}
       preAuthed
     />

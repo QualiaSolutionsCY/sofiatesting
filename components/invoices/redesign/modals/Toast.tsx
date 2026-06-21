@@ -35,7 +35,7 @@ export function Toast({ message, onDone }: ToastProps) {
         display: "flex",
         gap: 10,
         alignItems: "center",
-        animation: "toast-rise 360ms cubic-bezier(.2,.9,.25,1.1) both"
+        animation: "toast-rise 360ms cubic-bezier(.2,.9,.25,1.1) both",
       }}
     >
       <Check size={14} strokeWidth={1.6} /> {message}

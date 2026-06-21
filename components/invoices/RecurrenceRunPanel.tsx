@@ -1,6 +1,10 @@
 import { CalendarClock } from "lucide-react";
 import { useState } from "react";
-import { documentKindLabel, getDisplayNumber, recurrenceLabel } from "@/lib/invoices/format";
+import {
+  documentKindLabel,
+  getDisplayNumber,
+  recurrenceLabel,
+} from "@/lib/invoices/format";
 import type { InvoiceDocument, Recurrence } from "@/lib/invoices/types/invoice";
 
 const recurrenceKinds: Recurrence[] = ["monthly", "yearly"];
@@ -9,17 +13,19 @@ type RunDecision = "waiting" | "review" | "proceed" | "reminded";
 
 export function RecurrenceRunPanel({
   documents,
-  isPending
+  isPending,
 }: {
   documents: InvoiceDocument[];
   isPending: boolean;
 }) {
-  const recurring = documents.filter((document) => document.recurrence !== "none");
+  const recurring = documents.filter(
+    (document) => document.recurrence !== "none"
+  );
   const [decision, setDecision] = useState<RunDecision>("waiting");
   const [autoProceed, setAutoProceed] = useState(false);
 
   return (
-    <section className="recurrence-panel" aria-label="Recurring invoice runs">
+    <section aria-label="Recurring invoice runs" className="recurrence-panel">
       <div className="recurrence-heading">
         <CalendarClock size={18} />
         <div>
@@ -41,20 +47,32 @@ export function RecurrenceRunPanel({
           </strong>
         </div>
         <div className="monthly-gate-actions">
-          <button type="button" onClick={() => setDecision("review")} disabled={isPending}>
+          <button
+            disabled={isPending}
+            onClick={() => setDecision("review")}
+            type="button"
+          >
             Review
           </button>
-          <button type="button" onClick={() => setDecision("proceed")} disabled={isPending}>
+          <button
+            disabled={isPending}
+            onClick={() => setDecision("proceed")}
+            type="button"
+          >
             Proceed
           </button>
-          <button type="button" onClick={() => setDecision("reminded")} disabled={isPending}>
+          <button
+            disabled={isPending}
+            onClick={() => setDecision("reminded")}
+            type="button"
+          >
             Remind
           </button>
           <label>
             <input
-              type="checkbox"
               checked={autoProceed}
               onChange={(event) => setAutoProceed(event.target.checked)}
+              type="checkbox"
             />
             Auto-proceed after confidence
           </label>
@@ -62,7 +80,9 @@ export function RecurrenceRunPanel({
       </div>
       <div className="recurrence-grid">
         {recurrenceKinds.map((recurrence) => {
-          const runDocuments = recurring.filter((document) => document.recurrence === recurrence);
+          const runDocuments = recurring.filter(
+            (document) => document.recurrence === recurrence
+          );
 
           return (
             <div className="recurrence-run" key={recurrence}>
@@ -74,13 +94,19 @@ export function RecurrenceRunPanel({
                 <ul>
                   {runDocuments.map((document) => (
                     <li key={document.id}>
-                      {document.clientName} · {documentKindLabel(document.kind)} {getDisplayNumber(document)}
-                      {document.recurrenceDay ? ` · day ${document.recurrenceDay}` : ""}
+                      {document.clientName} · {documentKindLabel(document.kind)}{" "}
+                      {getDisplayNumber(document)}
+                      {document.recurrenceDay
+                        ? ` · day ${document.recurrenceDay}`
+                        : ""}
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p>No active {recurrenceLabel(recurrence).toLowerCase()} documents.</p>
+                <p>
+                  No active {recurrenceLabel(recurrence).toLowerCase()}{" "}
+                  documents.
+                </p>
               )}
             </div>
           );

@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { TEMPLATE_DEFAULTS, useTemplateText, type TemplateText } from "@/lib/invoices/redesign/template-context";
+import { useEffect, useState } from "react";
+import {
+  TEMPLATE_DEFAULTS,
+  type TemplateText,
+  useTemplateText,
+} from "@/lib/invoices/redesign/template-context";
 
 interface TemplateEditorProps {
   open: boolean;
@@ -10,7 +14,11 @@ interface TemplateEditorProps {
   onSaved?: () => void;
 }
 
-const FIELDS: Array<{ key: keyof TemplateText; label: string; multiline?: boolean }> = [
+const FIELDS: Array<{
+  key: keyof TemplateText;
+  label: string;
+  multiline?: boolean;
+}> = [
   { key: "name", label: "Company name" },
   { key: "regNo", label: "Company reg. no. (HE…)" },
   { key: "address", label: "Address" },
@@ -23,11 +31,23 @@ const FIELDS: Array<{ key: keyof TemplateText; label: string; multiline?: boolea
   { key: "accountNumber", label: "Account number" },
   { key: "iban", label: "IBAN" },
   { key: "bic", label: "BIC / SWIFT" },
-  { key: "settlementNote", label: "Settlement note (invoices)", multiline: true },
-  { key: "receiptNote", label: "Acknowledgement note (receipts)", multiline: true }
+  {
+    key: "settlementNote",
+    label: "Settlement note (invoices)",
+    multiline: true,
+  },
+  {
+    key: "receiptNote",
+    label: "Acknowledgement note (receipts)",
+    multiline: true,
+  },
 ];
 
-export function TemplateEditor({ open, onClose, onSaved }: TemplateEditorProps) {
+export function TemplateEditor({
+  open,
+  onClose,
+  onSaved,
+}: TemplateEditorProps) {
   const { text, setText } = useTemplateText();
   const [draft, setDraft] = useState<TemplateText>(text);
 
@@ -46,31 +66,43 @@ export function TemplateEditor({ open, onClose, onSaved }: TemplateEditorProps) 
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="template-editor" onClick={(event) => event.stopPropagation()}>
+      <div
+        className="template-editor"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="template-editor-head">
           <div>
             <p className="eyebrow">Invoice template</p>
             <h2>Edit template text</h2>
           </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+          <button
+            aria-label="Close"
+            className="icon-button"
+            onClick={onClose}
+            type="button"
+          >
             <X size={16} strokeWidth={1.6} />
           </button>
         </div>
 
         <div className="template-editor-body">
           {FIELDS.map((field) => (
-            <label key={field.key} className="template-editor-field">
+            <label className="template-editor-field" key={field.key}>
               <span>{field.label}</span>
               {field.multiline ? (
                 <textarea
+                  onChange={(event) =>
+                    setDraft({ ...draft, [field.key]: event.target.value })
+                  }
                   rows={2}
                   value={draft[field.key]}
-                  onChange={(event) => setDraft({ ...draft, [field.key]: event.target.value })}
                 />
               ) : (
                 <input
+                  onChange={(event) =>
+                    setDraft({ ...draft, [field.key]: event.target.value })
+                  }
                   value={draft[field.key]}
-                  onChange={(event) => setDraft({ ...draft, [field.key]: event.target.value })}
                 />
               )}
             </label>
@@ -78,21 +110,25 @@ export function TemplateEditor({ open, onClose, onSaved }: TemplateEditorProps) 
         </div>
 
         <div className="template-editor-foot">
-          <button type="button" className="ghost" onClick={() => setDraft(TEMPLATE_DEFAULTS)}>
+          <button
+            className="ghost"
+            onClick={() => setDraft(TEMPLATE_DEFAULTS)}
+            type="button"
+          >
             Reset to defaults
           </button>
           <div className="template-editor-foot-actions">
-            <button type="button" className="ghost" onClick={onClose}>
+            <button className="ghost" onClick={onClose} type="button">
               Cancel
             </button>
             <button
-              type="button"
               className="primary"
               onClick={() => {
                 setText(draft);
                 onSaved?.();
                 onClose();
               }}
+              type="button"
             >
               Save template
             </button>

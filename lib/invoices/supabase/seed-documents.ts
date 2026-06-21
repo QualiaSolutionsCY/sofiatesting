@@ -5,7 +5,7 @@ import {
   toDocumentRow,
   toMessageEventRows,
   toRevisionRow,
-  toStorageObjectRow
+  toStorageObjectRow,
 } from "./document-mappers";
 
 export type SupabaseSeedBundle = {
@@ -24,18 +24,24 @@ export function getSeedWorkflowDocuments(): InvoiceDocument[] {
   return [invoice, creditNote, receipt];
 }
 
-export function buildSupabaseSeedBundle(documents = getSeedWorkflowDocuments()): SupabaseSeedBundle {
+export function buildSupabaseSeedBundle(
+  documents = getSeedWorkflowDocuments()
+): SupabaseSeedBundle {
   return {
     documents: documents.map(toDocumentRow),
-    revisions: documents.map((document, index) => toRevisionRow(document, index + 1)),
+    revisions: documents.map((document, index) =>
+      toRevisionRow(document, index + 1)
+    ),
     approvals: documents.flatMap(toApprovalRows),
     storageObjects: documents.map(toStorageObjectRow),
-    messageEvents: documents.flatMap(toMessageEventRows)
+    messageEvents: documents.flatMap(toMessageEventRows),
   };
 }
 
 function findSample(kind: InvoiceDocument["kind"], id: string) {
-  const document = sampleDocuments.find((sample) => sample.kind === kind && sample.id === id);
+  const document = sampleDocuments.find(
+    (sample) => sample.kind === kind && sample.id === id
+  );
   if (!document) {
     throw new Error(`Missing seed document ${id}`);
   }

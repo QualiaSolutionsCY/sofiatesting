@@ -260,8 +260,7 @@ export async function DELETE(
     );
   }
 
-  const permanent =
-    request.nextUrl.searchParams.get("permanent") === "true";
+  const permanent = request.nextUrl.searchParams.get("permanent") === "true";
 
   try {
     const { id } = await context.params;
@@ -375,10 +374,9 @@ async function handlePermanentDelete(agentId: string, actorUserId: string) {
     }
 
     // 4. Delete chat_history rows keyed by the agent's phone numbers
-    const phoneNumbers = [
-      agent.mobile,
-      agent.whatsapp_phone_number,
-    ].filter(Boolean) as string[];
+    const phoneNumbers = [agent.mobile, agent.whatsapp_phone_number].filter(
+      Boolean
+    ) as string[];
 
     for (const phone of phoneNumbers) {
       const { error: chatError } = await supabase

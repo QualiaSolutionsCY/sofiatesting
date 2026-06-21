@@ -1,16 +1,20 @@
 "use client";
 
-import { FormEvent, useState } from "react";
 import { X } from "lucide-react";
+import { type FormEvent, useState } from "react";
 import type { DocumentInput } from "@/lib/invoices/document-actions";
-import type { InvoiceDocument, Recurrence, VatMode } from "@/lib/invoices/types/invoice";
+import type {
+  InvoiceDocument,
+  Recurrence,
+  VatMode,
+} from "@/lib/invoices/types/invoice";
 import type { ComposerMode } from "./types";
 
 export function DocumentComposer({
   mode,
   document,
   onClose,
-  onSave
+  onSave,
 }: {
   mode: Exclude<ComposerMode, "closed">;
   document?: InvoiceDocument;
@@ -29,11 +33,12 @@ export function DocumentComposer({
     recurrence: document?.recurrence ?? "monthly",
     recurrenceDay: document?.recurrenceDay ?? 25,
     sourceInvoiceNumber: document?.sourceInvoiceNumber ?? "",
-    commissionPersonName: document?.commissionPersonName ?? ""
+    commissionPersonName: document?.commissionPersonName ?? "",
   });
-  const needsCommissionPerson = /\bcommission\b|\bproperty sale\b|\bsale of (the )?property\b/i.test(
-    input.description
-  );
+  const needsCommissionPerson =
+    /\bcommission\b|\bproperty sale\b|\bsale of (the )?property\b/i.test(
+      input.description
+    );
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -45,10 +50,19 @@ export function DocumentComposer({
       <form className="composer" onSubmit={submit}>
         <div className="composer-header">
           <div>
-            <p className="eyebrow">{mode === "create" ? "New draft" : "Edit document"}</p>
-            <h2>{mode === "create" ? "Sophia draft" : "Retrieve and modify"}</h2>
+            <p className="eyebrow">
+              {mode === "create" ? "New draft" : "Edit document"}
+            </p>
+            <h2>
+              {mode === "create" ? "Sophia draft" : "Retrieve and modify"}
+            </h2>
           </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+          <button
+            aria-label="Close"
+            className="icon-button"
+            onClick={onClose}
+            type="button"
+          >
             <X size={18} />
           </button>
         </div>
@@ -57,20 +71,24 @@ export function DocumentComposer({
           <label>
             <span>Client / Bill to</span>
             <input
-              value={input.clientName}
-              onChange={(event) => setInput({ ...input, clientName: event.target.value })}
+              onChange={(event) =>
+                setInput({ ...input, clientName: event.target.value })
+              }
               required
+              value={input.clientName}
             />
           </label>
           <label>
             <span>Amount</span>
             <input
-              type="number"
               min="0"
-              step="0.01"
-              value={input.amount}
-              onChange={(event) => setInput({ ...input, amount: Number(event.target.value) })}
+              onChange={(event) =>
+                setInput({ ...input, amount: Number(event.target.value) })
+              }
               required
+              step="0.01"
+              type="number"
+              value={input.amount}
             />
           </label>
         </div>
@@ -78,10 +96,12 @@ export function DocumentComposer({
         <label className="composer-description">
           <span>Description</span>
           <textarea
-            value={input.description}
-            onChange={(event) => setInput({ ...input, description: event.target.value })}
-            rows={5}
+            onChange={(event) =>
+              setInput({ ...input, description: event.target.value })
+            }
             required
+            rows={5}
+            value={input.description}
           />
         </label>
 
@@ -89,10 +109,13 @@ export function DocumentComposer({
           <label>
             <span>Type</span>
             <select
-              value={input.kind}
               onChange={(event) =>
-                setInput({ ...input, kind: event.target.value as DocumentInput["kind"] })
+                setInput({
+                  ...input,
+                  kind: event.target.value as DocumentInput["kind"],
+                })
               }
+              value={input.kind}
             >
               <option value="invoice">Invoice</option>
               <option value="credit-note">Credit note</option>
@@ -102,16 +125,20 @@ export function DocumentComposer({
           <label>
             <span>Client email</span>
             <input
+              onChange={(event) =>
+                setInput({ ...input, clientEmail: event.target.value })
+              }
               type="email"
               value={input.clientEmail}
-              onChange={(event) => setInput({ ...input, clientEmail: event.target.value })}
             />
           </label>
           <label>
             <span>VAT</span>
             <select
+              onChange={(event) =>
+                setInput({ ...input, vatMode: event.target.value as VatMode })
+              }
               value={input.vatMode}
-              onChange={(event) => setInput({ ...input, vatMode: event.target.value as VatMode })}
             >
               <option value="plus-vat">Plus VAT</option>
               <option value="included-vat">Including VAT</option>
@@ -121,10 +148,13 @@ export function DocumentComposer({
           <label>
             <span>Recurrence</span>
             <select
-              value={input.recurrence}
               onChange={(event) =>
-                setInput({ ...input, recurrence: event.target.value as Recurrence })
+                setInput({
+                  ...input,
+                  recurrence: event.target.value as Recurrence,
+                })
               }
+              value={input.recurrence}
             >
               <option value="none">One-off</option>
               <option value="monthly">Monthly</option>
@@ -135,57 +165,72 @@ export function DocumentComposer({
             <label>
               <span>Run day</span>
               <input
-                type="number"
-                min="1"
                 max="31"
-                value={input.recurrenceDay ?? 25}
+                min="1"
                 onChange={(event) =>
-                  setInput({ ...input, recurrenceDay: Number(event.target.value) })
+                  setInput({
+                    ...input,
+                    recurrenceDay: Number(event.target.value),
+                  })
                 }
+                type="number"
+                value={input.recurrenceDay ?? 25}
               />
             </label>
           ) : null}
           <label>
             <span>Issue date</span>
             <input
+              onChange={(event) =>
+                setInput({ ...input, issueDate: event.target.value })
+              }
+              required
               type="date"
               value={input.issueDate}
-              onChange={(event) => setInput({ ...input, issueDate: event.target.value })}
-              required
             />
           </label>
           <label>
             <span>Due date</span>
             <input
+              onChange={(event) =>
+                setInput({ ...input, dueDate: event.target.value })
+              }
               type="date"
               value={input.dueDate}
-              onChange={(event) => setInput({ ...input, dueDate: event.target.value })}
             />
           </label>
           <label>
             <span>Source invoice</span>
             <input
-              value={input.sourceInvoiceNumber}
-              onChange={(event) => setInput({ ...input, sourceInvoiceNumber: event.target.value })}
+              onChange={(event) =>
+                setInput({ ...input, sourceInvoiceNumber: event.target.value })
+              }
               placeholder="Required for credit notes and receipts"
+              value={input.sourceInvoiceNumber}
             />
           </label>
           <label>
             <span>Commission person</span>
             <input
-              value={input.commissionPersonName}
-              onChange={(event) => setInput({ ...input, commissionPersonName: event.target.value })}
+              onChange={(event) =>
+                setInput({ ...input, commissionPersonName: event.target.value })
+              }
+              placeholder={
+                needsCommissionPerson
+                  ? "Required now"
+                  : "Required if commission/sale"
+              }
               required={needsCommissionPerson}
-              placeholder={needsCommissionPerson ? "Required now" : "Required if commission/sale"}
+              value={input.commissionPersonName}
             />
           </label>
         </div>
 
         <div className="composer-actions">
-          <button type="button" onClick={onClose}>
+          <button onClick={onClose} type="button">
             Cancel
           </button>
-          <button type="submit" className="primary-action">
+          <button className="primary-action" type="submit">
             Save draft
           </button>
         </div>

@@ -26,31 +26,52 @@ export async function getWhatsAppGroupStatus(): Promise<WhatsAppGroupStatus> {
   const configured = !!jidRaw && jidRaw.trim().length > 0;
 
   if (!wasenderClient) {
-    return { configured, connected: false, detail: "WhatsApp API key not configured" };
+    return {
+      configured,
+      connected: false,
+      detail: "WhatsApp API key not configured",
+    };
   }
 
   try {
     const session = await wasenderClient.getSessionStatus();
-    const raw = (session as { response?: { status?: string } })?.response?.status ?? "";
+    const raw =
+      (session as { response?: { status?: string } })?.response?.status ?? "";
     const sessionStatus = String(raw).toLowerCase();
     const sessionConnected = sessionStatus === "connected";
 
     if (!configured) {
-      return { configured, connected: false, sessionStatus, detail: "No group configured (set INVOICE_ACCOUNTING_GROUP_MSISDN)" };
+      return {
+        configured,
+        connected: false,
+        sessionStatus,
+        detail: "No group configured (set INVOICE_ACCOUNTING_GROUP_MSISDN)",
+      };
     }
     if (!sessionConnected) {
-      return { configured, connected: false, sessionStatus, detail: `WhatsApp session is ${sessionStatus || "unavailable"}` };
+      return {
+        configured,
+        connected: false,
+        sessionStatus,
+        detail: `WhatsApp session is ${sessionStatus || "unavailable"}`,
+      };
     }
 
     // Session is live — confirm the group itself is reachable and name it.
     const jid = jidRaw.includes("@g.us") ? jidRaw : `${jidRaw}@g.us`;
     try {
       const meta = await wasenderClient.getGroupMetadata(jid);
-      const groupName = (meta as { response?: { data?: { subject?: string } } })?.response?.data?.subject;
+      const groupName = (meta as { response?: { data?: { subject?: string } } })
+        ?.response?.data?.subject;
       return { configured, connected: true, sessionStatus, groupName };
     } catch {
       // Session up but group not found/accessible with this JID.
-      return { configured, connected: false, sessionStatus, detail: "Session live, but the group JID wasn't reachable" };
+      return {
+        configured,
+        connected: false,
+        sessionStatus,
+        detail: "Session live, but the group JID wasn't reachable",
+      };
     }
   } catch (error) {
     return {

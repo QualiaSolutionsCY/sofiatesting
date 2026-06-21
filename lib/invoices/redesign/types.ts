@@ -79,7 +79,13 @@ export interface Filters {
   // "approved-numbered" is a merged filter that matches both Approved and Numbered docs.
   // "recurrence-monthly" / "recurrence-yearly" filter by the invoice's recurrence schedule.
   // "kind-receipt" filters to receipts only.
-  stage: "all" | Stage | "approved-numbered" | "recurrence-monthly" | "recurrence-yearly" | "kind-receipt";
+  stage:
+    | "all"
+    | Stage
+    | "approved-numbered"
+    | "recurrence-monthly"
+    | "recurrence-yearly"
+    | "kind-receipt";
   q: string;
   from: string;
   to: string;

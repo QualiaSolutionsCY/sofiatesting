@@ -11,16 +11,27 @@ interface TopbarProps {
   onEditTemplate: () => void;
 }
 
-export function Topbar({ docs, onNew, onPalette, onOpenSettings, onEditTemplate }: TopbarProps) {
-  const needsReview = docs.filter((d) => d.stage === "sent-to-marios" || d.stage === "correction-needed").length;
+export function Topbar({
+  docs,
+  onNew,
+  onPalette,
+  onOpenSettings,
+  onEditTemplate,
+}: TopbarProps) {
+  const needsReview = docs.filter(
+    (d) => d.stage === "sent-to-marios" || d.stage === "correction-needed"
+  ).length;
 
   return (
     <header className="topbar">
       <div className="topbar-title">
         <h1>Invoices</h1>
         {needsReview > 0 ? (
-          <span className="topbar-count" title={`${needsReview} need your review`}>
-            <span className="topbar-count-dot" aria-hidden />
+          <span
+            className="topbar-count"
+            title={`${needsReview} need your review`}
+          >
+            <span aria-hidden className="topbar-count-dot" />
             {needsReview} for review
           </span>
         ) : (
@@ -28,31 +39,31 @@ export function Topbar({ docs, onNew, onPalette, onOpenSettings, onEditTemplate 
         )}
       </div>
       <div className="topbar-actions">
-        <button type="button" className="palette-trigger" onClick={onPalette}>
+        <button className="palette-trigger" onClick={onPalette} type="button">
           <Search size={15} strokeWidth={1.6} />
           <span>Search or jump…</span>
           <kbd>⌘</kbd>
           <kbd>K</kbd>
         </button>
         <button
-          type="button"
+          aria-label="Edit invoice template"
           className="icon-button topbar-settings"
           onClick={onEditTemplate}
           title="Edit invoice template"
-          aria-label="Edit invoice template"
+          type="button"
         >
           <FileCog size={15} strokeWidth={1.6} />
         </button>
         <button
-          type="button"
+          aria-label="Settings"
           className="icon-button topbar-settings"
           onClick={onOpenSettings}
           title="Settings"
-          aria-label="Settings"
+          type="button"
         >
           <SettingsIcon size={15} strokeWidth={1.6} />
         </button>
-        <button type="button" className="primary-action" onClick={onNew}>
+        <button className="primary-action" onClick={onNew} type="button">
           <Plus size={14} strokeWidth={1.6} /> New invoice
         </button>
       </div>

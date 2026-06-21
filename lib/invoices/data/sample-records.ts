@@ -31,14 +31,26 @@ export const sampleDocuments: InvoiceDocument[] = [
     mariosReviewPhone: mariosPhone,
     accountingGroupLabel: accountingGroup,
     approvalTimeline: [
-      { label: "Draft prepared by Sophia", at: "2026-04-22T09:00:00.000Z", by: "Sophia" },
-      { label: "Approved by Marios", at: "2026-04-22T10:29:00.000Z", by: "Marios" },
-      { label: "Forwarded to accounting", at: "2026-04-22T10:32:00.000Z", by: "Sophia" }
+      {
+        label: "Draft prepared by Sophia",
+        at: "2026-04-22T09:00:00.000Z",
+        by: "Sophia",
+      },
+      {
+        label: "Approved by Marios",
+        at: "2026-04-22T10:29:00.000Z",
+        by: "Marios",
+      },
+      {
+        label: "Forwarded to accounting",
+        at: "2026-04-22T10:32:00.000Z",
+        by: "Sophia",
+      },
     ],
     notes: [
       "Sample invoice from the provided PDF.",
-      "Commission keyword requires the relevant person/agent name in the group message."
-    ]
+      "Commission keyword requires the relevant person/agent name in the group message.",
+    ],
   },
   {
     id: "cn-10096",
@@ -65,13 +77,21 @@ export const sampleDocuments: InvoiceDocument[] = [
     mariosReviewPhone: mariosPhone,
     accountingGroupLabel: accountingGroup,
     approvalTimeline: [
-      { label: "Credit note prepared", at: "2026-03-31T09:00:00.000Z", by: "Sophia" },
-      { label: "Approved by Marios", at: "2026-03-31T10:29:00.000Z", by: "Marios" }
+      {
+        label: "Credit note prepared",
+        at: "2026-03-31T09:00:00.000Z",
+        by: "Sophia",
+      },
+      {
+        label: "Approved by Marios",
+        at: "2026-03-31T10:29:00.000Z",
+        by: "Marios",
+      },
     ],
     notes: [
       "Credit note must visibly include Bill to before the customer name.",
-      "Credit-note numbering follows the same approve-then-finalize process as invoices."
-    ]
+      "Credit-note numbering follows the same approve-then-finalize process as invoices.",
+    ],
   },
   {
     id: "inv-monthly-management",
@@ -99,10 +119,18 @@ export const sampleDocuments: InvoiceDocument[] = [
     mariosReviewPhone: mariosPhone,
     accountingGroupLabel: accountingGroup,
     approvalTimeline: [
-      { label: "Recurring draft prepared", at: "2026-05-25T08:00:00.000Z", by: "Sophia" },
-      { label: "Sent to Marios for review", at: "2026-05-25T08:05:00.000Z", by: "Sophia" }
+      {
+        label: "Recurring draft prepared",
+        at: "2026-05-25T08:00:00.000Z",
+        by: "Sophia",
+      },
+      {
+        label: "Sent to Marios for review",
+        at: "2026-05-25T08:05:00.000Z",
+        by: "Sophia",
+      },
     ],
-    notes: ["Monthly and yearly recurrence are both first-class MVP concepts."]
+    notes: ["Monthly and yearly recurrence are both first-class MVP concepts."],
   },
   {
     id: "inv-yearly-retainer",
@@ -129,8 +157,10 @@ export const sampleDocuments: InvoiceDocument[] = [
     whatsappStatus: "planned",
     mariosReviewPhone: mariosPhone,
     accountingGroupLabel: accountingGroup,
-    approvalTimeline: [{ label: "Draft created", at: "2026-06-01T08:00:00.000Z", by: "Sophia" }],
-    notes: ["VAT is included in the amount, so the total remains unchanged."]
+    approvalTimeline: [
+      { label: "Draft created", at: "2026-06-01T08:00:00.000Z", by: "Sophia" },
+    ],
+    notes: ["VAT is included in the amount, so the total remains unchanged."],
   },
   {
     id: "inv-correction",
@@ -158,12 +188,16 @@ export const sampleDocuments: InvoiceDocument[] = [
     accountingGroupLabel: accountingGroup,
     approvalTimeline: [
       { label: "Original sent", at: "2026-05-18T09:00:00.000Z", by: "Sophia" },
-      { label: "Correction requested", at: "2026-05-18T10:00:00.000Z", by: "Marios" }
+      {
+        label: "Correction requested",
+        at: "2026-05-18T10:00:00.000Z",
+        by: "Marios",
+      },
     ],
     notes: [
       "Sophia must retrieve, modify, regenerate, and resend invoices that were sent wrong.",
-      "Accounting caption must say to ignore the previous version."
-    ]
+      "Accounting caption must say to ignore the previous version.",
+    ],
   },
   {
     id: "receipt-10386",
@@ -172,10 +206,10 @@ export const sampleDocuments: InvoiceDocument[] = [
     billToLabel: "Bill To",
     description:
       "Commission from the sale of the plot 301, reg.no. 0/8122, Ierokipia Municipality, Geroskipou",
-    amount: 12500,
+    amount: 12_500,
     vatMode: "plus-vat",
     vatAmount: 2375,
-    total: 14875,
+    total: 14_875,
     currency: "EUR",
     issueDate: "2026-05-19",
     recurrence: "none",
@@ -184,7 +218,7 @@ export const sampleDocuments: InvoiceDocument[] = [
     status: "numbered",
     paymentStatus: "paid",
     paidAt: "2026-05-19T09:00:00.000Z",
-    paidAmount: 14875,
+    paidAmount: 14_875,
     sourceInvoiceNumber: "11373",
     requiresCommissionPerson: true,
     commissionPersonName: "Pending person from Marios",
@@ -194,12 +228,16 @@ export const sampleDocuments: InvoiceDocument[] = [
     mariosReviewPhone: mariosPhone,
     accountingGroupLabel: accountingGroup,
     approvalTimeline: [
-      { label: "Invoice marked paid", at: "2026-05-19T09:00:00.000Z", by: "Sophia" },
-      { label: "Receipt issued", at: "2026-05-19T09:03:00.000Z", by: "Sophia" }
+      {
+        label: "Invoice marked paid",
+        at: "2026-05-19T09:00:00.000Z",
+        by: "Sophia",
+      },
+      { label: "Receipt issued", at: "2026-05-19T09:03:00.000Z", by: "Sophia" },
     ],
     notes: [
       "Receipt sample from the client message.",
-      "The final receipt template must remove the unwanted payment-method line."
-    ]
-  }
+      "The final receipt template must remove the unwanted payment-method line.",
+    ],
+  },
 ];

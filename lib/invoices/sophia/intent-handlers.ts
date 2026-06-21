@@ -12,6 +12,7 @@ import {
   updateDocumentAction,
 } from "@/lib/invoices/actions/documents";
 import type { DocumentInput } from "@/lib/invoices/document-actions";
+import { isCommissionDescription } from "@/lib/invoices/format";
 import type { InvoiceDocument, VatMode } from "@/lib/invoices/types/invoice";
 
 export type SophiaIntent =
@@ -36,6 +37,7 @@ export interface IntentParams {
   officialNumber?: string;
   correctionReason?: string;
   groupMessage?: string;
+  commissionPersonName?: string;
   recurrence?: "none" | "monthly" | "yearly";
   recurrenceDay?: number;
   /** New due date as an ISO date (YYYY-MM-DD), for edit_invoice. */
@@ -72,7 +74,15 @@ function numberOf(d: InvoiceDocument): string {
   return d.officialNumber ? `№ ${d.officialNumber}` : d.draftNumber;
 }
 
-function findDoc(docs: InvoiceDocument[], p: IntentParams): InvoiceDocument | null {
+function cleanOptionalText(value?: string): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed || undefined;
+}
+
+function findDoc(
+  docs: InvoiceDocument[],
+  p: IntentParams
+): InvoiceDocument | null {
   if (p.documentId) {
     const byId = docs.find(
       (d) =>
@@ -91,11 +101,16 @@ function findDoc(docs: InvoiceDocument[], p: IntentParams): InvoiceDocument | nu
 }
 
 /** Generate + store the PDF for a document and return its public URL + filename. */
-async function attachPdf(documentId: string): Promise<{ pdfUrl?: string; filename?: string }> {
+async function attachPdf(
+  documentId: string
+): Promise<{ pdfUrl?: string; filename?: string }> {
   try {
     const res = await storeDocumentPdfAction(documentId);
     if (res.storageFile?.publicUrl) {
-      return { pdfUrl: res.storageFile.publicUrl, filename: res.storageFile.filename };
+      return {
+        pdfUrl: res.storageFile.publicUrl,
+        filename: res.storageFile.filename,
+      };
     }
   } catch {
     // PDF generation/storage is best-effort — never fail the intent on it.
@@ -114,23 +129,39 @@ export async function runIntent(
   switch (intent) {
     case "create_draft": {
       if (!params.client || typeof params.amount !== "number") {
-        return { ok: false, reply: "I need the client name and the amount to create a draft." };
+        return {
+          ok: false,
+          reply: "I need the client name and the amount to create a draft.",
+        };
+      }
+      const description = params.description || "Services rendered";
+      const commissionPersonName = cleanOptionalText(params.commissionPersonName);
+      if (isCommissionDescription(description) && !commissionPersonName) {
+        return {
+          ok: true,
+          reply:
+            "This is a commission invoice. Which agent/person name should I put on the invoice and accounting group message?",
+        };
       }
       const issueDate = new Date().toISOString().slice(0, 10);
       // Default due date is 30 days from issue unless the agent specified otherwise.
-      const dueDays = typeof params.dueDays === "number" ? Math.max(0, Math.round(params.dueDays)) : 30;
+      const dueDays =
+        typeof params.dueDays === "number"
+          ? Math.max(0, Math.round(params.dueDays))
+          : 30;
       const dueBase = new Date(issueDate);
       dueBase.setDate(dueBase.getDate() + dueDays);
       const input: DocumentInput = {
         kind: "invoice",
         clientName: params.client,
-        description: params.description || "Services rendered",
+        description,
         amount: params.amount,
         vatMode: mapVat(params.vatMode),
         issueDate,
         dueDate: params.dueDate || dueBase.toISOString().slice(0, 10),
         recurrence: params.recurrence ?? "none",
         recurrenceDay: params.recurrenceDay,
+        commissionPersonName,
       };
       const res = await createDocumentAction(input);
       const doc = res.documents.find((d) => d.id === res.selectedId);
@@ -150,11 +181,16 @@ export async function runIntent(
       const drafts = res.documents
         .filter((d) => d.status !== "approved" && !d.officialNumber)
         .slice(0, 10);
-      if (drafts.length === 0) return { ok: true, reply: "No open drafts right now." };
+      if (drafts.length === 0)
+        return { ok: true, reply: "No open drafts right now." };
       const lines = drafts.map(
-        (d) => `• ${d.clientName} — ${numberOf(d)} — ${money(d.total)} (${d.status})`
+        (d) =>
+          `• ${d.clientName} — ${numberOf(d)} — ${money(d.total)} (${d.status})`
       );
-      return { ok: true, reply: `${drafts.length} open draft(s):\n${lines.join("\n")}` };
+      return {
+        ok: true,
+        reply: `${drafts.length} open draft(s):\n${lines.join("\n")}`,
+      };
     }
 
     case "query_status": {
@@ -171,10 +207,14 @@ export async function runIntent(
     case "send_pdf": {
       const res = await loadDocumentsAction();
       const doc = findDoc(res.documents, params);
-      if (!doc) return { ok: false, reply: "I couldn't find that invoice to send." };
+      if (!doc)
+        return { ok: false, reply: "I couldn't find that invoice to send." };
       const pdf = await attachPdf(doc.id);
       if (!pdf.pdfUrl) {
-        return { ok: false, reply: `I couldn't generate the PDF for ${doc.clientName} just now.` };
+        return {
+          ok: false,
+          reply: `I couldn't generate the PDF for ${doc.clientName} just now.`,
+        };
       }
       return {
         ok: true,
@@ -187,7 +227,8 @@ export async function runIntent(
     case "approve": {
       const res = await loadDocumentsAction();
       const doc = findDoc(res.documents, params);
-      if (!doc) return { ok: false, reply: "I couldn't find that invoice to approve." };
+      if (!doc)
+        return { ok: false, reply: "I couldn't find that invoice to approve." };
 
       // Approve (idempotent — skip re-approving if already numbered, so the
       // group-message follow-up call doesn't try to approve a second time).
@@ -196,8 +237,56 @@ export async function runIntent(
         const out = await approveDocumentAction(doc.id);
         updated = out.documents.find((d) => d.id === doc.id) ?? doc;
       }
+
+      const commissionPersonName = cleanOptionalText(params.commissionPersonName);
+      if (updated.requiresCommissionPerson && !updated.commissionPersonName) {
+        if (!commissionPersonName) {
+          return {
+            ok: true,
+            documentId: updated.id,
+            reply: `Approved ${updated.clientName} — official number ${updated.officialNumber ?? "assigned"}. This is a commission invoice. Which agent/person name should I put on the accounting group message?`,
+          };
+        }
+
+        const out = await updateDocumentAction(updated.id, {
+          kind: updated.kind,
+          clientName: updated.clientName,
+          clientEmail: updated.clientEmail,
+          description: updated.description,
+          amount: updated.amount,
+          vatMode: updated.vatMode,
+          issueDate: updated.issueDate,
+          dueDate: updated.dueDate,
+          recurrence: updated.recurrence,
+          recurrenceDay: updated.recurrenceDay,
+          sourceInvoiceNumber: updated.sourceInvoiceNumber,
+          commissionPersonName,
+        });
+        updated = out.documents.find((d) => d.id === updated.id) ?? {
+          ...updated,
+          commissionPersonName,
+        };
+      }
       const pdf = await attachPdf(updated.id);
       const num = updated.officialNumber ?? "assigned";
+
+      const commissionLine =
+        updated.requiresCommissionPerson && updated.commissionPersonName
+          ? ` Commission agent: ${updated.commissionPersonName}.`
+          : "";
+
+      if (updated.requiresCommissionPerson && updated.commissionPersonName) {
+        const caption = `Invoice ${numberOf(updated)} — ${updated.clientName} (${money(updated.total)}).${commissionLine}${params.groupMessage ? ` ${params.groupMessage}` : ""}`;
+        const sentToGroup = await sendDocumentToAccountingGroup(updated, caption);
+        return {
+          ok: true,
+          documentId: updated.id,
+          ...pdf,
+          reply: sentToGroup
+            ? `Approved ${updated.clientName} — № ${num}, recorded commission agent ${updated.commissionPersonName}, and sent the invoice to the accounting group.`
+            : `Approved ${updated.clientName} — № ${num}, recorded commission agent ${updated.commissionPersonName}. (I couldn't reach the accounting group just now.)`,
+        };
+      }
 
       // After approval the invoice goes to the group — ask Marios for the message
       // first, then post the invoice on the follow-up call (groupMessage set).
@@ -210,7 +299,7 @@ export async function runIntent(
         };
       }
 
-      const caption = `Invoice ${numberOf(updated)} — ${updated.clientName} (${money(updated.total)}). ${params.groupMessage}`;
+      const caption = `Invoice ${numberOf(updated)} — ${updated.clientName} (${money(updated.total)}).${commissionLine} ${params.groupMessage}`;
       const sentToGroup = await sendDocumentToAccountingGroup(updated, caption);
       return {
         ok: true,
@@ -225,12 +314,16 @@ export async function runIntent(
     case "edit_invoice": {
       const res = await loadDocumentsAction();
       const doc = findDoc(res.documents, params);
-      if (!doc) return { ok: false, reply: "I couldn't find that invoice to edit." };
+      if (!doc)
+        return { ok: false, reply: "I couldn't find that invoice to edit." };
 
       // Resolve the new due date: explicit ISO date, or days-to-pay from the
       // issue date, otherwise keep what's already on the document.
       let dueDate = doc.dueDate;
-      if (typeof params.dueDays === "number" && Number.isFinite(params.dueDays)) {
+      if (
+        typeof params.dueDays === "number" &&
+        Number.isFinite(params.dueDays)
+      ) {
         const base = new Date(doc.issueDate);
         base.setDate(base.getDate() + Math.max(0, Math.round(params.dueDays)));
         dueDate = base.toISOString().slice(0, 10);
@@ -252,7 +345,9 @@ export async function runIntent(
         recurrence: doc.recurrence,
         recurrenceDay: doc.recurrenceDay,
         sourceInvoiceNumber: doc.sourceInvoiceNumber,
-        commissionPersonName: doc.commissionPersonName,
+        commissionPersonName:
+          cleanOptionalText(params.commissionPersonName) ??
+          doc.commissionPersonName,
       };
 
       const out = await updateDocumentAction(doc.id, input);
@@ -287,7 +382,11 @@ export async function runIntent(
         };
       }
 
-      const caption = `Edited invoice ${numberOf(updated)} — ${updated.clientName} (${money(updated.total)}). ${params.groupMessage}`;
+      const commissionLine =
+        updated.requiresCommissionPerson && updated.commissionPersonName
+          ? ` Commission agent: ${updated.commissionPersonName}.`
+          : "";
+      const caption = `Edited invoice ${numberOf(updated)} — ${updated.clientName} (${money(updated.total)}).${commissionLine} ${params.groupMessage}`;
       const sentToGroup = await sendDocumentToAccountingGroup(updated, caption);
       return {
         ok: true,
@@ -303,8 +402,15 @@ export async function runIntent(
       const res = await loadDocumentsAction();
       const doc = findDoc(res.documents, params);
       if (!doc) return { ok: false, reply: "I couldn't find that invoice." };
-      await correctResendAction(doc.id, params.correctionReason || "Correction requested");
-      return { ok: true, documentId: doc.id, reply: `Marked ${doc.clientName} for correction & resend.` };
+      await correctResendAction(
+        doc.id,
+        params.correctionReason || "Correction requested"
+      );
+      return {
+        ok: true,
+        documentId: doc.id,
+        reply: `Marked ${doc.clientName} for correction & resend.`,
+      };
     }
 
     case "mark_paid":
@@ -350,10 +456,19 @@ export async function runIntent(
     case "resend": {
       const res = await loadDocumentsAction();
       const doc = findDoc(res.documents, params);
-      if (!doc) return { ok: false, reply: "I couldn't find that invoice to resend." };
-      await correctResendAction(doc.id, params.correctionReason || "Resend requested");
+      if (!doc)
+        return { ok: false, reply: "I couldn't find that invoice to resend." };
+      await correctResendAction(
+        doc.id,
+        params.correctionReason || "Resend requested"
+      );
       const pdf = await attachPdf(doc.id);
-      return { ok: true, documentId: doc.id, ...pdf, reply: `Resent ${doc.clientName} (${numberOf(doc)}). PDF attached.` };
+      return {
+        ok: true,
+        documentId: doc.id,
+        ...pdf,
+        reply: `Resent ${doc.clientName} (${numberOf(doc)}). PDF attached.`,
+      };
     }
 
     default:

@@ -29,7 +29,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Access-code scope from the signed cookie (admin | invoices | null).
-  const scope = await verifyAccessCookie(request.cookies.get(ACCESS_COOKIE)?.value);
+  const scope = await verifyAccessCookie(
+    request.cookies.get(ACCESS_COOKIE)?.value
+  );
 
   // Legacy NextAuth session (kept as a fallback so existing accounts still work).
   // AUTH_SECRET is mandatory: without it getToken falls back to NextAuth's internal

@@ -10,7 +10,7 @@ import {
   Repeat,
   Search,
   Sliders,
-  Sparkles
+  Sparkles,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { PaletteItem } from "@/lib/invoices/redesign/types";
@@ -21,7 +21,11 @@ interface CommandPaletteProps {
   onAction: (item: PaletteItem) => void;
 }
 
-export function CommandPalette({ open, onClose, onAction }: CommandPaletteProps) {
+export function CommandPalette({
+  open,
+  onClose,
+  onAction,
+}: CommandPaletteProps) {
   const [q, setQ] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);
 
@@ -34,17 +38,84 @@ export function CommandPalette({ open, onClose, onAction }: CommandPaletteProps)
   const groups = useMemo(() => {
     const ql = q.toLowerCase();
 
-    const actionList: PaletteItem[] = ([
-      { id: "new-invoice", type: "action" as const, action: "new-invoice", title: "New invoice draft", subtitle: "Open the composer", icon: <Plus size={14} strokeWidth={1.6} /> },
-      { id: "run-monthly", type: "action" as const, action: "run-monthly", title: "Preview monthly run", subtitle: "Recurring monthly drafts ready to send", icon: <Repeat size={14} strokeWidth={1.6} /> },
-      { id: "run-yearly", type: "action" as const, action: "run-yearly", title: "Preview yearly run", subtitle: "Recurring yearly drafts ready to send", icon: <Repeat size={14} strokeWidth={1.6} /> },
-      { id: "filter-marios", type: "action" as const, action: "filter-marios", title: "Filter — needs Marios", subtitle: "Sent to review + corrections", icon: <Filter size={14} strokeWidth={1.6} /> },
-      { id: "filter-unpaid", type: "action" as const, action: "filter-unpaid", title: "Filter — unpaid issued", subtitle: "Approved, awaiting payment", icon: <Clock size={14} strokeWidth={1.6} /> },
-      { id: "open-settings", type: "action" as const, action: "open-settings", title: "Settings", subtitle: "Delivery, integrations, identity", icon: <Sliders size={14} strokeWidth={1.6} /> },
-      { id: "show-shortcuts", type: "action" as const, action: "show-shortcuts", title: "Keyboard shortcuts", subtitle: "Press ? anytime", icon: <Command size={14} strokeWidth={1.6} /> },
-      { id: "show-tour", type: "action" as const, action: "show-tour", title: "Replay guided tour", subtitle: "4-step intro to the ledger", icon: <Sparkles size={14} strokeWidth={1.6} /> },
-      { id: "sign-out", type: "action" as const, action: "sign-out", title: "Sign out", subtitle: "Lock the ledger", icon: <Lock size={14} strokeWidth={1.6} /> }
-    ] satisfies PaletteItem[]).filter((a) => !ql || (a.title + " " + a.subtitle).toLowerCase().includes(ql));
+    const actionList: PaletteItem[] = (
+      [
+        {
+          id: "new-invoice",
+          type: "action" as const,
+          action: "new-invoice",
+          title: "New invoice draft",
+          subtitle: "Open the composer",
+          icon: <Plus size={14} strokeWidth={1.6} />,
+        },
+        {
+          id: "run-monthly",
+          type: "action" as const,
+          action: "run-monthly",
+          title: "Preview monthly run",
+          subtitle: "Recurring monthly drafts ready to send",
+          icon: <Repeat size={14} strokeWidth={1.6} />,
+        },
+        {
+          id: "run-yearly",
+          type: "action" as const,
+          action: "run-yearly",
+          title: "Preview yearly run",
+          subtitle: "Recurring yearly drafts ready to send",
+          icon: <Repeat size={14} strokeWidth={1.6} />,
+        },
+        {
+          id: "filter-marios",
+          type: "action" as const,
+          action: "filter-marios",
+          title: "Filter — needs Marios",
+          subtitle: "Sent to review + corrections",
+          icon: <Filter size={14} strokeWidth={1.6} />,
+        },
+        {
+          id: "filter-unpaid",
+          type: "action" as const,
+          action: "filter-unpaid",
+          title: "Filter — unpaid issued",
+          subtitle: "Approved, awaiting payment",
+          icon: <Clock size={14} strokeWidth={1.6} />,
+        },
+        {
+          id: "open-settings",
+          type: "action" as const,
+          action: "open-settings",
+          title: "Settings",
+          subtitle: "Delivery, integrations, identity",
+          icon: <Sliders size={14} strokeWidth={1.6} />,
+        },
+        {
+          id: "show-shortcuts",
+          type: "action" as const,
+          action: "show-shortcuts",
+          title: "Keyboard shortcuts",
+          subtitle: "Press ? anytime",
+          icon: <Command size={14} strokeWidth={1.6} />,
+        },
+        {
+          id: "show-tour",
+          type: "action" as const,
+          action: "show-tour",
+          title: "Replay guided tour",
+          subtitle: "4-step intro to the ledger",
+          icon: <Sparkles size={14} strokeWidth={1.6} />,
+        },
+        {
+          id: "sign-out",
+          type: "action" as const,
+          action: "sign-out",
+          title: "Sign out",
+          subtitle: "Lock the ledger",
+          icon: <Lock size={14} strokeWidth={1.6} />,
+        },
+      ] satisfies PaletteItem[]
+    ).filter(
+      (a) => !ql || (a.title + " " + a.subtitle).toLowerCase().includes(ql)
+    );
 
     return [{ label: "Options & pages", items: actionList }];
   }, [q]);
@@ -84,9 +155,9 @@ export function CommandPalette({ open, onClose, onAction }: CommandPaletteProps)
           <Search size={17} strokeWidth={1.6} />
           <input
             autoFocus
+            onChange={(event) => setQ(event.target.value)}
             placeholder="Type a client, invoice number, or action…"
             value={q}
-            onChange={(event) => setQ(event.target.value)}
           />
           <kbd className="palette-kbd">ESC</kbd>
         </div>
@@ -96,7 +167,7 @@ export function CommandPalette({ open, onClose, onAction }: CommandPaletteProps)
           ) : (
             groups.map((g) =>
               g.items.length ? (
-                <div key={g.label} className="palette-group">
+                <div className="palette-group" key={g.label}>
                   <p className="palette-group-label">{g.label}</p>
                   <ul>
                     {g.items.map((it) => {
@@ -104,10 +175,10 @@ export function CommandPalette({ open, onClose, onAction }: CommandPaletteProps)
                       return (
                         <li key={it.id}>
                           <button
-                            type="button"
                             className={`palette-item ${idx === activeIdx ? "is-active" : ""}`}
-                            onMouseEnter={() => setActiveIdx(idx)}
                             onClick={() => onAction(it)}
+                            onMouseEnter={() => setActiveIdx(idx)}
+                            type="button"
                           >
                             <span className="palette-item-icon">{it.icon}</span>
                             <div className="palette-item-body">

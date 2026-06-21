@@ -4,15 +4,18 @@ import { sampleDocuments } from "@/lib/invoices/data/sample-records";
 import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 import {
   fromDocumentRow,
+  type InvoiceDocumentRow,
   toDocumentRow,
   toMessageEventRows,
   toPaymentRow,
   toRevisionRow,
   toStorageObjectRow,
-  type InvoiceDocumentRow
 } from "./document-mappers";
-import { createServiceSupabaseClient, getSupabasePersistenceMode } from "./server";
 import { SUPABASE_TABLES } from "./schema";
+import {
+  createServiceSupabaseClient,
+  getSupabasePersistenceMode,
+} from "./server";
 
 export type DocumentRepositoryResult = {
   documents: InvoiceDocument[];
@@ -32,7 +35,10 @@ let fallbackDocuments: InvoiceDocument[] = cloneDocuments([]);
 export async function listInvoiceDocuments(): Promise<DocumentRepositoryResult> {
   const supabase = createServiceSupabaseClient();
   if (!supabase) {
-    return { documents: cloneDocuments(fallbackDocuments), persistenceMode: "fallback" };
+    return {
+      documents: cloneDocuments(fallbackDocuments),
+      persistenceMode: "fallback",
+    };
   }
 
   const { data, error } = await supabase
@@ -40,11 +46,12 @@ export async function listInvoiceDocuments(): Promise<DocumentRepositoryResult> 
     .select("*")
     .order("updated_at", { ascending: false });
 
-  if (error) throw new Error(`Unable to load invoice documents: ${error.message}`);
+  if (error)
+    throw new Error(`Unable to load invoice documents: ${error.message}`);
 
   return {
     documents: (data as InvoiceDocumentRow[]).map(fromDocumentRow),
-    persistenceMode: "supabase"
+    persistenceMode: "supabase",
   };
 }
 
@@ -55,7 +62,10 @@ export async function saveInvoiceDocument(
   const supabase = createServiceSupabaseClient();
   if (!supabase) {
     upsertFallbackDocument(document);
-    return { documents: cloneDocuments(fallbackDocuments), persistenceMode: "fallback" };
+    return {
+      documents: cloneDocuments(fallbackDocuments),
+      persistenceMode: "fallback",
+    };
   }
 
   const { data, error } = await supabase
@@ -64,7 +74,8 @@ export async function saveInvoiceDocument(
     .select("id")
     .single();
 
-  if (error) throw new Error(`Unable to save invoice document: ${error.message}`);
+  if (error)
+    throw new Error(`Unable to save invoice document: ${error.message}`);
 
   const documentId = data.id as string;
   await writeRevision(documentId, document, reason);
@@ -73,25 +84,40 @@ export async function saveInvoiceDocument(
   return listInvoiceDocuments();
 }
 
-export async function deleteInvoiceDocument(id: string): Promise<DocumentRepositoryResult> {
+export async function deleteInvoiceDocument(
+  id: string
+): Promise<DocumentRepositoryResult> {
   const supabase = createServiceSupabaseClient();
   if (!supabase) {
-    fallbackDocuments = fallbackDocuments.filter((document) => document.id !== id);
-    return { documents: cloneDocuments(fallbackDocuments), persistenceMode: "fallback" };
+    fallbackDocuments = fallbackDocuments.filter(
+      (document) => document.id !== id
+    );
+    return {
+      documents: cloneDocuments(fallbackDocuments),
+      persistenceMode: "fallback",
+    };
   }
 
-  const { error } = await supabase.from(SUPABASE_TABLES.documents).delete().eq("external_id", id);
-  if (error) throw new Error(`Unable to delete invoice document: ${error.message}`);
+  const { error } = await supabase
+    .from(SUPABASE_TABLES.documents)
+    .delete()
+    .eq("external_id", id);
+  if (error)
+    throw new Error(`Unable to delete invoice document: ${error.message}`);
 
   return listInvoiceDocuments();
 }
 
 export async function retrieveStoredDocument(
   id: string
-): Promise<{ metadata?: StoredDocumentMetadata; persistenceMode: "supabase" | "fallback" }> {
+): Promise<{
+  metadata?: StoredDocumentMetadata;
+  persistenceMode: "supabase" | "fallback";
+}> {
   const current = await listInvoiceDocuments();
   const document = current.documents.find((candidate) => candidate.id === id);
-  if (!document?.storagePath) return { persistenceMode: current.persistenceMode };
+  if (!document?.storagePath)
+    return { persistenceMode: current.persistenceMode };
 
   const storage = toStorageObjectRow(document);
   return {
@@ -100,8 +126,8 @@ export async function retrieveStoredDocument(
       filename: storage.filename,
       path: document.storagePath,
       contentType: storage.content_type,
-      publicUrl: storage.public_url
-    }
+      publicUrl: storage.public_url,
+    },
   };
 }
 
@@ -129,7 +155,11 @@ export function __resetDocumentRepositoryForTests(documents = sampleDocuments) {
   fallbackDocuments = cloneDocuments(documents);
 }
 
-async function writeRevision(documentId: string, document: InvoiceDocument, reason: string) {
+async function writeRevision(
+  documentId: string,
+  document: InvoiceDocument,
+  reason: string
+) {
   const supabase = createServiceSupabaseClient();
   if (!supabase) return;
 
@@ -141,7 +171,8 @@ async function writeRevision(documentId: string, document: InvoiceDocument, reas
     .limit(1)
     .maybeSingle();
 
-  const previous = typeof data?.revision_number === "number" ? data.revision_number : 0;
+  const previous =
+    typeof data?.revision_number === "number" ? data.revision_number : 0;
   const revision = toRevisionRow(document, previous + 1, reason);
 
   const { error } = await supabase.from(SUPABASE_TABLES.revisions).insert({
@@ -149,10 +180,11 @@ async function writeRevision(documentId: string, document: InvoiceDocument, reas
     revision_number: revision.revision_number,
     reason: revision.reason,
     snapshot: revision.snapshot,
-    created_by: revision.created_by
+    created_by: revision.created_by,
   });
 
-  if (error) throw new Error(`Unable to write document revision: ${error.message}`);
+  if (error)
+    throw new Error(`Unable to write document revision: ${error.message}`);
 }
 
 async function writeRelatedRows(documentId: string, document: InvoiceDocument) {
@@ -168,7 +200,7 @@ async function writeRelatedRows(documentId: string, document: InvoiceDocument) {
         path: storage.path,
         filename: storage.filename,
         content_type: storage.content_type,
-        public_url: storage.public_url
+        public_url: storage.public_url,
       },
       { onConflict: "bucket,path" }
     );
@@ -180,7 +212,7 @@ async function writeRelatedRows(documentId: string, document: InvoiceDocument) {
       invoice_document_id: documentId,
       paid_amount: payment.paid_amount,
       paid_at: payment.paid_at,
-      created_by: payment.created_by
+      created_by: payment.created_by,
     });
   }
 
@@ -191,18 +223,22 @@ async function writeRelatedRows(documentId: string, document: InvoiceDocument) {
       target: latestMessage.target,
       status: latestMessage.status,
       message_text: latestMessage.message_text,
-      event_at: latestMessage.event_at
+      event_at: latestMessage.event_at,
     });
   }
 }
 
 function upsertFallbackDocument(document: InvoiceDocument) {
-  const index = fallbackDocuments.findIndex((current) => current.id === document.id);
+  const index = fallbackDocuments.findIndex(
+    (current) => current.id === document.id
+  );
   if (index === -1) {
     fallbackDocuments = [document, ...fallbackDocuments];
     return;
   }
-  fallbackDocuments = fallbackDocuments.map((current) => (current.id === document.id ? document : current));
+  fallbackDocuments = fallbackDocuments.map((current) =>
+    current.id === document.id ? document : current
+  );
 }
 
 function cloneDocuments(documents: InvoiceDocument[]) {

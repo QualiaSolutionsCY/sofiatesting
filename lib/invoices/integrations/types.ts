@@ -4,7 +4,7 @@ import type {
   DeliveryQueueStatus,
   DeliveryTarget,
   IntegrationProvider,
-  InvoiceActionType
+  InvoiceActionType,
 } from "@/lib/invoices/types/integrations";
 
 export type IntegrationDeliveryPayload = {

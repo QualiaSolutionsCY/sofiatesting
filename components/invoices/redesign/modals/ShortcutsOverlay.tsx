@@ -15,7 +15,7 @@ const ROWS: Array<{ keys: string[]; label: string }> = [
   { keys: ["?"], label: "Show this help" },
   { keys: ["↑", "↓"], label: "Navigate (palette / lists)" },
   { keys: ["↵"], label: "Open / confirm" },
-  { keys: ["Esc"], label: "Close overlay" }
+  { keys: ["Esc"], label: "Close overlay" },
 ];
 
 export function ShortcutsOverlay({ open, onClose }: ShortcutsOverlayProps) {
@@ -30,11 +30,14 @@ export function ShortcutsOverlay({ open, onClose }: ShortcutsOverlayProps) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="shortcuts-shell" onClick={(event) => event.stopPropagation()}>
+      <div
+        className="shortcuts-shell"
+        onClick={(event) => event.stopPropagation()}
+      >
         <h3>Keyboard shortcuts</h3>
         <div className="shortcuts-list">
           {ROWS.map((r, i) => (
-            <div key={i} className="shortcut-row">
+            <div className="shortcut-row" key={i}>
               <span className="label">{r.label}</span>
               <span className="keys">
                 {r.keys.map((k, ki) => (

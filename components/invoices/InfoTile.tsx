@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 export function InfoTile({
   icon,
   label,
-  children
+  children,
 }: {
   icon: ReactNode;
   label: string;

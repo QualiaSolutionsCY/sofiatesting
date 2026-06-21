@@ -47,7 +47,9 @@ export function PermanentDeleteAgentDialog({
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(
-          payload.error || payload.message || `Request failed (${response.status})`
+          payload.error ||
+            payload.message ||
+            `Request failed (${response.status})`
         );
       }
       onSuccess();

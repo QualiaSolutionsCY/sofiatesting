@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   CheckCircle2,
@@ -11,8 +10,9 @@ import {
   Mail,
   MessageSquareText,
   Search,
-  Send
+  Send,
 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export type PaletteCommand = {
   id: string;
@@ -27,7 +27,7 @@ export type PaletteCommand = {
 export function CommandPalette({
   open,
   onClose,
-  commands
+  commands,
 }: {
   open: boolean;
   onClose: () => void;
@@ -50,7 +50,8 @@ export function CommandPalette({
     const needle = query.trim().toLowerCase();
     if (!needle) return commands;
     return commands.filter((command) => {
-      const haystack = `${command.label} ${command.hint ?? ""} ${command.group}`.toLowerCase();
+      const haystack =
+        `${command.label} ${command.hint ?? ""} ${command.group}`.toLowerCase();
       return haystack.includes(needle);
     });
   }, [commands, query]);
@@ -69,7 +70,9 @@ export function CommandPalette({
       }
       if (event.key === "ArrowDown") {
         event.preventDefault();
-        setCursor((value) => Math.min(value + 1, Math.max(filtered.length - 1, 0)));
+        setCursor((value) =>
+          Math.min(value + 1, Math.max(filtered.length - 1, 0))
+        );
         return;
       }
       if (event.key === "ArrowUp") {
@@ -92,7 +95,9 @@ export function CommandPalette({
 
   if (!open) return null;
 
-  const grouped = filtered.reduce<Record<PaletteCommand["group"], PaletteCommand[]>>(
+  const grouped = filtered.reduce<
+    Record<PaletteCommand["group"], PaletteCommand[]>
+  >(
     (acc, command) => {
       acc[command.group] = acc[command.group] ?? [];
       acc[command.group].push(command);
@@ -103,16 +108,21 @@ export function CommandPalette({
   let index = 0;
 
   return (
-    <div className="palette-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
+    <div
+      aria-modal="true"
+      className="palette-backdrop"
+      onClick={onClose}
+      role="dialog"
+    >
       <div className="palette" onClick={(event) => event.stopPropagation()}>
         <div className="palette-search">
           <Search size={16} />
           <input
-            ref={inputRef}
-            value={query}
+            aria-label="Command palette search"
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Type a command, document, or action…"
-            aria-label="Command palette search"
+            ref={inputRef}
+            value={query}
           />
           <kbd className="palette-kbd">ESC</kbd>
         </div>
@@ -122,7 +132,7 @@ export function CommandPalette({
           ) : (
             (Object.keys(grouped) as PaletteCommand["group"][]).map((group) =>
               grouped[group].length === 0 ? null : (
-                <div key={group} className="palette-group">
+                <div className="palette-group" key={group}>
                   <p className="palette-group-label">{groupLabel(group)}</p>
                   <ul>
                     {grouped[group].map((command) => {
@@ -131,21 +141,27 @@ export function CommandPalette({
                       return (
                         <li key={command.id}>
                           <button
-                            type="button"
                             className={`palette-item ${active ? "is-active" : ""}`}
-                            onMouseEnter={() => setCursor(localIndex)}
                             onClick={() => {
                               command.onRun();
                               onClose();
                             }}
+                            onMouseEnter={() => setCursor(localIndex)}
+                            type="button"
                           >
-                            <span className="palette-item-icon">{command.icon ?? <ArrowRight size={14} />}</span>
+                            <span className="palette-item-icon">
+                              {command.icon ?? <ArrowRight size={14} />}
+                            </span>
                             <span className="palette-item-body">
                               <strong>{command.label}</strong>
-                              {command.hint ? <small>{command.hint}</small> : null}
+                              {command.hint ? (
+                                <small>{command.hint}</small>
+                              ) : null}
                             </span>
                             {command.shortcut ? (
-                              <kbd className="palette-kbd">{command.shortcut}</kbd>
+                              <kbd className="palette-kbd">
+                                {command.shortcut}
+                              </kbd>
                             ) : null}
                           </button>
                         </li>
@@ -191,5 +207,5 @@ export const COMMAND_ICONS = {
   forward: <MessageSquareText size={14} />,
   email: <Mail size={14} />,
   receipt: <FileCheck2 size={14} />,
-  storage: <Database size={14} />
+  storage: <Database size={14} />,
 };

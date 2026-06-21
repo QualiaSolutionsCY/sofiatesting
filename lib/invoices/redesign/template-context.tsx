@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { ENTITY } from "./data";
 
 export type TemplateText = {
@@ -33,15 +39,19 @@ export const TEMPLATE_DEFAULTS: TemplateText = {
   accountNumber: "502-01-734364-01",
   iban: "CY97 0050 0502 0005 0201 7343 6401",
   bic: "HEBACY2N",
-  settlementNote: "Payment due within the stated terms. Please use the invoice number as the payment reference.",
-  receiptNote: "This receipt confirms payment in full. Thank you."
+  settlementNote:
+    "Payment due within the stated terms. Please use the invoice number as the payment reference.",
+  receiptNote: "This receipt confirms payment in full. Thank you.",
 };
 
 const STORAGE_KEY = "sophia.invoice.template";
 
-const TemplateContext = createContext<{ text: TemplateText; setText: (next: TemplateText) => void }>({
+const TemplateContext = createContext<{
+  text: TemplateText;
+  setText: (next: TemplateText) => void;
+}>({
   text: TEMPLATE_DEFAULTS,
-  setText: () => {}
+  setText: () => {},
 });
 
 export function TemplateProvider({ children }: { children: ReactNode }) {
@@ -49,7 +59,10 @@ export function TemplateProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      const raw = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
+      const raw =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem(STORAGE_KEY)
+          : null;
       if (raw) setTextState({ ...TEMPLATE_DEFAULTS, ...JSON.parse(raw) });
     } catch {
       // ignore malformed storage
@@ -65,7 +78,11 @@ export function TemplateProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  return <TemplateContext.Provider value={{ text, setText }}>{children}</TemplateContext.Provider>;
+  return (
+    <TemplateContext.Provider value={{ text, setText }}>
+      {children}
+    </TemplateContext.Provider>
+  );
 }
 
 export const useTemplateText = () => useContext(TemplateContext);

@@ -2,8 +2,11 @@ import "server-only";
 
 import { getUnifiedFilename } from "@/lib/invoices/format";
 import { buildDocumentPdfBytes } from "@/lib/invoices/pdf";
+import {
+  GENERATED_DOCUMENT_PREFIX,
+  SUPABASE_BUCKETS,
+} from "@/lib/invoices/supabase/schema";
 import { createServiceSupabaseClient } from "@/lib/invoices/supabase/server";
-import { GENERATED_DOCUMENT_PREFIX, SUPABASE_BUCKETS } from "@/lib/invoices/supabase/schema";
 import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 
 export type StoredPdf = {
@@ -27,13 +30,14 @@ export async function storeDocumentPdfInSupabase(
   if (!supabase) {
     return {
       ok: false,
-      reason: "Supabase server credentials are not configured. Add the required server env values."
+      reason:
+        "Supabase server credentials are not configured. Add the required server env values.",
     };
   }
 
   const { error } = await supabase.storage.from(bucket).upload(path, contents, {
     contentType: "application/pdf",
-    upsert: true
+    upsert: true,
   });
 
   if (error) {
@@ -44,7 +48,10 @@ export async function storeDocumentPdfInSupabase(
     .from(bucket)
     .createSignedUrl(path, 60 * 60 * 24 * 7);
   if (signError || !signed?.signedUrl) {
-    return { ok: false, reason: signError?.message ?? "Could not sign the stored PDF URL." };
+    return {
+      ok: false,
+      reason: signError?.message ?? "Could not sign the stored PDF URL.",
+    };
   }
   return { ok: true, file: { path, publicUrl: signed.signedUrl } };
 }
@@ -62,13 +69,16 @@ export async function retrieveDocumentPdfMetadata(
       ok: true,
       file: {
         path: document.storagePath,
-        publicUrl: undefined
-      }
+        publicUrl: undefined,
+      },
     };
   }
 
   const { data: signed } = await supabase.storage
     .from(SUPABASE_BUCKETS.invoices)
     .createSignedUrl(document.storagePath, 60 * 60 * 24 * 7);
-  return { ok: true, file: { path: document.storagePath, publicUrl: signed?.signedUrl } };
+  return {
+    ok: true,
+    file: { path: document.storagePath, publicUrl: signed?.signedUrl },
+  };
 }

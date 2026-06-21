@@ -26,10 +26,19 @@ interface MonthlyRunProps {
   rows?: MonthlyRow[];
 }
 
-export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPause, rows }: MonthlyRunProps) {
+export function MonthlyRunOverlay({
+  open,
+  onClose,
+  onApproveAll,
+  onPreview,
+  onPause,
+  rows,
+}: MonthlyRunProps) {
   const run = useMemo<MonthlyRow[]>(() => rows ?? [], [rows]);
 
-  const [picked, setPicked] = useState<Set<string>>(() => new Set(run.map((r) => r.id)));
+  const [picked, setPicked] = useState<Set<string>>(
+    () => new Set(run.map((r) => r.id))
+  );
 
   useEffect(() => {
     if (open) setPicked(new Set(run.map((r) => r.id)));
@@ -74,7 +83,8 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
                 <>No active recurring leases have generated drafts yet.</>
               ) : (
                 <>
-                  <em>Sophia</em> prepared these from active leases. Approve all, or untick the ones to hold.
+                  <em>Sophia</em> prepared these from active leases. Approve
+                  all, or untick the ones to hold.
                 </>
               )}
             </p>
@@ -90,30 +100,40 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
         <div className="run-controls">
           <div className="left">
             <button
-              type="button"
+              aria-label="Select all"
               className="check is-on"
               onClick={toggleAll}
-              aria-label="Select all"
               style={{
-                background: picked.size === run.length ? "var(--ink)" : "transparent",
-                color: picked.size === run.length ? "var(--paper)" : "transparent",
-                borderColor: picked.size === run.length ? "var(--ink)" : "var(--rule-strong)"
+                background:
+                  picked.size === run.length ? "var(--ink)" : "transparent",
+                color:
+                  picked.size === run.length ? "var(--paper)" : "transparent",
+                borderColor:
+                  picked.size === run.length
+                    ? "var(--ink)"
+                    : "var(--rule-strong)",
               }}
+              type="button"
             >
               <Check size={11} strokeWidth={1.6} />
             </button>
             <span>
-              <b>{picked.size}</b> of {run.length} selected · sorted by lease start
+              <b>{picked.size}</b> of {run.length} selected · sorted by lease
+              start
             </span>
           </div>
           <div className="right">
-            <button type="button" className="ghost" onClick={() => onPreview(pickedRows)}>
+            <button
+              className="ghost"
+              onClick={() => onPreview(pickedRows)}
+              type="button"
+            >
               <Eye size={13} strokeWidth={1.6} /> Preview as PDF batch
             </button>
-            <button type="button" className="ghost" onClick={onPause}>
+            <button className="ghost" onClick={onPause} type="button">
               <Pause size={13} strokeWidth={1.6} /> Pause this run
             </button>
-            <button type="button" className="ghost" onClick={onClose}>
+            <button className="ghost" onClick={onClose} type="button">
               <X size={13} strokeWidth={1.6} /> Close
             </button>
           </div>
@@ -121,7 +141,14 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
 
         <div className="run-list">
           {run.length === 0 ? (
-            <div className="list-empty" style={{ padding: "32px 16px", textAlign: "center", color: "var(--muted)" }}>
+            <div
+              className="list-empty"
+              style={{
+                padding: "32px 16px",
+                textAlign: "center",
+                color: "var(--muted)",
+              }}
+            >
               No recurring drafts to review.
             </div>
           ) : null}
@@ -129,12 +156,12 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
             const cl = clientById(r.client);
             const on = picked.has(r.id);
             return (
-              <div key={r.id} className="run-row">
+              <div className="run-row" key={r.id}>
                 <button
-                  type="button"
+                  aria-label={on ? "Deselect" : "Select"}
                   className={`check ${on ? "is-on" : ""}`}
                   onClick={() => toggle(r.id)}
-                  aria-label={on ? "Deselect" : "Select"}
+                  type="button"
                 >
                   {on ? <Check size={11} strokeWidth={1.6} /> : null}
                 </button>
@@ -157,16 +184,16 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
             Selected total (incl. VAT) <b>{fmt(total)}</b>
           </div>
           <div className="acts">
-            <button type="button" className="ghost" onClick={onClose}>
+            <button className="ghost" onClick={onClose} type="button">
               Cancel
             </button>
             <button
-              type="button"
               className="primary"
               onClick={() => {
                 onApproveAll(pickedRows);
                 onClose();
               }}
+              type="button"
             >
               <Send size={14} strokeWidth={1.6} /> Create {pickedRows.length}
             </button>

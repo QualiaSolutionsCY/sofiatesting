@@ -12,16 +12,18 @@ import {
   Mail,
   MessageSquareText,
   Send,
-  UserCheck
+  UserCheck,
 } from "lucide-react";
 import { useEffect, useMemo, useState, useTransition } from "react";
+import type { AccessUser } from "@/lib/invoices/access";
 import {
   applyOfficialNumberAction,
   approveDocumentAction,
-  cancelWithCreditNoteAction,
   cancelDeliveryAction,
+  cancelWithCreditNoteAction,
   correctResendAction,
   createDocumentAction,
+  type DocumentsActionResult,
   deleteDocumentAction,
   forwardAccountingAction,
   loadDeliveryRecordsAction,
@@ -34,18 +36,23 @@ import {
   storeDocumentPdfAction,
   updateDashboardControlsAction,
   updateDocumentAction,
-  type DocumentsActionResult
 } from "@/lib/invoices/actions/documents";
-import { type AccessUser } from "@/lib/invoices/access";
 import {
+  type DashboardDocumentControls,
+  type DocumentInput,
   documentMatchesInvoiceNumberSearch,
   ensureInvoiceDashboardPeriod,
-  type DocumentInput,
-  type DashboardDocumentControls
 } from "@/lib/invoices/document-actions";
-import { downloadBackupJson, downloadDocumentsZip } from "@/lib/invoices/downloads";
+import {
+  downloadBackupJson,
+  downloadDocumentsZip,
+} from "@/lib/invoices/downloads";
 import type { DeliveryRecord } from "@/lib/invoices/types/deliveries";
-import type { DocumentFilters, InvoiceDocument, SummaryMetric } from "@/lib/invoices/types/invoice";
+import type {
+  DocumentFilters,
+  InvoiceDocument,
+  SummaryMetric,
+} from "@/lib/invoices/types/invoice";
 import { AccessGate } from "./AccessGate";
 import { CommandPalette, type PaletteCommand } from "./CommandPalette";
 import { DocumentComposer } from "./DocumentComposer";
@@ -62,13 +69,13 @@ const defaultFilters: DocumentFilters = {
   search: "",
   clientSearch: "",
   dateFrom: "",
-  dateTo: ""
+  dateTo: "",
 };
 
 export function InvoiceDashboard({
   initialDocuments,
   persistenceMode,
-  initialDeliveries = []
+  initialDeliveries = [],
 }: {
   initialDocuments: InvoiceDocument[];
   persistenceMode: "supabase" | "fallback";
@@ -78,21 +85,31 @@ export function InvoiceDashboard({
   const [documents, setDocuments] = useState<InvoiceDocument[]>(() =>
     initialDocuments.map(ensureInvoiceDashboardPeriod)
   );
-  const [activePersistenceMode, setActivePersistenceMode] = useState(persistenceMode);
+  const [activePersistenceMode, setActivePersistenceMode] =
+    useState(persistenceMode);
   const [filters, setFilters] = useState<DocumentFilters>(defaultFilters);
   const [selectedId, setSelectedId] = useState(initialDocuments[0]?.id ?? "");
   const [composerMode, setComposerMode] = useState<ComposerMode>("closed");
   const [sharedCcEmail, setSharedCcEmail] = useState("");
-  const [deliveryRecords, setDeliveryRecords] = useState<DeliveryRecord[]>(initialDeliveries);
+  const [deliveryRecords, setDeliveryRecords] =
+    useState<DeliveryRecord[]>(initialDeliveries);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [, startTransition] = useTransition();
 
-  const filteredDocuments = useMemo(() => filterDocuments(documents, filters), [documents, filters]);
+  const filteredDocuments = useMemo(
+    () => filterDocuments(documents, filters),
+    [documents, filters]
+  );
 
   const selectedDocument =
-    documents.find((document) => document.id === selectedId) ?? filteredDocuments[0] ?? documents[0];
+    documents.find((document) => document.id === selectedId) ??
+    filteredDocuments[0] ??
+    documents[0];
 
-  const metrics = useMemo<SummaryMetric[]>(() => createMetrics(documents), [documents]);
+  const metrics = useMemo<SummaryMetric[]>(
+    () => createMetrics(documents),
+    [documents]
+  );
 
   function reconcile(result: DocumentsActionResult) {
     setDocuments(result.documents.map(ensureInvoiceDashboardPeriod));
@@ -140,7 +157,10 @@ export function InvoiceDashboard({
     });
   }
 
-  function handleDashboardControlChange(id: string, input: DashboardDocumentControls) {
+  function handleDashboardControlChange(
+    id: string,
+    input: DashboardDocumentControls
+  ) {
     startTransition(async () => {
       reconcile(await updateDashboardControlsAction(id, input));
     });
@@ -161,7 +181,9 @@ export function InvoiceDashboard({
   }
 
   function handleDeleteDocument(document: InvoiceDocument) {
-    const confirmed = window.confirm(`Delete ${document.draftNumber}? This cannot be undone.`);
+    const confirmed = window.confirm(
+      `Delete ${document.draftNumber}? This cannot be undone.`
+    );
     if (!confirmed) return;
 
     startTransition(async () => {
@@ -178,7 +200,7 @@ export function InvoiceDashboard({
         group: "actions",
         icon: <FilePlus2 size={14} />,
         shortcut: "N",
-        onRun: () => setComposerMode("create")
+        onRun: () => setComposerMode("create"),
       },
       {
         id: "backup-json",
@@ -186,7 +208,7 @@ export function InvoiceDashboard({
         hint: "Snapshot every document into a single JSON",
         group: "actions",
         icon: <Archive size={14} />,
-        onRun: () => downloadBackupJson(documents)
+        onRun: () => downloadBackupJson(documents),
       },
       {
         id: "download-zip",
@@ -194,8 +216,8 @@ export function InvoiceDashboard({
         hint: "Bundle all generated PDFs into a single archive",
         group: "actions",
         icon: <Download size={14} />,
-        onRun: () => downloadDocumentsZip(documents)
-      }
+        onRun: () => downloadDocumentsZip(documents),
+      },
     ];
 
     if (selectedDocument) {
@@ -206,7 +228,7 @@ export function InvoiceDashboard({
           hint: "Open the selected document in the composer",
           group: "actions",
           icon: <FilePenLine size={14} />,
-          onRun: () => setComposerMode("edit")
+          onRun: () => setComposerMode("edit"),
         },
         {
           id: "send-marios",
@@ -215,7 +237,9 @@ export function InvoiceDashboard({
           group: "actions",
           icon: <Send size={14} />,
           onRun: () =>
-            startTransition(async () => reconcile(await sendToMariosAction(selectedDocument.id)))
+            startTransition(async () =>
+              reconcile(await sendToMariosAction(selectedDocument.id))
+            ),
         },
         {
           id: "approve-selected",
@@ -224,7 +248,9 @@ export function InvoiceDashboard({
           group: "actions",
           icon: <CheckCircle2 size={14} />,
           onRun: () =>
-            startTransition(async () => reconcile(await approveDocumentAction(selectedDocument.id)))
+            startTransition(async () =>
+              reconcile(await approveDocumentAction(selectedDocument.id))
+            ),
         },
         {
           id: "forward-accounting",
@@ -235,7 +261,7 @@ export function InvoiceDashboard({
           onRun: () =>
             startTransition(async () =>
               reconcile(await forwardAccountingAction(selectedDocument.id))
-            )
+            ),
         },
         {
           id: "email-client",
@@ -245,8 +271,10 @@ export function InvoiceDashboard({
           icon: <Mail size={14} />,
           onRun: () =>
             startTransition(async () =>
-              reconcile(await queueClientEmailAction(selectedDocument.id, sharedCcEmail))
-            )
+              reconcile(
+                await queueClientEmailAction(selectedDocument.id, sharedCcEmail)
+              )
+            ),
         },
         {
           id: "store-pdf",
@@ -255,7 +283,9 @@ export function InvoiceDashboard({
           group: "actions",
           icon: <Database size={14} />,
           onRun: () =>
-            startTransition(async () => reconcile(await storeDocumentPdfAction(selectedDocument.id)))
+            startTransition(async () =>
+              reconcile(await storeDocumentPdfAction(selectedDocument.id))
+            ),
         }
       );
 
@@ -266,7 +296,7 @@ export function InvoiceDashboard({
           hint: "Flip selected invoice to paid and queue a receipt",
           group: "actions",
           icon: <FileCheck2 size={14} />,
-          onRun: () => handlePaidReceipt(selectedDocument)
+          onRun: () => handlePaidReceipt(selectedDocument),
         });
       }
     }
@@ -278,7 +308,7 @@ export function InvoiceDashboard({
         hint: `${document.officialNumber ?? document.draftNumber} · ${document.status.replaceAll("-", " ")}`,
         group: "documents",
         icon: <FileCheck2 size={14} />,
-        onRun: () => setSelectedId(document.id)
+        onRun: () => setSelectedId(document.id),
       });
     });
 
@@ -295,14 +325,16 @@ export function InvoiceDashboard({
         <div className="topbar-title">
           <p className="eyebrow">Zyprus invoice command</p>
           <h1>Sophia Invoice OS</h1>
-          <p className="topbar-subtitle">May run · Marios review · accounting handoff</p>
+          <p className="topbar-subtitle">
+            May run · Marios review · accounting handoff
+          </p>
         </div>
         <div className="topbar-actions">
           <button
-            type="button"
+            aria-label="Open command palette"
             className="palette-trigger"
             onClick={() => setPaletteOpen(true)}
-            aria-label="Open command palette"
+            type="button"
           >
             <Command size={14} />
             <span>Search or run a command</span>
@@ -314,35 +346,44 @@ export function InvoiceDashboard({
           </span>
           <span className="integration-pill" title="Persistence mode">
             <Database size={14} />
-            {activePersistenceMode === "supabase" ? "Supabase live" : "Fallback storage"}
+            {activePersistenceMode === "supabase"
+              ? "Supabase live"
+              : "Fallback storage"}
           </span>
           <button
-            type="button"
             className="secondary-action"
             onClick={() => downloadBackupJson(documents)}
             title="Download a JSON snapshot of every document"
+            type="button"
           >
             <Archive size={14} />
             Backup
           </button>
           <button
-            type="button"
             className="secondary-action"
             onClick={() => downloadDocumentsZip(documents)}
             title="Download every generated PDF as a ZIP"
+            type="button"
           >
             <Download size={14} />
             ZIP
           </button>
-          <button className="primary-action" type="button" onClick={() => setComposerMode("create")}>
+          <button
+            className="primary-action"
+            onClick={() => setComposerMode("create")}
+            type="button"
+          >
             <FilePlus2 size={14} />
             New document
           </button>
         </div>
       </header>
 
-      <section className="run-command-strip" aria-label="Invoice run command summary">
-        <div className="metrics" aria-label="Document status summary">
+      <section
+        aria-label="Invoice run command summary"
+        className="run-command-strip"
+      >
+        <div aria-label="Document status summary" className="metrics">
           {metrics.map((metric) => (
             <div className={`metric metric-${metric.tone}`} key={metric.label}>
               <strong>{metric.value}</strong>
@@ -350,18 +391,23 @@ export function InvoiceDashboard({
             </div>
           ))}
         </div>
-        <section className="shared-cc-panel" aria-label="Shared monthly invoice CC email">
+        <section
+          aria-label="Shared monthly invoice CC email"
+          className="shared-cc-panel"
+        >
           <div>
             <p className="eyebrow">Shared CC for monthly invoices</p>
-            <p className="shared-cc-hint">Applied to every client email queued from the detail pane.</p>
+            <p className="shared-cc-hint">
+              Applied to every client email queued from the detail pane.
+            </p>
           </div>
           <label>
             <span>CC email</span>
             <input
-              type="email"
-              value={sharedCcEmail}
               onChange={(event) => setSharedCcEmail(event.target.value)}
               placeholder="marios@zyprus.com"
+              type="email"
+              value={sharedCcEmail}
             />
           </label>
         </section>
@@ -372,9 +418,9 @@ export function InvoiceDashboard({
           <DocumentList
             documents={filteredDocuments}
             filters={filters}
-            selectedId={selectedDocument?.id ?? ""}
             onFilterChange={setFilters}
             onSelect={setSelectedId}
+            selectedId={selectedDocument?.id ?? ""}
           />
 
           <RecurrenceRunPanel documents={documents} isPending={false} />
@@ -382,12 +428,13 @@ export function InvoiceDashboard({
 
         {selectedDocument ? (
           <DocumentDetail
-            document={selectedDocument}
             deliveryRecords={deliveryRecords}
-            onEdit={() => setComposerMode("edit")}
-            onSendToMarios={() =>
+            document={selectedDocument}
+            onApplyOfficialNumber={(number) =>
               startTransition(async () => {
-                reconcile(await sendToMariosAction(selectedDocument.id));
+                reconcile(
+                  await applyOfficialNumberAction(selectedDocument.id, number)
+                );
               })
             }
             onApprove={() =>
@@ -395,9 +442,68 @@ export function InvoiceDashboard({
                 reconcile(await approveDocumentAction(selectedDocument.id));
               })
             }
-            onApplyOfficialNumber={(number) =>
+            onCancelDelivery={(queueItemId) =>
               startTransition(async () => {
-                reconcile(await applyOfficialNumberAction(selectedDocument.id, number));
+                reconcile(
+                  await cancelDeliveryAction(selectedDocument.id, queueItemId)
+                );
+              })
+            }
+            onCancelWithCreditNote={() =>
+              handleCancelWithCreditNote(selectedDocument)
+            }
+            onCorrectResend={(reason) =>
+              startTransition(async () => {
+                reconcile(
+                  await correctResendAction(selectedDocument.id, reason)
+                );
+              })
+            }
+            onDashboardControlChange={handleDashboardControlChange}
+            onDelete={() => handleDeleteDocument(selectedDocument)}
+            onEdit={() => setComposerMode("edit")}
+            onForwardAccounting={() =>
+              startTransition(async () => {
+                reconcile(await forwardAccountingAction(selectedDocument.id));
+              })
+            }
+            onMarkPaidAndIssueReceipt={() =>
+              handlePaidReceipt(selectedDocument)
+            }
+            onQueueClientEmail={() =>
+              startTransition(async () => {
+                reconcile(
+                  await queueClientEmailAction(
+                    selectedDocument.id,
+                    sharedCcEmail
+                  )
+                );
+              })
+            }
+            onRegeneratePdf={() =>
+              startTransition(async () => {
+                reconcile(
+                  await regenerateStoredDocumentAction(selectedDocument.id)
+                );
+              })
+            }
+            onRetrievePdf={() =>
+              startTransition(async () => {
+                reconcile(
+                  await retrieveStoredDocumentAction(selectedDocument.id)
+                );
+              })
+            }
+            onRetryDelivery={(queueItemId) =>
+              startTransition(async () => {
+                reconcile(
+                  await retryDeliveryAction(selectedDocument.id, queueItemId)
+                );
+              })
+            }
+            onSendToMarios={() =>
+              startTransition(async () => {
+                reconcile(await sendToMariosAction(selectedDocument.id));
               })
             }
             onStorePdf={() =>
@@ -405,86 +511,62 @@ export function InvoiceDashboard({
                 reconcile(await storeDocumentPdfAction(selectedDocument.id));
               })
             }
-            onRetrievePdf={() =>
-              startTransition(async () => {
-                reconcile(await retrieveStoredDocumentAction(selectedDocument.id));
-              })
-            }
-            onRegeneratePdf={() =>
-              startTransition(async () => {
-                reconcile(await regenerateStoredDocumentAction(selectedDocument.id));
-              })
-            }
-            onForwardAccounting={() =>
-              startTransition(async () => {
-                reconcile(await forwardAccountingAction(selectedDocument.id));
-              })
-            }
-            onCorrectResend={(reason) =>
-              startTransition(async () => {
-                reconcile(await correctResendAction(selectedDocument.id, reason));
-              })
-            }
-            onQueueClientEmail={() =>
-              startTransition(async () => {
-                reconcile(await queueClientEmailAction(selectedDocument.id, sharedCcEmail));
-              })
-            }
-            onRetryDelivery={(queueItemId) =>
-              startTransition(async () => {
-                reconcile(await retryDeliveryAction(selectedDocument.id, queueItemId));
-              })
-            }
-            onCancelDelivery={(queueItemId) =>
-              startTransition(async () => {
-                reconcile(await cancelDeliveryAction(selectedDocument.id, queueItemId));
-              })
-            }
-            onMarkPaidAndIssueReceipt={() => handlePaidReceipt(selectedDocument)}
-            onCancelWithCreditNote={() => handleCancelWithCreditNote(selectedDocument)}
-            onDelete={() => handleDeleteDocument(selectedDocument)}
-            onDashboardControlChange={handleDashboardControlChange}
             sharedCcEmail={sharedCcEmail}
           />
         ) : (
           <div className="empty-state">
-            No documents match this filter. Clear the filters or create a new Sophia draft.
+            No documents match this filter. Clear the filters or create a new
+            Sophia draft.
           </div>
         )}
       </section>
 
       {composerMode !== "closed" ? (
         <DocumentComposer
-          mode={composerMode}
           document={composerMode === "edit" ? selectedDocument : undefined}
+          mode={composerMode}
           onClose={() => setComposerMode("closed")}
           onSave={handleSaveDocument}
         />
       ) : null}
 
       <CommandPalette
-        open={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
         commands={paletteCommands}
+        onClose={() => setPaletteOpen(false)}
+        open={paletteOpen}
       />
     </main>
   );
 }
 
-export function filterDocuments(documents: InvoiceDocument[], filters: DocumentFilters) {
+export function filterDocuments(
+  documents: InvoiceDocument[],
+  filters: DocumentFilters
+) {
   return documents.filter((document) => {
-    const matchesKind = filters.kind === "all" || document.kind === filters.kind;
-    const matchesStatus = filters.status === "all" || document.status === filters.status;
+    const matchesKind =
+      filters.kind === "all" || document.kind === filters.kind;
+    const matchesStatus =
+      filters.status === "all" || document.status === filters.status;
     const matchesRecurrence =
-      filters.recurrence === "all" || document.recurrence === filters.recurrence;
+      filters.recurrence === "all" ||
+      document.recurrence === filters.recurrence;
     const matchesPayment =
-      filters.paymentStatus === "all" || document.paymentStatus === filters.paymentStatus;
-    const matchesSearch = documentMatchesInvoiceNumberSearch(document, filters.search);
+      filters.paymentStatus === "all" ||
+      document.paymentStatus === filters.paymentStatus;
+    const matchesSearch = documentMatchesInvoiceNumberSearch(
+      document,
+      filters.search
+    );
     const matchesClient =
       !filters.clientSearch.trim() ||
-      document.clientName.toLowerCase().includes(filters.clientSearch.trim().toLowerCase());
-    const matchesDateFrom = !filters.dateFrom || document.issueDate >= filters.dateFrom;
-    const matchesDateTo = !filters.dateTo || document.issueDate <= filters.dateTo;
+      document.clientName
+        .toLowerCase()
+        .includes(filters.clientSearch.trim().toLowerCase());
+    const matchesDateFrom =
+      !filters.dateFrom || document.issueDate >= filters.dateFrom;
+    const matchesDateTo =
+      !filters.dateTo || document.issueDate <= filters.dateTo;
 
     return (
       matchesKind &&
@@ -500,28 +582,39 @@ export function filterDocuments(documents: InvoiceDocument[], filters: DocumentF
 }
 
 function createMetrics(documents: InvoiceDocument[]): SummaryMetric[] {
-  const pendingMarios = documents.filter((document) => document.status === "sent-to-marios").length;
+  const pendingMarios = documents.filter(
+    (document) => document.status === "sent-to-marios"
+  ).length;
   const missingCommissionPerson = documents.filter(
-    (document) => document.requiresCommissionPerson && !document.commissionPersonName
+    (document) =>
+      document.requiresCommissionPerson && !document.commissionPersonName
   ).length;
   const needsRegeneration = documents.filter(
     (document) => document.storageStatus === "needs-regeneration"
   ).length;
 
   const metrics: SummaryMetric[] = [
-    { label: "Documents", value: String(documents.length), tone: "neutral" }
+    { label: "Documents", value: String(documents.length), tone: "neutral" },
   ];
   if (pendingMarios > 0) {
-    metrics.push({ label: "With Marios", value: String(pendingMarios), tone: "attention" });
+    metrics.push({
+      label: "With Marios",
+      value: String(pendingMarios),
+      tone: "attention",
+    });
   }
   if (needsRegeneration > 0) {
-    metrics.push({ label: "Needs regeneration", value: String(needsRegeneration), tone: "warning" });
+    metrics.push({
+      label: "Needs regeneration",
+      value: String(needsRegeneration),
+      tone: "warning",
+    });
   }
   if (missingCommissionPerson > 0) {
     metrics.push({
       label: "Missing commission person",
       value: String(missingCommissionPerson),
-      tone: "warning"
+      tone: "warning",
     });
   }
   return metrics;

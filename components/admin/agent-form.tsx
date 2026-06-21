@@ -105,7 +105,8 @@ export function AgentForm({
                 <Input placeholder="john@zyprus.com" type="email" {...field} />
               </FormControl>
               <FormDescription>
-                Optional — used for login and communication. Leave blank to add now and fill in later.
+                Optional — used for login and communication. Leave blank to add
+                now and fill in later.
               </FormDescription>
               <FormMessage />
             </FormItem>

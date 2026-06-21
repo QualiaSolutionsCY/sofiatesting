@@ -1,11 +1,21 @@
-import type { InvoiceDocument, InvoicePeriod, VatMode } from "@/lib/invoices/types/invoice";
-import { createDraftNumber, officialNumberPlaceholder } from "@/lib/invoices/numbering";
+import {
+  accountingGroup,
+  mariosPhone,
+} from "@/lib/invoices/data/sample-records";
 import {
   isCommissionDescription,
   isValuationDescription,
-  normalizeInvoiceDescription
+  normalizeInvoiceDescription,
 } from "@/lib/invoices/format";
-import { accountingGroup, mariosPhone } from "@/lib/invoices/data/sample-records";
+import {
+  createDraftNumber,
+  officialNumberPlaceholder,
+} from "@/lib/invoices/numbering";
+import type {
+  InvoiceDocument,
+  InvoicePeriod,
+  VatMode,
+} from "@/lib/invoices/types/invoice";
 
 export type DocumentInput = {
   kind: InvoiceDocument["kind"];
@@ -41,7 +51,10 @@ export function calculateVat(amount: number, vatMode: VatMode) {
   return { vatAmount, total: roundMoney(amount + vatAmount) };
 }
 
-export function createDocument(input: DocumentInput, index: number): InvoiceDocument {
+export function createDocument(
+  input: DocumentInput,
+  index: number
+): InvoiceDocument {
   const description = normalizeInvoiceDescription(input.description);
   const { vatAmount, total } = calculateVat(input.amount, input.vatMode);
   const requiresCommissionPerson = isCommissionDescription(description);
@@ -62,12 +75,18 @@ export function createDocument(input: DocumentInput, index: number): InvoiceDocu
     issueDate: input.issueDate,
     dueDate: input.dueDate,
     recurrence: input.recurrence,
-    recurrenceDay: input.recurrence === "none" ? undefined : input.recurrenceDay,
+    recurrenceDay:
+      input.recurrence === "none" ? undefined : input.recurrenceDay,
     label,
     draftNumber: createDraftNumber(input.kind, index),
     officialNumberPendingReason: officialNumberPlaceholder(input.kind),
     status: "draft",
-    paymentStatus: input.kind === "invoice" ? "unpaid" : input.kind === "receipt" ? "paid" : "not-required",
+    paymentStatus:
+      input.kind === "invoice"
+        ? "unpaid"
+        : input.kind === "receipt"
+          ? "paid"
+          : "not-required",
     sourceInvoiceNumber: input.sourceInvoiceNumber,
     commissionPersonName: input.commissionPersonName,
     requiresCommissionPerson,
@@ -75,16 +94,21 @@ export function createDocument(input: DocumentInput, index: number): InvoiceDocu
     whatsappStatus: "planned",
     mariosReviewPhone: mariosPhone,
     accountingGroupLabel: accountingGroup,
-    approvalTimeline: [{ label: "Draft created", at: new Date().toISOString(), by: "Sophia" }],
+    approvalTimeline: [
+      { label: "Draft created", at: new Date().toISOString(), by: "Sophia" },
+    ],
     notes: [
       requiresCommissionPerson
         ? "Commission trigger detected. Sophia must include the relevant person in the group message."
-        : "Draft can be sent to Marios for approval."
-    ]
+        : "Draft can be sent to Marios for approval.",
+    ],
   };
 }
 
-export function createReceiptFromInvoice(invoice: InvoiceDocument, index: number): InvoiceDocument {
+export function createReceiptFromInvoice(
+  invoice: InvoiceDocument,
+  index: number
+): InvoiceDocument {
   const now = new Date().toISOString();
 
   return {
@@ -107,16 +131,19 @@ export function createReceiptFromInvoice(invoice: InvoiceDocument, index: number
     whatsappStatus: "planned",
     approvalTimeline: [
       { label: "Source invoice marked paid", at: now, by: "Sophia" },
-      { label: "Receipt draft created", at: now, by: "Sophia" }
+      { label: "Receipt draft created", at: now, by: "Sophia" },
     ],
     notes: [
       `Receipt created from ${invoice.officialNumber ?? invoice.draftNumber}.`,
-      "Receipt template intentionally excludes the removed payment-method line."
-    ]
+      "Receipt template intentionally excludes the removed payment-method line.",
+    ],
   };
 }
 
-export function createCreditNoteFromInvoice(invoice: InvoiceDocument, index: number): InvoiceDocument {
+export function createCreditNoteFromInvoice(
+  invoice: InvoiceDocument,
+  index: number
+): InvoiceDocument {
   const now = new Date().toISOString();
 
   return {
@@ -140,12 +167,12 @@ export function createCreditNoteFromInvoice(invoice: InvoiceDocument, index: num
     whatsappStatus: "planned",
     approvalTimeline: [
       { label: "Source invoice cancellation requested", at: now, by: "Sophia" },
-      { label: "Credit note draft created", at: now, by: "Sophia" }
+      { label: "Credit note draft created", at: now, by: "Sophia" },
     ],
     notes: [
       `Credit note created from ${invoice.officialNumber ?? invoice.draftNumber}.`,
-      "Credit-note number remains pending until Marios approves and the client sequence is applied."
-    ]
+      "Credit-note number remains pending until Marios approves and the client sequence is applied.",
+    ],
   };
 }
 
@@ -172,18 +199,22 @@ export function updateDocumentFromInput(
     issueDate: input.issueDate,
     dueDate: input.dueDate,
     recurrence: input.recurrence,
-    recurrenceDay: input.recurrence === "none" ? undefined : input.recurrenceDay,
+    recurrenceDay:
+      input.recurrence === "none" ? undefined : input.recurrenceDay,
     label,
     sourceInvoiceNumber: input.sourceInvoiceNumber,
     commissionPersonName: input.commissionPersonName,
     requiresCommissionPerson,
-    storageStatus: document.status === "sent-to-accounting" ? "needs-regeneration" : document.storageStatus,
+    storageStatus:
+      document.status === "sent-to-accounting"
+        ? "needs-regeneration"
+        : document.storageStatus,
     notes: [
       ...document.notes,
       document.status === "sent-to-accounting"
         ? "Edited after sending. Regenerate and resend with ignore-previous-version caption."
-        : "Draft details updated."
-    ]
+        : "Draft details updated.",
+    ],
   };
 }
 
@@ -200,11 +231,16 @@ export function updateDocumentDashboardControls(
     vatAmount,
     total,
     recurrence: input.period ?? document.recurrence,
-    storageStatus: document.status === "sent-to-accounting" ? "needs-regeneration" : document.storageStatus
+    storageStatus:
+      document.status === "sent-to-accounting"
+        ? "needs-regeneration"
+        : document.storageStatus,
   };
 }
 
-export function ensureInvoiceDashboardPeriod(document: InvoiceDocument): InvoiceDocument {
+export function ensureInvoiceDashboardPeriod(
+  document: InvoiceDocument
+): InvoiceDocument {
   if (document.kind !== "invoice" || document.recurrence !== "none") {
     return document;
   }
@@ -219,7 +255,11 @@ export function documentMatchesInvoiceNumberSearch(
   const query = search.trim().toLowerCase();
   if (!query) return true;
 
-  return [document.draftNumber, document.officialNumber, document.sourceInvoiceNumber]
+  return [
+    document.draftNumber,
+    document.officialNumber,
+    document.sourceInvoiceNumber,
+  ]
     .filter(Boolean)
     .some((value) => value?.toLowerCase().includes(query));
 }

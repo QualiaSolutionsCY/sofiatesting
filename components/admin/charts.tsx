@@ -73,38 +73,38 @@ export function OverviewChart({
             No data available
           </div>
         ) : (
-        <ResponsiveContainer height={350} width="100%">
-          <AreaChart data={data}>
-            <defs>
-              <linearGradient id="colorTotal" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
-                <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <XAxis
-              axisLine={false}
-              dataKey="name"
-              fontSize={12}
-              stroke="#888888"
-              tickLine={false}
-            />
-            <YAxis
-              axisLine={false}
-              fontSize={12}
-              stroke="#888888"
-              tickFormatter={(value) => `${value}`}
-              tickLine={false}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Area
-              dataKey="total"
-              fill="url(#colorTotal)"
-              fillOpacity={1}
-              stroke="#8884d8"
-              type="monotone"
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+          <ResponsiveContainer height={350} width="100%">
+            <AreaChart data={data}>
+              <defs>
+                <linearGradient id="colorTotal" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis
+                axisLine={false}
+                dataKey="name"
+                fontSize={12}
+                stroke="#888888"
+                tickLine={false}
+              />
+              <YAxis
+                axisLine={false}
+                fontSize={12}
+                stroke="#888888"
+                tickFormatter={(value) => `${value}`}
+                tickLine={false}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Area
+                dataKey="total"
+                fill="url(#colorTotal)"
+                fillOpacity={1}
+                stroke="#8884d8"
+                type="monotone"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         )}
       </CardContent>
     </Card>
@@ -176,29 +176,29 @@ export function DistributionChart({
             No data available
           </div>
         ) : (
-        <ResponsiveContainer height={300} width="100%">
-          <PieChart>
-            <Pie
-              cx="50%"
-              cy="50%"
-              data={data}
-              dataKey="value"
-              fill="#8884d8"
-              innerRadius={60}
-              outerRadius={80}
-              paddingAngle={5}
-            >
-              {data.map((entry) => (
-                <Cell
-                  fill={COLORS[data.indexOf(entry) % COLORS.length]}
-                  key={entry.name || entry.value}
-                />
-              ))}
-            </Pie>
-            <Tooltip />
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
+          <ResponsiveContainer height={300} width="100%">
+            <PieChart>
+              <Pie
+                cx="50%"
+                cy="50%"
+                data={data}
+                dataKey="value"
+                fill="#8884d8"
+                innerRadius={60}
+                outerRadius={80}
+                paddingAngle={5}
+              >
+                {data.map((entry) => (
+                  <Cell
+                    fill={COLORS[data.indexOf(entry) % COLORS.length]}
+                    key={entry.name || entry.value}
+                  />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
         )}
       </CardContent>
     </Card>

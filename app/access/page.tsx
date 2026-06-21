@@ -10,5 +10,5 @@ export default async function AccessPage({
   const sp = await searchParams;
   const scope = typeof sp.scope === "string" ? sp.scope : "admin";
   const callbackUrl = typeof sp.callbackUrl === "string" ? sp.callbackUrl : "";
-  return <AccessForm scope={scope} callbackUrl={callbackUrl} />;
+  return <AccessForm callbackUrl={callbackUrl} scope={scope} />;
 }

@@ -1,6 +1,9 @@
 import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 
-export function loadStoredDocuments(storage: Storage, key: string): InvoiceDocument[] | null {
+export function loadStoredDocuments(
+  storage: Storage,
+  key: string
+): InvoiceDocument[] | null {
   const stored = storage.getItem(key);
   if (!stored) return null;
 
@@ -13,7 +16,11 @@ export function loadStoredDocuments(storage: Storage, key: string): InvoiceDocum
   }
 }
 
-export function saveStoredDocuments(storage: Storage, key: string, documents: InvoiceDocument[]) {
+export function saveStoredDocuments(
+  storage: Storage,
+  key: string,
+  documents: InvoiceDocument[]
+) {
   storage.setItem(key, JSON.stringify(documents));
 }
 

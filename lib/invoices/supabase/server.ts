@@ -11,7 +11,9 @@ export function getSupabasePersistenceMode(): SupabasePersistenceMode {
 }
 
 export function hasSupabaseServerEnv() {
-  return Boolean(process.env.INVOICE_SUPABASE_URL && process.env[SERVICE_ROLE_ENV]);
+  return Boolean(
+    process.env.INVOICE_SUPABASE_URL && process.env[SERVICE_ROLE_ENV]
+  );
 }
 
 export function createServiceSupabaseClient(): SupabaseClient | null {
@@ -23,7 +25,7 @@ export function createServiceSupabaseClient(): SupabaseClient | null {
   return createClient(url, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
-      persistSession: false
-    }
+      persistSession: false,
+    },
   });
 }

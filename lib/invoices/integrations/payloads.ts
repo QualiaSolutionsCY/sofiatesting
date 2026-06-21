@@ -1,17 +1,33 @@
 import { buildClientEmailMessage } from "@/lib/invoices/email";
 import { getDisplayNumber } from "@/lib/invoices/format";
-import { buildWhatsappMessage } from "@/lib/invoices/whatsapp";
 import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
+import { buildWhatsappMessage } from "@/lib/invoices/whatsapp";
 import type { IntegrationDeliveryPayload } from "./types";
 
-export function buildDraftToMariosPayload(document: InvoiceDocument): IntegrationDeliveryPayload {
+export function buildDraftToMariosPayload(
+  document: InvoiceDocument
+): IntegrationDeliveryPayload {
   const message = buildWhatsappMessage(document, "marios");
-  return whatsappPayload(document, "send-draft-to-marios", "marios", message.text, message.filename);
+  return whatsappPayload(
+    document,
+    "send-draft-to-marios",
+    "marios",
+    message.text,
+    message.filename
+  );
 }
 
-export function buildAccountingHandoffPayload(document: InvoiceDocument): IntegrationDeliveryPayload {
+export function buildAccountingHandoffPayload(
+  document: InvoiceDocument
+): IntegrationDeliveryPayload {
   const message = buildWhatsappMessage(document, "accounting-group");
-  return whatsappPayload(document, "send-accounting-copy", "accounting-group", message.text, message.filename);
+  return whatsappPayload(
+    document,
+    "send-accounting-copy",
+    "accounting-group",
+    message.text,
+    message.filename
+  );
 }
 
 export function buildCorrectedResendPayload(
@@ -32,14 +48,30 @@ export function buildCorrectedResendPayload(
   );
 }
 
-export function buildCreditNoteDeliveryPayload(document: InvoiceDocument): IntegrationDeliveryPayload {
+export function buildCreditNoteDeliveryPayload(
+  document: InvoiceDocument
+): IntegrationDeliveryPayload {
   const message = buildWhatsappMessage(document, "accounting-group");
-  return whatsappPayload(document, "send-credit-note", "accounting-group", message.text, message.filename);
+  return whatsappPayload(
+    document,
+    "send-credit-note",
+    "accounting-group",
+    message.text,
+    message.filename
+  );
 }
 
-export function buildReceiptDeliveryPayload(document: InvoiceDocument): IntegrationDeliveryPayload {
+export function buildReceiptDeliveryPayload(
+  document: InvoiceDocument
+): IntegrationDeliveryPayload {
   const message = buildWhatsappMessage(document, "accounting-group");
-  return whatsappPayload(document, "send-receipt", "accounting-group", message.text, message.filename);
+  return whatsappPayload(
+    document,
+    "send-receipt",
+    "accounting-group",
+    message.text,
+    message.filename
+  );
 }
 
 export function buildClientEmailPayload(
@@ -62,15 +94,18 @@ export function buildClientEmailPayload(
     context: {
       displayNumber: getDisplayNumber(document),
       clientName: document.clientName,
-      sourceInvoiceNumber: document.sourceInvoiceNumber ?? null
-    }
+      sourceInvoiceNumber: document.sourceInvoiceNumber ?? null,
+    },
   };
 }
 
 function whatsappPayload(
   document: InvoiceDocument,
   actionType: IntegrationDeliveryPayload["actionType"],
-  target: Extract<IntegrationDeliveryPayload["target"], "marios" | "accounting-group">,
+  target: Extract<
+    IntegrationDeliveryPayload["target"],
+    "marios" | "accounting-group"
+  >,
   messageText: string,
   attachmentFilename: string,
   context: IntegrationDeliveryPayload["context"] = {}
@@ -89,7 +124,7 @@ function whatsappPayload(
       clientName: document.clientName,
       sourceInvoiceNumber: document.sourceInvoiceNumber ?? null,
       commissionPersonName: document.commissionPersonName ?? null,
-      ...context
-    }
+      ...context,
+    },
   };
 }

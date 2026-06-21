@@ -264,7 +264,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Normalize phone so Sophia's mobile-matching lookup (last-8-digit ILIKE
-     // on agents.mobile) finds this agent the moment they message WhatsApp.
+    // on agents.mobile) finds this agent the moment they message WhatsApp.
     const normalizedMobile = validatedData.phoneNumber
       ? normalizeCyprusPhone(validatedData.phoneNumber)
       : "";

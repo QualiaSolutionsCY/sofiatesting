@@ -4,8 +4,17 @@ import { ArrowRight, Lock } from "lucide-react";
 import { useActionState } from "react";
 import { type AccessState, submitAccessCode } from "./actions";
 
-export function AccessForm({ scope, callbackUrl }: { scope: string; callbackUrl: string }) {
-  const [state, action, pending] = useActionState<AccessState, FormData>(submitAccessCode, null);
+export function AccessForm({
+  scope,
+  callbackUrl,
+}: {
+  scope: string;
+  callbackUrl: string;
+}) {
+  const [state, action, pending] = useActionState<AccessState, FormData>(
+    submitAccessCode,
+    null
+  );
   const area = scope === "invoices" ? "Invoices" : "Admin";
 
   return (
@@ -16,7 +25,8 @@ export function AccessForm({ scope, callbackUrl }: { scope: string; callbackUrl:
         placeItems: "center",
         background: "#0b0d10",
         color: "#e6e9ee",
-        fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+        fontFamily:
+          "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
         padding: 24,
       }}
     >
@@ -46,15 +56,32 @@ export function AccessForm({ scope, callbackUrl }: { scope: string; callbackUrl:
         >
           <Lock size={20} strokeWidth={1.7} />
         </div>
-        <p style={{ margin: 0, fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#7b8794" }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 12,
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+            color: "#7b8794",
+          }}
+        >
           Sophia · {area}
         </p>
-        <h1 style={{ margin: "6px 0 6px", fontSize: 22, fontWeight: 600 }}>Enter access code</h1>
-        <p style={{ margin: "0 0 20px", fontSize: 14, lineHeight: 1.5, color: "#9aa4b1" }}>
+        <h1 style={{ margin: "6px 0 6px", fontSize: 22, fontWeight: 600 }}>
+          Enter access code
+        </h1>
+        <p
+          style={{
+            margin: "0 0 20px",
+            fontSize: 14,
+            lineHeight: 1.5,
+            color: "#9aa4b1",
+          }}
+        >
           Enter the {area.toLowerCase()} access code to continue.
         </p>
 
-        <input type="hidden" name="callbackUrl" value={callbackUrl} />
+        <input name="callbackUrl" type="hidden" value={callbackUrl} />
 
         {state?.error ? (
           <p
@@ -73,11 +100,10 @@ export function AccessForm({ scope, callbackUrl }: { scope: string; callbackUrl:
         ) : null}
 
         <input
+          autoComplete="off"
           autoFocus
           name="code"
-          type="password"
           placeholder="ACCESS-CODE"
-          autoComplete="off"
           spellCheck={false}
           style={{
             width: "100%",
@@ -91,9 +117,9 @@ export function AccessForm({ scope, callbackUrl }: { scope: string; callbackUrl:
             outline: "none",
             marginBottom: 14,
           }}
+          type="password"
         />
         <button
-          type="submit"
           disabled={pending}
           style={{
             width: "100%",
@@ -110,9 +136,10 @@ export function AccessForm({ scope, callbackUrl }: { scope: string; callbackUrl:
             borderRadius: 10,
             cursor: pending ? "default" : "pointer",
           }}
+          type="submit"
         >
           {pending ? "Checking…" : "Continue"}
-          {!pending ? <ArrowRight size={15} strokeWidth={2} /> : null}
+          {pending ? null : <ArrowRight size={15} strokeWidth={2} />}
         </button>
       </form>
     </div>

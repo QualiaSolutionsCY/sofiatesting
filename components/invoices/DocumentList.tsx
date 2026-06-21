@@ -5,7 +5,7 @@ import {
   formatMoney,
   getDisplayNumber,
   recurrenceLabel,
-  statusLabel
+  statusLabel,
 } from "@/lib/invoices/format";
 import type {
   ApprovalStatus,
@@ -13,7 +13,7 @@ import type {
   DocumentKind,
   InvoiceDocument,
   PaymentStatus,
-  Recurrence
+  Recurrence,
 } from "@/lib/invoices/types/invoice";
 
 const statusOptions: Array<"all" | ApprovalStatus> = [
@@ -26,18 +26,28 @@ const statusOptions: Array<"all" | ApprovalStatus> = [
   "correction-needed",
   "corrected-resend",
   "cancelled",
-  "credited"
+  "credited",
 ];
 
-const recurrenceOptions: Array<"all" | Recurrence> = ["all", "none", "monthly", "yearly"];
-const paymentOptions: Array<"all" | PaymentStatus> = ["all", "unpaid", "paid", "not-required"];
+const recurrenceOptions: Array<"all" | Recurrence> = [
+  "all",
+  "none",
+  "monthly",
+  "yearly",
+];
+const paymentOptions: Array<"all" | PaymentStatus> = [
+  "all",
+  "unpaid",
+  "paid",
+  "not-required",
+];
 
 export function DocumentList({
   documents,
   filters,
   selectedId,
   onFilterChange,
-  onSelect
+  onSelect,
 }: {
   documents: InvoiceDocument[];
   filters: DocumentFilters;
@@ -61,24 +71,26 @@ export function DocumentList({
             <Search size={16} />
             <input
               aria-label="Search by invoice number"
-              value={filters.search}
-              onChange={(event) => onFilterChange({ ...filters, search: event.target.value })}
+              onChange={(event) =>
+                onFilterChange({ ...filters, search: event.target.value })
+              }
               placeholder="Search invoice number — or press ⌘K"
+              value={filters.search}
             />
           </div>
           <label className="toolbar-status">
             <span className="sr-only">Status</span>
             <select
-              value={filters.status}
               onChange={(event) =>
                 onFilterChange({
                   ...filters,
-                  status: event.target.value as DocumentFilters["status"]
+                  status: event.target.value as DocumentFilters["status"],
                 })
               }
+              value={filters.status}
             >
               {statusOptions.map((status) => (
-                <option value={status} key={status}>
+                <option key={status} value={status}>
                   {status === "all" ? "All statuses" : statusLabel(status)}
                 </option>
               ))}
@@ -88,7 +100,7 @@ export function DocumentList({
 
         <details className="filters-disclosure">
           <summary>
-            <Filter size={14} aria-hidden />
+            <Filter aria-hidden size={14} />
             <span>More filters</span>
             {activeAdvancedFilterCount(filters) > 0 ? (
               <em>{activeAdvancedFilterCount(filters)} active</em>
@@ -98,17 +110,20 @@ export function DocumentList({
             <label className="select-filter">
               <span>Payment</span>
               <select
-                value={filters.paymentStatus}
                 onChange={(event) =>
                   onFilterChange({
                     ...filters,
-                    paymentStatus: event.target.value as DocumentFilters["paymentStatus"]
+                    paymentStatus: event.target
+                      .value as DocumentFilters["paymentStatus"],
                   })
                 }
+                value={filters.paymentStatus}
               >
                 {paymentOptions.map((status) => (
-                  <option value={status} key={status}>
-                    {status === "all" ? "All payments" : status.replaceAll("-", " ")}
+                  <option key={status} value={status}>
+                    {status === "all"
+                      ? "All payments"
+                      : status.replaceAll("-", " ")}
                   </option>
                 ))}
               </select>
@@ -116,20 +131,28 @@ export function DocumentList({
 
             <div className="filter-row list-tabs">
               <SegmentedFilter<"all" | DocumentKind>
-                label="Document lists"
-                value={filters.kind}
-                options={["all", "invoice", "credit-note"]}
                 format={(value) =>
-                  value === "all" ? "All documents" : `${documentKindLabel(value)} list`
+                  value === "all"
+                    ? "All documents"
+                    : `${documentKindLabel(value)} list`
                 }
-                onChange={(value) => onFilterChange({ ...filters, kind: value })}
+                label="Document lists"
+                onChange={(value) =>
+                  onFilterChange({ ...filters, kind: value })
+                }
+                options={["all", "invoice", "credit-note"]}
+                value={filters.kind}
               />
               <SegmentedFilter<"all" | Recurrence>
+                format={(value) =>
+                  value === "all" ? "All" : recurrenceLabel(value)
+                }
                 label="Recurrence"
-                value={filters.recurrence}
+                onChange={(value) =>
+                  onFilterChange({ ...filters, recurrence: value })
+                }
                 options={recurrenceOptions}
-                format={(value) => (value === "all" ? "All" : recurrenceLabel(value))}
-                onChange={(value) => onFilterChange({ ...filters, recurrence: value })}
+                value={filters.recurrence}
               />
             </div>
 
@@ -137,27 +160,34 @@ export function DocumentList({
               <label>
                 <span>Client</span>
                 <input
-                  value={filters.clientSearch}
                   onChange={(event) =>
-                    onFilterChange({ ...filters, clientSearch: event.target.value })
+                    onFilterChange({
+                      ...filters,
+                      clientSearch: event.target.value,
+                    })
                   }
                   placeholder="Filter client"
+                  value={filters.clientSearch}
                 />
               </label>
               <label>
                 <span>From</span>
                 <input
+                  onChange={(event) =>
+                    onFilterChange({ ...filters, dateFrom: event.target.value })
+                  }
                   type="date"
                   value={filters.dateFrom}
-                  onChange={(event) => onFilterChange({ ...filters, dateFrom: event.target.value })}
                 />
               </label>
               <label>
                 <span>To</span>
                 <input
+                  onChange={(event) =>
+                    onFilterChange({ ...filters, dateTo: event.target.value })
+                  }
                   type="date"
                   value={filters.dateTo}
-                  onChange={(event) => onFilterChange({ ...filters, dateTo: event.target.value })}
                 />
               </label>
             </div>
@@ -175,19 +205,24 @@ export function DocumentList({
       <div className="document-list">
         {documents.map((document) => (
           <button
-            type="button"
             className={`document-row ${document.id === selectedId ? "is-selected" : ""}`}
             key={document.id}
             onClick={() => onSelect(document.id)}
+            type="button"
           >
             <span className="row-client">
-              <span className="row-icon" aria-hidden>
-                {document.kind === "invoice" ? <FileText size={16} /> : <FileCheck2 size={16} />}
+              <span aria-hidden className="row-icon">
+                {document.kind === "invoice" ? (
+                  <FileText size={16} />
+                ) : (
+                  <FileCheck2 size={16} />
+                )}
               </span>
               <span className="row-client-main">
                 <span className="row-title">{document.clientName}</span>
                 <span className="row-meta">
-                  {documentKindLabel(document.kind)} · {document.paymentStatus.replaceAll("-", " ")}
+                  {documentKindLabel(document.kind)} ·{" "}
+                  {document.paymentStatus.replaceAll("-", " ")}
                 </span>
               </span>
             </span>
@@ -228,16 +263,16 @@ function SegmentedFilter<T extends string>({
   value,
   options,
   format,
-  onChange
+  onChange,
 }: SegmentedFilterProps<T>) {
   return (
-    <div className="segmented" aria-label={label}>
+    <div aria-label={label} className="segmented">
       {options.map((option) => (
         <button
-          type="button"
-          key={option}
           className={option === value ? "active" : ""}
+          key={option}
           onClick={() => onChange(option)}
+          type="button"
         >
           {format(option)}
         </button>

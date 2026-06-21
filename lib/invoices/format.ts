@@ -1,11 +1,14 @@
-import type { DocumentKind, InvoiceDocument } from "@/lib/invoices/types/invoice";
+import type {
+  DocumentKind,
+  InvoiceDocument,
+} from "@/lib/invoices/types/invoice";
 
 const companyPrefix = "CSC ZYPRUS PROPERTY GROUP LTD";
 
 export function formatMoney(value: number): string {
   return new Intl.NumberFormat("de-DE", {
     style: "currency",
-    currency: "EUR"
+    currency: "EUR",
   }).format(value);
 }
 
@@ -17,7 +20,7 @@ export function formatDate(value: string): string {
   return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "long",
-    year: "numeric"
+    year: "numeric",
   }).format(date);
 }
 
@@ -37,7 +40,7 @@ export function statusLabel(status: InvoiceDocument["status"]): string {
     "correction-needed": "Correction needed",
     "corrected-resend": "Corrected resend",
     cancelled: "Cancelled",
-    credited: "Credited"
+    credited: "Credited",
   };
 
   return labels[status];
@@ -47,7 +50,7 @@ export function recurrenceLabel(value: InvoiceDocument["recurrence"]): string {
   const labels: Record<InvoiceDocument["recurrence"], string> = {
     none: "One-off",
     monthly: "Monthly",
-    yearly: "Yearly"
+    yearly: "Yearly",
   };
 
   return labels[value];
@@ -63,7 +66,9 @@ export function getUnifiedFilename(document: InvoiceDocument): string {
 }
 
 export function isCommissionDescription(description: string): boolean {
-  return /\bcommission\b|\bproperty sale\b|\bsale of (the )?property\b/i.test(description);
+  return /\bcommission\b|\bproperty sale\b|\bsale of (the )?property\b/i.test(
+    description
+  );
 }
 
 export function isValuationDescription(description: string): boolean {

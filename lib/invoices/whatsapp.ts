@@ -1,5 +1,5 @@
-import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 import { getUnifiedFilename } from "@/lib/invoices/format";
+import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 
 export type WhatsappTarget = "marios" | "accounting-group";
 
@@ -15,7 +15,8 @@ export function buildWhatsappMessage(
   target: WhatsappTarget
 ): WhatsappMessage {
   const filename = getUnifiedFilename(document);
-  const targetLabel = target === "marios" ? "Marios" : document.accountingGroupLabel;
+  const targetLabel =
+    target === "marios" ? "Marios" : document.accountingGroupLabel;
   const commissionLine =
     document.requiresCommissionPerson && document.commissionPersonName
       ? ` Commission person: ${document.commissionPersonName}.`
@@ -31,7 +32,6 @@ export function buildWhatsappMessage(
     target,
     documentId: document.id,
     filename,
-    text: `Send ${filename} to ${targetLabel} for ${target === "marios" ? "approval" : "accounting"} review.${commissionLine}${sourceLine}${correctionLine}`
+    text: `Send ${filename} to ${targetLabel} for ${target === "marios" ? "approval" : "accounting"} review.${commissionLine}${sourceLine}${correctionLine}`,
   };
 }
-

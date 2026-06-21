@@ -71,6 +71,7 @@ export async function verifyAccessCookie(
   const expected = await hmacHex(scope);
   if (sig.length !== expected.length) return null;
   let diff = 0;
-  for (let i = 0; i < sig.length; i++) diff |= sig.charCodeAt(i) ^ expected.charCodeAt(i);
+  for (let i = 0; i < sig.length; i++)
+    diff |= sig.charCodeAt(i) ^ expected.charCodeAt(i);
   return diff === 0 ? (scope as AccessScope) : null;
 }

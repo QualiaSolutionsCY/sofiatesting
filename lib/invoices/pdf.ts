@@ -1,4 +1,9 @@
-import { documentKindLabel, formatDate, getDisplayNumber, recurrenceLabel } from "@/lib/invoices/format";
+import {
+  documentKindLabel,
+  formatDate,
+  getDisplayNumber,
+  recurrenceLabel,
+} from "@/lib/invoices/format";
 import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 
 // Month-year label for the billing period — mirrors the redesign adapter's
@@ -8,7 +13,9 @@ import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 function periodLabelFromIssue(issueDate: string): string {
   const [y, m] = (issueDate || "").split("-");
   if (!y || !m) return "";
-  const month = new Date(Number(y), Number(m) - 1, 1).toLocaleString("en-GB", { month: "long" });
+  const month = new Date(Number(y), Number(m) - 1, 1).toLocaleString("en-GB", {
+    month: "long",
+  });
   return `${month} ${y}`;
 }
 
@@ -33,17 +40,34 @@ const ENTITY = {
   accountNumber: "502-01-734364-01",
   iban: "CY97 0050 0502 0005 0201 7343 6401",
   bic: "HEBACY2N",
-  settlementNote: "Payment due within the stated terms. Please use the invoice number as the payment reference.",
-  receiptNote: "This receipt confirms payment in full. Thank you."
+  settlementNote:
+    "Payment due within the stated terms. Please use the invoice number as the payment reference.",
+  receiptNote: "This receipt confirms payment in full. Thank you.",
 };
 
 // Helvetica / Helvetica-Bold advance widths (1000 units/em) for WinAnsi 0x20–0x7E.
 // Used for right-alignment and word-wrap so the layout matches the HTML template.
-const HELV = [278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584];
-const HELVB = [278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584];
+const HELV = [
+  278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278,
+  278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584,
+  584, 556, 1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556,
+  833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278,
+  278, 278, 469, 556, 333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222,
+  500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500,
+  500, 334, 260, 334, 584,
+];
+const HELVB = [
+  278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278,
+  278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 333, 333, 584, 584,
+  584, 611, 975, 722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611,
+  833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 333,
+  278, 333, 584, 556, 333, 556, 611, 556, 611, 556, 333, 611, 611, 278, 278,
+  556, 278, 889, 611, 611, 611, 611, 389, 556, 333, 611, 556, 778, 556, 556,
+  500, 389, 280, 389, 584,
+];
 
 function charWidth(code: number, bold: boolean): number {
-  if (code === 0x20ac) return 556; // €
+  if (code === 0x20_ac) return 556; // €
   if (code === 0xb7) return 278; // · (middle dot)
   if (code >= 32 && code <= 126) return (bold ? HELVB : HELV)[code - 32];
   return bold ? 556 : 556;
@@ -55,7 +79,12 @@ function textWidth(value: string, size: number, bold: boolean): number {
   return (units / 1000) * size;
 }
 
-function wrapText(value: string, maxWidth: number, size: number, bold: boolean): string[] {
+function wrapText(
+  value: string,
+  maxWidth: number,
+  size: number,
+  bold: boolean
+): string[] {
   const words = (value || "").trim().split(/\s+/).filter(Boolean);
   if (!words.length) return ["—"];
   const lines: string[] = [];
@@ -85,7 +114,9 @@ function eur(value: number): string {
 }
 
 export function buildDocumentPdfBlob(document: InvoiceDocument): Blob {
-  return new Blob([asArrayBuffer(buildDocumentPdfBytes(document))], { type: "application/pdf" });
+  return new Blob([asArrayBuffer(buildDocumentPdfBytes(document))], {
+    type: "application/pdf",
+  });
 }
 
 export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
@@ -98,16 +129,42 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   const ops: string[] = [];
 
   const setFill = (gray: number) => ops.push(`${gray} g`);
-  const text = (x: number, y: number, value: string, size: number, bold = false, gray = 0.12) => {
+  const text = (
+    x: number,
+    y: number,
+    value: string,
+    size: number,
+    bold = false,
+    gray = 0.12
+  ) => {
     setFill(gray);
-    ops.push(`BT /${bold ? "F2" : "F1"} ${size} Tf 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${escapePdfText(winAnsi(value))}) Tj ET`);
+    ops.push(
+      `BT /${bold ? "F2" : "F1"} ${size} Tf 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${escapePdfText(winAnsi(value))}) Tj ET`
+    );
   };
-  const textRight = (xRight: number, y: number, value: string, size: number, bold = false, gray = 0.12) =>
-    text(xRight - textWidth(value, size, bold), y, value, size, bold, gray);
+  const textRight = (
+    xRight: number,
+    y: number,
+    value: string,
+    size: number,
+    bold = false,
+    gray = 0.12
+  ) => text(xRight - textWidth(value, size, bold), y, value, size, bold, gray);
   const rectFill = (x: number, y: number, w: number, h: number, gray: number) =>
-    ops.push(`${gray} g ${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`);
-  const line = (x1: number, y1: number, x2: number, y2: number, width = 0.6, gray = 0.78) =>
-    ops.push(`${gray} G ${width} w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
+    ops.push(
+      `${gray} g ${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`
+    );
+  const line = (
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    width = 0.6,
+    gray = 0.78
+  ) =>
+    ops.push(
+      `${gray} G ${width} w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`
+    );
 
   // ---- Header: entity letterhead (left) + document title & meta (right) ----
   // Letterhead lines mirror the on-screen template preview exactly.
@@ -119,7 +176,7 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
     ENTITY.address,
     ENTITY.contactLine,
     `CREA License No. ${ENTITY.creaLicense}`,
-    `CREA Reg No. ${ENTITY.creaReg}`
+    `CREA Reg No. ${ENTITY.creaReg}`,
   ];
   let headerY = 786;
   for (const ln of headerLines) {
@@ -129,15 +186,19 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
 
   const meta: Array<[string, string]> = [
     ["No.", getDisplayNumber(document)],
-    ["Date", formatDate(document.issueDate)]
+    ["Date", formatDate(document.issueDate)],
   ];
   if (!isCredit && !isReceipt && document.dueDate) {
     meta.push(["Due Date", formatDate(document.dueDate)]);
   }
   if (!isCredit && !isReceipt && document.recurrence !== "none") {
-    meta.push(["Recurring", `${recurrenceLabel(document.recurrence)} · ${periodLabelFromIssue(document.issueDate)}`]);
+    meta.push([
+      "Recurring",
+      `${recurrenceLabel(document.recurrence)} · ${periodLabelFromIssue(document.issueDate)}`,
+    ]);
   }
-  if (isCredit && document.sourceInvoiceNumber) meta.push(["Applies to", `Invoice ${document.sourceInvoiceNumber}`]);
+  if (isCredit && document.sourceInvoiceNumber)
+    meta.push(["Applies to", `Invoice ${document.sourceInvoiceNumber}`]);
 
   // Start the right-hand meta below the 22pt document title so the number never
   // collides with the "Invoice" / "Credit Note" heading.
@@ -192,7 +253,9 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   const rowH = Math.max(28, 16 + descLines.length * lineH);
   const rb = bodyTop - 18;
   text(colNum, rb, "1", 9.5, false, 0.2);
-  descLines.forEach((ln, i) => text(colDesc, rb - i * lineH, ln, 9.5, false, 0.15));
+  descLines.forEach((ln, i) =>
+    text(colDesc, rb - i * lineH, ln, 9.5, false, 0.15)
+  );
   textRight(unitR, rb, eur(document.amount), 9.5, false, 0.15);
   textRight(totalR, rb, eur(document.amount), 9.5, false, 0.15);
 
@@ -211,7 +274,9 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
       ? wrapText(ENTITY.receiptNote, MR - ML, 9, false)
       : wrapText(ENTITY.settlementNote, MR - ML, 9, false);
     // receipt: just the note lines; invoice: wrapped note + 1 blank gap + 5 bank lines.
-    const settleLineCount = isReceipt ? noteLines.length : noteLines.length + 1 + 5;
+    const settleLineCount = isReceipt
+      ? noteLines.length
+      : noteLines.length + 1 + 5;
     belowTableHeight = 132 + Math.max(0, settleLineCount - 1) * 12;
   }
   const fillBottom = PAGE_BOTTOM_MARGIN + belowTableHeight;
@@ -222,10 +287,16 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   line(ML, bottom, MR, bottom, 0.6, 0.78);
   line(ML, tableTop, ML, bottom, 0.6, 0.78);
   line(MR, tableTop, MR, bottom, 0.6, 0.78);
-  for (const vx of [ML + 32, 410, 474]) line(vx, tableTop, vx, bottom, 0.5, 0.86);
+  for (const vx of [ML + 32, 410, 474])
+    line(vx, tableTop, vx, bottom, 0.5, 0.86);
 
   // ---- Totals ----
-  const rate = document.amount > 0 ? Math.round((document.vatAmount / document.amount) * 100) : document.vatMode === "no-vat" ? 0 : 19;
+  const rate =
+    document.amount > 0
+      ? Math.round((document.vatAmount / document.amount) * 100)
+      : document.vatMode === "no-vat"
+        ? 0
+        : 19;
   const labelX = MR - 200;
   let ty = bottom - 26;
   text(labelX, ty, "Subtotal", 9.5, false, 0.42);
@@ -242,7 +313,14 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   text(labelX, ty, "Total", 10.5, true, 0.1);
   textRight(MR, ty, totalDisplay, 10.5, true, 0.1);
   ty -= 18;
-  text(labelX, ty, isCredit ? "Balance credited" : "Balance Due", 11.5, true, 0.1);
+  text(
+    labelX,
+    ty,
+    isCredit ? "Balance credited" : "Balance Due",
+    11.5,
+    true,
+    0.1
+  );
   textRight(MR, ty, totalDisplay, 11.5, true, 0.1);
   ty -= 34;
 
@@ -262,7 +340,7 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
           `Account Name: ${ENTITY.accountName}`,
           `Account Number: ${ENTITY.accountNumber}`,
           `IBAN: ${ENTITY.iban}`,
-          `BIC: ${ENTITY.bic}`
+          `BIC: ${ENTITY.bic}`,
         ];
     for (const ln of settleLines) {
       text(ML, ty, ln, 9, false, 0.42);
@@ -278,7 +356,7 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
     "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
-    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
   ];
   const parts = ["%PDF-1.4\n"];
   const offsets = [0];
@@ -293,7 +371,9 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   for (const offset of offsets.slice(1)) {
     parts.push(`${String(offset).padStart(10, "0")} 00000 n \n`);
   }
-  parts.push(`trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+  parts.push(
+    `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`
+  );
 
   return latin1Bytes(parts.join(""));
 }
@@ -313,10 +393,11 @@ function winAnsi(value: string): string {
   let out = "";
   for (const ch of value) {
     const code = ch.codePointAt(0) ?? 63;
-    if (code === 0x20ac) out += String.fromCharCode(0x80); // €
-    else if (code === 0x2013 || code === 0x2014) out += "-";
-    else if (code === 0x2018 || code === 0x2019) out += "'";
-    else if (code === 0x201c || code === 0x201d) out += '"';
+    if (code === 0x20_ac)
+      out += String.fromCharCode(0x80); // €
+    else if (code === 0x20_13 || code === 0x20_14) out += "-";
+    else if (code === 0x20_18 || code === 0x20_19) out += "'";
+    else if (code === 0x20_1c || code === 0x20_1d) out += '"';
     else if (code <= 0xff) out += ch;
     else out += "?";
   }
@@ -330,5 +411,8 @@ function latin1Bytes(value: string): Uint8Array {
 }
 
 function escapePdfText(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
 }

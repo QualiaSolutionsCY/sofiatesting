@@ -783,7 +783,12 @@ export const TOOLS: ToolDefinition[] = [
           groupMessage: {
             type: "string",
             description:
-              "For issue_credit_note: the exact message the agent wants sent to the accounting group alongside the credit note. ALWAYS ask the agent what this message should say before issuing a credit note, then pass their answer here.",
+              "For non-commission approve/edit follow-ups and issue_credit_note: the exact message the agent wants sent to the accounting group alongside the document.",
+          },
+          commissionPersonName: {
+            type: "string",
+            description:
+              "For commission invoices: the agent/person name Marios provides after approval. If a commission invoice is approved and this is missing, the tool will ask for it before sending to the accounting group.",
           },
           recurrence: {
             type: "string",

@@ -21,15 +21,21 @@
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-
+import { findAccessUser } from "@/lib/invoices/access";
+import { isAuthorizedAgent, normalizeMsisdn } from "@/lib/invoices/constants";
 import {
   calculateVat,
   createCreditNoteFromInvoice,
   createDocument,
   createReceiptFromInvoice,
-  documentMatchesInvoiceNumberSearch,
   type DocumentInput,
+  documentMatchesInvoiceNumberSearch,
 } from "@/lib/invoices/document-actions";
+import {
+  createDraftNumber,
+  getNextDraftSequence,
+} from "@/lib/invoices/numbering";
+import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 import {
   applyOfficialNumberToDocument,
   cancelInvoiceWithCreditNote,
@@ -40,13 +46,6 @@ import {
   markStorageReady,
   sendDraftToMarios,
 } from "@/lib/invoices/workflow-actions";
-import {
-  createDraftNumber,
-  getNextDraftSequence,
-} from "@/lib/invoices/numbering";
-import { isAuthorizedAgent, normalizeMsisdn } from "@/lib/invoices/constants";
-import { findAccessUser } from "@/lib/invoices/access";
-import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 
 const baseInput: DocumentInput = {
   kind: "invoice",
@@ -60,13 +59,19 @@ const baseInput: DocumentInput = {
   recurrence: "none",
 };
 
-function makeInvoice(overrides: Partial<DocumentInput> = {}, index = 1): InvoiceDocument {
+function makeInvoice(
+  overrides: Partial<DocumentInput> = {},
+  index = 1
+): InvoiceDocument {
   return createDocument({ ...baseInput, ...overrides }, index);
 }
 
 describe("invoicing lifecycle — VAT calculation", () => {
   it("adds 19% VAT in plus-vat mode", () => {
-    assert.deepEqual(calculateVat(1000, "plus-vat"), { vatAmount: 190, total: 1190 });
+    assert.deepEqual(calculateVat(1000, "plus-vat"), {
+      vatAmount: 190,
+      total: 1190,
+    });
   });
 
   it("extracts embedded VAT in included-vat mode without changing the total", () => {
@@ -77,7 +82,10 @@ describe("invoicing lifecycle — VAT calculation", () => {
   });
 
   it("applies no VAT in no-vat mode", () => {
-    assert.deepEqual(calculateVat(1000, "no-vat"), { vatAmount: 0, total: 1000 });
+    assert.deepEqual(calculateVat(1000, "no-vat"), {
+      vatAmount: 0,
+      total: 1000,
+    });
   });
 
   it("rounds plus-vat amounts to two decimals", () => {
@@ -105,26 +113,36 @@ describe("invoicing lifecycle — invoice creation", () => {
   });
 
   it("normalizes the description (capitalizes first letter)", () => {
-    const invoice = makeInvoice({ description: "commission for property sale" });
+    const invoice = makeInvoice({
+      description: "commission for property sale",
+    });
     assert.equal(invoice.description, "Commission for property sale");
   });
 
   it("flags commission descriptions as requiring a commission person", () => {
-    const invoice = makeInvoice({ description: "Commission from the sale of the property" });
+    const invoice = makeInvoice({
+      description: "Commission from the sale of the property",
+    });
     assert.equal(invoice.requiresCommissionPerson, true);
     assert.ok(
-      invoice.notes.some((note) => note.includes("Commission trigger detected")),
+      invoice.notes.some((note) =>
+        note.includes("Commission trigger detected")
+      ),
       "expected a commission-trigger note"
     );
   });
 
   it("does not flag non-commission descriptions", () => {
-    const invoice = makeInvoice({ description: "Consultancy services rendered" });
+    const invoice = makeInvoice({
+      description: "Consultancy services rendered",
+    });
     assert.equal(invoice.requiresCommissionPerson, false);
   });
 
   it("labels valuation descriptions", () => {
-    const invoice = makeInvoice({ description: "Valuation of residential property" });
+    const invoice = makeInvoice({
+      description: "Valuation of residential property",
+    });
     assert.equal(invoice.label, "valuation");
   });
 
@@ -183,7 +201,10 @@ describe("invoicing lifecycle — approval state machine", () => {
 
   it("marks a correction-resend with a reason, requeue and regeneration", () => {
     const forwarded = forwardToAccounting(
-      applyOfficialNumberToDocument(markApproved(sendDraftToMarios(makeInvoice())), "11427")
+      applyOfficialNumberToDocument(
+        markApproved(sendDraftToMarios(makeInvoice())),
+        "11427"
+      )
     );
     const corrected = markCorrectedForResend(forwarded);
 
@@ -212,7 +233,11 @@ describe("invoicing lifecycle — approval state machine", () => {
     const draft = makeInvoice();
     const before = JSON.stringify(draft);
     sendDraftToMarios(draft);
-    assert.equal(JSON.stringify(draft), before, "transition must not mutate its argument");
+    assert.equal(
+      JSON.stringify(draft),
+      before,
+      "transition must not mutate its argument"
+    );
   });
 });
 
@@ -222,7 +247,11 @@ describe("invoicing lifecycle — mark paid + receipt generation", () => {
       markApproved(sendDraftToMarios(makeInvoice())),
       "11429"
     );
-    const { invoice, receipt } = markPaidWithReceipt(numbered, 5, "2026-06-15T00:00:00.000Z");
+    const { invoice, receipt } = markPaidWithReceipt(
+      numbered,
+      5,
+      "2026-06-15T00:00:00.000Z"
+    );
 
     assert.equal(invoice.paymentStatus, "paid");
     assert.equal(invoice.paidAt, "2026-06-15T00:00:00.000Z");
@@ -270,7 +299,12 @@ describe("invoicing lifecycle — credit-note issuance", () => {
   it("createCreditNoteFromInvoice resets receipt/payment fields", () => {
     const paidInvoice = makeInvoice();
     const creditNote = createCreditNoteFromInvoice(
-      { ...paidInvoice, paymentStatus: "paid", paidAmount: 1190, receiptNumber: "RCPT-1" },
+      {
+        ...paidInvoice,
+        paymentStatus: "paid",
+        paidAmount: 1190,
+        receiptNumber: "RCPT-1",
+      },
       4
     );
     assert.equal(creditNote.paymentStatus, "not-required");
@@ -288,17 +322,21 @@ describe("invoicing lifecycle — draft numbering", () => {
   });
 
   it("advances the next sequence past the existing fallback floor when empty", () => {
-    assert.equal(getNextDraftSequence([], "invoice"), 11425);
-    assert.equal(getNextDraftSequence([], "credit-note"), 10097);
-    assert.equal(getNextDraftSequence([], "receipt"), 10387);
+    assert.equal(getNextDraftSequence([], "invoice"), 11_425);
+    assert.equal(getNextDraftSequence([], "credit-note"), 10_097);
+    assert.equal(getNextDraftSequence([], "receipt"), 10_387);
   });
 
   it("advances past the highest existing official/draft sequence of the same kind", () => {
     const docs: InvoiceDocument[] = [
-      { ...makeInvoice(), officialNumber: "11500", draftNumber: "INV-2026-11499-DRAFT" },
+      {
+        ...makeInvoice(),
+        officialNumber: "11500",
+        draftNumber: "INV-2026-11499-DRAFT",
+      },
       { ...makeInvoice(), officialNumber: "11600" },
     ];
-    assert.equal(getNextDraftSequence(docs, "invoice"), 11601);
+    assert.equal(getNextDraftSequence(docs, "invoice"), 11_601);
   });
 
   it("scopes sequence advancement to the requested kind", () => {
@@ -306,7 +344,7 @@ describe("invoicing lifecycle — draft numbering", () => {
       { ...makeInvoice(), officialNumber: "99999" },
     ];
     // No credit notes present -> still falls back to the credit-note floor.
-    assert.equal(getNextDraftSequence(docs, "credit-note"), 10097);
+    assert.equal(getNextDraftSequence(docs, "credit-note"), 10_097);
   });
 });
 
@@ -318,7 +356,10 @@ describe("invoicing lifecycle — search", () => {
     );
     assert.equal(documentMatchesInvoiceNumberSearch(invoice, ""), true);
     assert.equal(documentMatchesInvoiceNumberSearch(invoice, "11431"), true);
-    assert.equal(documentMatchesInvoiceNumberSearch(invoice, "nope-not-here"), false);
+    assert.equal(
+      documentMatchesInvoiceNumberSearch(invoice, "nope-not-here"),
+      false
+    );
   });
 });
 

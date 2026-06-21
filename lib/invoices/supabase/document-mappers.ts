@@ -1,5 +1,5 @@
-import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 import { getUnifiedFilename } from "@/lib/invoices/format";
+import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 import { GENERATED_DOCUMENT_PREFIX, SUPABASE_BUCKETS } from "./schema";
 
 export type InvoiceDocumentRowPayload = {
@@ -92,7 +92,9 @@ export type MessageEventRowPayload = {
   event_at: string;
 };
 
-export function toDocumentRow(document: InvoiceDocument): InvoiceDocumentRowPayload {
+export function toDocumentRow(
+  document: InvoiceDocument
+): InvoiceDocumentRowPayload {
   return {
     external_id: document.id,
     kind: document.kind,
@@ -131,8 +133,8 @@ export function toDocumentRow(document: InvoiceDocument): InvoiceDocumentRowPayl
         description: document.description,
         amount: document.amount,
         vat_amount: document.vatAmount,
-        total: document.total
-      }
+        total: document.total,
+      },
     ],
     metadata: {
       bill_to_label: document.billToLabel,
@@ -140,9 +142,9 @@ export function toDocumentRow(document: InvoiceDocument): InvoiceDocumentRowPayl
       source_invoice_number: document.sourceInvoiceNumber ?? null,
       requires_commission_person: document.requiresCommissionPerson,
       recurrence_day: document.recurrenceDay ?? null,
-      document_label: document.label ?? null
+      document_label: document.label ?? null,
     },
-    notes: document.notes
+    notes: document.notes,
   };
 }
 
@@ -162,15 +164,20 @@ export function fromDocumentRow(row: InvoiceDocumentRow): InvoiceDocument {
     issueDate: row.issue_date,
     dueDate: row.due_date,
     recurrence: row.recurrence,
-    recurrenceDay: typeof row.metadata?.recurrence_day === "number" ? row.metadata.recurrence_day : undefined,
-    label: row.metadata?.document_label === "valuation" ? "valuation" : undefined,
+    recurrenceDay:
+      typeof row.metadata?.recurrence_day === "number"
+        ? row.metadata.recurrence_day
+        : undefined,
+    label:
+      row.metadata?.document_label === "valuation" ? "valuation" : undefined,
     draftNumber: row.draft_number,
     officialNumber: row.official_number,
     officialNumberPendingReason: row.official_number_pending_reason,
     status: row.status,
     paymentStatus: row.payment_status,
     paidAt: row.paid_at,
-    paidAmount: row.paid_amount === undefined ? undefined : Number(row.paid_amount),
+    paidAmount:
+      row.paid_amount === undefined ? undefined : Number(row.paid_amount),
     receiptNumber: row.receipt_number,
     linkedCreditNoteNumber: row.linked_credit_note_number,
     sourceInvoiceNumber: row.source_invoice_number,
@@ -186,10 +193,10 @@ export function fromDocumentRow(row: InvoiceDocumentRow): InvoiceDocument {
       {
         label: "Loaded from Supabase document row",
         at: row.updated_at ?? row.created_at ?? new Date().toISOString(),
-        by: "Sophia"
-      }
+        by: "Sophia",
+      },
     ],
-    notes: row.notes ?? []
+    notes: row.notes ?? [],
   };
 }
 
@@ -203,17 +210,19 @@ export function toRevisionRow(
     revision_number: revisionNumber,
     reason,
     snapshot: document,
-    created_by: latestActor(document)
+    created_by: latestActor(document),
   };
 }
 
-export function toApprovalRows(document: InvoiceDocument): ApprovalRowPayload[] {
+export function toApprovalRows(
+  document: InvoiceDocument
+): ApprovalRowPayload[] {
   return document.approvalTimeline.map((event) => ({
     document_external_id: document.id,
     event_label: event.label,
     event_status: document.status,
     official_number: document.officialNumber,
-    event_at: event.at
+    event_at: event.at,
   }));
 }
 
@@ -221,29 +230,38 @@ export function toPaymentRow(
   invoice: InvoiceDocument,
   receipt?: InvoiceDocument
 ): PaymentRowPayload | null {
-  if (invoice.paymentStatus !== "paid" || !invoice.paidAt || !invoice.paidAmount) return null;
+  if (
+    invoice.paymentStatus !== "paid" ||
+    !invoice.paidAt ||
+    !invoice.paidAmount
+  )
+    return null;
 
   return {
     invoice_external_id: invoice.id,
     receipt_external_id: receipt?.id,
     paid_amount: invoice.paidAmount,
     paid_at: invoice.paidAt,
-    created_by: latestActor(invoice)
+    created_by: latestActor(invoice),
   };
 }
 
-export function toStorageObjectRow(document: InvoiceDocument): StorageObjectRowPayload {
+export function toStorageObjectRow(
+  document: InvoiceDocument
+): StorageObjectRowPayload {
   const filename = getUnifiedFilename(document);
   return {
     document_external_id: document.id,
     bucket: SUPABASE_BUCKETS.invoices,
     path: document.storagePath ?? `${GENERATED_DOCUMENT_PREFIX}/${filename}`,
     filename,
-    content_type: "application/pdf"
+    content_type: "application/pdf",
   };
 }
 
-export function toMessageEventRows(document: InvoiceDocument): MessageEventRowPayload[] {
+export function toMessageEventRows(
+  document: InvoiceDocument
+): MessageEventRowPayload[] {
   const eventAt = document.approvalTimeline.at(-1)?.at ?? document.issueDate;
   return [
     {
@@ -251,15 +269,15 @@ export function toMessageEventRows(document: InvoiceDocument): MessageEventRowPa
       target: "marios",
       status: document.whatsappStatus,
       message_text: `Review ${getUnifiedFilename(document)}`,
-      event_at: eventAt
+      event_at: eventAt,
     },
     {
       document_external_id: document.id,
       target: "accounting-group",
       status: document.whatsappStatus,
       message_text: `File ${getUnifiedFilename(document)} for accounting.`,
-      event_at: eventAt
-    }
+      event_at: eventAt,
+    },
   ];
 }
 

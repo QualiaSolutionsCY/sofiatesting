@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
-import type { User } from "next-auth";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import type { User } from "next-auth";
 import { auth } from "@/app/(auth)/auth";
 import { AdminHeader } from "@/components/admin/header";
 import { AdminSidebar } from "@/components/admin/sidebar";
@@ -77,7 +77,11 @@ export default async function AdminLayout({
       name: "Operator",
     } as User;
     return (
-      <AdminShell user={codeUser} role="admin" permissions={CODE_ADMIN_PERMISSIONS}>
+      <AdminShell
+        permissions={CODE_ADMIN_PERMISSIONS}
+        role="admin"
+        user={codeUser}
+      >
         {children}
       </AdminShell>
     );

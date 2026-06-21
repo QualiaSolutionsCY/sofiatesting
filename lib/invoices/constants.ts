@@ -7,7 +7,10 @@
  *
  * Source: agents table (Supabase vceeheaxcrhmpqueudqx), `mobile` column.
  */
-export const INVOICE_AUTHORIZED_AGENTS: ReadonlyArray<{ name: string; msisdn: string }> = [
+export const INVOICE_AUTHORIZED_AGENTS: ReadonlyArray<{
+  name: string;
+  msisdn: string;
+}> = [
   { name: "Fawzi Goussous", msisdn: "35799111668" },
   { name: "Charalambos Pitros", msisdn: "35799076732" },
   { name: "Marios Polyviou", msisdn: "35799921560" },

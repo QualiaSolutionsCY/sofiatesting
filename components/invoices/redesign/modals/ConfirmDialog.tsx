@@ -41,7 +41,10 @@ export function ConfirmDialog({ state, onClose }: ConfirmDialogProps) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="confirm-shell" onClick={(event) => event.stopPropagation()}>
+      <div
+        className="confirm-shell"
+        onClick={(event) => event.stopPropagation()}
+      >
         <h3>{state.title}</h3>
         <p>{state.body}</p>
         {state.prompt ? (
@@ -49,23 +52,23 @@ export function ConfirmDialog({ state, onClose }: ConfirmDialogProps) {
             <span>{state.prompt.label}</span>
             <textarea
               autoFocus
-              rows={3}
-              value={reason}
               onChange={(event) => setReason(event.target.value)}
               placeholder={state.prompt.placeholder}
+              rows={3}
+              value={reason}
             />
           </label>
         ) : null}
         <div className="confirm-actions">
-          <button type="button" onClick={onClose}>
+          <button onClick={onClose} type="button">
             {state.cancelLabel || "Cancel"}
           </button>
           <button
-            type="button"
-            className={state.danger ? "danger" : "primary"}
-            onClick={confirm}
-            disabled={reasonMissing}
             autoFocus={!state.prompt}
+            className={state.danger ? "danger" : "primary"}
+            disabled={reasonMissing}
+            onClick={confirm}
+            type="button"
           >
             {state.confirmLabel || "Confirm"}
           </button>

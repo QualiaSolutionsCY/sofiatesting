@@ -1,5 +1,5 @@
-import { Redis } from "@upstash/redis";
 import * as Sentry from "@sentry/nextjs";
+import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
 import { createLogger } from "@/lib/logger";
 import { handleWhatsAppMessage } from "@/lib/whatsapp/message-handler";

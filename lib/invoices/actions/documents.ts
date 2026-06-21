@@ -1,20 +1,27 @@
 "use server";
 
+import { INVOICE_AUTHORIZED_AGENTS } from "@/lib/invoices/constants";
 import {
   createDocument,
   type DashboardDocumentControls,
   type DocumentInput,
   updateDocumentDashboardControls,
-  updateDocumentFromInput
+  updateDocumentFromInput,
 } from "@/lib/invoices/document-actions";
-import { getNextDraftSequence, getNextOfficialNumber } from "@/lib/invoices/numbering";
+import { getDisplayNumber, getUnifiedFilename } from "@/lib/invoices/format";
+import {
+  getNextDraftSequence,
+  getNextOfficialNumber,
+} from "@/lib/invoices/numbering";
+import { buildDocumentPdfBytes } from "@/lib/invoices/pdf";
+import { storeDocumentPdfInSupabase } from "@/lib/invoices/storage";
 import {
   deleteInvoiceDocument,
   listInvoiceDocuments,
   retrieveStoredDocument,
+  type StoredDocumentMetadata,
   saveInvoiceDocument,
   saveInvoiceDocuments,
-  type StoredDocumentMetadata
 } from "@/lib/invoices/supabase/document-repository";
 import {
   cancelManualDelivery,
@@ -24,28 +31,24 @@ import {
   queueCorrectedResend,
   queueCreditNoteDelivery,
   queueDraftToMarios,
+  queueReceiptDelivery,
   retryManualDelivery,
-  queueReceiptDelivery
 } from "@/lib/invoices/supabase/integration-repository";
-import { storeDocumentPdfInSupabase } from "@/lib/invoices/storage";
-import { INVOICE_AUTHORIZED_AGENTS } from "@/lib/invoices/constants";
-import { getDisplayNumber, getUnifiedFilename } from "@/lib/invoices/format";
-import { buildDocumentPdfBytes } from "@/lib/invoices/pdf";
-import { createLogger } from "@/lib/logger";
-import { getWhatsAppClient } from "@/lib/whatsapp/client";
 import type { DeliveryRecord } from "@/lib/invoices/types/deliveries";
+import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 import {
   applyOfficialNumberToDocument,
   cancelInvoiceWithCreditNote,
   forwardToAccounting,
   markApproved,
   markCorrectedForResend,
-  markRegeneratedStoredDocument,
   markPaidWithReceipt,
+  markRegeneratedStoredDocument,
   markStorageReady,
-  sendDraftToMarios
+  sendDraftToMarios,
 } from "@/lib/invoices/workflow-actions";
-import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
+import { createLogger } from "@/lib/logger";
+import { getWhatsAppClient } from "@/lib/whatsapp/client";
 
 export type DocumentsActionResult = {
   documents: InvoiceDocument[];
@@ -61,11 +64,15 @@ export async function loadDocumentsAction(): Promise<DocumentsActionResult> {
   return {
     ...result,
     selectedId,
-    deliveries: selectedId ? await listDeliveryRecordsForDocument(selectedId) : []
+    deliveries: selectedId
+      ? await listDeliveryRecordsForDocument(selectedId)
+      : [],
   };
 }
 
-export async function createDocumentAction(input: DocumentInput): Promise<DocumentsActionResult> {
+export async function createDocumentAction(
+  input: DocumentInput
+): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const sequence = getNextDraftSequence(current.documents, input.kind);
   const created = createDocument(input, sequence);
@@ -91,32 +98,53 @@ export async function updateDashboardControlsAction(
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
   const updated = updateDocumentDashboardControls(document, input);
-  const result = await saveInvoiceDocument(updated, "Dashboard controls updated");
+  const result = await saveInvoiceDocument(
+    updated,
+    "Dashboard controls updated"
+  );
   return { ...result, selectedId: id };
 }
 
-export async function sendToMariosAction(id: string): Promise<DocumentsActionResult> {
+export async function sendToMariosAction(
+  id: string
+): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
   const updated = sendDraftToMarios(document);
   const result = await saveInvoiceDocument(updated, "Draft sent to Marios");
   await queueDraftToMarios(updated);
   await notifyMariosOverWhatsApp(updated);
-  return { ...result, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
+  return {
+    ...result,
+    selectedId: id,
+    deliveries: await listDeliveryRecordsForDocument(id),
+  };
 }
 
 /**
  * Admin-panel auto-approval: notify Marios that the invoice is already approved and
  * issued (FYI message + PDF), without sending a review/approval request.
  */
-export async function notifyMariosApprovedAction(id: string): Promise<DocumentsActionResult> {
+export async function notifyMariosApprovedAction(
+  id: string
+): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
   await notifyMariosOverWhatsApp(document, { approved: true });
-  return { ...current, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
+  return {
+    ...current,
+    selectedId: id,
+    deliveries: await listDeliveryRecordsForDocument(id),
+  };
 }
 
 const sendLogger = createLogger("invoices:send-to-marios");
+
+function accountingGroupJid(): string | undefined {
+  const raw = process.env.INVOICE_ACCOUNTING_GROUP_MSISDN?.trim();
+  if (!raw) return undefined;
+  return raw.includes("@g.us") ? raw : `${raw}@g.us`;
+}
 
 /**
  * Actually deliver the review request to Marios over WhatsApp (PDF + caption),
@@ -127,9 +155,13 @@ async function notifyMariosOverWhatsApp(
   document: InvoiceDocument,
   opts: { approved?: boolean } = {}
 ): Promise<void> {
-  const marios = INVOICE_AUTHORIZED_AGENTS.find((agent) => agent.name === "Marios Polyviou");
+  const marios = INVOICE_AUTHORIZED_AGENTS.find(
+    (agent) => agent.name === "Marios Polyviou"
+  );
   if (!marios) {
-    sendLogger.warn("Marios is not in INVOICE_AUTHORIZED_AGENTS; skipping WhatsApp send");
+    sendLogger.warn(
+      "Marios is not in INVOICE_AUTHORIZED_AGENTS; skipping WhatsApp send"
+    );
     return;
   }
 
@@ -142,15 +174,17 @@ async function notifyMariosOverWhatsApp(
   const caption = opts.approved
     ? `Invoice issued: ${displayNumber}\n` +
       `Client: ${document.clientName}${correctionLine}\n\n` +
-      `Approved automatically via the admin panel — no action needed. PDF attached for your records.`
+      "Approved automatically via the admin panel — no action needed. PDF attached for your records."
     : `Invoice for review: ${displayNumber}\n` +
       `Client: ${document.clientName}${correctionLine}\n\n` +
-      `Reply ✓ to approve, or reply with the correction needed.`;
+      "Reply ✓ to approve, or reply with the correction needed.";
 
   try {
     const client = getWhatsAppClient();
     if (!client.isConfigured()) {
-      sendLogger.warn("WhatsApp client not configured; review request not sent to Marios");
+      sendLogger.warn(
+        "WhatsApp client not configured; review request not sent to Marios"
+      );
       return;
     }
 
@@ -163,28 +197,42 @@ async function notifyMariosOverWhatsApp(
     });
 
     if (!sent.success) {
-      sendLogger.error("WhatsApp document send to Marios failed; falling back to text", undefined, {
-        documentId: document.id,
-        error: sent.error,
-      });
+      sendLogger.error(
+        "WhatsApp document send to Marios failed; falling back to text",
+        undefined,
+        {
+          documentId: document.id,
+          error: sent.error,
+        }
+      );
       await client.sendMessage({ to: marios.msisdn, text: caption });
     }
   } catch (error) {
-    sendLogger.error("Unexpected error sending review request to Marios", error, {
-      documentId: document.id,
-    });
+    sendLogger.error(
+      "Unexpected error sending review request to Marios",
+      error,
+      {
+        documentId: document.id,
+      }
+    );
   }
 }
 
-export async function approveDocumentAction(id: string): Promise<DocumentsActionResult> {
+export async function approveDocumentAction(
+  id: string
+): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
   const approved = markApproved(document);
   const numbered = applyOfficialNumberToDocument(
     approved,
-    document.officialNumber ?? getNextOfficialNumber(current.documents, document.kind)
+    document.officialNumber ??
+      getNextOfficialNumber(current.documents, document.kind)
   );
-  const result = await saveInvoiceDocument(numbered, "Approved and official number applied");
+  const result = await saveInvoiceDocument(
+    numbered,
+    "Approved and official number applied"
+  );
   return { ...result, selectedId: id };
 }
 
@@ -194,10 +242,15 @@ export async function approveDocumentAction(id: string): Promise<DocumentsAction
  * (not "numbered"/unpaid) — the official number is applied later when it's
  * issued. Keeps auto-approved invoices in the Approved bucket for Marios.
  */
-export async function markApprovedOnlyAction(id: string): Promise<DocumentsActionResult> {
+export async function markApprovedOnlyAction(
+  id: string
+): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
-  const result = await saveInvoiceDocument(markApproved(document), "Auto-approved (admin panel)");
+  const result = await saveInvoiceDocument(
+    markApproved(document),
+    "Auto-approved (admin panel)"
+  );
   return { ...result, selectedId: id };
 }
 
@@ -212,11 +265,15 @@ export async function applyOfficialNumberAction(
   );
 }
 
-export async function markStoredAction(id: string): Promise<DocumentsActionResult> {
+export async function markStoredAction(
+  id: string
+): Promise<DocumentsActionResult> {
   return storeDocumentPdfAction(id);
 }
 
-export async function storeDocumentPdfAction(id: string): Promise<DocumentsActionResult> {
+export async function storeDocumentPdfAction(
+  id: string
+): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
   const storage = await storeDocumentPdfInSupabase(document);
@@ -231,7 +288,10 @@ export async function storeDocumentPdfAction(id: string): Promise<DocumentsActio
       storagePath: storage.ok ? storage.file.path : stored.storagePath,
       notes: storage.ok
         ? stored.notes
-        : [...stored.notes, "Local fallback metadata saved because Supabase Storage is not configured."]
+        : [
+            ...stored.notes,
+            "Local fallback metadata saved because Supabase Storage is not configured.",
+          ],
     },
     "PDF stored"
   );
@@ -239,18 +299,27 @@ export async function storeDocumentPdfAction(id: string): Promise<DocumentsActio
     ...result,
     selectedId: id,
     storageFile: storage.ok
-      ? { filename: storage.file.path.split("/").at(-1) ?? storage.file.path, path: storage.file.path, contentType: "application/pdf", publicUrl: storage.file.publicUrl }
-      : undefined
+      ? {
+          filename: storage.file.path.split("/").at(-1) ?? storage.file.path,
+          path: storage.file.path,
+          contentType: "application/pdf",
+          publicUrl: storage.file.publicUrl,
+        }
+      : undefined,
   };
 }
 
-export async function retrieveStoredDocumentAction(id: string): Promise<DocumentsActionResult> {
+export async function retrieveStoredDocumentAction(
+  id: string
+): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const retrieved = await retrieveStoredDocument(id);
   return { ...current, selectedId: id, storageFile: retrieved.metadata };
 }
 
-export async function regenerateStoredDocumentAction(id: string): Promise<DocumentsActionResult> {
+export async function regenerateStoredDocumentAction(
+  id: string
+): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
   const storage = await storeDocumentPdfInSupabase(document);
@@ -265,7 +334,10 @@ export async function regenerateStoredDocumentAction(id: string): Promise<Docume
       storagePath: storage.ok ? storage.file.path : regenerated.storagePath,
       notes: storage.ok
         ? regenerated.notes
-        : [...regenerated.notes, "Local fallback regeneration metadata saved because Supabase Storage is not configured."]
+        : [
+            ...regenerated.notes,
+            "Local fallback regeneration metadata saved because Supabase Storage is not configured.",
+          ],
     },
     "PDF regenerated"
   );
@@ -273,18 +345,29 @@ export async function regenerateStoredDocumentAction(id: string): Promise<Docume
     ...result,
     selectedId: id,
     storageFile: storage.ok
-      ? { filename: storage.file.path.split("/").at(-1) ?? storage.file.path, path: storage.file.path, contentType: "application/pdf", publicUrl: storage.file.publicUrl }
-      : undefined
+      ? {
+          filename: storage.file.path.split("/").at(-1) ?? storage.file.path,
+          path: storage.file.path,
+          contentType: "application/pdf",
+          publicUrl: storage.file.publicUrl,
+        }
+      : undefined,
   };
 }
 
-export async function forwardAccountingAction(id: string): Promise<DocumentsActionResult> {
+export async function forwardAccountingAction(
+  id: string
+): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
   const updated = forwardToAccounting(document);
   const result = await saveInvoiceDocument(updated, "Forwarded to accounting");
   await queueAccountingHandoff(updated);
-  return { ...result, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
+  return {
+    ...result,
+    selectedId: id,
+    deliveries: await listDeliveryRecordsForDocument(id),
+  };
 }
 
 export async function correctResendAction(
@@ -296,7 +379,11 @@ export async function correctResendAction(
   const updated = markCorrectedForResend(document, reason || undefined);
   const result = await saveInvoiceDocument(updated, "Corrected resend queued");
   await queueCorrectedResend(updated, reason || undefined);
-  return { ...result, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
+  return {
+    ...result,
+    selectedId: id,
+    deliveries: await listDeliveryRecordsForDocument(id),
+  };
 }
 
 export async function queueClientEmailAction(
@@ -306,15 +393,24 @@ export async function queueClientEmailAction(
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
   await queueClientEmail(document, sharedCcEmail);
-  return { ...current, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
+  return {
+    ...current,
+    selectedId: id,
+    deliveries: await listDeliveryRecordsForDocument(id),
+  };
 }
 
-export async function markPaidAndIssueReceiptAction(id: string): Promise<DocumentsActionResult> {
+export async function markPaidAndIssueReceiptAction(
+  id: string
+): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const invoice = findDocument(current.documents, id);
   if (invoice.kind !== "invoice") return { ...current, selectedId: id };
 
-  const { invoice: paidInvoice, receipt } = markPaidWithReceipt(invoice, current.documents.length + 1);
+  const { invoice: paidInvoice, receipt } = markPaidWithReceipt(
+    invoice,
+    current.documents.length + 1
+  );
   // Receipts issued from the admin panel are auto-approved + numbered immediately
   // (no pending-approval step) so they land straight in the receipts list as issued.
   const issuedReceipt = applyOfficialNumberToDocument(
@@ -329,11 +425,14 @@ export async function markPaidAndIssueReceiptAction(id: string): Promise<Documen
   return {
     ...result,
     selectedId: issuedReceipt.id,
-    deliveries: await listDeliveryRecordsForDocument(issuedReceipt.id)
+    deliveries: await listDeliveryRecordsForDocument(issuedReceipt.id),
   };
 }
 
-export async function cancelWithCreditNoteAction(id: string, reason?: string): Promise<DocumentsActionResult> {
+export async function cancelWithCreditNoteAction(
+  id: string,
+  reason?: string
+): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const invoice = findDocument(current.documents, id);
   if (invoice.kind !== "invoice") return { ...current, selectedId: id };
@@ -345,24 +444,33 @@ export async function cancelWithCreditNoteAction(id: string, reason?: string): P
     trimmedReason ? `Invoice cancelled. Reason: ${trimmedReason}` : undefined
   );
   // Carry the operator's reason onto the credit note so the group message + audit trail show it.
-  const creditNoteWithReason = trimmedReason ? { ...creditNote, correctionReason: trimmedReason } : creditNote;
+  const creditNoteWithReason = trimmedReason
+    ? { ...creditNote, correctionReason: trimmedReason }
+    : creditNote;
   // Credit notes are auto-approved on creation (never left as drafts): apply the
   // official number immediately and file the note under "Credited".
   const numberedCreditNote = applyOfficialNumberToDocument(
     markApproved(creditNoteWithReason),
     getNextOfficialNumber(current.documents, "credit-note")
   );
-  const approvedCreditNote: InvoiceDocument = { ...numberedCreditNote, status: "credited" };
+  const approvedCreditNote: InvoiceDocument = {
+    ...numberedCreditNote,
+    status: "credited",
+  };
   const result = await saveInvoiceDocuments(
     [cancelledInvoice, approvedCreditNote],
     "Invoice cancelled with auto-approved credit note"
   );
   await queueCreditNoteDelivery(approvedCreditNote);
-  await notifyGroupOfCreditNote(cancelledInvoice, approvedCreditNote, trimmedReason);
+  await notifyGroupOfCreditNote(
+    cancelledInvoice,
+    approvedCreditNote,
+    trimmedReason
+  );
   return {
     ...result,
     selectedId: approvedCreditNote.id,
-    deliveries: await listDeliveryRecordsForDocument(approvedCreditNote.id)
+    deliveries: await listDeliveryRecordsForDocument(approvedCreditNote.id),
   };
 }
 
@@ -380,19 +488,23 @@ async function notifyGroupOfCreditNote(
   const reasonLine = reason ? ` The reason is: ${reason}.` : "";
   const caption =
     `Credit note ${creditNumber} regarding the cancellation of invoice ${invoiceNumber}.${reasonLine}\n\n` +
-    `Please read it alongside the attached credit note.`;
+    "Please read it alongside the attached credit note.";
 
   // Group number from env only — never fall back to anyone's personal number.
-  const groupMsisdn = process.env.INVOICE_ACCOUNTING_GROUP_MSISDN?.trim() || undefined;
+  const groupMsisdn = accountingGroupJid();
   if (!groupMsisdn) {
-    sendLogger.warn("No accounting group number configured; credit-note message not sent");
+    sendLogger.warn(
+      "No accounting group number configured; credit-note message not sent"
+    );
     return;
   }
 
   try {
     const client = getWhatsAppClient();
     if (!client.isConfigured()) {
-      sendLogger.warn("WhatsApp client not configured; credit-note group message not sent");
+      sendLogger.warn(
+        "WhatsApp client not configured; credit-note group message not sent"
+      );
       return;
     }
     const pdf = Buffer.from(buildDocumentPdfBytes(creditNote));
@@ -400,13 +512,15 @@ async function notifyGroupOfCreditNote(
       to: groupMsisdn,
       document: pdf,
       filename: getUnifiedFilename(creditNote),
-      caption
+      caption,
     });
     if (!sent.success) {
       await client.sendMessage({ to: groupMsisdn, text: caption });
     }
   } catch (error) {
-    sendLogger.error("Failed to send credit-note group message", error, { documentId: creditNote.id });
+    sendLogger.error("Failed to send credit-note group message", error, {
+      documentId: creditNote.id,
+    });
   }
 }
 
@@ -419,9 +533,11 @@ export async function sendDocumentToAccountingGroup(
   document: InvoiceDocument,
   caption: string
 ): Promise<boolean> {
-  const groupMsisdn = process.env.INVOICE_ACCOUNTING_GROUP_MSISDN?.trim() || undefined;
+  const groupMsisdn = accountingGroupJid();
   if (!groupMsisdn) {
-    sendLogger.warn("No accounting group number configured; group message not sent");
+    sendLogger.warn(
+      "No accounting group number configured; group message not sent"
+    );
     return false;
   }
   try {
@@ -435,7 +551,7 @@ export async function sendDocumentToAccountingGroup(
       to: groupMsisdn,
       document: pdf,
       filename: getUnifiedFilename(document),
-      caption
+      caption,
     });
     if (!sent.success) {
       const text = await client.sendMessage({ to: groupMsisdn, text: caption });
@@ -443,7 +559,9 @@ export async function sendDocumentToAccountingGroup(
     }
     return true;
   } catch (error) {
-    sendLogger.error("Failed to send document to accounting group", error, { documentId: document.id });
+    sendLogger.error("Failed to send document to accounting group", error, {
+      documentId: document.id,
+    });
     return false;
   }
 }
@@ -454,16 +572,20 @@ export async function sendDocumentToAccountingGroup(
  * "Invoice issued" caption via the existing group sender. Best-effort: returns
  * false (never throws) so a send failure cannot break the issue/paid flow.
  */
-export async function notifyAccountingGroupOfInvoiceAction(id: string): Promise<boolean> {
+export async function notifyAccountingGroupOfInvoiceAction(
+  id: string
+): Promise<boolean> {
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
   const caption =
     `Invoice issued: ${getDisplayNumber(document)} · Client: ${document.clientName}\n\n` +
-    `Issued automatically via the admin panel — paid and receipt logged. PDF attached for accounting.`;
+    "Issued automatically via the admin panel — paid and receipt logged. PDF attached for accounting.";
   return sendDocumentToAccountingGroup(document, caption);
 }
 
-export async function loadDeliveryRecordsAction(id: string): Promise<DeliveryRecord[]> {
+export async function loadDeliveryRecordsAction(
+  id: string
+): Promise<DeliveryRecord[]> {
   return listDeliveryRecordsForDocument(id);
 }
 
@@ -485,7 +607,9 @@ export async function cancelDeliveryAction(
   return { ...current, selectedId: id, deliveries };
 }
 
-export async function deleteDocumentAction(id: string): Promise<DocumentsActionResult> {
+export async function deleteDocumentAction(
+  id: string
+): Promise<DocumentsActionResult> {
   const result = await deleteInvoiceDocument(id);
   return { ...result, selectedId: result.documents[0]?.id };
 }
@@ -501,7 +625,10 @@ async function mutateOne(
   return { ...result, selectedId: id };
 }
 
-function findDocument(documents: InvoiceDocument[], id: string): InvoiceDocument {
+function findDocument(
+  documents: InvoiceDocument[],
+  id: string
+): InvoiceDocument {
   const document = documents.find((candidate) => candidate.id === id);
   if (!document) throw new Error(`Document ${id} was not found`);
   return document;

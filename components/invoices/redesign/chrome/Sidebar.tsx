@@ -12,14 +12,18 @@ interface SidebarProps {
 }
 
 export function Sidebar({ operator, docs, onSignOut, children }: SidebarProps) {
-  const reviewCount = docs.filter((d) => d.stage === "sent-to-marios" || d.stage === "correction-needed").length;
+  const reviewCount = docs.filter(
+    (d) => d.stage === "sent-to-marios" || d.stage === "correction-needed"
+  ).length;
   const operatorFirst = operator.split(" ")[0] || "Operator";
   const operatorInitial = operatorFirst.slice(0, 1).toUpperCase();
 
   return (
-    <aside className="sidebar" aria-label="Primary navigation">
+    <aside aria-label="Primary navigation" className="sidebar">
       <div className="sidebar-brand">
-        <span className="sidebar-mark" aria-hidden>S</span>
+        <span aria-hidden className="sidebar-mark">
+          S
+        </span>
         <div>
           <strong>Iam Sophia</strong>
           <span>Invoice</span>
@@ -28,23 +32,32 @@ export function Sidebar({ operator, docs, onSignOut, children }: SidebarProps) {
 
       <div className="sidebar-section-head">
         <span>Invoices</span>
-        {reviewCount > 0 ? <em className="sidebar-badge">{reviewCount}</em> : null}
+        {reviewCount > 0 ? (
+          <em className="sidebar-badge">{reviewCount}</em>
+        ) : null}
       </div>
 
-      <div className="sidebar-list" role="navigation" aria-label="Invoices">
+      <div aria-label="Invoices" className="sidebar-list" role="navigation">
         {children}
       </div>
 
       <div className="sidebar-footer">
         <div className="sidebar-operator" title={operator}>
-          <span className="sidebar-operator-avatar" aria-hidden>{operatorInitial}</span>
+          <span aria-hidden className="sidebar-operator-avatar">
+            {operatorInitial}
+          </span>
           <div>
             <strong>{operatorFirst}</strong>
             <span>Signed in</span>
           </div>
         </div>
-        <button type="button" className="sidebar-signout" onClick={onSignOut} aria-label="Sign out">
-          <LogOut size={14} strokeWidth={1.7} aria-hidden />
+        <button
+          aria-label="Sign out"
+          className="sidebar-signout"
+          onClick={onSignOut}
+          type="button"
+        >
+          <LogOut aria-hidden size={14} strokeWidth={1.7} />
         </button>
       </div>
     </aside>

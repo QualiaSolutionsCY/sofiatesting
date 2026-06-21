@@ -16,11 +16,21 @@ import {
   queueClientEmailAction,
   regenerateStoredDocumentAction,
   sendToMariosAction,
-  updateDocumentAction
+  updateDocumentAction,
 } from "@/lib/invoices/actions/documents";
-import { docToInvoiceDocument, invoicesToDocs } from "@/lib/invoices/redesign/adapter";
+import type { DocumentInput } from "@/lib/invoices/document-actions";
 import { downloadDocumentPdf } from "@/lib/invoices/downloads";
-import { clientById, nowStamp, replaceClientRegistry, todayStamp } from "@/lib/invoices/redesign/data";
+import {
+  docToInvoiceDocument,
+  invoicesToDocs,
+} from "@/lib/invoices/redesign/adapter";
+import {
+  clientById,
+  nowStamp,
+  replaceClientRegistry,
+  todayStamp,
+} from "@/lib/invoices/redesign/data";
+import { TemplateProvider } from "@/lib/invoices/redesign/template-context";
 import type {
   Client,
   ComposerForm,
@@ -31,9 +41,8 @@ import type {
   PaletteItem,
   RecurringRun,
   Stage,
-  TimelineEvent
+  TimelineEvent,
 } from "@/lib/invoices/redesign/types";
-import type { DocumentInput } from "@/lib/invoices/document-actions";
 import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 import { AccessGate } from "./chrome/AccessGate";
 import { Sidebar } from "./chrome/Sidebar";
@@ -43,11 +52,10 @@ import { ListPane } from "./ledger/ListPane";
 import { CommandPalette } from "./modals/CommandPalette";
 import { Composer } from "./modals/Composer";
 import { ConfirmDialog } from "./modals/ConfirmDialog";
-import { TemplateEditor } from "./modals/TemplateEditor";
-import { TemplateProvider } from "@/lib/invoices/redesign/template-context";
 import { PDFLightbox } from "./modals/PDFLightbox";
 import { SettingsPanel } from "./modals/SettingsPanel";
 import { ShortcutsOverlay } from "./modals/ShortcutsOverlay";
+import { TemplateEditor } from "./modals/TemplateEditor";
 import { Toast } from "./modals/Toast";
 import { GuidedTour } from "./overlays/GuidedTour";
 import { MonthlyRunOverlay } from "./overlays/MonthlyRun";
@@ -56,7 +64,7 @@ import { RecurringRunsPanel } from "./overlays/RecurringRunsPanel";
 const ACCESS_MAP: Record<string, string> = {
   "MARIOS-2026": "Marios Charalambous",
   "CHAR-2026": "Andreas Charalambous",
-  "ZYPRUS-2026": "Eleni · Duty operator"
+  "ZYPRUS-2026": "Eleni · Duty operator",
 };
 
 interface AppProps {
@@ -84,22 +92,39 @@ function formToDocumentInput(form: ComposerForm): DocumentInput {
     issueDate: form.issued || todayStamp(),
     dueDate: form.due,
     recurrence: form.recurrence,
-    commissionPersonName: form.commission?.agent
+    commissionPersonName: form.commission?.agent,
   };
 }
 
-export default function App({ initialDocs, initialClients, persistenceMode, preAuthed = false }: AppProps) {
+export default function App({
+  initialDocs,
+  initialClients,
+  persistenceMode,
+  preAuthed = false,
+}: AppProps) {
   useMemo(() => replaceClientRegistry(initialClients), [initialClients]);
 
   const [operator, setOperator] = useState<string>(preAuthed ? "Operator" : "");
   const [docs, setDocs] = useState<Doc[]>(initialDocs);
-  const [selectedId, setSelectedId] = useState<string | null>(initialDocs[0]?.id ?? null);
-  const [filters, setFilters] = useState<Filters>({ kind: "all", stage: "all", q: "", from: "", to: "" });
+  const [selectedId, setSelectedId] = useState<string | null>(
+    initialDocs[0]?.id ?? null
+  );
+  const [filters, setFilters] = useState<Filters>({
+    kind: "all",
+    stage: "all",
+    q: "",
+    from: "",
+    to: "",
+  });
   const [sharedCc, setSharedCc] = useState("+357 99 040 117");
-  const [accountingEmail, setAccountingEmail] = useState("accounting@zyprus.cy");
+  const [accountingEmail, setAccountingEmail] = useState(
+    "accounting@zyprus.cy"
+  );
   const [autoRoute, setAutoRoute] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
-  const [composerPrefill, setComposerPrefill] = useState<Partial<Doc> | null>(null);
+  const [composerPrefill, setComposerPrefill] = useState<Partial<Doc> | null>(
+    null
+  );
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
@@ -116,7 +141,10 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
 
   useEffect(() => {
     if (preAuthed) return;
-    const saved = typeof window !== "undefined" ? window.localStorage.getItem("sophia.operator") : "";
+    const saved =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem("sophia.operator")
+        : "";
     if (saved) setOperator(saved);
   }, [preAuthed]);
 
@@ -126,7 +154,12 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       if (!target) return false;
       const el = target as HTMLElement;
       const tag = el.tagName || "";
-      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable;
+      return (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        el.isContentEditable
+      );
     };
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -140,7 +173,8 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       const k = event.key;
       if (k === "/") {
         event.preventDefault();
-        const el = document.querySelector<HTMLInputElement>(".search-box input");
+        const el =
+          document.querySelector<HTMLInputElement>(".search-box input");
         el?.focus();
       } else if (k === "?") {
         event.preventDefault();
@@ -184,11 +218,20 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
 
   const selected = docs.find((d) => d.id === selectedId) ?? null;
 
-  const advanceStageLocal = (id: string, nextStage: Stage, extras: Partial<Doc> = {}) => {
-    setDocs((all) => all.map((d) => (d.id === id ? { ...d, ...extras, stage: nextStage } : d)));
+  const advanceStageLocal = (
+    id: string,
+    nextStage: Stage,
+    extras: Partial<Doc> = {}
+  ) => {
+    setDocs((all) =>
+      all.map((d) => (d.id === id ? { ...d, ...extras, stage: nextStage } : d))
+    );
   };
 
-  const appendEvent = (doc: Doc, event: TimelineEvent): TimelineEvent[] => [...(doc.timeline ?? []), event];
+  const appendEvent = (doc: Doc, event: TimelineEvent): TimelineEvent[] => [
+    ...(doc.timeline ?? []),
+    event,
+  ];
 
   function handleAct(stageOrAction: string) {
     if (!selected) return;
@@ -205,7 +248,9 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
               await notifyAccountingGroupOfInvoiceAction(selected.id);
               reconcile(paid.documents, paid.selectedId ?? selected.id);
               setFilters((f) => ({ ...f, stage: "all" }));
-              setToast("Issued, paid, receipt created — sent to the accounting group.");
+              setToast(
+                "Issued, paid, receipt created — sent to the accounting group."
+              );
             } else {
               const result = await approveDocumentAction(selected.id);
               reconcile(result.documents, selected.id);
@@ -230,7 +275,10 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         break;
       case "corrected-resend":
         startTransition(async () => {
-          const result = await correctResendAction(selected.id, selected.correction?.reason ?? "");
+          const result = await correctResendAction(
+            selected.id,
+            selected.correction?.reason ?? ""
+          );
           reconcile(result.documents, selected.id);
           setToast("Resent correction.");
         });
@@ -269,7 +317,13 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         break;
       }
       case "cancelled":
-        setComposerPrefill({ ...selected, id: undefined, draftNo: undefined, officialNo: undefined, stage: undefined });
+        setComposerPrefill({
+          ...selected,
+          id: undefined,
+          draftNo: undefined,
+          officialNo: undefined,
+          stage: undefined,
+        });
         setComposerOpen(true);
         break;
       case "preview":
@@ -283,7 +337,8 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         const dup: Doc = {
           ...selected,
           id: "d-" + Math.random().toString(36).slice(2, 7),
-          draftNo: "DRAFT-2026-00" + (44 + docs.filter((d) => d.draftNo).length + 1),
+          draftNo:
+            "DRAFT-2026-00" + (44 + docs.filter((d) => d.draftNo).length + 1),
           officialNo: null,
           stage: "draft",
           pdf: undefined,
@@ -296,9 +351,9 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
               at: nowStamp(),
               who: operator,
               what: "Duplicated from previous document",
-              body: `Source: ${selected.officialNo ? "№ " + selected.officialNo : selected.draftNo}`
-            }
-          ]
+              body: `Source: ${selected.officialNo ? "№ " + selected.officialNo : selected.draftNo}`,
+            },
+          ],
         };
         setDocs((d) => [dup, ...d]);
         setSelectedId(dup.id);
@@ -308,7 +363,9 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       case "print":
       case "download":
         try {
-          downloadDocumentPdf(docToInvoiceDocument(selected, clientById(selected.client)));
+          downloadDocumentPdf(
+            docToInvoiceDocument(selected, clientById(selected.client))
+          );
           setToast("PDF downloaded.");
         } catch (error) {
           console.error("PDF download failed", error);
@@ -316,7 +373,9 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         }
         break;
       case "copy-link":
-        navigator.clipboard?.writeText(`sophia://document/${selected.id}`).catch(() => {});
+        navigator.clipboard
+          ?.writeText(`sophia://document/${selected.id}`)
+          .catch(() => {});
         setToast("Document link copied to clipboard.");
         break;
       case "credit": {
@@ -331,16 +390,22 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           confirmLabel: "Issue credit note",
           prompt: {
             label: "Reason for the credit note (sent to the group)",
-            placeholder: "e.g. Commission double-counted — corrected on the new invoice.",
-            required: true
+            placeholder:
+              "e.g. Commission double-counted — corrected on the new invoice.",
+            required: true,
           },
           onConfirm: (reason) => {
             startTransition(async () => {
-              const result = await cancelWithCreditNoteAction(selected.id, reason);
+              const result = await cancelWithCreditNoteAction(
+                selected.id,
+                reason
+              );
               reconcile(result.documents, result.selectedId ?? selected.id);
-              setToast("Credit note issued — original cancelled, group notified with your reason.");
+              setToast(
+                "Credit note issued — original cancelled, group notified with your reason."
+              );
             });
-          }
+          },
         });
         break;
       }
@@ -371,7 +436,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
                 setToast("Document cancelled.");
               });
             }
-          }
+          },
         });
         break;
       case "whatsapp-marios-resend":
@@ -382,7 +447,9 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         });
         break;
       case "whatsapp-marios-edit":
-        setToast("Message editor coming next — opens for the WhatsApp draft to Marios.");
+        setToast(
+          "Message editor coming next — opens for the WhatsApp draft to Marios."
+        );
         break;
       case "whatsapp-marios-mute":
         setToast("Notifications muted for this document.");
@@ -391,14 +458,18 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         startTransition(async () => {
           const result = await queueClientEmailAction(selected.id, sharedCc);
           reconcile(result.documents, selected.id);
-          setToast(`WhatsApp + Email queued for ${clientById(selected.client).name}.`);
+          setToast(
+            `WhatsApp + Email queued for ${clientById(selected.client).name}.`
+          );
         });
         break;
       case "client-edit":
         setToast("Message editor for client WhatsApp + email is staged.");
         break;
       case "client-schedule":
-        setToast("Scheduling UI is staged — send for 09:00 tomorrow (Europe/Nicosia).");
+        setToast(
+          "Scheduling UI is staged — send for 09:00 tomorrow (Europe/Nicosia)."
+        );
         break;
       case "accounting-resend":
         startTransition(async () => {
@@ -421,9 +492,19 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
 
     startTransition(async () => {
       if (isEdit) {
-        const result = await updateDocumentAction(form.editingId as string, input);
-        if ("officialNumber" in input && form.officialNo && result.documents.find((d) => d.id === (result.selectedId ?? ""))) {
-          const finalResult = await applyOfficialNumberAction(result.selectedId as string, form.officialNo);
+        const result = await updateDocumentAction(
+          form.editingId as string,
+          input
+        );
+        if (
+          "officialNumber" in input &&
+          form.officialNo &&
+          result.documents.find((d) => d.id === (result.selectedId ?? ""))
+        ) {
+          const finalResult = await applyOfficialNumberAction(
+            result.selectedId as string,
+            form.officialNo
+          );
           reconcile(finalResult.documents, finalResult.selectedId);
         } else {
           reconcile(result.documents, result.selectedId);
@@ -435,7 +516,9 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       // Receipt from the composer: issue it against the chosen existing invoice
       // (marks the invoice paid + creates the linked receipt). Never standalone.
       if (form.kind === "receipt" && form.sourceInvoiceId) {
-        const result = await markPaidAndIssueReceiptAction(form.sourceInvoiceId);
+        const result = await markPaidAndIssueReceiptAction(
+          form.sourceInvoiceId
+        );
         reconcile(result.documents, result.selectedId ?? form.sourceInvoiceId);
         setFilters((f) => ({ ...f, stage: "all" }));
         setToast("Receipt issued.");
@@ -446,7 +529,10 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       // invoice (cancels the invoice + creates the auto-approved credit note).
       // Mirrors the cancel-with-credit-note action; never standalone.
       if (form.kind === "credit" && form.sourceInvoiceId) {
-        const result = await cancelWithCreditNoteAction(form.sourceInvoiceId, form.creditReason);
+        const result = await cancelWithCreditNoteAction(
+          form.sourceInvoiceId,
+          form.creditReason
+        );
         reconcile(result.documents, result.selectedId ?? form.sourceInvoiceId);
         setFilters((f) => ({ ...f, stage: "credited" }));
         setToast("Credit note issued — original cancelled, group notified.");
@@ -539,9 +625,12 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       docs
         .filter((d) => d.kind === "invoice" && d.recurrence === "monthly")
         .map((d) => {
-          const sub = (d.lines || []).reduce((s, l) => s + l.qty * l.unitPrice, 0) || Math.abs(d.total);
+          const sub =
+            (d.lines || []).reduce((s, l) => s + l.qty * l.unitPrice, 0) ||
+            Math.abs(d.total);
           const rate = d.vatMode === "no-vat" ? 0 : d.vatRate || 0;
-          const total = d.vatMode === "included-vat" ? sub : sub + (sub * rate) / 100;
+          const total =
+            d.vatMode === "included-vat" ? sub : sub + (sub * rate) / 100;
           return {
             id: d.id,
             client: d.client,
@@ -550,7 +639,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
             draftNo: d.officialNo ? `№ ${d.officialNo}` : d.draftNo || "Draft",
             period: d.period || "",
             sub,
-            total
+            total,
           };
         }),
     [docs]
@@ -558,207 +647,256 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
 
   return (
     <TemplateProvider>
-    <div className="app-shell" data-persistence={persistenceMode}>
-      <Sidebar operator={operator} docs={docs} onSignOut={signOut}>
-        <ListPane docs={docs} selectedId={selectedId} onSelect={setSelectedId} filters={filters} setFilters={setFilters} />
-      </Sidebar>
-      <div className="app-content">
-        <Topbar
-          docs={docs}
-          onNew={() => {
-            setComposerPrefill(null);
-            setComposerOpen(true);
-          }}
-          onPalette={() => setPaletteOpen(true)}
-          onOpenSettings={() => setSettingsOpen(true)}
-          onEditTemplate={() => setTemplateOpen(true)}
-        />
-        <div className="workspace">
-
-        <DetailPane
-          doc={selected}
-          allDocs={docs}
-          sharedCc={sharedCc}
-          accountingEmail={accountingEmail}
-          operator={operator}
-          onAct={handleAct}
-          onOpenLightbox={setLightboxDoc}
-          onUpdateDoc={(id, form) => {
-            const sub = form.lines.reduce((s, l) => s + (l.qty || 0) * (l.unitPrice || 0), 0);
-            const targetDoc = docs.find((d) => d.id === id);
-            if (!targetDoc) return;
-            startTransition(async () => {
-              const result = await updateDocumentAction(id, {
-                kind: targetDoc.kind === "credit" ? "credit-note" : targetDoc.kind,
-                clientName: clientById(form.client).name,
-                description: form.description || form.lines[0]?.desc || "",
-                amount: sub,
-                vatMode: form.vatMode,
-                issueDate: form.issued,
-                dueDate: form.due || undefined,
-                recurrence: targetDoc.kind === "credit" ? "none" : "none"
-              });
-              reconcile(result.documents, id);
-              setToast("Invoice updated.");
-            });
-          }}
-          onCorrectResendDoc={(id, form, reason) => {
-            const sub = form.lines.reduce((s, l) => s + (l.qty || 0) * (l.unitPrice || 0), 0);
-            const targetDoc = docs.find((d) => d.id === id);
-            if (!targetDoc) return;
-            startTransition(async () => {
-              // 1. Save the corrected content
-              await updateDocumentAction(id, {
-                kind: targetDoc.kind === "credit" ? "credit-note" : targetDoc.kind,
-                clientName: clientById(form.client).name,
-                description: form.description || form.lines[0]?.desc || "",
-                amount: sub,
-                vatMode: form.vatMode,
-                issueDate: form.issued,
-                dueDate: form.due || undefined,
-                recurrence: "none"
-              });
-              // 2. Auto-approve the corrected document and save it as a normal
-              // invoice — no "sent to accounting" resend step. (reason kept for
-              // the audit note via the save above.)
-              void reason;
-              const result = await markApprovedOnlyAction(id);
-              reconcile(result.documents, id);
-              setToast(`Correction saved — ${targetDoc.kind === "credit" ? "credit note" : "invoice"} auto-approved.`);
-            });
-          }}
-        />
+      <div className="app-shell" data-persistence={persistenceMode}>
+        <Sidebar docs={docs} onSignOut={signOut} operator={operator}>
+          <ListPane
+            docs={docs}
+            filters={filters}
+            onSelect={setSelectedId}
+            selectedId={selectedId}
+            setFilters={setFilters}
+          />
+        </Sidebar>
+        <div className="app-content">
+          <Topbar
+            docs={docs}
+            onEditTemplate={() => setTemplateOpen(true)}
+            onNew={() => {
+              setComposerPrefill(null);
+              setComposerOpen(true);
+            }}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onPalette={() => setPaletteOpen(true)}
+          />
+          <div className="workspace">
+            <DetailPane
+              accountingEmail={accountingEmail}
+              allDocs={docs}
+              doc={selected}
+              onAct={handleAct}
+              onCorrectResendDoc={(id, form, reason) => {
+                const sub = form.lines.reduce(
+                  (s, l) => s + (l.qty || 0) * (l.unitPrice || 0),
+                  0
+                );
+                const targetDoc = docs.find((d) => d.id === id);
+                if (!targetDoc) return;
+                startTransition(async () => {
+                  // 1. Save the corrected content
+                  await updateDocumentAction(id, {
+                    kind:
+                      targetDoc.kind === "credit"
+                        ? "credit-note"
+                        : targetDoc.kind,
+                    clientName: clientById(form.client).name,
+                    description: form.description || form.lines[0]?.desc || "",
+                    amount: sub,
+                    vatMode: form.vatMode,
+                    issueDate: form.issued,
+                    dueDate: form.due || undefined,
+                    recurrence: "none",
+                  });
+                  // 2. Auto-approve the corrected document and save it as a normal
+                  // invoice — no "sent to accounting" resend step. (reason kept for
+                  // the audit note via the save above.)
+                  void reason;
+                  const result = await markApprovedOnlyAction(id);
+                  reconcile(result.documents, id);
+                  setToast(
+                    `Correction saved — ${targetDoc.kind === "credit" ? "credit note" : "invoice"} auto-approved.`
+                  );
+                });
+              }}
+              onOpenLightbox={setLightboxDoc}
+              onUpdateDoc={(id, form) => {
+                const sub = form.lines.reduce(
+                  (s, l) => s + (l.qty || 0) * (l.unitPrice || 0),
+                  0
+                );
+                const targetDoc = docs.find((d) => d.id === id);
+                if (!targetDoc) return;
+                startTransition(async () => {
+                  const result = await updateDocumentAction(id, {
+                    kind:
+                      targetDoc.kind === "credit"
+                        ? "credit-note"
+                        : targetDoc.kind,
+                    clientName: clientById(form.client).name,
+                    description: form.description || form.lines[0]?.desc || "",
+                    amount: sub,
+                    vatMode: form.vatMode,
+                    issueDate: form.issued,
+                    dueDate: form.due || undefined,
+                    recurrence: targetDoc.kind === "credit" ? "none" : "none",
+                  });
+                  reconcile(result.documents, id);
+                  setToast("Invoice updated.");
+                });
+              }}
+              operator={operator}
+              sharedCc={sharedCc}
+            />
+          </div>
         </div>
-      </div>
 
-      <Composer
-        open={composerOpen}
-        onClose={() => {
-          setComposerOpen(false);
-          setComposerPrefill(null);
-        }}
-        prefill={composerPrefill}
-        onCreate={handleCreate}
-        invoices={docs}
-      />
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onAction={handlePaletteAction} />
-      <PDFLightbox
-        doc={lightboxDoc}
-        allDocs={batchPreview ?? docs}
-        onClose={() => {
-          setLightboxDoc(null);
-          setBatchPreview(null);
-        }}
-        onNavigate={(id) => {
-          if (batchPreview) return;
-          setSelectedId(id);
-        }}
-      />
-      <MonthlyRunOverlay
-        open={runOpen}
-        rows={monthlyRows}
-        onClose={() => setRunOpen(false)}
-        onApproveAll={(rows) => {
-          if (rows.length === 0) return;
-          startTransition(async () => {
-            let last = null;
-            for (const r of rows) {
-              // Materialize a concrete one-off invoice for this period. recurrence
-              // stays "none" so the issued invoice doesn't re-enter next month's run
-              // (the recurring template invoice is what keeps the schedule).
-              last = await createDocumentAction({
-                kind: "invoice",
-                clientName: clientById(r.client).name,
-                description: `Recurring charge — ${r.period}`,
-                amount: r.sub,
-                vatMode: "plus-vat",
-                issueDate: todayStamp(),
-                recurrence: "none"
-              });
-            }
-            if (last) reconcile(last.documents, last.selectedId);
+        <Composer
+          invoices={docs}
+          onClose={() => {
+            setComposerOpen(false);
+            setComposerPrefill(null);
+          }}
+          onCreate={handleCreate}
+          open={composerOpen}
+          prefill={composerPrefill}
+        />
+        <CommandPalette
+          onAction={handlePaletteAction}
+          onClose={() => setPaletteOpen(false)}
+          open={paletteOpen}
+        />
+        <PDFLightbox
+          allDocs={batchPreview ?? docs}
+          doc={lightboxDoc}
+          onClose={() => {
+            setLightboxDoc(null);
+            setBatchPreview(null);
+          }}
+          onNavigate={(id) => {
+            if (batchPreview) return;
+            setSelectedId(id);
+          }}
+        />
+        <MonthlyRunOverlay
+          onApproveAll={(rows) => {
+            if (rows.length === 0) return;
+            startTransition(async () => {
+              let last = null;
+              for (const r of rows) {
+                // Materialize a concrete one-off invoice for this period. recurrence
+                // stays "none" so the issued invoice doesn't re-enter next month's run
+                // (the recurring template invoice is what keeps the schedule).
+                last = await createDocumentAction({
+                  kind: "invoice",
+                  clientName: clientById(r.client).name,
+                  description: `Recurring charge — ${r.period}`,
+                  amount: r.sub,
+                  vatMode: "plus-vat",
+                  issueDate: todayStamp(),
+                  recurrence: "none",
+                });
+              }
+              if (last) reconcile(last.documents, last.selectedId);
+              setRunOpen(false);
+              setToast(
+                `Created ${rows.length} invoices — sent ahead of their due date.`
+              );
+            });
+          }}
+          onClose={() => setRunOpen(false)}
+          onPause={() => {
+            setRecurringRuns((r) =>
+              r.map((x) =>
+                x.cadence === "Monthly" ? { ...x, paused: true } : x
+              )
+            );
             setRunOpen(false);
-            setToast(`Created ${rows.length} invoices — sent ahead of their due date.`);
-          });
-        }}
-        onPreview={(rows) => {
-          const previewDocs: Doc[] = rows.map((r) => ({
-            id: r.id,
-            kind: "invoice",
-            stage: "draft",
-            draftNo: r.draftNo,
-            officialNo: null,
-            client: r.client,
-            issued: todayStamp(),
-            due: "",
-            period: r.period,
-            vatRate: 19,
-            vatMode: "plus-vat",
-            lines: [
-              { desc: `Recurring charge — ${r.period}`, qty: 1, unitPrice: r.net },
-              ...(r.extra ? [{ desc: "Additional charges", qty: 1, unitPrice: r.extra }] : [])
-            ],
-            total: r.total,
-            description: "",
-            timeline: []
-          }));
-          if (previewDocs.length === 0) return;
-          setBatchPreview(previewDocs);
-          setLightboxDoc(previewDocs[0]);
-          setRunOpen(false);
-          setToast(`Previewing ${previewDocs.length} invoices — use ← → to flip through the batch.`);
-        }}
-        onPause={() => {
-          setRecurringRuns((r) => r.map((x) => (x.cadence === "Monthly" ? { ...x, paused: true } : x)));
-          setRunOpen(false);
-          setToast("Monthly run paused. Reactivate from Recurring runs.");
-        }}
-      />
-      <RecurringRunsPanel
-        open={recurringPanelOpen}
-        onClose={() => setRecurringPanelOpen(false)}
-        runs={recurringRuns}
-        onTogglePaused={(id) => {
-          setRecurringRuns((r) => r.map((x) => (x.id === id ? { ...x, paused: !x.paused } : x)));
-          const target = recurringRuns.find((x) => x.id === id);
-          setToast(target?.paused ? `${target.cadence} schedule resumed.` : `${target?.cadence ?? "Schedule"} paused.`);
-        }}
-        onReviewBatch={(id) => {
-          setRecurringPanelOpen(false);
-          setRunOpen(true);
-        }}
-      />
-      <SettingsPanel
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        operator={operator}
-        sharedCc={sharedCc}
-        setSharedCc={setSharedCc}
-        accountingEmail={accountingEmail}
-        setAccountingEmail={setAccountingEmail}
-        autoRoute={autoRoute}
-        setAutoRoute={setAutoRoute}
-        onSignOut={() => {
-          setSettingsOpen(false);
-          signOut();
-        }}
-      />
-      <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-      <ConfirmDialog state={confirmState} onClose={() => setConfirmState(null)} />
-      <TemplateEditor
-        open={templateOpen}
-        onClose={() => setTemplateOpen(false)}
-        onSaved={() => setToast("Invoice template saved.")}
-      />
-      <GuidedTour
-        open={tourOpen}
-        onClose={() => {
-          setTourOpen(false);
-          window.localStorage.setItem("sophia.tour.seen", "1");
-        }}
-      />
-      <Toast message={toast} onDone={() => setToast("")} />
-    </div>
+            setToast("Monthly run paused. Reactivate from Recurring runs.");
+          }}
+          onPreview={(rows) => {
+            const previewDocs: Doc[] = rows.map((r) => ({
+              id: r.id,
+              kind: "invoice",
+              stage: "draft",
+              draftNo: r.draftNo,
+              officialNo: null,
+              client: r.client,
+              issued: todayStamp(),
+              due: "",
+              period: r.period,
+              vatRate: 19,
+              vatMode: "plus-vat",
+              lines: [
+                {
+                  desc: `Recurring charge — ${r.period}`,
+                  qty: 1,
+                  unitPrice: r.net,
+                },
+                ...(r.extra
+                  ? [{ desc: "Additional charges", qty: 1, unitPrice: r.extra }]
+                  : []),
+              ],
+              total: r.total,
+              description: "",
+              timeline: [],
+            }));
+            if (previewDocs.length === 0) return;
+            setBatchPreview(previewDocs);
+            setLightboxDoc(previewDocs[0]);
+            setRunOpen(false);
+            setToast(
+              `Previewing ${previewDocs.length} invoices — use ← → to flip through the batch.`
+            );
+          }}
+          open={runOpen}
+          rows={monthlyRows}
+        />
+        <RecurringRunsPanel
+          onClose={() => setRecurringPanelOpen(false)}
+          onReviewBatch={(id) => {
+            setRecurringPanelOpen(false);
+            setRunOpen(true);
+          }}
+          onTogglePaused={(id) => {
+            setRecurringRuns((r) =>
+              r.map((x) => (x.id === id ? { ...x, paused: !x.paused } : x))
+            );
+            const target = recurringRuns.find((x) => x.id === id);
+            setToast(
+              target?.paused
+                ? `${target.cadence} schedule resumed.`
+                : `${target?.cadence ?? "Schedule"} paused.`
+            );
+          }}
+          open={recurringPanelOpen}
+          runs={recurringRuns}
+        />
+        <SettingsPanel
+          accountingEmail={accountingEmail}
+          autoRoute={autoRoute}
+          onClose={() => setSettingsOpen(false)}
+          onSignOut={() => {
+            setSettingsOpen(false);
+            signOut();
+          }}
+          open={settingsOpen}
+          operator={operator}
+          setAccountingEmail={setAccountingEmail}
+          setAutoRoute={setAutoRoute}
+          setSharedCc={setSharedCc}
+          sharedCc={sharedCc}
+        />
+        <ShortcutsOverlay
+          onClose={() => setShortcutsOpen(false)}
+          open={shortcutsOpen}
+        />
+        <ConfirmDialog
+          onClose={() => setConfirmState(null)}
+          state={confirmState}
+        />
+        <TemplateEditor
+          onClose={() => setTemplateOpen(false)}
+          onSaved={() => setToast("Invoice template saved.")}
+          open={templateOpen}
+        />
+        <GuidedTour
+          onClose={() => {
+            setTourOpen(false);
+            window.localStorage.setItem("sophia.tour.seen", "1");
+          }}
+          open={tourOpen}
+        />
+        <Toast message={toast} onDone={() => setToast("")} />
+      </div>
     </TemplateProvider>
   );
 }

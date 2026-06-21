@@ -2,16 +2,20 @@ import {
   documentKindLabel,
   formatDate,
   formatMoney,
-  getDisplayNumber
+  getDisplayNumber,
 } from "@/lib/invoices/format";
 import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 
 export function TemplatePreview({ document }: { document: InvoiceDocument }) {
   const displayNumber = getDisplayNumber(document);
-  const sourceLabel = document.kind === "credit-note" ? "Source Invoice" : "Invoice Number";
+  const sourceLabel =
+    document.kind === "credit-note" ? "Source Invoice" : "Invoice Number";
 
   return (
-    <section className="template-preview" aria-label="Print-ready document preview">
+    <section
+      aria-label="Print-ready document preview"
+      className="template-preview"
+    >
       <div className="template-preview-bar">
         <span>Print preview</span>
         <strong>{displayNumber}</strong>
@@ -38,9 +42,14 @@ export function TemplatePreview({ document }: { document: InvoiceDocument }) {
             </div>
           </dl>
           {document.kind === "receipt" ? (
-            <span>Payment Amount: {formatMoney(document.paidAmount ?? document.total)}</span>
+            <span>
+              Payment Amount:{" "}
+              {formatMoney(document.paidAmount ?? document.total)}
+            </span>
           ) : null}
-          {document.dueDate ? <span>Due Date: {formatDate(document.dueDate)}</span> : null}
+          {document.dueDate ? (
+            <span>Due Date: {formatDate(document.dueDate)}</span>
+          ) : null}
         </div>
       </div>
 
@@ -48,7 +57,9 @@ export function TemplatePreview({ document }: { document: InvoiceDocument }) {
         <strong>{document.billToLabel}:</strong>
         <span>{document.clientName}</span>
       </div>
-      {document.label ? <p className="template-note">{document.label.toUpperCase()}</p> : null}
+      {document.label ? (
+        <p className="template-note">{document.label.toUpperCase()}</p>
+      ) : null}
 
       <table className="template-table">
         <thead>
@@ -83,9 +94,13 @@ export function TemplatePreview({ document }: { document: InvoiceDocument }) {
         <span>Subtotal {formatMoney(document.amount)}</span>
         <span>V.A.T {formatMoney(document.vatAmount)}</span>
         <strong>Total {formatMoney(document.total)}</strong>
-        {document.kind === "invoice" ? <strong>Balance Due {formatMoney(document.total)}</strong> : null}
+        {document.kind === "invoice" ? (
+          <strong>Balance Due {formatMoney(document.total)}</strong>
+        ) : null}
         {document.kind === "receipt" ? (
-          <strong>Paid Today {formatMoney(document.paidAmount ?? document.total)}</strong>
+          <strong>
+            Paid Today {formatMoney(document.paidAmount ?? document.total)}
+          </strong>
         ) : null}
       </div>
 
@@ -99,7 +114,9 @@ export function TemplatePreview({ document }: { document: InvoiceDocument }) {
           <span>BIC: HEBACY2N</span>
         </div>
       ) : document.kind === "credit-note" ? (
-        <p className="template-note">Please contact us for more information about this credit note.</p>
+        <p className="template-note">
+          Please contact us for more information about this credit note.
+        </p>
       ) : (
         <p className="template-note">Thank you.</p>
       )}

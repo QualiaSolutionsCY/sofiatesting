@@ -1,6 +1,16 @@
-import type { ApprovalStatus, InvoiceDocument } from "@/lib/invoices/types/invoice";
-import { createCreditNoteFromInvoice, createReceiptFromInvoice } from "@/lib/invoices/document-actions";
-import { documentKindLabel, getUnifiedFilename, statusLabel } from "@/lib/invoices/format";
+import {
+  createCreditNoteFromInvoice,
+  createReceiptFromInvoice,
+} from "@/lib/invoices/document-actions";
+import {
+  documentKindLabel,
+  getUnifiedFilename,
+  statusLabel,
+} from "@/lib/invoices/format";
+import type {
+  ApprovalStatus,
+  InvoiceDocument,
+} from "@/lib/invoices/types/invoice";
 
 type Actor = "Sophia" | "Marios";
 
@@ -12,7 +22,7 @@ function appendTimeline(
 ): InvoiceDocument {
   return {
     ...document,
-    approvalTimeline: [...document.approvalTimeline, { label, at, by: actor }]
+    approvalTimeline: [...document.approvalTimeline, { label, at, by: actor }],
   };
 }
 
@@ -28,7 +38,7 @@ export function transitionDocumentStatus(
       whatsappStatus:
         status === "sent-to-marios" || status === "sent-to-accounting"
           ? "queued"
-          : document.whatsappStatus
+          : document.whatsappStatus,
     },
     statusLabel(status),
     status === "approved" ? "Marios" : "Sophia",
@@ -44,7 +54,9 @@ export function markApproved(document: InvoiceDocument): InvoiceDocument {
   return transitionDocumentStatus(document, "approved");
 }
 
-export function forwardToAccounting(document: InvoiceDocument): InvoiceDocument {
+export function forwardToAccounting(
+  document: InvoiceDocument
+): InvoiceDocument {
   return transitionDocumentStatus(document, "sent-to-accounting");
 }
 
@@ -57,7 +69,7 @@ export function markCorrectedForResend(
     correctionReason: document.correctionReason ?? reason,
     storageStatus: "needs-regeneration",
     whatsappStatus: "queued",
-    notes: [...document.notes, reason]
+    notes: [...document.notes, reason],
   };
 }
 
@@ -74,8 +86,9 @@ export function applyOfficialNumberToDocument(
       officialNumber: trimmed,
       officialNumberPendingReason: undefined,
       status: "numbered",
-      receiptNumber: document.kind === "receipt" ? trimmed : document.receiptNumber,
-      storageStatus: "needs-regeneration"
+      receiptNumber:
+        document.kind === "receipt" ? trimmed : document.receiptNumber,
+      storageStatus: "needs-regeneration",
     },
     `${documentKindLabel(document.kind)} number ${trimmed} applied`,
     "Sophia"
@@ -87,18 +100,20 @@ export function markStorageReady(document: InvoiceDocument): InvoiceDocument {
     ...document,
     storageStatus: "stored",
     storagePath: `generated/${getUnifiedFilename(document)}`,
-    notes: [...document.notes, "Marked ready for Supabase Storage upload."]
+    notes: [...document.notes, "Marked ready for Supabase Storage upload."],
   };
 }
 
-export function markRegeneratedStoredDocument(document: InvoiceDocument): InvoiceDocument {
+export function markRegeneratedStoredDocument(
+  document: InvoiceDocument
+): InvoiceDocument {
   return appendTimeline(
     {
       ...markStorageReady(document),
       notes: [
         ...document.notes,
-        "Regenerated PDF stored after correction. Use this file and ignore previous versions."
-      ]
+        "Regenerated PDF stored after correction. Use this file and ignore previous versions.",
+      ],
     },
     "Regenerated PDF stored",
     "Sophia"
@@ -128,12 +143,15 @@ export function markPaidWithReceipt(
         {
           label: "Marked paid and receipt draft issued",
           at,
-          by: "Sophia"
-        }
+          by: "Sophia",
+        },
       ],
-      notes: [...invoice.notes, `Receipt draft ${receipt.draftNumber} created.`]
+      notes: [
+        ...invoice.notes,
+        `Receipt draft ${receipt.draftNumber} created.`,
+      ],
     },
-    receipt
+    receipt,
   };
 }
 
@@ -158,11 +176,11 @@ export function cancelInvoiceWithCreditNote(
         {
           label: "Cancelled with linked credit note",
           at,
-          by: "Sophia"
-        }
+          by: "Sophia",
+        },
       ],
-      notes: [...invoice.notes, reason]
+      notes: [...invoice.notes, reason],
     },
-    creditNote
+    creditNote,
   };
 }

@@ -1,10 +1,18 @@
 "use client";
 
-import { FormEvent, useState } from "react";
 import { LockKeyhole } from "lucide-react";
-import { accessUsers, findAccessUser, type AccessUser } from "@/lib/invoices/access";
+import { type FormEvent, useState } from "react";
+import {
+  type AccessUser,
+  accessUsers,
+  findAccessUser,
+} from "@/lib/invoices/access";
 
-export function AccessGate({ onAccess }: { onAccess: (user: AccessUser) => void }) {
+export function AccessGate({
+  onAccess,
+}: {
+  onAccess: (user: AccessUser) => void;
+}) {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
 
@@ -26,19 +34,22 @@ export function AccessGate({ onAccess }: { onAccess: (user: AccessUser) => void 
         </span>
         <p className="eyebrow">Sophia invoice access</p>
         <h1>Enter access code</h1>
-        <p className="access-lede">Marios review · month-end run · accounting ready</p>
+        <p className="access-lede">
+          Marios review · month-end run · accounting ready
+        </p>
         <input
-          value={code}
+          aria-label="Access code"
           onChange={(event) => setCode(event.target.value)}
           placeholder="MARIOS-2026"
-          aria-label="Access code"
+          value={code}
         />
         {error ? <p className="form-error">{error}</p> : null}
         <button className="primary-action" type="submit">
           Open dashboard
         </button>
         <p className="access-hint">
-          Configured MVP users: {accessUsers.map((user) => user.name).join(", ")}.
+          Configured MVP users:{" "}
+          {accessUsers.map((user) => user.name).join(", ")}.
         </p>
       </form>
     </main>

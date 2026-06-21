@@ -7,7 +7,7 @@ export async function deliverWithManualProvider(
     "manual",
     request.payload.channel,
     request.payload.actionType,
-    request.queueItemId
+    request.queueItemId,
   ].join(":");
 
   return {
@@ -19,7 +19,7 @@ export async function deliverWithManualProvider(
       mode: "manual",
       channel: request.payload.channel,
       target: request.payload.target,
-      copied: false
-    }
+      copied: false,
+    },
   };
 }

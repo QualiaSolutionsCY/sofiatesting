@@ -1,4 +1,8 @@
-import { formatDate, getDisplayNumber, getUnifiedFilename } from "@/lib/invoices/format";
+import {
+  formatDate,
+  getDisplayNumber,
+  getUnifiedFilename,
+} from "@/lib/invoices/format";
 import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 
 export type ClientEmailMessage = {
@@ -16,9 +20,14 @@ export function buildClientEmailMessage(
   const number = getDisplayNumber(document);
   const issueMonth = new Intl.DateTimeFormat("en", {
     month: "long",
-    year: "numeric"
+    year: "numeric",
   }).format(new Date(document.issueDate));
-  const documentName = document.kind === "credit-note" ? "Credit note" : document.kind === "receipt" ? "Receipt" : "Invoice";
+  const documentName =
+    document.kind === "credit-note"
+      ? "Credit note"
+      : document.kind === "receipt"
+        ? "Receipt"
+        : "Invoice";
 
   return {
     to: document.clientEmail ?? "",
@@ -31,7 +40,7 @@ export function buildClientEmailMessage(
       `Please find attached ${documentName.toLowerCase()} ${number} dated ${formatDate(document.issueDate)}.`,
       "",
       "Kind regards,",
-      "Sophia"
-    ].join("\n")
+      "Sophia",
+    ].join("\n"),
   };
 }

@@ -29,12 +29,18 @@ function verifySignature(raw: string, sig: string | null): boolean {
 
 export async function POST(req: Request) {
   if (!SECRET) {
-    return NextResponse.json({ ok: false, error: "bridge not configured" }, { status: 503 });
+    return NextResponse.json(
+      { ok: false, error: "bridge not configured" },
+      { status: 503 }
+    );
   }
 
   const raw = await req.text();
   if (!verifySignature(raw, req.headers.get("x-sophia-signature"))) {
-    return NextResponse.json({ ok: false, error: "bad signature" }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, error: "bad signature" },
+      { status: 401 }
+    );
   }
 
   let payload: {
@@ -52,13 +58,19 @@ export async function POST(req: Request) {
   if (!isAuthorizedAgent(waNumber)) {
     // Generic deflection — never reveal the allowlist.
     return NextResponse.json(
-      { ok: false, reply: "Sorry, I can't help with invoicing from this number." },
+      {
+        ok: false,
+        reply: "Sorry, I can't help with invoicing from this number.",
+      },
       { status: 403 }
     );
   }
 
   try {
-    const result = await runIntent(payload.intent as SophiaIntent, payload.params || {});
+    const result = await runIntent(
+      payload.intent as SophiaIntent,
+      payload.params || {}
+    );
     return NextResponse.json(result, { status: result.ok ? 200 : 422 });
   } catch (e) {
     return NextResponse.json(

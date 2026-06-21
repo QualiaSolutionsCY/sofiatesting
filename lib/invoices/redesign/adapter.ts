@@ -1,8 +1,19 @@
+import type {
+  ApprovalStatus,
+  DocumentKind,
+  InvoiceDocument,
+  VatMode,
+} from "@/lib/invoices/types/invoice";
 import type { Client, Doc, DocKind, Stage, TimelineEvent } from "./types";
-import type { InvoiceDocument, DocumentKind, ApprovalStatus, VatMode } from "@/lib/invoices/types/invoice";
 
 function clientIdFromName(name: string): string {
-  return "client-" + name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return (
+    "client-" +
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+  );
 }
 
 function kindRedesign(kind: DocumentKind): DocKind {
@@ -23,7 +34,9 @@ function vatRateFromMode(mode: VatMode): number {
 function periodFromIssue(issueDate: string): string {
   const [y, m] = issueDate.split("-");
   if (!y || !m) return "";
-  const month = new Date(Number(y), Number(m) - 1, 1).toLocaleString("en-GB", { month: "long" });
+  const month = new Date(Number(y), Number(m) - 1, 1).toLocaleString("en-GB", {
+    month: "long",
+  });
   return `${month} ${y}`;
 }
 
@@ -32,7 +45,7 @@ function timelineFromInvoice(invoice: InvoiceDocument): TimelineEvent[] {
     at: event.at,
     who: event.by,
     what: event.label,
-    body: "—"
+    body: "—",
   }));
 }
 
@@ -40,10 +53,13 @@ export function invoiceToDoc(invoice: InvoiceDocument): Doc {
   const sub = invoice.amount;
   const lines = [
     {
-      desc: invoice.description || invoice.billToLabel || `${kindRedesign(invoice.kind)} — ${invoice.clientName}`,
+      desc:
+        invoice.description ||
+        invoice.billToLabel ||
+        `${kindRedesign(invoice.kind)} — ${invoice.clientName}`,
       qty: 1,
-      unitPrice: sub
-    }
+      unitPrice: sub,
+    },
   ];
   const total = invoice.total * (invoice.kind === "credit-note" ? -1 : 1);
 
@@ -53,7 +69,9 @@ export function invoiceToDoc(invoice: InvoiceDocument): Doc {
     stage: invoice.status as Stage,
     draftNo: invoice.draftNumber || null,
     officialNo: invoice.officialNumber ?? null,
-    pdf: invoice.storagePath ? invoice.storagePath.split("/").at(-1) : undefined,
+    pdf: invoice.storagePath
+      ? invoice.storagePath.split("/").at(-1)
+      : undefined,
     client: clientIdFromName(invoice.clientName),
     issued: invoice.issueDate,
     due: invoice.dueDate,
@@ -65,15 +83,24 @@ export function invoiceToDoc(invoice: InvoiceDocument): Doc {
     lines,
     total,
     description: invoice.description,
-    commission: invoice.requiresCommissionPerson && invoice.commissionPersonName
-      ? { agent: invoice.commissionPersonName, rate: "5%", amount: sub * 0.05 }
-      : undefined,
+    commission:
+      invoice.requiresCommissionPerson && invoice.commissionPersonName
+        ? {
+            agent: invoice.commissionPersonName,
+            rate: "5%",
+            amount: sub * 0.05,
+          }
+        : undefined,
     correction: invoice.correctionReason
-      ? { reason: invoice.correctionReason, at: invoice.approvalTimeline.at(-1)?.at ?? invoice.issueDate, from: "Marios" }
+      ? {
+          reason: invoice.correctionReason,
+          at: invoice.approvalTimeline.at(-1)?.at ?? invoice.issueDate,
+          from: "Marios",
+        }
       : undefined,
     receiptNo: invoice.receiptNumber,
     appliesTo: invoice.sourceInvoiceNumber,
-    timeline: timelineFromInvoice(invoice)
+    timeline: timelineFromInvoice(invoice),
   };
 }
 
@@ -87,14 +114,17 @@ export function deriveClients(invoices: InvoiceDocument[]): Client[] {
         name: inv.clientName,
         property: inv.billToLabel || "—",
         address: "—",
-        vat: "—"
+        vat: "—",
       });
     }
   }
   return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function invoicesToDocs(invoices: InvoiceDocument[]): { docs: Doc[]; clients: Client[] } {
+export function invoicesToDocs(invoices: InvoiceDocument[]): {
+  docs: Doc[];
+  clients: Client[];
+} {
   // Preserve the repository order (updated_at desc — see listInvoiceDocuments)
   // so the most recently created/updated invoice is always on top. Sorting by
   // issue date here buried freshly created invoices below future-dated ones.
@@ -109,7 +139,9 @@ export function invoicesToDocs(invoices: InvoiceDocument[]): { docs: Doc[]; clie
   }
   for (const doc of docs) {
     if (doc.kind === "invoice" && doc.officialNo) {
-      const credit = docs.find((d) => d.kind === "credit" && d.appliesTo === doc.officialNo);
+      const credit = docs.find(
+        (d) => d.kind === "credit" && d.appliesTo === doc.officialNo
+      );
       if (credit) doc.creditedBy = credit.id;
     }
   }
@@ -127,11 +159,19 @@ const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
  * Amounts are recomputed from the line items the same way TemplatePreview does,
  * so the downloaded PDF matches the on-screen preview exactly.
  */
-export function docToInvoiceDocument(doc: Doc, client: Client): InvoiceDocument {
-  const lineSum = (doc.lines || []).reduce((s, l) => s + l.qty * l.unitPrice, 0);
+export function docToInvoiceDocument(
+  doc: Doc,
+  client: Client
+): InvoiceDocument {
+  const lineSum = (doc.lines || []).reduce(
+    (s, l) => s + l.qty * l.unitPrice,
+    0
+  );
   const rate = doc.vatMode === "no-vat" ? 0 : doc.vatRate || 0;
   const includesVat = doc.vatMode === "included-vat";
-  const vat = includesVat ? lineSum - lineSum / (1 + rate / 100) : (lineSum * rate) / 100;
+  const vat = includesVat
+    ? lineSum - lineSum / (1 + rate / 100)
+    : (lineSum * rate) / 100;
   const sub = includesVat ? lineSum - vat : lineSum;
   const total = includesVat ? lineSum : lineSum + vat;
 
@@ -161,7 +201,7 @@ export function docToInvoiceDocument(doc: Doc, client: Client): InvoiceDocument 
     mariosReviewPhone: "",
     accountingGroupLabel: "",
     approvalTimeline: [],
-    notes: []
+    notes: [],
   };
 }
 

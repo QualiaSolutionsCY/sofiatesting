@@ -18,10 +18,24 @@ function formatNext(when: string): string {
   if (!date) return when;
   const d = new Date(`${date}T${time || "00:00"}:00`);
   if (isNaN(d.getTime())) return when;
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) + " · " + (time || "08:00");
+  return (
+    d.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }) +
+    " · " +
+    (time || "08:00")
+  );
 }
 
-export function RecurringRunsPanel({ open, onClose, runs, onTogglePaused, onReviewBatch }: RecurringRunsPanelProps) {
+export function RecurringRunsPanel({
+  open,
+  onClose,
+  runs,
+  onTogglePaused,
+  onReviewBatch,
+}: RecurringRunsPanelProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
@@ -32,11 +46,16 @@ export function RecurringRunsPanel({ open, onClose, runs, onTogglePaused, onRevi
   if (!open) return null;
 
   const activeCount = runs.filter((r) => !r.paused).length;
-  const totalDrafts = runs.filter((r) => !r.paused).reduce((s, r) => s + r.count, 0);
+  const totalDrafts = runs
+    .filter((r) => !r.paused)
+    .reduce((s, r) => s + r.count, 0);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="recurring-panel" onClick={(event) => event.stopPropagation()}>
+      <div
+        className="recurring-panel"
+        onClick={(event) => event.stopPropagation()}
+      >
         <header className="recurring-panel-header">
           <div>
             <p className="eyebrow">
@@ -44,10 +63,16 @@ export function RecurringRunsPanel({ open, onClose, runs, onTogglePaused, onRevi
             </p>
             <h2>Manage automated invoice schedules</h2>
             <p className="recurring-panel-lede">
-              {activeCount} of {runs.length} active · {totalDrafts} draft{totalDrafts === 1 ? "" : "s"} queued across all schedules
+              {activeCount} of {runs.length} active · {totalDrafts} draft
+              {totalDrafts === 1 ? "" : "s"} queued across all schedules
             </p>
           </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+          <button
+            aria-label="Close"
+            className="icon-button"
+            onClick={onClose}
+            type="button"
+          >
             <X size={16} strokeWidth={1.6} />
           </button>
         </header>
@@ -62,33 +87,44 @@ export function RecurringRunsPanel({ open, onClose, runs, onTogglePaused, onRevi
             <span />
           </div>
           {runs.map((run) => (
-            <div key={run.id} className={`recurring-panel-row ${run.paused ? "is-paused" : ""}`}>
+            <div
+              className={`recurring-panel-row ${run.paused ? "is-paused" : ""}`}
+              key={run.id}
+            >
               <span className="recurring-cadence">
                 <strong>{run.cadence}</strong>
                 <em>{run.id}</em>
               </span>
-              <span className="recurring-next">{run.paused ? "—" : formatNext(run.nextRun)}</span>
+              <span className="recurring-next">
+                {run.paused ? "—" : formatNext(run.nextRun)}
+              </span>
               <span className="recurring-count">{run.count}</span>
               <span className="recurring-last">
                 {formatNext(run.lastRun)} · {run.lastRunIssued} issued
               </span>
-              <span className={`recurring-status ${run.paused ? "paused" : "active"}`}>
+              <span
+                className={`recurring-status ${run.paused ? "paused" : "active"}`}
+              >
                 {run.paused ? "Paused" : "Active"}
               </span>
               <div className="recurring-actions">
                 <button
-                  type="button"
                   className="ghost"
-                  onClick={() => onReviewBatch(run.id)}
                   disabled={run.paused}
-                  title={run.paused ? "Resume to review the batch" : "Review the upcoming batch"}
+                  onClick={() => onReviewBatch(run.id)}
+                  title={
+                    run.paused
+                      ? "Resume to review the batch"
+                      : "Review the upcoming batch"
+                  }
+                  type="button"
                 >
                   Review batch
                 </button>
                 <button
-                  type="button"
                   className={run.paused ? "primary" : "ghost"}
                   onClick={() => onTogglePaused(run.id)}
+                  type="button"
                 >
                   {run.paused ? (
                     <>
@@ -107,9 +143,11 @@ export function RecurringRunsPanel({ open, onClose, runs, onTogglePaused, onRevi
 
         <footer className="recurring-panel-foot">
           <p>
-            Paused schedules don&apos;t fire automatic drafts. The lifetime audit trail keeps every previous run visible regardless of current status.
+            Paused schedules don&apos;t fire automatic drafts. The lifetime
+            audit trail keeps every previous run visible regardless of current
+            status.
           </p>
-          <button type="button" className="ghost" onClick={onClose}>
+          <button className="ghost" onClick={onClose} type="button">
             Done
           </button>
         </footer>

@@ -1,21 +1,31 @@
 import "server-only";
 
+import {
+  type ParsedInboundReply,
+  parseInboundReply,
+} from "@/lib/invoices/integrations/webhook-parser";
 import { getNextOfficialNumber } from "@/lib/invoices/numbering";
-import { parseInboundReply, type ParsedInboundReply } from "@/lib/invoices/integrations/webhook-parser";
+import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 import {
   applyOfficialNumberToDocument,
   markApproved,
-  transitionDocumentStatus
+  transitionDocumentStatus,
 } from "@/lib/invoices/workflow-actions";
-import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
-import { listInvoiceDocuments, saveInvoiceDocument } from "./document-repository";
-import { createServiceSupabaseClient } from "./server";
+import {
+  listInvoiceDocuments,
+  saveInvoiceDocument,
+} from "./document-repository";
 import { SUPABASE_TABLES } from "./schema";
+import { createServiceSupabaseClient } from "./server";
 
 export type InboundWebhookInput = {
   provider: "manual" | "whatsapp" | "email";
   eventId?: string;
-  eventType?: "delivery-status" | "inbound-message" | "approval-reply" | "unknown";
+  eventType?:
+    | "delivery-status"
+    | "inbound-message"
+    | "approval-reply"
+    | "unknown";
   signatureStatus?: "not-required" | "unverified" | "verified" | "failed";
   documentId?: string;
   providerMessageId?: string;
@@ -34,9 +44,16 @@ export type InboundWebhookResult = {
 const fallbackProcessedEvents = new Set<string>();
 const fallbackWebhookEvents: InboundWebhookInput[] = [];
 
-export async function processInboundWebhook(input: InboundWebhookInput): Promise<InboundWebhookResult> {
+export async function processInboundWebhook(
+  input: InboundWebhookInput
+): Promise<InboundWebhookResult> {
   if (input.eventId && fallbackProcessedEvents.has(input.eventId)) {
-    return { status: "ignored", outcome: "unknown", documentId: input.documentId, reason: "duplicate" };
+    return {
+      status: "ignored",
+      outcome: "unknown",
+      documentId: input.documentId,
+      reason: "duplicate",
+    };
   }
 
   await storeWebhookEvent(input, "received");
@@ -46,26 +63,43 @@ export async function processInboundWebhook(input: InboundWebhookInput): Promise
 
   if (!input.documentId || parsed.outcome === "unknown") {
     await storeWebhookEvent(input, "ignored");
-    return { status: "ignored", outcome: parsed.outcome, documentId: input.documentId };
+    return {
+      status: "ignored",
+      outcome: parsed.outcome,
+      documentId: input.documentId,
+    };
   }
 
   const current = await listInvoiceDocuments();
-  const document = current.documents.find((candidate) => candidate.id === input.documentId);
+  const document = current.documents.find(
+    (candidate) => candidate.id === input.documentId
+  );
   if (!document) {
-    await storeWebhookEvent(input, "failed", `Document ${input.documentId} was not found`);
+    await storeWebhookEvent(
+      input,
+      "failed",
+      `Document ${input.documentId} was not found`
+    );
     return {
       status: "failed",
       outcome: parsed.outcome,
       documentId: input.documentId,
-      reason: "document not found"
+      reason: "document not found",
     };
   }
 
   const updated = applyReplyToDocument(document, current.documents, parsed);
-  await saveInvoiceDocument(updated, `Inbound ${parsed.outcome} reply from ${input.provider}`);
+  await saveInvoiceDocument(
+    updated,
+    `Inbound ${parsed.outcome} reply from ${input.provider}`
+  );
   await storeWebhookEvent(input, "processed");
 
-  return { status: "processed", outcome: parsed.outcome, documentId: document.id };
+  return {
+    status: "processed",
+    outcome: parsed.outcome,
+    documentId: document.id,
+  };
 }
 
 export function __resetWebhookRepositoryForTests() {
@@ -89,7 +123,10 @@ function applyReplyToDocument(
     );
   }
 
-  if (parsed.outcome === "correction-requested" || parsed.outcome === "rejected") {
+  if (
+    parsed.outcome === "correction-requested" ||
+    parsed.outcome === "rejected"
+  ) {
     const label =
       parsed.outcome === "rejected"
         ? "Marios rejected draft via inbound reply"
@@ -97,12 +134,13 @@ function applyReplyToDocument(
     return {
       ...transitionDocumentStatus(document, "correction-needed"),
       correctionReason: parsed.reason ?? document.correctionReason,
-      officialNumberPendingReason: "Waiting for corrected draft after Marios reply.",
+      officialNumberPendingReason:
+        "Waiting for corrected draft after Marios reply.",
       approvalTimeline: [
         ...document.approvalTimeline,
-        { label, at: new Date().toISOString(), by: "Marios" }
+        { label, at: new Date().toISOString(), by: "Marios" },
       ],
-      notes: [...document.notes, parsed.reason ?? label]
+      notes: [...document.notes, parsed.reason ?? label],
     };
   }
 
@@ -137,10 +175,13 @@ async function storeWebhookEvent(
     headers: input.headers ?? {},
     provider_message_id: input.providerMessageId,
     document_id: documentRow?.id ?? null,
-    error_message: errorMessage
+    error_message: errorMessage,
   });
 
-  if (error) throw new Error(`Unable to store invoice_webhook_events row: ${error.message}`);
+  if (error)
+    throw new Error(
+      `Unable to store invoice_webhook_events row: ${error.message}`
+    );
 }
 
 function extractText(payload: Record<string, unknown>) {

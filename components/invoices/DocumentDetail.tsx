@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   Archive,
@@ -19,11 +18,11 @@ import {
   RefreshCw,
   Send,
   Trash2,
-  UserCheck
+  UserCheck,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { downloadDocumentPdf } from "@/lib/invoices/downloads";
 import { buildClientEmailMessage } from "@/lib/invoices/email";
-import { buildWhatsappMessage } from "@/lib/invoices/whatsapp";
 import {
   documentKindLabel,
   formatDate,
@@ -31,14 +30,15 @@ import {
   getDisplayNumber,
   getUnifiedFilename,
   recurrenceLabel,
-  statusLabel
+  statusLabel,
 } from "@/lib/invoices/format";
+import type { DeliveryRecord } from "@/lib/invoices/types/deliveries";
 import type {
   InvoiceDocument,
   InvoicePeriod,
-  VatMode
+  VatMode,
 } from "@/lib/invoices/types/invoice";
-import type { DeliveryRecord } from "@/lib/invoices/types/deliveries";
+import { buildWhatsappMessage } from "@/lib/invoices/whatsapp";
 import { InfoTile } from "./InfoTile";
 import { StatusBadge } from "./StatusBadge";
 import { TemplatePreview } from "./TemplatePreview";
@@ -47,12 +47,12 @@ import type { DocumentActionHandlers } from "./types";
 const vatOptions: Array<{ value: VatMode; label: string }> = [
   { value: "plus-vat", label: "Plus VAT" },
   { value: "included-vat", label: "Including VAT" },
-  { value: "no-vat", label: "No VAT" }
+  { value: "no-vat", label: "No VAT" },
 ];
 
 const periodOptions: Array<{ value: InvoicePeriod; label: string }> = [
   { value: "monthly", label: "Monthly" },
-  { value: "yearly", label: "Yearly" }
+  { value: "yearly", label: "Yearly" },
 ];
 
 export function DocumentDetail({
@@ -74,7 +74,7 @@ export function DocumentDetail({
   onDelete,
   onDashboardControlChange,
   sharedCcEmail,
-  deliveryRecords
+  deliveryRecords,
 }: {
   document: InvoiceDocument;
   sharedCcEmail: string;
@@ -84,7 +84,9 @@ export function DocumentDetail({
     input: { vatMode?: VatMode; period?: InvoicePeriod }
   ) => void;
 } & DocumentActionHandlers) {
-  const [officialNumber, setOfficialNumber] = useState(document.officialNumber ?? "");
+  const [officialNumber, setOfficialNumber] = useState(
+    document.officialNumber ?? ""
+  );
   const mariosMessage = buildWhatsappMessage(document, "marios");
   const accountingMessage = buildWhatsappMessage(document, "accounting-group");
   const clientEmailMessage = buildClientEmailMessage(document, sharedCcEmail);
@@ -97,7 +99,7 @@ export function DocumentDetail({
     onForwardAccounting,
     onQueueClientEmail,
     onSendToMarios,
-    onStorePdf
+    onStorePdf,
   });
 
   useEffect(() => {
@@ -109,7 +111,7 @@ export function DocumentDetail({
       <div className="detail-header">
         <div className="detail-header-meta">
           <p className="eyebrow">Selected {documentKindLabel(document.kind)}</p>
-          <StatusBadge status={document.status} large />
+          <StatusBadge large status={document.status} />
         </div>
         <h2 className="detail-client">{document.clientName}</h2>
         <p className="filename">{getUnifiedFilename(document)}</p>
@@ -122,16 +124,16 @@ export function DocumentDetail({
             <label className="detail-inline-control">
               <span>VAT mode</span>
               <select
-                value={document.vatMode}
                 aria-label={`VAT for ${getDisplayNumber(document)}`}
                 onChange={(event) =>
                   onDashboardControlChange(document.id, {
-                    vatMode: event.target.value as VatMode
+                    vatMode: event.target.value as VatMode,
                   })
                 }
+                value={document.vatMode}
               >
                 {vatOptions.map((option) => (
-                  <option value={option.value} key={option.value}>
+                  <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
@@ -141,16 +143,18 @@ export function DocumentDetail({
               <label className="detail-inline-control">
                 <span>Period</span>
                 <select
-                  value={document.recurrence === "yearly" ? "yearly" : "monthly"}
                   aria-label={`Period for ${getDisplayNumber(document)}`}
                   onChange={(event) =>
                     onDashboardControlChange(document.id, {
-                      period: event.target.value as InvoicePeriod
+                      period: event.target.value as InvoicePeriod,
                     })
+                  }
+                  value={
+                    document.recurrence === "yearly" ? "yearly" : "monthly"
                   }
                 >
                   {periodOptions.map((option) => (
-                    <option value={option.value} key={option.value}>
+                    <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
                   ))}
@@ -170,16 +174,19 @@ export function DocumentDetail({
         </div>
       </div>
 
-      <section className="command-band" aria-label="Document workflow + primary action">
+      <section
+        aria-label="Document workflow + primary action"
+        className="command-band"
+      >
         <div className="command-band-stage">
-          <span className={`stage-rail stage-rail-${stage.tone}`} aria-hidden />
+          <span aria-hidden className={`stage-rail stage-rail-${stage.tone}`} />
           <div>
             <p className="eyebrow">Current stage</p>
             <h3>{stage.title}</h3>
             <p className="command-band-description">{stage.description}</p>
           </div>
         </div>
-        <ol className="workflow-steps" aria-label="Invoice workflow progress">
+        <ol aria-label="Invoice workflow progress" className="workflow-steps">
           {workflowSteps.map((step) => (
             <li className={`workflow-step is-${step.state}`} key={step.label}>
               <span aria-hidden />
@@ -188,7 +195,11 @@ export function DocumentDetail({
             </li>
           ))}
         </ol>
-        <button type="button" className="command-primary-action" onClick={primaryAction.onClick}>
+        <button
+          className="command-primary-action"
+          onClick={primaryAction.onClick}
+          type="button"
+        >
           {primaryAction.icon}
           <span className="command-primary-label">
             <strong>{primaryAction.label}</strong>
@@ -198,61 +209,71 @@ export function DocumentDetail({
         </button>
       </section>
 
-      <section className="action-strip" aria-label="Workflow actions">
+      <section aria-label="Workflow actions" className="action-strip">
         <div className="action-group action-group-primary">
-          <button type="button" onClick={onEdit}>
+          <button onClick={onEdit} type="button">
             <Edit3 size={14} />
             Edit
           </button>
-          <button type="button" onClick={() => downloadDocumentPdf(document)}>
+          <button onClick={() => downloadDocumentPdf(document)} type="button">
             <Download size={14} />
             PDF
           </button>
           <details className="action-more">
             <summary>
               <span>More</span>
-              <ChevronDown size={14} aria-hidden />
+              <ChevronDown aria-hidden size={14} />
             </summary>
             <div className="action-more-menu" role="menu">
-              <button type="button" role="menuitem" onClick={onForwardAccounting}>
+              <button
+                onClick={onForwardAccounting}
+                role="menuitem"
+                type="button"
+              >
                 <MessageSquareText size={14} />
                 Forward to accounting
               </button>
-              <button type="button" role="menuitem" onClick={onQueueClientEmail}>
+              <button
+                onClick={onQueueClientEmail}
+                role="menuitem"
+                type="button"
+              >
                 <Mail size={14} />
                 Email client
               </button>
               {document.kind === "invoice" ? (
-                <button type="button" role="menuitem" onClick={onMarkPaidAndIssueReceipt}>
+                <button
+                  onClick={onMarkPaidAndIssueReceipt}
+                  role="menuitem"
+                  type="button"
+                >
                   <FileCheck2 size={14} />
                   Mark paid · issue receipt
                 </button>
               ) : null}
-              <button type="button" role="menuitem" onClick={onStorePdf}>
+              <button onClick={onStorePdf} role="menuitem" type="button">
                 <Database size={14} />
                 Store PDF
               </button>
               <button
-                type="button"
-                role="menuitem"
-                onClick={onRetrievePdf}
                 disabled={!document.storagePath}
+                onClick={onRetrievePdf}
+                role="menuitem"
+                type="button"
               >
                 <Archive size={14} />
                 Retrieve stored PDF
               </button>
               <button
-                type="button"
-                role="menuitem"
-                onClick={onRegeneratePdf}
                 disabled={document.storageStatus !== "needs-regeneration"}
+                onClick={onRegeneratePdf}
+                role="menuitem"
+                type="button"
               >
                 <RefreshCw size={14} />
                 Regenerate PDF
               </button>
               <button
-                type="button"
-                role="menuitem"
                 onClick={() => {
                   const reason = window.prompt(
                     "Correction reason",
@@ -260,31 +281,37 @@ export function DocumentDetail({
                   );
                   if (reason !== null) onCorrectResend(reason);
                 }}
+                role="menuitem"
+                type="button"
               >
                 <RefreshCw size={14} />
                 Correct resend
               </button>
-              <button type="button" role="menuitem" onClick={() => window.print()}>
+              <button
+                onClick={() => window.print()}
+                role="menuitem"
+                type="button"
+              >
                 <Printer size={14} />
                 Print
               </button>
               <hr aria-hidden />
               {document.kind === "invoice" ? (
                 <button
-                  type="button"
-                  role="menuitem"
                   className="danger-action"
                   onClick={onCancelWithCreditNote}
+                  role="menuitem"
+                  type="button"
                 >
                   <FileCheck2 size={14} />
                   Cancel with credit note
                 </button>
               ) : null}
               <button
-                type="button"
-                role="menuitem"
                 className="danger-action"
                 onClick={onDelete}
+                role="menuitem"
+                type="button"
               >
                 <Trash2 size={14} />
                 Delete document
@@ -299,7 +326,9 @@ export function DocumentDetail({
           {getDisplayNumber(document)}
         </InfoTile>
         <InfoTile icon={<UserCheck size={16} />} label="Approval">
-          {document.officialNumber ? "Official number applied" : "Waiting for Marios approval"}
+          {document.officialNumber
+            ? "Official number applied"
+            : "Waiting for Marios approval"}
         </InfoTile>
         <InfoTile icon={<Archive size={16} />} label="Storage">
           {document.storageStatus.replaceAll("-", " ")}
@@ -315,7 +344,8 @@ export function DocumentDetail({
 
       {document.storageStatus === "needs-regeneration" ? (
         <p className="storage-warning">
-          Regenerate PDF before forwarding. The stored copy is behind the latest correction.
+          Regenerate PDF before forwarding. The stored copy is behind the latest
+          correction.
         </p>
       ) : null}
 
@@ -325,10 +355,12 @@ export function DocumentDetail({
           <div>
             <strong>Commission trigger</strong>
             <p>
-              Commission is mentioned, so Sophia must include the relevant person or agent name in
-              the accounting group message.
+              Commission is mentioned, so Sophia must include the relevant
+              person or agent name in the accounting group message.
             </p>
-            <span>{document.commissionPersonName ?? "Missing person name"}</span>
+            <span>
+              {document.commissionPersonName ?? "Missing person name"}
+            </span>
           </div>
         </section>
       ) : null}
@@ -338,16 +370,19 @@ export function DocumentDetail({
           <p className="eyebrow">Sequence control</p>
           <h3>Approval numbering</h3>
           <p>
-            Drafts use fake numbers. After approval or payment confirmation, Sophia applies the
-            official number from the client-provided sequence.
+            Drafts use fake numbers. After approval or payment confirmation,
+            Sophia applies the official number from the client-provided
+            sequence.
           </p>
           {!document.officialNumber && document.officialNumberPendingReason ? (
-            <strong className="pending-number-note">{document.officialNumberPendingReason}</strong>
+            <strong className="pending-number-note">
+              {document.officialNumberPendingReason}
+            </strong>
           ) : null}
         </div>
         <div className="numbering-controls">
           <input
-            value={officialNumber}
+            aria-label="Official number"
             onChange={(event) => setOfficialNumber(event.target.value)}
             placeholder={
               document.kind === "invoice"
@@ -356,9 +391,12 @@ export function DocumentDetail({
                   ? "10097"
                   : "10387"
             }
-            aria-label="Official number"
+            value={officialNumber}
           />
-          <button type="button" onClick={() => onApplyOfficialNumber(officialNumber)}>
+          <button
+            onClick={() => onApplyOfficialNumber(officialNumber)}
+            type="button"
+          >
             Apply number
           </button>
         </div>
@@ -383,11 +421,17 @@ export function DocumentDetail({
           </div>
           <div>
             <dt>Due date</dt>
-            <dd>{document.dueDate ? formatDate(document.dueDate) : "Not required"}</dd>
+            <dd>
+              {document.dueDate ? formatDate(document.dueDate) : "Not required"}
+            </dd>
           </div>
           <div>
             <dt>Paid today</dt>
-            <dd>{document.paidAmount ? formatMoney(document.paidAmount) : "Not paid"}</dd>
+            <dd>
+              {document.paidAmount
+                ? formatMoney(document.paidAmount)
+                : "Not paid"}
+            </dd>
           </div>
           <div>
             <dt>Amount</dt>
@@ -396,7 +440,8 @@ export function DocumentDetail({
           <div>
             <dt>VAT</dt>
             <dd>
-              {document.vatMode.replaceAll("-", " ")} · {formatMoney(document.vatAmount)}
+              {document.vatMode.replaceAll("-", " ")} ·{" "}
+              {formatMoney(document.vatAmount)}
             </dd>
           </div>
           <div>
@@ -409,7 +454,9 @@ export function DocumentDetail({
           </div>
         </dl>
         <p className="description">{document.description}</p>
-        {document.label ? <span className="document-label">{document.label}</span> : null}
+        {document.label ? (
+          <span className="document-label">{document.label}</span>
+        ) : null}
       </section>
 
       <section className="preview-command-section">
@@ -427,7 +474,11 @@ export function DocumentDetail({
 
       {document.sourceInvoiceNumber ? (
         <section className="section-band compact">
-          <h3>{document.kind === "receipt" ? "Receipt source" : "Credit note link"}</h3>
+          <h3>
+            {document.kind === "receipt"
+              ? "Receipt source"
+              : "Credit note link"}
+          </h3>
           <p>Linked to source invoice {document.sourceInvoiceNumber}.</p>
         </section>
       ) : null}
@@ -474,7 +525,8 @@ export function DocumentDetail({
                   <span>{delivery.actionType.replaceAll("-", " ")}</span>
                   <strong>{delivery.target.replaceAll("-", " ")}</strong>
                   <p>
-                    {delivery.channel} · {delivery.deliveryStatus.replaceAll("-", " ")}
+                    {delivery.channel} ·{" "}
+                    {delivery.deliveryStatus.replaceAll("-", " ")}
                   </p>
                 </div>
                 <dl>
@@ -493,18 +545,27 @@ export function DocumentDetail({
                     </div>
                   ) : null}
                 </dl>
-                <p className="delivery-message">{delivery.subject ? `${delivery.subject}\n` : ""}{delivery.messageText}</p>
+                <p className="delivery-message">
+                  {delivery.subject ? `${delivery.subject}\n` : ""}
+                  {delivery.messageText}
+                </p>
                 <div className="delivery-card-actions">
-                  <button type="button" onClick={() => copyDeliveryMessage(delivery)}>
+                  <button
+                    onClick={() => copyDeliveryMessage(delivery)}
+                    type="button"
+                  >
                     Copy
                   </button>
-                  <button type="button" onClick={() => onRetryDelivery(delivery.queueItemId)}>
+                  <button
+                    onClick={() => onRetryDelivery(delivery.queueItemId)}
+                    type="button"
+                  >
                     Retry
                   </button>
                   <button
-                    type="button"
-                    onClick={() => onCancelDelivery(delivery.queueItemId)}
                     disabled={delivery.queueStatus === "cancelled"}
+                    onClick={() => onCancelDelivery(delivery.queueItemId)}
+                    type="button"
                   >
                     Cancel
                   </button>
@@ -514,7 +575,8 @@ export function DocumentDetail({
           </div>
         ) : (
           <p className="empty-delivery-state">
-            No queued deliveries yet. Use Send draft, Forward, Email, receipt, or credit-note actions.
+            No queued deliveries yet. Use Send draft, Forward, Email, receipt,
+            or credit-note actions.
           </p>
         )}
       </section>
@@ -522,7 +584,10 @@ export function DocumentDetail({
       <section className="timeline">
         <h3>Timeline</h3>
         {deliveryRecords.map((delivery) => (
-          <div key={`delivery-${delivery.queueItemId}`} className="timeline-event">
+          <div
+            className="timeline-event"
+            key={`delivery-${delivery.queueItemId}`}
+          >
             <span />
             <div>
               <strong>
@@ -530,7 +595,8 @@ export function DocumentDetail({
                 {delivery.actionType.replaceAll("-", " ")}
               </strong>
               <p>
-                {delivery.providerMessageId ?? "No provider id"} · {delivery.attempts} attempt
+                {delivery.providerMessageId ?? "No provider id"} ·{" "}
+                {delivery.attempts} attempt
                 {delivery.attempts === 1 ? "" : "s"}
                 {delivery.errorMessage ? ` · ${delivery.errorMessage}` : ""}
               </p>
@@ -538,7 +604,7 @@ export function DocumentDetail({
           </div>
         ))}
         {document.approvalTimeline.map((event) => (
-          <div key={`${event.label}-${event.at}`} className="timeline-event">
+          <div className="timeline-event" key={`${event.label}-${event.at}`}>
             <span />
             <div>
               <strong>{event.label}</strong>
@@ -558,7 +624,8 @@ function getWorkflowStage(document: InvoiceDocument) {
     return {
       tone: "warning",
       title: "Regenerate before handoff",
-      description: "The stored PDF is behind the latest correction. Regenerate it before sending."
+      description:
+        "The stored PDF is behind the latest correction. Regenerate it before sending.",
     };
   }
 
@@ -566,7 +633,8 @@ function getWorkflowStage(document: InvoiceDocument) {
     return {
       tone: "neutral",
       title: "Draft ready for Marios",
-      description: "Sophia has prepared the document. Send the draft for review before numbering."
+      description:
+        "Sophia has prepared the document. Send the draft for review before numbering.",
     };
   }
 
@@ -574,7 +642,8 @@ function getWorkflowStage(document: InvoiceDocument) {
     return {
       tone: "attention",
       title: "Waiting for Marios approval",
-      description: "Keep this document in review until Marios confirms it can receive the official number."
+      description:
+        "Keep this document in review until Marios confirms it can receive the official number.",
     };
   }
 
@@ -582,7 +651,8 @@ function getWorkflowStage(document: InvoiceDocument) {
     return {
       tone: "attention",
       title: "Approval received, number pending",
-      description: "Apply the official sequence number before final delivery or permanent storage."
+      description:
+        "Apply the official sequence number before final delivery or permanent storage.",
     };
   }
 
@@ -590,7 +660,8 @@ function getWorkflowStage(document: InvoiceDocument) {
     return {
       tone: "success",
       title: "Accounting handoff complete",
-      description: "The document is numbered and ready for audit, storage, and follow-up delivery logs."
+      description:
+        "The document is numbered and ready for audit, storage, and follow-up delivery logs.",
     };
   }
 
@@ -598,14 +669,16 @@ function getWorkflowStage(document: InvoiceDocument) {
     return {
       tone: "warning",
       title: statusLabel(document.status),
-      description: "This document is no longer in the normal invoice-send path. Keep the linked record visible."
+      description:
+        "This document is no longer in the normal invoice-send path. Keep the linked record visible.",
     };
   }
 
   return {
     tone: "success",
     title: statusLabel(document.status),
-    description: "The document has cleared its main review gate. Continue with storage, client email, or handoff."
+    description:
+      "The document has cleared its main review gate. Continue with storage, client email, or handoff.",
   };
 }
 
@@ -627,23 +700,25 @@ function getWorkflowSteps(document: InvoiceDocument) {
     {
       label: "Draft",
       detail: getDisplayNumber(document),
-      state: "done"
+      state: "done",
     },
     {
       label: "Review",
       detail: hasMariosReview ? "Marios engaged" : "Not sent",
-      state: hasApproval ? "done" : hasMariosReview ? "current" : "waiting"
+      state: hasApproval ? "done" : hasMariosReview ? "current" : "waiting",
     },
     {
       label: "Number",
-      detail: hasNumber ? document.officialNumber ?? "" : "Official number pending",
-      state: hasNumber ? "done" : hasApproval ? "current" : "waiting"
+      detail: hasNumber
+        ? (document.officialNumber ?? "")
+        : "Official number pending",
+      state: hasNumber ? "done" : hasApproval ? "current" : "waiting",
     },
     {
       label: "Deliver",
       detail: hasHandoff ? "Handoff visible" : "Awaiting final send",
-      state: hasHandoff ? "done" : hasNumber ? "current" : "waiting"
-    }
+      state: hasHandoff ? "done" : hasNumber ? "current" : "waiting",
+    },
   ];
 }
 
@@ -664,7 +739,7 @@ function getPrimaryAction(
       label: "Store fresh PDF",
       hint: "Refresh the stored file before anyone forwards this version.",
       icon: <Database size={18} />,
-      onClick: handlers.onStorePdf
+      onClick: handlers.onStorePdf,
     };
   }
 
@@ -673,7 +748,7 @@ function getPrimaryAction(
       label: "Send draft",
       hint: "Moves the document into Marios review.",
       icon: <Send size={18} />,
-      onClick: handlers.onSendToMarios
+      onClick: handlers.onSendToMarios,
     };
   }
 
@@ -682,7 +757,7 @@ function getPrimaryAction(
       label: "Approve",
       hint: "Confirms the draft can move into official numbering.",
       icon: <CheckCircle2 size={18} />,
-      onClick: handlers.onApprove
+      onClick: handlers.onApprove,
     };
   }
 
@@ -691,7 +766,7 @@ function getPrimaryAction(
       label: "Apply number",
       hint: "Uses the sequence value entered below.",
       icon: <FilePenLine size={18} />,
-      onClick: () => handlers.onApplyOfficialNumber(handlers.officialNumber)
+      onClick: () => handlers.onApplyOfficialNumber(handlers.officialNumber),
     };
   }
 
@@ -700,7 +775,7 @@ function getPrimaryAction(
       label: "Forward",
       hint: "Queues the accounting handoff copy.",
       icon: <MessageSquareText size={18} />,
-      onClick: handlers.onForwardAccounting
+      onClick: handlers.onForwardAccounting,
     };
   }
 
@@ -708,12 +783,16 @@ function getPrimaryAction(
     label: "Email client",
     hint: "Queues the client email with the shared CC.",
     icon: <Mail size={18} />,
-    onClick: handlers.onQueueClientEmail
+    onClick: handlers.onQueueClientEmail,
   };
 }
 
 function copyDeliveryMessage(delivery: DeliveryRecord) {
-  const content = [delivery.subject, delivery.messageText, delivery.attachmentFilename]
+  const content = [
+    delivery.subject,
+    delivery.messageText,
+    delivery.attachmentFilename,
+  ]
     .filter(Boolean)
     .join("\n\n");
   void navigator.clipboard?.writeText(content);

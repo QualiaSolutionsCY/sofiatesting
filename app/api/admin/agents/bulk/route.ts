@@ -80,7 +80,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (payload.action === "permanent-delete") {
-      return await handleBulkPermanentDelete(supabase, payload.ids, adminCheck.userId ?? "unknown");
+      return await handleBulkPermanentDelete(
+        supabase,
+        payload.ids,
+        adminCheck.userId ?? "unknown"
+      );
     }
 
     // send-invite
@@ -220,10 +224,12 @@ async function handleBulkPermanentDelete(
 
   // Collect all phone numbers for non-FK cleanup
   const phoneNumbers = (agents ?? [])
-    .flatMap((a: { mobile?: string | null; whatsapp_phone_number?: string | null }) => [
-      a.mobile,
-      a.whatsapp_phone_number,
-    ])
+    .flatMap(
+      (a: {
+        mobile?: string | null;
+        whatsapp_phone_number?: string | null;
+      }) => [a.mobile, a.whatsapp_phone_number]
+    )
     .filter(Boolean) as string[];
 
   try {
@@ -234,9 +240,15 @@ async function handleBulkPermanentDelete(
       .in("forwarded_to_agent_id", agentIds);
 
     if (leadsError) {
-      logger.error("Bulk permanent delete: telegram_leads cleanup failed", leadsError);
+      logger.error(
+        "Bulk permanent delete: telegram_leads cleanup failed",
+        leadsError
+      );
       return NextResponse.json(
-        { error: "Failed to clean up telegram lead references", details: leadsError.message },
+        {
+          error: "Failed to clean up telegram lead references",
+          details: leadsError.message,
+        },
         { status: 500 }
       );
     }
@@ -248,9 +260,15 @@ async function handleBulkPermanentDelete(
       .in("last_forwarded_to_agent_id", agentIds);
 
     if (rotationError) {
-      logger.error("Bulk permanent delete: lead_forwarding_rotation cleanup failed", rotationError);
+      logger.error(
+        "Bulk permanent delete: lead_forwarding_rotation cleanup failed",
+        rotationError
+      );
       return NextResponse.json(
-        { error: "Failed to clean up lead rotation references", details: rotationError.message },
+        {
+          error: "Failed to clean up lead rotation references",
+          details: rotationError.message,
+        },
         { status: 500 }
       );
     }
@@ -262,7 +280,10 @@ async function handleBulkPermanentDelete(
         .delete()
         .eq("agent_id", agentId);
       if (analyticsError) {
-        logger.error(`Bulk permanent delete: whatsapp_analytics cleanup failed for ${agentId} (non-fatal)`, analyticsError);
+        logger.error(
+          `Bulk permanent delete: whatsapp_analytics cleanup failed for ${agentId} (non-fatal)`,
+          analyticsError
+        );
       }
     }
 
@@ -273,7 +294,10 @@ async function handleBulkPermanentDelete(
         .delete()
         .eq("user_id", phone);
       if (chatError) {
-        logger.error(`Bulk permanent delete: chat_history cleanup failed for ${phone} (non-fatal)`, chatError);
+        logger.error(
+          `Bulk permanent delete: chat_history cleanup failed for ${phone} (non-fatal)`,
+          chatError
+        );
       }
     }
 
@@ -284,7 +308,10 @@ async function handleBulkPermanentDelete(
         .delete()
         .eq("agent_phone", phone);
       if (uploadsError) {
-        logger.error(`Bulk permanent delete: listing_uploads cleanup failed for ${phone} (non-fatal)`, uploadsError);
+        logger.error(
+          `Bulk permanent delete: listing_uploads cleanup failed for ${phone} (non-fatal)`,
+          uploadsError
+        );
       }
     }
 
@@ -295,14 +322,19 @@ async function handleBulkPermanentDelete(
       .in("id", agentIds);
 
     if (deleteError) {
-      logger.error("Bulk permanent delete: agent row deletion failed", deleteError);
+      logger.error(
+        "Bulk permanent delete: agent row deletion failed",
+        deleteError
+      );
       return NextResponse.json(
         { error: "Failed to delete agents", details: deleteError.message },
         { status: 500 }
       );
     }
 
-    const agentNames = (agents ?? []).map((a: { full_name: string }) => a.full_name).join(", ");
+    const agentNames = (agents ?? [])
+      .map((a: { full_name: string }) => a.full_name)
+      .join(", ");
     logger.info(
       `Bulk permanent delete: ${agentIds.length} agents deleted (${agentNames}) by actor=${actorUserId}`
     );

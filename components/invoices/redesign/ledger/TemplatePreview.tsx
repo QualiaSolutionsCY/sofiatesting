@@ -1,7 +1,7 @@
 "use client";
 
-import { amount, clientById } from "@/lib/invoices/redesign/data";
 import { formatDate } from "@/lib/invoices/format";
+import { amount, clientById } from "@/lib/invoices/redesign/data";
 import { useTemplateText } from "@/lib/invoices/redesign/template-context";
 import type { Client, Doc } from "@/lib/invoices/redesign/types";
 
@@ -29,12 +29,14 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
   // Respect the document's VAT treatment so the invoice numbers match the composer.
   const rate = doc.vatMode === "no-vat" ? 0 : doc.vatRate || 0;
   const includesVat = doc.vatMode === "included-vat";
-  const vat = includesVat ? lineSum - lineSum / (1 + rate / 100) : (lineSum * rate) / 100;
+  const vat = includesVat
+    ? lineSum - lineSum / (1 + rate / 100)
+    : (lineSum * rate) / 100;
   const sub = includesVat ? lineSum - vat : lineSum;
   const total = includesVat ? lineSum : lineSum + vat;
 
   return (
-    <article className="template-preview" aria-label={`${title} preview`}>
+    <article aria-label={`${title} preview`} className="template-preview">
       <div className="template-preview-bar">
         <span>Print-ready preview · A4</span>
         <strong>{pdfName}</strong>
@@ -42,8 +44,18 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
 
       <div className="template-header">
         <div>
-          <div style={{ fontWeight: 700, fontSize: "1.05rem", marginBottom: 6 }}>{tpl.name}</div>
-          <div style={{ fontSize: ".85rem", lineHeight: 1.6, color: "var(--ink-soft)" }}>
+          <div
+            style={{ fontWeight: 700, fontSize: "1.05rem", marginBottom: 6 }}
+          >
+            {tpl.name}
+          </div>
+          <div
+            style={{
+              fontSize: ".85rem",
+              lineHeight: 1.6,
+              color: "var(--ink-soft)",
+            }}
+          >
             {tpl.regNo}
             <br />
             {tpl.address}
@@ -72,11 +84,15 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
                 <dd>{formatDate(doc.due)}</dd>
               </div>
             ) : null}
-            {!isCredit && !isReceipt && doc.recurrence && doc.recurrence !== "none" ? (
+            {!isCredit &&
+            !isReceipt &&
+            doc.recurrence &&
+            doc.recurrence !== "none" ? (
               <div>
                 <dt>Recurring</dt>
                 <dd>
-                  {doc.recurrence === "monthly" ? "Monthly" : "Yearly"} · {doc.period}
+                  {doc.recurrence === "monthly" ? "Monthly" : "Yearly"} ·{" "}
+                  {doc.period}
                 </dd>
               </div>
             ) : null}
@@ -97,13 +113,15 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
             letterSpacing: ".14em",
             textTransform: "uppercase",
             color: "var(--muted)",
-            marginBottom: 6
+            marginBottom: 6,
           }}
         >
           {isReceipt ? "Received from" : "Bill to"}
         </div>
         <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>{cl.name}</div>
-        {cl.vat && cl.vat !== "—" ? <div style={{ color: "var(--ink-soft)" }}>VAT&nbsp;{cl.vat}</div> : null}
+        {cl.vat && cl.vat !== "—" ? (
+          <div style={{ color: "var(--ink-soft)" }}>VAT&nbsp;{cl.vat}</div>
+        ) : null}
       </div>
 
       <table className="template-table template-table-ruled">
@@ -120,7 +138,9 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
             <tr key={i}>
               <td>{i + 1}</td>
               <td className="template-desc-cell">
-                {isCredit ? `Credit note for invoice ${doc.appliesTo || doc.officialNo || "—"}` : l.desc}
+                {isCredit
+                  ? `Credit note for invoice ${doc.appliesTo || doc.officialNo || "—"}`
+                  : l.desc}
               </td>
               <td>€{amount(l.unitPrice)}</td>
               <td>€{amount(l.qty * l.unitPrice)}</td>
@@ -129,12 +149,13 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
           {false && isCredit && doc.appliesTo ? (
             <tr className="template-source-row">
               <td colSpan={4} style={{ textAlign: "left" }}>
-                Reference — original Invoice {doc.appliesTo}, issued {formatDate(doc.issued)}, fully credited.
+                Reference — original Invoice {doc.appliesTo}, issued{" "}
+                {formatDate(doc.issued)}, fully credited.
               </td>
             </tr>
           ) : null}
           {/* Filler row stretches the ruled table to fill the page like a printed invoice. */}
-          <tr className="template-filler-row" aria-hidden>
+          <tr aria-hidden className="template-filler-row">
             <td />
             <td />
             <td />
@@ -144,12 +165,24 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
       </table>
 
       <div className="template-totals">
-        <div style={{ display: "grid", gridTemplateColumns: "auto auto", gap: "4px 24px" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "auto auto",
+            gap: "4px 24px",
+          }}
+        >
           <span style={{ color: "var(--ink-soft)" }}>Subtotal</span>
           <span style={{ textAlign: "right" }}>€{amount(sub)}</span>
           <span style={{ color: "var(--ink-soft)" }}>V.A.T {rate}%</span>
           <span style={{ textAlign: "right" }}>€{amount(vat)}</span>
-          <span style={{ fontWeight: 700, paddingTop: 6, borderTop: "1px solid var(--ink-soft)" }}>
+          <span
+            style={{
+              fontWeight: 700,
+              paddingTop: 6,
+              borderTop: "1px solid var(--ink-soft)",
+            }}
+          >
             Total
           </span>
           <span
@@ -157,7 +190,7 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
               fontWeight: 700,
               paddingTop: 6,
               borderTop: "1px solid var(--ink-soft)",
-              textAlign: "right"
+              textAlign: "right",
             }}
           >
             €{amount(total)}
@@ -165,7 +198,11 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
           <span style={{ fontWeight: 700, fontSize: "1.1rem" }}>
             {isCredit ? "Balance credited" : "Balance Due"}
           </span>
-          <span style={{ fontWeight: 700, fontSize: "1.1rem", textAlign: "right" }}>€{amount(total)}</span>
+          <span
+            style={{ fontWeight: 700, fontSize: "1.1rem", textAlign: "right" }}
+          >
+            €{amount(total)}
+          </span>
         </div>
       </div>
 
@@ -177,7 +214,7 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
               letterSpacing: ".14em",
               textTransform: "uppercase",
               color: "var(--muted)",
-              marginBottom: 4
+              marginBottom: 4,
             }}
           >
             {isReceipt ? "Acknowledgement" : "Settlement"}
@@ -194,11 +231,20 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
                 <br />
                 Account Name: {tpl.accountName}
                 <br />
-                Account Number: <span style={{ fontFamily: "var(--font-mono)" }}>{tpl.accountNumber}</span>
+                Account Number:{" "}
+                <span style={{ fontFamily: "var(--font-mono)" }}>
+                  {tpl.accountNumber}
+                </span>
                 <br />
-                IBAN: <span style={{ fontFamily: "var(--font-mono)" }}>{tpl.iban}</span>
+                IBAN:{" "}
+                <span style={{ fontFamily: "var(--font-mono)" }}>
+                  {tpl.iban}
+                </span>
                 <br />
-                BIC: <span style={{ fontFamily: "var(--font-mono)" }}>{tpl.bic}</span>
+                BIC:{" "}
+                <span style={{ fontFamily: "var(--font-mono)" }}>
+                  {tpl.bic}
+                </span>
               </>
             )}
           </div>

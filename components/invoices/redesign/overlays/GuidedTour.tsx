@@ -15,26 +15,26 @@ const TOUR_STEPS: TourStep[] = [
     target: ".sophia-briefing",
     title: "Meet Iam Sophia",
     body: "Sophia prepares your drafts each morning, flags duplicates, and routes them to Marios. She's working below — this is her brief.",
-    position: "below"
+    position: "below",
   },
   {
     target: ".list-pane",
     title: "Marios reviews",
     body: "Every draft lands here. Click any row to see it. Stage chips on the right show where each one is in the cycle.",
-    position: "right"
+    position: "right",
   },
   {
     target: ".command-band",
     title: "One decision at a time",
     body: "The big button always reflects what to do next — Send to Marios, Approve, Number, Mark Paid. Click and the cycle advances.",
-    position: "below"
+    position: "below",
   },
   {
     target: ".sophia-mark",
     title: "Done — give it a try",
     body: "Press ⌘K to find anything, N to start a new draft, ? for shortcuts. Or just click around.",
-    position: "below"
-  }
+    position: "below",
+  },
 ];
 
 interface GuidedTourProps {
@@ -44,8 +44,16 @@ interface GuidedTourProps {
 
 export function GuidedTour({ open, onClose }: GuidedTourProps) {
   const [step, setStep] = useState(0);
-  const [rect, setRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
-  const [cardPos, setCardPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [rect, setRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [cardPos, setCardPos] = useState<{ top: number; left: number }>({
+    top: 0,
+    left: 0,
+  });
 
   const computePositions = (idx: number) => {
     const spec = TOUR_STEPS[idx];
@@ -61,7 +69,7 @@ export function GuidedTour({ open, onClose }: GuidedTourProps) {
       top: r.top - padding,
       left: r.left - padding,
       width: r.width + padding * 2,
-      height: r.height + padding * 2
+      height: r.height + padding * 2,
     });
 
     const cardW = Math.min(420, window.innerWidth - 32);
@@ -127,15 +135,23 @@ export function GuidedTour({ open, onClose }: GuidedTourProps) {
       {rect ? (
         <div
           className="tour-spotlight"
-          style={{ top: rect.top, left: rect.left, width: rect.width, height: rect.height }}
+          style={{
+            top: rect.top,
+            left: rect.left,
+            width: rect.width,
+            height: rect.height,
+          }}
         />
       ) : null}
-      <div className="tour-card" style={{ top: cardPos.top, left: cardPos.left }}>
+      <div
+        className="tour-card"
+        style={{ top: cardPos.top, left: cardPos.left }}
+      >
         <div className="step-meta">
           <span className="step-num">
             Step {step + 1} of {TOUR_STEPS.length}
           </span>
-          <button type="button" className="step-skip" onClick={onClose}>
+          <button className="step-skip" onClick={onClose} type="button">
             Skip tour ↵
           </button>
         </div>
@@ -144,17 +160,21 @@ export function GuidedTour({ open, onClose }: GuidedTourProps) {
         <div className="step-foot">
           <div className="dots">
             {TOUR_STEPS.map((_, i) => (
-              <span key={i} className={`dot ${i === step ? "is-active" : ""}`} />
+              <span
+                className={`dot ${i === step ? "is-active" : ""}`}
+                key={i}
+              />
             ))}
           </div>
           <div className="step-actions">
             {step > 0 ? (
-              <button type="button" className="tour-btn ghost" onClick={prev}>
+              <button className="tour-btn ghost" onClick={prev} type="button">
                 Back
               </button>
             ) : null}
-            <button type="button" className="tour-btn" onClick={next}>
-              {isLast ? "Finish" : "Next"} <ArrowRight size={12} strokeWidth={1.6} />
+            <button className="tour-btn" onClick={next} type="button">
+              {isLast ? "Finish" : "Next"}{" "}
+              <ArrowRight size={12} strokeWidth={1.6} />
             </button>
           </div>
         </div>

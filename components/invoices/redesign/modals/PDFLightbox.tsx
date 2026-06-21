@@ -2,10 +2,10 @@
 
 import { ArrowLeft, ArrowRight, Download, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { Doc } from "@/lib/invoices/redesign/types";
+import { downloadDocumentPdf } from "@/lib/invoices/downloads";
 import { docToInvoiceDocument } from "@/lib/invoices/redesign/adapter";
 import { clientById } from "@/lib/invoices/redesign/data";
-import { downloadDocumentPdf } from "@/lib/invoices/downloads";
+import type { Doc } from "@/lib/invoices/redesign/types";
 import { TemplatePreview } from "../ledger/TemplatePreview";
 
 interface PDFLightboxProps {
@@ -15,7 +15,12 @@ interface PDFLightboxProps {
   onNavigate?: (id: string) => void;
 }
 
-export function PDFLightbox({ doc, allDocs, onClose, onNavigate }: PDFLightboxProps) {
+export function PDFLightbox({
+  doc,
+  allDocs,
+  onClose,
+  onNavigate,
+}: PDFLightboxProps) {
   const [flipping, setFlipping] = useState<string | null>(null);
   const [displayDoc, setDisplayDoc] = useState<Doc | null>(doc);
 
@@ -36,7 +41,8 @@ export function PDFLightbox({ doc, allDocs, onClose, onNavigate }: PDFLightboxPr
       if (dir === "prev" && !hasPrev) return;
       setFlipping(dir === "next" ? "flipping-next" : "flipping-prev");
       setTimeout(() => {
-        const nextDoc = dir === "next" ? docsWithPdf[idx + 1] : docsWithPdf[idx - 1];
+        const nextDoc =
+          dir === "next" ? docsWithPdf[idx + 1] : docsWithPdf[idx - 1];
         setDisplayDoc(nextDoc);
         onNavigate?.(nextDoc.id);
         setFlipping(null);
@@ -65,19 +71,30 @@ export function PDFLightbox({ doc, allDocs, onClose, onNavigate }: PDFLightboxPr
     if (dir === "prev" && !hasPrev) return;
     setFlipping(dir === "next" ? "flipping-next" : "flipping-prev");
     setTimeout(() => {
-      const nextDoc = dir === "next" ? docsWithPdf[idx + 1] : docsWithPdf[idx - 1];
+      const nextDoc =
+        dir === "next" ? docsWithPdf[idx + 1] : docsWithPdf[idx - 1];
       setDisplayDoc(nextDoc);
       onNavigate?.(nextDoc.id);
       setFlipping(null);
     }, 310);
   };
 
-  const title = displayDoc.kind === "credit" ? "Credit Note" : displayDoc.kind === "receipt" ? "Receipt" : "Invoice";
-  const num = displayDoc.officialNo ? `№ ${displayDoc.officialNo}` : displayDoc.draftNo || "—";
+  const title =
+    displayDoc.kind === "credit"
+      ? "Credit Note"
+      : displayDoc.kind === "receipt"
+        ? "Receipt"
+        : "Invoice";
+  const num = displayDoc.officialNo
+    ? `№ ${displayDoc.officialNo}`
+    : displayDoc.draftNo || "—";
 
   return (
     <div className="binder-backdrop" onClick={onClose}>
-      <div className="binder-stage" onClick={(event) => event.stopPropagation()}>
+      <div
+        className="binder-stage"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="binder-bar">
           <p>
             <strong>
@@ -85,27 +102,48 @@ export function PDFLightbox({ doc, allDocs, onClose, onNavigate }: PDFLightboxPr
             </strong>{" "}
             · {displayDoc.pdf || `Sophia draft · ${displayDoc.draftNo}`}
           </p>
-          <button type="button" className="icon-button" onClick={() => flipTo("prev")} disabled={!hasPrev} title="Previous document (←)">
+          <button
+            className="icon-button"
+            disabled={!hasPrev}
+            onClick={() => flipTo("prev")}
+            title="Previous document (←)"
+            type="button"
+          >
             <ArrowLeft size={15} strokeWidth={1.6} />
           </button>
-          <button type="button" className="icon-button" onClick={() => flipTo("next")} disabled={!hasNext} title="Next document (→)">
+          <button
+            className="icon-button"
+            disabled={!hasNext}
+            onClick={() => flipTo("next")}
+            title="Next document (→)"
+            type="button"
+          >
             <ArrowRight size={15} strokeWidth={1.6} />
           </button>
           <button
-            type="button"
             className="icon-button"
-            onClick={() => downloadDocumentPdf(docToInvoiceDocument(displayDoc, clientById(displayDoc.client)))}
+            onClick={() =>
+              downloadDocumentPdf(
+                docToInvoiceDocument(displayDoc, clientById(displayDoc.client))
+              )
+            }
             title="Download PDF"
+            type="button"
           >
             <Download size={15} strokeWidth={1.6} />
           </button>
-          <button type="button" className="icon-button" onClick={onClose} title="Close (Esc)">
+          <button
+            className="icon-button"
+            onClick={onClose}
+            title="Close (Esc)"
+            type="button"
+          >
             <X size={15} strokeWidth={1.6} />
           </button>
         </div>
         <div className="binder-body">
           <div className={`binder-page-wrap ${flipping || ""}`}>
-            <div className="binder-page behind" aria-hidden />
+            <div aria-hidden className="binder-page behind" />
             <div className="binder-page">
               <TemplatePreview doc={displayDoc} />
             </div>
@@ -116,11 +154,23 @@ export function PDFLightbox({ doc, allDocs, onClose, onNavigate }: PDFLightboxPr
             A4 · Print-ready · page {idx + 1} of {docsWithPdf.length}
           </span>
           <span className="center">
-            <button type="button" className="page-btn" onClick={() => flipTo("prev")} disabled={!hasPrev} aria-label="Previous">
+            <button
+              aria-label="Previous"
+              className="page-btn"
+              disabled={!hasPrev}
+              onClick={() => flipTo("prev")}
+              type="button"
+            >
               <ArrowLeft size={14} strokeWidth={1.6} />
             </button>
             <kbd>←</kbd> <kbd>→</kbd> turn page
-            <button type="button" className="page-btn" onClick={() => flipTo("next")} disabled={!hasNext} aria-label="Next">
+            <button
+              aria-label="Next"
+              className="page-btn"
+              disabled={!hasNext}
+              onClick={() => flipTo("next")}
+              type="button"
+            >
               <ArrowRight size={14} strokeWidth={1.6} />
             </button>
           </span>
