@@ -11,6 +11,7 @@ import {
   storeDocumentPdfAction,
   updateDocumentAction,
 } from "@/lib/invoices/actions/documents";
+import { isCommissionDescription } from "@/lib/invoices/format";
 import type { DocumentInput } from "@/lib/invoices/document-actions";
 import type { InvoiceDocument, VatMode } from "@/lib/invoices/types/invoice";
 
@@ -210,7 +211,12 @@ export async function runIntent(
         };
       }
 
-      const caption = `Invoice ${numberOf(updated)} — ${updated.clientName} (${money(updated.total)}). ${params.groupMessage}`;
+      // Commission invoices: Marios wants ONLY the agent name as the group
+      // message (the invoice number/client/amount are already on the attached
+      // PDF + filename). Non-commission invoices keep the full descriptive line.
+      const caption = isCommissionDescription(updated.description)
+        ? params.groupMessage
+        : `Invoice ${numberOf(updated)} — ${updated.clientName} (${money(updated.total)}). ${params.groupMessage}`;
       const sentToGroup = await sendDocumentToAccountingGroup(updated, caption);
       return {
         ok: true,
