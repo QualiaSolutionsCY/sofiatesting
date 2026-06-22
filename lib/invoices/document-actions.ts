@@ -119,6 +119,9 @@ export function createReceiptFromInvoice(invoice: InvoiceDocument, index: number
     kind: "receipt",
     // The receipt line shows the invoice number it settles on the FIRST line,
     // then the original invoice description underneath (already agent-name-free).
+    // Clear inherited line items so the receipt renders THIS reference line,
+    // not the source invoice's per-line rows.
+    lineItems: undefined,
     description: `Receipt for invoice no ${invoice.officialNumber ?? invoice.draftNumber}\n${stripAgentName(invoice.description)}`,
     billToLabel: "Bill To",
     recurrence: "none",
@@ -152,6 +155,9 @@ export function createCreditNoteFromInvoice(invoice: InvoiceDocument, index: num
     ...invoice,
     id: `credit-note-${crypto.randomUUID()}`,
     kind: "credit-note",
+    // Credit notes render a fixed "Credit note for invoice X" reference, not the
+    // source invoice's per-line rows — clear the inherited line items.
+    lineItems: undefined,
     billToLabel: "Bill to",
     recurrence: "none",
     draftNumber: createDraftNumber("credit-note", index),
