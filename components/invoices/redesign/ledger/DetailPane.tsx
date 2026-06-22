@@ -564,13 +564,9 @@ function DeliveryPlan({
       key: "client",
       eyebrow: "Client delivery · on Marios's behalf",
       title: cl.name,
+      // Client delivery is EMAIL ONLY (Marios's request) — the client is never
+      // messaged on WhatsApp; only the accounting group + Marios get WhatsApp.
       channels: [
-        {
-          ic: <MessageCircle size={12} strokeWidth={1.6} />,
-          addr: clientPhone,
-          state: clientDelivered ? "ok" : clientReady ? "ready" : "off",
-          stateLabel: clientDelivered ? "Delivered" : clientReady ? "Ready" : "Locked"
-        },
         {
           ic: <Mail size={12} strokeWidth={1.6} />,
           addr: clientReady ? clientEmail : "—",
@@ -586,7 +582,7 @@ function DeliveryPlan({
           } — via Sophia`
         : "Disabled until the invoice is numbered.",
       actions: [
-        { label: "Send both", id: "client-send-all" },
+        { label: "Send email", id: "client-send-all" },
         { label: "Edit message", id: "client-edit" },
         { label: "Schedule", id: "client-schedule" }
       ],
