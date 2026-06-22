@@ -74,6 +74,23 @@ function numberOf(d: InvoiceDocument): string {
   return d.officialNumber ? `№ ${d.officialNumber}` : d.draftNumber;
 }
 
+/**
+ * Guarantee the agent/commission-person name NEVER appears in the invoice
+ * description — code-level enforcement, not a prompt the model can ignore.
+ * The agent name is collected separately and only used as the accounting-group
+ * message at approval. Strips trailing "- Agent: X", "(Agent: X)", "Agent: X".
+ */
+function stripAgentName(desc?: string): string {
+  if (!desc) return "";
+  return desc
+    .replace(/\s*\(\s*agent\b[\s:]*[^)]*\)/gi, "") // "(Agent: X)" anywhere
+    .replace(/\s*[-–—]\s*agent\b[\s:]*[^,;\n]*$/i, "") // "- Agent: X" at the end
+    .replace(/\s*\bagent\s*:\s*[^,;\n]*$/i, "") // bare "Agent: X" at the end
+    .replace(/\s{2,}/g, " ")
+    .replace(/[\s,;:–—-]+$/, "")
+    .trim();
+}
+
 function findDoc(docs: InvoiceDocument[], p: IntentParams): InvoiceDocument | null {
   if (p.documentId) {
     const byId = docs.find(
@@ -126,7 +143,7 @@ export async function runIntent(
       const input: DocumentInput = {
         kind: "invoice",
         clientName: params.client,
-        description: params.description || "Services rendered",
+        description: stripAgentName(params.description) || "Services rendered",
         amount: params.amount,
         vatMode: mapVat(params.vatMode),
         issueDate,
@@ -241,7 +258,7 @@ export async function runIntent(
         kind: doc.kind,
         clientName: doc.clientName,
         clientEmail: doc.clientEmail,
-        description: params.description ?? doc.description,
+        description: params.description !== undefined ? stripAgentName(params.description) : doc.description,
         amount: typeof params.amount === "number" ? params.amount : doc.amount,
         vatMode: params.vatMode ? mapVat(params.vatMode) : doc.vatMode,
         issueDate: doc.issueDate,
