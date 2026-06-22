@@ -31,6 +31,12 @@ export type ApprovalEvent = {
   by: string;
 };
 
+export type LineItem = {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+};
+
 export type InvoiceDocument = {
   id: string;
   kind: DocumentKind;
@@ -39,6 +45,9 @@ export type InvoiceDocument = {
   billToLabel: string;
   description: string;
   amount: number;
+  /** Per-line items. When present, the source of truth for the rows; `description`
+   * + `amount` stay populated (joined / summed) for backward-compatible consumers. */
+  lineItems?: LineItem[];
   vatMode: VatMode;
   vatAmount: number;
   total: number;

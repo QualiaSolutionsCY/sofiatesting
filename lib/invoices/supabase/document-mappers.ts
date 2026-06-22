@@ -37,9 +37,11 @@ export type InvoiceDocumentRowPayload = {
   accounting_group_label: string;
   line_items: Array<{
     description: string;
+    quantity?: number;
+    unit_price?: number;
     amount: number;
-    vat_amount: number;
-    total: number;
+    vat_amount?: number;
+    total?: number;
   }>;
   metadata: Record<string, string | number | boolean | null>;
   notes: string[];
@@ -126,14 +128,22 @@ export function toDocumentRow(document: InvoiceDocument): InvoiceDocumentRowPayl
     whatsapp_status: document.whatsappStatus,
     marios_review_phone: document.mariosReviewPhone,
     accounting_group_label: document.accountingGroupLabel,
-    line_items: [
-      {
-        description: document.description,
-        amount: document.amount,
-        vat_amount: document.vatAmount,
-        total: document.total
-      }
-    ],
+    line_items:
+      document.lineItems && document.lineItems.length
+        ? document.lineItems.map((li) => ({
+            description: li.description,
+            quantity: li.quantity,
+            unit_price: li.unitPrice,
+            amount: li.quantity * li.unitPrice
+          }))
+        : [
+            {
+              description: document.description,
+              quantity: 1,
+              unit_price: document.amount,
+              amount: document.amount
+            }
+          ],
     metadata: {
       bill_to_label: document.billToLabel,
       display_number: document.officialNumber ?? document.draftNumber,
@@ -155,6 +165,14 @@ export function fromDocumentRow(row: InvoiceDocumentRow): InvoiceDocument {
     billToLabel: row.bill_to_label,
     description: row.description,
     amount: Number(row.amount),
+    lineItems:
+      Array.isArray(row.line_items) && row.line_items.length > 1
+        ? row.line_items.map((li) => ({
+            description: li.description,
+            quantity: Number(li.quantity ?? 1),
+            unitPrice: Number(li.unit_price ?? li.amount ?? 0)
+          }))
+        : undefined,
     vatMode: row.vat_mode,
     vatAmount: Number(row.vat_amount),
     total: Number(row.total),

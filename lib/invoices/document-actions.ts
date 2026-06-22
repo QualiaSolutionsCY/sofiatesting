@@ -14,6 +14,9 @@ export type DocumentInput = {
   clientEmail?: string;
   description: string;
   amount: number;
+  /** Per-line items from the editor. When present they drive the document; the
+   * description (joined) and amount (summed) are derived from them. */
+  lineItems?: InvoiceDocument["lineItems"];
   vatMode: VatMode;
   issueDate: string;
   dueDate?: string;
@@ -42,9 +45,30 @@ export function calculateVat(amount: number, vatMode: VatMode) {
   return { vatAmount, total: roundMoney(amount + vatAmount) };
 }
 
+/** Clean + filter the editor's line items; returns undefined when there are none
+ * (so single-description documents keep their existing behaviour). */
+function resolveLineItems(input: DocumentInput): InvoiceDocument["lineItems"] {
+  const items = input.lineItems
+    ?.map((li) => ({
+      description: (li.description ?? "").trim(),
+      quantity: li.quantity || 1,
+      unitPrice: li.unitPrice || 0
+    }))
+    .filter((li) => li.description || li.unitPrice);
+  return items?.length ? items : undefined;
+}
+
+function lineItemsSubtotal(items: NonNullable<InvoiceDocument["lineItems"]>): number {
+  return items.reduce((sum, li) => sum + li.quantity * li.unitPrice, 0);
+}
+
 export function createDocument(input: DocumentInput, index: number): InvoiceDocument {
-  const description = normalizeInvoiceDescription(input.description);
-  const { vatAmount, total } = calculateVat(input.amount, input.vatMode);
+  const lineItems = resolveLineItems(input);
+  const amount = lineItems ? lineItemsSubtotal(lineItems) : input.amount;
+  const description = lineItems
+    ? lineItems.map((li) => li.description).filter(Boolean).join("\n")
+    : normalizeInvoiceDescription(input.description);
+  const { vatAmount, total } = calculateVat(amount, input.vatMode);
   const requiresCommissionPerson = isCommissionDescription(description);
   const label = isValuationDescription(description) ? "valuation" : undefined;
 
@@ -55,7 +79,8 @@ export function createDocument(input: DocumentInput, index: number): InvoiceDocu
     clientEmail: input.clientEmail,
     billToLabel: input.kind === "credit-note" ? "Bill to" : "Bill To",
     description,
-    amount: input.amount,
+    amount,
+    lineItems,
     vatMode: input.vatMode,
     vatAmount,
     total,
@@ -157,8 +182,12 @@ export function updateDocumentFromInput(
   document: InvoiceDocument,
   input: DocumentInput
 ): InvoiceDocument {
-  const description = normalizeInvoiceDescription(input.description);
-  const { vatAmount, total } = calculateVat(input.amount, input.vatMode);
+  const lineItems = resolveLineItems(input);
+  const amount = lineItems ? lineItemsSubtotal(lineItems) : input.amount;
+  const description = lineItems
+    ? lineItems.map((li) => li.description).filter(Boolean).join("\n")
+    : normalizeInvoiceDescription(input.description);
+  const { vatAmount, total } = calculateVat(amount, input.vatMode);
   const requiresCommissionPerson = isCommissionDescription(description);
   const label = isValuationDescription(description) ? "valuation" : undefined;
 
@@ -169,7 +198,8 @@ export function updateDocumentFromInput(
     clientEmail: input.clientEmail,
     billToLabel: input.kind === "credit-note" ? "Bill to" : "Bill To",
     description,
-    amount: input.amount,
+    amount,
+    lineItems,
     vatMode: input.vatMode,
     vatAmount,
     total,

@@ -186,19 +186,26 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   textRight(totalR, hb, "Total", 8.5, true, 0.25);
 
   const bodyTop = tableTop - headerH;
-  // Credit notes show a fixed reference line (matches TemplatePreview), not the
-  // inherited invoice description.
-  const descText = isCredit
-    ? `Credit note for invoice ${document.sourceInvoiceNumber || "—"}`
-    : document.description || "—";
-  const descLines = wrapText(descText, xDescEnd - colDesc, 9.5, false);
+  // Credit notes show a fixed reference line; everything else lists its line
+  // items (falling back to the single description when none are stored).
+  const items = isCredit
+    ? [{ desc: `Credit note for invoice ${document.sourceInvoiceNumber || "—"}`, unit: document.amount, total: document.amount }]
+    : document.lineItems && document.lineItems.length
+      ? document.lineItems.map((li) => ({ desc: li.description || "—", unit: li.unitPrice, total: li.quantity * li.unitPrice }))
+      : [{ desc: document.description || "—", unit: document.amount, total: document.amount }];
   const lineH = 13;
-  const rowH = Math.max(28, 16 + descLines.length * lineH);
-  const rb = bodyTop - 18;
-  text(colNum, rb, "1", 9.5, false, 0.2);
-  descLines.forEach((ln, i) => text(colDesc, rb - i * lineH, ln, 9.5, false, 0.15));
-  textRight(unitR, rb, eur(document.amount), 9.5, false, 0.15);
-  textRight(totalR, rb, eur(document.amount), 9.5, false, 0.15);
+  let cursor = bodyTop - 18;
+  let rowH = 0;
+  items.forEach((it, idx) => {
+    const dLines = wrapText(it.desc, xDescEnd - colDesc, 9.5, false);
+    text(colNum, cursor, String(idx + 1), 9.5, false, 0.2);
+    dLines.forEach((ln, i) => text(colDesc, cursor - i * lineH, ln, 9.5, false, 0.15));
+    textRight(unitR, cursor, eur(it.unit), 9.5, false, 0.15);
+    textRight(totalR, cursor, eur(it.total), 9.5, false, 0.15);
+    const h = Math.max(28, 16 + dLines.length * lineH);
+    rowH += h;
+    cursor -= h;
+  });
 
   // Stretch the ruled table down to fill the page — mirroring the on-screen
   // TemplatePreview's filler row — while reserving exact room for the totals +

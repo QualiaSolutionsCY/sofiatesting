@@ -38,13 +38,16 @@ function timelineFromInvoice(invoice: InvoiceDocument): TimelineEvent[] {
 
 export function invoiceToDoc(invoice: InvoiceDocument): Doc {
   const sub = invoice.amount;
-  const lines = [
-    {
-      desc: invoice.description || invoice.billToLabel || `${kindRedesign(invoice.kind)} — ${invoice.clientName}`,
-      qty: 1,
-      unitPrice: sub
-    }
-  ];
+  const lines =
+    invoice.lineItems && invoice.lineItems.length
+      ? invoice.lineItems.map((li) => ({ desc: li.description, qty: li.quantity, unitPrice: li.unitPrice }))
+      : [
+          {
+            desc: invoice.description || invoice.billToLabel || `${kindRedesign(invoice.kind)} — ${invoice.clientName}`,
+            qty: 1,
+            unitPrice: sub
+          }
+        ];
   const total = invoice.total * (invoice.kind === "credit-note" ? -1 : 1);
 
   return {
