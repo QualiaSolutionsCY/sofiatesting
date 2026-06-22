@@ -10,7 +10,7 @@ const STAGE_OPTIONS: Array<{ value: Filters["stage"]; label: string }> = [
   { value: "all", label: "All statuses" },
   { value: STAGES.DRAFT.id, label: STAGES.DRAFT.label },
   { value: STAGES.SENT_TO_MARIOS.id, label: STAGES.SENT_TO_MARIOS.label },
-  { value: "approved-numbered", label: "Approved" },
+  { value: "approved-numbered", label: "Invoices" },
   { value: STAGES.SENT_TO_ACCOUNTING.id, label: "Paid" },
   { value: "kind-receipt", label: "Receipts" },
   { value: STAGES.CREDITED.id, label: STAGES.CREDITED.label },

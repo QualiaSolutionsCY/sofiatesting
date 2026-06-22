@@ -12,6 +12,7 @@ import {
   markApprovedOnlyAction,
   markPaidAndIssueReceiptAction,
   notifyAccountingGroupOfInvoiceAction,
+  notifyMariosApprovedAction,
   queueClientEmailAction,
   regenerateStoredDocumentAction,
   sendToMariosAction,
@@ -201,8 +202,11 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           try {
             const result = await approveDocumentAction(selected.id);
             if (selected.kind === "invoice") {
+              // An approved invoice ALWAYS goes to Marios (his copy) AND the
+              // accounting group — never the accounting group alone.
               await notifyAccountingGroupOfInvoiceAction(selected.id);
-              setToast("Approved & sent to accounting — mark as paid when payment arrives.");
+              await notifyMariosApprovedAction(selected.id);
+              setToast("Approved — sent to Marios and the accounting group. Mark as paid when payment arrives.");
             } else {
               setToast("Approved and numbered.");
             }
