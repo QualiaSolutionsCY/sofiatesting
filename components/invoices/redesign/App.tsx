@@ -264,9 +264,17 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         setLightboxDoc(selected);
         break;
       case "credited": {
-        const linked = docs.find((d) => d.id === selected.creditedBy);
-        if (linked) setSelectedId(linked.id);
-        setToast("Opened linked credit note.");
+        // Open the linked document in EITHER direction: from a credited invoice
+        // open its credit note (creditedBy); from a credit note open the source
+        // invoice (appliesToId). Fall back to a clear message if no link exists.
+        const linkedId = selected.creditedBy ?? selected.appliesToId;
+        const linked = linkedId ? docs.find((d) => d.id === linkedId) : undefined;
+        if (linked) {
+          setSelectedId(linked.id);
+          setToast(linked.kind === "credit" ? "Opened linked credit note." : "Opened the source invoice.");
+        } else {
+          setToast("No linked document found for this credit note.");
+        }
         break;
       }
       case "cancelled":

@@ -261,10 +261,13 @@ export class WhatsAppClient {
       });
 
       // Step 2: Send document using the temporary URL
-      // Note: fileName is supported by REST API but not in SDK types, so we cast
+      // Note: fileName is supported by the REST API but not in the SDK types, so
+      // we cast. Without it WaSender shows the attachment as "document.pdf"
+      // instead of the real invoice/receipt/credit-note filename.
       const response = await wasenderClient.sendDocument({
         to: formatPhoneNumber(to),
         documentUrl: uploadResult.url,
+        fileName: filename,
         text: caption || `Document: ${filename}`,
       } as Parameters<typeof wasenderClient.sendDocument>[0]);
 
