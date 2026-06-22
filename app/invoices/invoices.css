@@ -7841,6 +7841,10 @@ kbd {
 
 .detail-pane .inline-editor {
   grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) !important;
+  /* Constrain the single row to the capped editor height so the form/preview
+     columns fill it and scroll INSIDE, instead of growing to content height and
+     overflowing onto the SENDING/HISTORY sections below (overlap fix). */
+  grid-template-rows: minmax(0, 1fr) !important;
   gap: 12px !important;
   min-height: calc(90vh - 130px) !important;
   max-height: calc(90vh - 130px) !important;
@@ -7853,6 +7857,10 @@ kbd {
   padding-right: 8px;
   max-height: 100%;
   min-width: 0;
+  /* Grid items default to min-height:auto, so without this the form grows to its
+     full content height and overflows the height-capped editor — bleeding over the
+     SENDING/HISTORY sections below. min-height:0 keeps it scrolling inside the editor. */
+  min-height: 0;
 }
 .detail-pane .inline-editor-form::-webkit-scrollbar { width: 6px; }
 .detail-pane .inline-editor-form::-webkit-scrollbar-thumb {
@@ -7869,6 +7877,9 @@ kbd {
   flex-direction: column;
   min-width: 0;
   height: 100%;
+  /* Same grid min-height:auto trap as the form — without min-height:0 the preview
+     column overflows the capped editor and collides with the sections below. */
+  min-height: 0;
   overflow: hidden;
 }
 .detail-pane .inline-editor-preview-eyebrow {
