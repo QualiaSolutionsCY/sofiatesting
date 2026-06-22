@@ -76,3 +76,20 @@ export function normalizeInvoiceDescription(description: string): string {
 
   return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 }
+
+/**
+ * Remove the agent / commission-person name from a description so it never
+ * appears on the invoice OR the receipt — regardless of source (Sophia, the
+ * admin panel, or legacy data). The agent name is only used as the
+ * accounting-group message at approval.
+ */
+export function stripAgentName(desc?: string): string {
+  if (!desc) return "";
+  return desc
+    .replace(/\s*\(\s*agent\b[\s:]*[^)]*\)/gi, "") // "(Agent: X)" anywhere
+    .replace(/\s*[-–—]\s*agent\b[\s:]*[^,;\n]*$/i, "") // "- Agent: X" at the end
+    .replace(/\s*\bagent\s*:\s*[^,;\n]*$/i, "") // bare "Agent: X" at the end
+    .replace(/\s{2,}/g, " ")
+    .replace(/[\s,;:–—-]+$/, "")
+    .trim();
+}

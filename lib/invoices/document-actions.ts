@@ -3,7 +3,8 @@ import { createDraftNumber, officialNumberPlaceholder } from "@/lib/invoices/num
 import {
   isCommissionDescription,
   isValuationDescription,
-  normalizeInvoiceDescription
+  normalizeInvoiceDescription,
+  stripAgentName
 } from "@/lib/invoices/format";
 import { accountingGroup, mariosPhone } from "@/lib/invoices/data/sample-records";
 
@@ -93,7 +94,7 @@ export function createReceiptFromInvoice(invoice: InvoiceDocument, index: number
     kind: "receipt",
     // The receipt line shows the invoice number it settles on the FIRST line,
     // then the original invoice description underneath (already agent-name-free).
-    description: `Receipt for invoice no ${invoice.officialNumber ?? invoice.draftNumber}\n${invoice.description}`,
+    description: `Receipt for invoice no ${invoice.officialNumber ?? invoice.draftNumber}\n${stripAgentName(invoice.description)}`,
     billToLabel: "Bill To",
     recurrence: "none",
     draftNumber: createDraftNumber("receipt", index),

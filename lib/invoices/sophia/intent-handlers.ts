@@ -12,7 +12,7 @@ import {
   storeDocumentPdfAction,
   updateDocumentAction,
 } from "@/lib/invoices/actions/documents";
-import { isCommissionDescription } from "@/lib/invoices/format";
+import { isCommissionDescription, stripAgentName } from "@/lib/invoices/format";
 import type { DocumentInput } from "@/lib/invoices/document-actions";
 import type { InvoiceDocument, VatMode } from "@/lib/invoices/types/invoice";
 
@@ -72,23 +72,6 @@ function money(n: number): string {
 
 function numberOf(d: InvoiceDocument): string {
   return d.officialNumber ? `№ ${d.officialNumber}` : d.draftNumber;
-}
-
-/**
- * Guarantee the agent/commission-person name NEVER appears in the invoice
- * description — code-level enforcement, not a prompt the model can ignore.
- * The agent name is collected separately and only used as the accounting-group
- * message at approval. Strips trailing "- Agent: X", "(Agent: X)", "Agent: X".
- */
-function stripAgentName(desc?: string): string {
-  if (!desc) return "";
-  return desc
-    .replace(/\s*\(\s*agent\b[\s:]*[^)]*\)/gi, "") // "(Agent: X)" anywhere
-    .replace(/\s*[-–—]\s*agent\b[\s:]*[^,;\n]*$/i, "") // "- Agent: X" at the end
-    .replace(/\s*\bagent\s*:\s*[^,;\n]*$/i, "") // bare "Agent: X" at the end
-    .replace(/\s{2,}/g, " ")
-    .replace(/[\s,;:–—-]+$/, "")
-    .trim();
 }
 
 function findDoc(docs: InvoiceDocument[], p: IntentParams): InvoiceDocument | null {

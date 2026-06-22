@@ -49,6 +49,12 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
         } else if (filters.stage === STAGES.CREDITED.id) {
           // "Credited" = credit notes only (not the credited invoice).
           if (doc.kind !== "credit") return false;
+        } else if (filters.stage === STAGES.CANCELLED.id) {
+          // "Cancelled" = the invoice that was cancelled — whether voided before
+          // numbering (cancelled) or cancelled via a credit note (credited).
+          // The credit note itself lives under "Credited".
+          if (doc.kind !== "invoice") return false;
+          if (doc.stage !== STAGES.CANCELLED.id && doc.stage !== STAGES.CREDITED.id) return false;
         } else if (filters.stage === "recurrence-monthly") {
           if (doc.kind !== "invoice" || doc.recurrence !== "monthly") return false;
         } else if (filters.stage === "recurrence-yearly") {
