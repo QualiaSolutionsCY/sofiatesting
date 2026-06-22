@@ -9,7 +9,6 @@ import {
   createDocumentAction,
   deleteDocumentAction,
   forwardAccountingAction,
-  loadDocumentsAction,
   markApprovedOnlyAction,
   markPaidAndIssueReceiptAction,
   notifyAccountingGroupOfInvoiceAction,
@@ -195,25 +194,23 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
     switch (stageOrAction) {
       case "draft":
         startTransition(async () => {
-          // Admin-panel sends are auto-issued: number the invoice, mark it paid +
-          // issue the linked receipt, and post the PDF to the accounting group.
-          // Only the Sophia-bot chat flow gates on Marios's approval.
+          // Manual step: approve the draft, assign its official number, and post
+          // the PDF to the accounting group. Payment is a SEPARATE step — the
+          // invoice is NOT marked paid here. Use "Mark as paid → issue receipt"
+          // when the money actually arrives.
           try {
-            await approveDocumentAction(selected.id);
+            const result = await approveDocumentAction(selected.id);
             if (selected.kind === "invoice") {
-              const paid = await markPaidAndIssueReceiptAction(selected.id);
               await notifyAccountingGroupOfInvoiceAction(selected.id);
-              reconcile(paid.documents, paid.selectedId ?? selected.id);
-              setFilters((f) => ({ ...f, stage: "all" }));
-              setToast("Issued, paid, receipt created — sent to the accounting group.");
+              setToast("Approved & sent to accounting — mark as paid when payment arrives.");
             } else {
-              const result = await approveDocumentAction(selected.id);
-              reconcile(result.documents, selected.id);
               setToast("Approved and numbered.");
             }
+            reconcile(result.documents, selected.id);
+            setFilters((f) => ({ ...f, stage: "all" }));
           } catch (error) {
-            console.error("Issue from draft failed", error);
-            setToast("Couldn't issue this invoice — please try again.");
+            console.error("Approve from draft failed", error);
+            setToast("Couldn't approve this invoice — please try again.");
           }
         });
         break;
@@ -454,41 +451,14 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       }
 
       const created = await createDocumentAction(input);
-      const newId = created.selectedId as string;
 
-      // Admin-panel invoices are trusted: auto-issued with an official number,
-      // marked paid, and a linked receipt is created immediately (not parked in
-      // the "Approved" queue — that status is reserved for the Sophia/WhatsApp
-      // approval flow). The PDF is posted to the accounting group, not Marios's DM.
-      if (form.kind === "invoice" && newId) {
-        let result = created;
-        let selectId = newId;
-        let fullyIssued = false;
-        try {
-          await approveDocumentAction(newId);
-          const paid = await markPaidAndIssueReceiptAction(newId);
-          result = paid;
-          selectId = paid.selectedId ?? newId;
-          await notifyAccountingGroupOfInvoiceAction(newId);
-          fullyIssued = true;
-        } catch (error) {
-          console.error("Auto-issue failed", error);
-          const fresh = await loadDocumentsAction();
-          result = fresh;
-          selectId = fresh.selectedId ?? newId;
-        }
-        reconcile(result.documents, selectId);
-        setFilters((f) => ({ ...f, stage: "all" }));
-        setToast(
-          fullyIssued
-            ? "Invoice issued, paid, receipt created — sent to the accounting group."
-            : "Invoice numbered — mark paid manually and retry the group send."
-        );
-        return;
-      }
-
+      // Manual approval flow (Marios's request): creating an invoice in the panel
+      // only parks a DRAFT. Approving (assign № + post to the accounting group)
+      // and marking it paid are separate, explicit steps — nothing is issued,
+      // sent, or marked paid on create.
       reconcile(created.documents, created.selectedId);
-      setToast("Draft prepared. Awaiting hand-off to Marios.");
+      setFilters((f) => ({ ...f, stage: "all" }));
+      setToast("Draft created — review it, then approve when ready.");
     });
   }
 
