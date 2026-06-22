@@ -6,6 +6,7 @@
  * the bot; the Vercel endpoint re-checks independently (defense in depth).
  */
 
+import { saveLastDocument } from "../../../_shared/db.ts";
 import { type Agent, normalizePhone } from "../../agents/identifier.ts";
 import { callInvoiceIntent } from "../../services/invoice-bridge.ts";
 import { LogCategory, logger } from "../../utils/logger.ts";
@@ -95,6 +96,19 @@ export async function handleManageInvoice(
         result.reply
       );
       documentSent = true;
+      // Register the invoice/receipt/credit-note PDF as the user's "last document"
+      // so that if they then ask Sophia to email it, the email auto-attach picks
+      // THIS document (not an unrelated DOCX). Stored under bare international
+      // digits to match how the email handler looks it up.
+      const lastDocUserId = (phoneNumber || agent?.mobile || "").replace(/[^\d]/g, "");
+      if (lastDocUserId) {
+        await saveLastDocument(
+          lastDocUserId,
+          result.pdfUrl,
+          result.filename || "invoice.pdf",
+          "invoice"
+        );
+      }
     } catch (_e) {
       // Non-fatal — the text reply still goes out even if the file send fails.
     }
