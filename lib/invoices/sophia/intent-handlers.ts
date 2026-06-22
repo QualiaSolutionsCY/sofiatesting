@@ -7,6 +7,7 @@ import {
   createDocumentAction,
   loadDocumentsAction,
   markPaidAndIssueReceiptAction,
+  notifyMariosApprovedAction,
   sendDocumentToAccountingGroup,
   storeDocumentPdfAction,
   updateDocumentAction,
@@ -218,12 +219,15 @@ export async function runIntent(
         ? params.groupMessage
         : `Invoice ${numberOf(updated)} — ${updated.clientName} (${money(updated.total)}). ${params.groupMessage}`;
       const sentToGroup = await sendDocumentToAccountingGroup(updated, caption);
+      // An approved invoice goes to BOTH the accounting group and Marios (FYI copy
+      // of the approved invoice + PDF), not only the accounting group.
+      await notifyMariosApprovedAction(updated.id);
       return {
         ok: true,
         documentId: updated.id,
         ...pdf,
         reply: sentToGroup
-          ? `Approved ${updated.clientName} — № ${num}, and sent the invoice to the group.`
+          ? `Approved ${updated.clientName} — № ${num}, and sent the invoice to Marios and the accounting group.`
           : `Approved ${updated.clientName} — № ${num}. (I couldn't reach the group just now.)`,
       };
     }
@@ -333,16 +337,11 @@ export async function runIntent(
       const res = await loadDocumentsAction();
       const doc = findDoc(res.documents, params);
       if (!doc) return { ok: false, reply: "I couldn't find that invoice." };
-      // The agent is asked (by the prompt) for the message to send to the group;
-      // it arrives as groupMessage and becomes the credit-note reason/group caption.
-      const groupMessage = params.groupMessage || params.correctionReason;
-      if (!groupMessage) {
-        return {
-          ok: false,
-          reply: `Before I issue the credit note for ${doc.clientName}, what message should I send to the group along with it?`,
-        };
-      }
-      const out = await cancelWithCreditNoteAction(doc.id, groupMessage);
+      // Credit notes need NO approval and are issued directly: the action
+      // auto-approves them and auto-posts the PDF to the accounting group. The
+      // optional reason rides along as context — never gate on it.
+      const reason = params.correctionReason || params.groupMessage;
+      const out = await cancelWithCreditNoteAction(doc.id, reason);
       const cn = out.documents.find((d) => d.id === out.selectedId);
       const pdf = cn ? await attachPdf(cn.id) : {};
       return {

@@ -24,8 +24,7 @@ import {
   queueCorrectedResend,
   queueCreditNoteDelivery,
   queueDraftToMarios,
-  retryManualDelivery,
-  queueReceiptDelivery
+  retryManualDelivery
 } from "@/lib/invoices/supabase/integration-repository";
 import { storeDocumentPdfInSupabase } from "@/lib/invoices/storage";
 import { INVOICE_AUTHORIZED_AGENTS } from "@/lib/invoices/constants";
@@ -325,7 +324,8 @@ export async function markPaidAndIssueReceiptAction(id: string): Promise<Documen
     [paidInvoice, issuedReceipt],
     "Invoice paid and receipt issued"
   );
-  await queueReceiptDelivery(issuedReceipt);
+  // Receipts stay INTERNAL — they are NOT posted to the accounting group or sent
+  // to Marios. The receipt is logged against the paid invoice and nothing more.
   return {
     ...result,
     selectedId: issuedReceipt.id,
@@ -459,7 +459,7 @@ export async function notifyAccountingGroupOfInvoiceAction(id: string): Promise<
   const document = findDocument(current.documents, id);
   const caption =
     `Invoice issued: ${getDisplayNumber(document)} · Client: ${document.clientName}\n\n` +
-    `Issued automatically via the admin panel — paid and receipt logged. PDF attached for accounting.`;
+    `Approved by Marios via the admin panel. PDF attached for accounting.`;
   return sendDocumentToAccountingGroup(document, caption);
 }
 
