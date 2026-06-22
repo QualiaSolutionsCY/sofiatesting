@@ -260,9 +260,15 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           setToast("Receipt issued.");
         });
         break;
-      case "sent-to-accounting":
-        setLightboxDoc(selected);
+      case "sent-to-accounting": {
+        // "Open issued receipt" must show the RECEIPT, not the source invoice.
+        // The receipt links back via appliesTo === the invoice's official number.
+        const receipt = docs.find(
+          (d) => d.kind === "receipt" && !!selected.officialNo && d.appliesTo === selected.officialNo
+        );
+        setLightboxDoc(receipt ?? selected);
         break;
+      }
       case "credited": {
         // Open the linked document in EITHER direction: from a credited invoice
         // open its credit note (creditedBy); from a credit note open the source

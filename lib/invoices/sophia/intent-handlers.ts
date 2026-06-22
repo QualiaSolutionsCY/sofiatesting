@@ -201,33 +201,20 @@ export async function runIntent(
       const pdf = await attachPdf(updated.id);
       const num = updated.officialNumber ?? "assigned";
 
-      // After approval the invoice goes to the group — ask Marios for the message
-      // first, then post the invoice on the follow-up call (groupMessage set).
-      if (!params.groupMessage) {
-        return {
-          ok: true,
-          documentId: updated.id,
-          ...pdf,
-          reply: `Approved ${updated.clientName} — official number ${num}. What message should I send to the group along with the invoice?`,
-        };
-      }
-
-      // Commission invoices: Marios wants ONLY the agent name as the group
-      // message (the invoice number/client/amount are already on the attached
-      // PDF + filename). Non-commission invoices keep the full descriptive line.
+      // Approving ALWAYS auto-sends a copy to the accounting group AND to Marios —
+      // never ask "what message should I send?". Commission invoices carry the
+      // agent's name only; every other invoice uses the standard invoice line.
       const caption = isCommissionDescription(updated.description)
-        ? params.groupMessage
-        : `Invoice ${numberOf(updated)} — ${updated.clientName} (${money(updated.total)}). ${params.groupMessage}`;
+        ? params.groupMessage || updated.commissionPersonName || ""
+        : `Invoice ${numberOf(updated)} — ${updated.clientName} (${money(updated.total)})${params.groupMessage ? `. ${params.groupMessage}` : ""}`;
       const sentToGroup = await sendDocumentToAccountingGroup(updated, caption);
-      // An approved invoice goes to BOTH the accounting group and Marios (FYI copy
-      // of the approved invoice + PDF), not only the accounting group.
       await notifyMariosApprovedAction(updated.id);
       return {
         ok: true,
         documentId: updated.id,
         ...pdf,
         reply: sentToGroup
-          ? `Approved ${updated.clientName} — № ${num}, and sent the invoice to Marios and the accounting group.`
+          ? `Approved ${updated.clientName} — № ${num}, and sent a copy to Marios and the accounting group.`
           : `Approved ${updated.clientName} — № ${num}. (I couldn't reach the group just now.)`,
       };
     }

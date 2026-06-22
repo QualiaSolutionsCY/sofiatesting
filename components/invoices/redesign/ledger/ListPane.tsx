@@ -32,19 +32,31 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
     return docs
       .filter((doc) => {
         if (filters.kind !== "all" && doc.kind !== filters.kind) return false;
+        // Each filter shows ONLY its own kind of document — never mixed.
         if (filters.stage === "approved-numbered") {
-          // Approved bucket is invoices only — receipts live under "Receipts" and
-          // credit notes under "Credited", even though they're also numbered.
+          // "Invoices" = invoices once issued; stays here through paid.
           if (doc.kind !== "invoice") return false;
-          if (doc.stage !== STAGES.APPROVED.id && doc.stage !== STAGES.NUMBERED.id) return false;
-        } else if (filters.stage === "recurrence-monthly") {
-          if (doc.recurrence !== "monthly") return false;
-        } else if (filters.stage === "recurrence-yearly") {
-          if (doc.recurrence !== "yearly") return false;
+          if (
+            doc.stage !== STAGES.APPROVED.id &&
+            doc.stage !== STAGES.NUMBERED.id &&
+            doc.stage !== STAGES.SENT_TO_ACCOUNTING.id
+          ) {
+            return false;
+          }
         } else if (filters.stage === "kind-receipt") {
+          // "Receipts" = receipt documents only.
           if (doc.kind !== "receipt") return false;
-        } else if (filters.stage !== "all" && doc.stage !== filters.stage) {
-          return false;
+        } else if (filters.stage === STAGES.CREDITED.id) {
+          // "Credited" = credit notes only (not the credited invoice).
+          if (doc.kind !== "credit") return false;
+        } else if (filters.stage === "recurrence-monthly") {
+          if (doc.kind !== "invoice" || doc.recurrence !== "monthly") return false;
+        } else if (filters.stage === "recurrence-yearly") {
+          if (doc.kind !== "invoice" || doc.recurrence !== "yearly") return false;
+        } else if (filters.stage !== "all") {
+          // Draft / Sent to Marios / Paid / Cancelled — invoices only, by stage.
+          if (doc.kind !== "invoice") return false;
+          if (doc.stage !== filters.stage) return false;
         }
         if (filters.q) {
           const q = filters.q.toLowerCase();

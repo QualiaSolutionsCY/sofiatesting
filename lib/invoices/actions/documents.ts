@@ -138,7 +138,11 @@ async function notifyMariosOverWhatsApp(
     : "";
   // Admin-panel invoices are already approved, so Marios gets a notification, not a
   // review request. He only approves via the Sophia chat flow.
-  const caption = opts.approved
+  const caption = document.kind === "receipt"
+    ? `Receipt ${displayNumber} — ${document.description}\n` +
+      `Client: ${document.clientName}\n\n` +
+      `Your copy — PDF attached. (Receipts are not posted to the accounting group.)`
+    : opts.approved
     ? `Invoice issued: ${displayNumber}\n` +
       `Client: ${document.clientName}${correctionLine}\n\n` +
       `Approved automatically via the admin panel — no action needed. PDF attached for your records.`
@@ -324,8 +328,8 @@ export async function markPaidAndIssueReceiptAction(id: string): Promise<Documen
     [paidInvoice, issuedReceipt],
     "Invoice paid and receipt issued"
   );
-  // Receipts stay INTERNAL — they are NOT posted to the accounting group or sent
-  // to Marios. The receipt is logged against the paid invoice and nothing more.
+  // Receipts go to MARIOS ONLY — never posted to the accounting group.
+  await notifyMariosOverWhatsApp(issuedReceipt);
   return {
     ...result,
     selectedId: issuedReceipt.id,
