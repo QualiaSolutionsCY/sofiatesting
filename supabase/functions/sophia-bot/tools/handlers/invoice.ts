@@ -23,8 +23,8 @@ export interface ToolResult {
   documentSent?: boolean;
 }
 
-// Fawzi Goussous, Charalambos Pitros, Marios Polyviou — last 8 digits of `mobile`.
-const ALLOWED_LAST8 = ["99111668", "99076732", "99921560"];
+// Fawzi Goussous, Charalambos Pitros, Marios Polyviou, Moayad Alqam — last 8 digits of `mobile`.
+const ALLOWED_LAST8 = ["99111668", "99076732", "99921560", "99687499"];
 
 function isAllowed(phone?: string, agent?: Agent | null): boolean {
   const candidates = [phone, agent?.mobile].filter(Boolean) as string[];
