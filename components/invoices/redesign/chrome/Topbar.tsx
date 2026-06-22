@@ -1,6 +1,6 @@
 "use client";
 
-import { FileCog, Plus, Search, Settings as SettingsIcon } from "lucide-react";
+import { FileCog, Plus, RefreshCw, Search, Settings as SettingsIcon } from "lucide-react";
 import type { Doc } from "@/lib/invoices/redesign/types";
 
 interface TopbarProps {
@@ -9,9 +9,10 @@ interface TopbarProps {
   onPalette: () => void;
   onOpenSettings: () => void;
   onEditTemplate: () => void;
+  onRefresh: () => void;
 }
 
-export function Topbar({ docs, onNew, onPalette, onOpenSettings, onEditTemplate }: TopbarProps) {
+export function Topbar({ docs, onNew, onPalette, onOpenSettings, onEditTemplate, onRefresh }: TopbarProps) {
   const needsReview = docs.filter((d) => d.stage === "sent-to-marios" || d.stage === "correction-needed").length;
 
   return (
@@ -33,6 +34,15 @@ export function Topbar({ docs, onNew, onPalette, onOpenSettings, onEditTemplate 
           <span>Search or jump…</span>
           <kbd>⌘</kbd>
           <kbd>K</kbd>
+        </button>
+        <button
+          type="button"
+          className="icon-button topbar-settings"
+          onClick={onRefresh}
+          title="Refresh — pull invoices created over WhatsApp"
+          aria-label="Refresh invoices"
+        >
+          <RefreshCw size={15} strokeWidth={1.6} />
         </button>
         <button
           type="button"

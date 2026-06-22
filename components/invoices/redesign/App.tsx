@@ -9,6 +9,7 @@ import {
   createDocumentAction,
   deleteDocumentAction,
   forwardAccountingAction,
+  loadDocumentsAction,
   markApprovedOnlyAction,
   markPaidAndIssueReceiptAction,
   notifyAccountingGroupOfInvoiceAction,
@@ -159,11 +160,45 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
     return () => window.removeEventListener("keydown", onKey);
   }, [operator]);
 
+  // Re-pull documents when the operator returns to the tab/window so documents
+  // created out-of-band (e.g. by an agent over WhatsApp via Sophia) show up
+  // without a full page reload. Skipped while the composer is open so an
+  // in-progress draft is never disrupted; selection is preserved because
+  // reconcile keeps the current selectedId when none is passed.
+  useEffect(() => {
+    if (!operator) return;
+    const onVisible = () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      if (composerOpen) return;
+      refetchDocuments();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [operator, composerOpen]);
+
   function reconcile(invoices: InvoiceDocument[], selectId?: string) {
     const { docs: nextDocs, clients: nextClients } = invoicesToDocs(invoices);
     replaceClientRegistry(nextClients);
     setDocs(nextDocs);
     if (selectId) setSelectedId(selectId);
+  }
+
+  // Pull the latest documents from the server and merge them in, keeping the
+  // current selection. Used by the topbar Refresh button and the on-focus
+  // refresh above. A transient failure is swallowed — the current view stays.
+  function refetchDocuments() {
+    startTransition(async () => {
+      try {
+        const result = await loadDocumentsAction();
+        reconcile(result.documents);
+      } catch (error) {
+        console.error("Document refresh failed", error);
+      }
+    });
   }
 
   if (!operator) {
@@ -561,6 +596,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           onPalette={() => setPaletteOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
           onEditTemplate={() => setTemplateOpen(true)}
+          onRefresh={refetchDocuments}
         />
         <div className="workspace">
 
