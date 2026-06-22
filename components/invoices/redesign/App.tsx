@@ -78,7 +78,7 @@ function formToDocumentInput(form: ComposerForm): DocumentInput {
     kind: form.kind === "credit" ? "credit-note" : form.kind,
     clientName,
     clientEmail: form.recurrenceEmail || undefined,
-    description: form.description || form.lines[0]?.desc || "",
+    description: form.lines.map((l) => l.desc.trim()).filter(Boolean).join("\n") || form.description || "",
     amount: sub,
     vatMode: form.vatMode ?? vatRateToMode(form.vatRate),
     issueDate: form.issued || todayStamp(),
@@ -579,7 +579,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
               const result = await updateDocumentAction(id, {
                 kind: targetDoc.kind === "credit" ? "credit-note" : targetDoc.kind,
                 clientName: clientById(form.client).name,
-                description: form.description || form.lines[0]?.desc || "",
+                description: form.lines.map((l) => l.desc.trim()).filter(Boolean).join("\n") || form.description || "",
                 amount: sub,
                 vatMode: form.vatMode,
                 issueDate: form.issued,
@@ -599,7 +599,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
               await updateDocumentAction(id, {
                 kind: targetDoc.kind === "credit" ? "credit-note" : targetDoc.kind,
                 clientName: clientById(form.client).name,
-                description: form.description || form.lines[0]?.desc || "",
+                description: form.lines.map((l) => l.desc.trim()).filter(Boolean).join("\n") || form.description || "",
                 amount: sub,
                 vatMode: form.vatMode,
                 issueDate: form.issued,
