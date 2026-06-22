@@ -316,7 +316,15 @@ export async function queueClientEmailAction(
   return { ...current, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
 }
 
-export async function markPaidAndIssueReceiptAction(id: string): Promise<DocumentsActionResult> {
+export async function markPaidAndIssueReceiptAction(
+  id: string,
+  opts: { notifyMarios?: boolean } = {}
+): Promise<DocumentsActionResult> {
+  // notifyMarios defaults true (admin panel relies on it). The Sophia/WhatsApp
+  // path passes false: there the bot delivers the receipt PDF to the requester
+  // itself, so an extra in-action send would double the PDF generation AND make
+  // Marios receive the receipt twice — slowing the reply for no benefit.
+  const { notifyMarios = true } = opts;
   const current = await listInvoiceDocuments();
   const invoice = findDocument(current.documents, id);
   if (invoice.kind !== "invoice") return { ...current, selectedId: id };
@@ -333,7 +341,7 @@ export async function markPaidAndIssueReceiptAction(id: string): Promise<Documen
     "Invoice paid and receipt issued"
   );
   // Receipts go to MARIOS ONLY — never posted to the accounting group.
-  await notifyMariosOverWhatsApp(issuedReceipt);
+  if (notifyMarios) await notifyMariosOverWhatsApp(issuedReceipt);
   return {
     ...result,
     selectedId: issuedReceipt.id,

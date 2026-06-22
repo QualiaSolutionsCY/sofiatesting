@@ -309,7 +309,10 @@ export async function runIntent(
       const res = await loadDocumentsAction();
       const doc = findDoc(res.documents, params);
       if (!doc) return { ok: false, reply: "I couldn't find that invoice." };
-      const out = await markPaidAndIssueReceiptAction(doc.id);
+      // notifyMarios:false — the bot delivers the receipt PDF to the requester
+      // itself (one PDF build, one send), so Sophia replies faster and Marios
+      // isn't messaged twice when he's the one asking.
+      const out = await markPaidAndIssueReceiptAction(doc.id, { notifyMarios: false });
       const receipt = out.documents.find((d) => d.id === out.selectedId);
       const pdf = receipt ? await attachPdf(receipt.id) : {};
       return {
