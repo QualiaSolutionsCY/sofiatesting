@@ -30,10 +30,10 @@ const OPENROUTER_CIRCUIT = {
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Free-tier primary (Nemotron 3 Ultra 550B — strongest free model with tool calling on OpenRouter)
-// Paid fallback kicks in when the free tier rate-limits or errors
-const PRIMARY_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
-const PRO_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
+// Claude Sonnet 4.6 (via OpenRouter) for every channel — primary, pro, and fallback.
+// No free-tier models: quality is the priority for SOPHIA's chat.
+const PRIMARY_MODEL = "anthropic/claude-sonnet-4.6";
+const PRO_MODEL = "anthropic/claude-sonnet-4.6";
 const FALLBACK_MODEL = "anthropic/claude-sonnet-4.6";
 
 interface AIResponse {
