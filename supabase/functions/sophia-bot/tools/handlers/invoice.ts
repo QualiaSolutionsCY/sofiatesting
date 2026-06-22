@@ -36,6 +36,22 @@ function isAllowed(phone?: string, agent?: Agent | null): boolean {
   return false;
 }
 
+/**
+ * Kind-aware fallback metadata, derived from the intent, for when the bridge
+ * doesn't return a filename. Without this a receipt or credit-note would default
+ * to "invoice.pdf" / type "invoice" — so Marios could receive a receipt named
+ * like an invoice. The type also labels the stored "last document".
+ */
+function fallbackDocMeta(intent: string): { filename: string; type: string } {
+  if (intent === "issue_receipt" || intent === "mark_paid") {
+    return { filename: "receipt.pdf", type: "receipt" };
+  }
+  if (intent === "issue_credit_note") {
+    return { filename: "credit-note.pdf", type: "credit-note" };
+  }
+  return { filename: "invoice.pdf", type: "invoice" };
+}
+
 export async function handleManageInvoice(
   args: Record<string, unknown>,
   agent: Agent | null,
@@ -88,11 +104,15 @@ export async function handleManageInvoice(
   // and the caller skips re-sending the same text as a separate chat message.
   let documentSent = false;
   if (result.ok && result.pdfUrl) {
+    // Prefer the real filename/type the backend produced (already kind-correct,
+    // e.g. "… Receipt 10393.pdf"); only fall back to a kind-aware default so a
+    // receipt/credit-note is never mislabelled as an invoice.
+    const docMeta = fallbackDocMeta(intent);
     try {
       await sendDocumentByUrl(
         phoneNumber || agent?.mobile || "",
         result.pdfUrl,
-        result.filename || "invoice.pdf",
+        result.filename || docMeta.filename,
         result.reply
       );
       documentSent = true;
@@ -105,8 +125,8 @@ export async function handleManageInvoice(
         await saveLastDocument(
           lastDocUserId,
           result.pdfUrl,
-          result.filename || "invoice.pdf",
-          "invoice"
+          result.filename || docMeta.filename,
+          docMeta.type
         );
       }
     } catch (_e) {
