@@ -142,6 +142,10 @@ async function notifyMariosOverWhatsApp(
     ? `Receipt ${displayNumber} — ${document.description}\n` +
       `Client: ${document.clientName}\n\n` +
       `Your copy — PDF attached. (Receipts are not posted to the accounting group.)`
+    : document.kind === "credit-note"
+    ? `Credit note ${displayNumber}\n` +
+      `Client: ${document.clientName}${correctionLine}\n\n` +
+      `Your copy — invoice ${document.sourceInvoiceNumber || "—"} was cancelled. PDF attached.`
     : opts.approved
     ? `Invoice issued: ${displayNumber}\n` +
       `Client: ${document.clientName}${correctionLine}\n\n` +
@@ -363,6 +367,8 @@ export async function cancelWithCreditNoteAction(id: string, reason?: string): P
   );
   await queueCreditNoteDelivery(approvedCreditNote);
   await notifyGroupOfCreditNote(cancelledInvoice, approvedCreditNote, trimmedReason);
+  // Marios ALWAYS gets his own copy of the credit note, not only the group.
+  await notifyMariosOverWhatsApp(approvedCreditNote);
   return {
     ...result,
     selectedId: approvedCreditNote.id,

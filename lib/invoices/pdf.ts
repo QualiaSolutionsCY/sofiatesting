@@ -56,21 +56,25 @@ function textWidth(value: string, size: number, bold: boolean): number {
 }
 
 function wrapText(value: string, maxWidth: number, size: number, bold: boolean): string[] {
-  const words = (value || "").trim().split(/\s+/).filter(Boolean);
-  if (!words.length) return ["—"];
   const lines: string[] = [];
-  let current = "";
-  for (const word of words) {
-    const candidate = current ? `${current} ${word}` : word;
-    if (!current || textWidth(candidate, size, bold) <= maxWidth) {
-      current = candidate;
-    } else {
-      lines.push(current);
-      current = word;
+  // Honour explicit line breaks (e.g. receipt: invoice-no line + description),
+  // width-wrapping each paragraph independently.
+  for (const paragraph of (value || "").split(/\r?\n/)) {
+    const words = paragraph.trim().split(/\s+/).filter(Boolean);
+    if (!words.length) continue;
+    let current = "";
+    for (const word of words) {
+      const candidate = current ? `${current} ${word}` : word;
+      if (!current || textWidth(candidate, size, bold) <= maxWidth) {
+        current = candidate;
+      } else {
+        lines.push(current);
+        current = word;
+      }
     }
+    if (current) lines.push(current);
   }
-  if (current) lines.push(current);
-  return lines;
+  return lines.length ? lines : ["—"];
 }
 
 // Mirror the on-screen template's `amount` helper (lib/invoices/redesign/data.ts):

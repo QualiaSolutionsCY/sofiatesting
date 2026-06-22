@@ -91,9 +91,9 @@ export function createReceiptFromInvoice(invoice: InvoiceDocument, index: number
     ...invoice,
     id: `receipt-${crypto.randomUUID()}`,
     kind: "receipt",
-    // The receipt's own line describes WHAT it is — a receipt for the source
-    // invoice — not the original invoice's billing description.
-    description: `Receipt for invoice no ${invoice.officialNumber ?? invoice.draftNumber}`,
+    // The receipt line shows the invoice number it settles on the FIRST line,
+    // then the original invoice description underneath (already agent-name-free).
+    description: `Receipt for invoice no ${invoice.officialNumber ?? invoice.draftNumber}\n${invoice.description}`,
     billToLabel: "Bill To",
     recurrence: "none",
     draftNumber: createDraftNumber("receipt", index),
