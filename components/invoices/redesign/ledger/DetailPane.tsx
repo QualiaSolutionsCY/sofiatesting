@@ -342,7 +342,10 @@ function DocumentTab({
               <label className="inline-editor-field">
                 <span>{doc.kind === "credit" ? "Applies to invoice" : "Due (days to pay)"}</span>
                 {doc.kind === "credit" ? (
-                  <input type="text" value={form.due} onChange={(event) => updateField("due", event.target.value)} />
+                  // Credit notes apply to a SOURCE INVOICE — show that invoice's
+                  // number (read-only), not the editable due-date field this used
+                  // to (mis)bind to, which rendered a date under an invoice label.
+                  <input type="text" value={doc.appliesTo ?? "—"} readOnly />
                 ) : (
                   <input
                     type="number"

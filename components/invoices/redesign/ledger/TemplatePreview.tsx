@@ -120,7 +120,7 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
             <tr key={i}>
               <td>{i + 1}</td>
               <td className="template-desc-cell" style={{ whiteSpace: "pre-line" }}>
-                {isCredit ? `Credit note for invoice ${doc.appliesTo || doc.officialNo || "—"}` : l.desc}
+                {l.desc}
               </td>
               <td>€{amount(l.unitPrice)}</td>
               <td>€{amount(l.qty * l.unitPrice)}</td>
