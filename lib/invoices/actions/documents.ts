@@ -28,7 +28,7 @@ import {
 } from "@/lib/invoices/supabase/integration-repository";
 import { storeDocumentPdfInSupabase } from "@/lib/invoices/storage";
 import { INVOICE_AUTHORIZED_AGENTS } from "@/lib/invoices/constants";
-import { getDisplayNumber, getUnifiedFilename } from "@/lib/invoices/format";
+import { getDisplayNumber, getUnifiedFilename, isCommissionDescription } from "@/lib/invoices/format";
 import { buildDocumentPdfBytes } from "@/lib/invoices/pdf";
 import { createLogger } from "@/lib/logger";
 import { getWhatsAppClient } from "@/lib/whatsapp/client";
@@ -475,9 +475,14 @@ export async function sendDocumentToAccountingGroup(
 export async function notifyAccountingGroupOfInvoiceAction(id: string): Promise<boolean> {
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
-  const caption =
-    `Invoice issued: ${getDisplayNumber(document)} · Client: ${document.clientName}\n\n` +
-    `Approved by Marios via the admin panel. PDF attached for accounting.`;
+  // Commission invoices post to the group under the AGENT'S NAME only — the
+  // invoice number/client/amount already ride on the attached PDF + filename.
+  // This matches the Sophia/WhatsApp approval path; the generic "Invoice issued"
+  // caption is for every other (non-commission) invoice.
+  const caption = isCommissionDescription(document.description)
+    ? document.commissionPersonName || document.description
+    : `Invoice issued: ${getDisplayNumber(document)} · Client: ${document.clientName}\n\n` +
+      `Approved by Marios via the admin panel. PDF attached for accounting.`;
   return sendDocumentToAccountingGroup(document, caption);
 }
 

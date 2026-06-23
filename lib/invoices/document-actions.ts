@@ -155,9 +155,14 @@ export function createCreditNoteFromInvoice(invoice: InvoiceDocument, index: num
     ...invoice,
     id: `credit-note-${crypto.randomUUID()}`,
     kind: "credit-note",
-    // Credit notes render a fixed "Credit note for invoice X" reference, not the
-    // source invoice's per-line rows — clear the inherited line items.
+    // Mirror the receipt: the credit note's line states which invoice it cancels
+    // AND carries that invoice's original description, so the group/PDF reads
+    // "Credit note for invoice no 11439 / Rent for flat 340 …" — not a bare
+    // reference. Clear the inherited per-line rows so this single line renders.
     lineItems: undefined,
+    description: `Credit note for invoice no ${invoice.officialNumber ?? invoice.draftNumber}${
+      invoice.description ? `\n${stripAgentName(invoice.description)}` : ""
+    }`,
     billToLabel: "Bill to",
     recurrence: "none",
     draftNumber: createDraftNumber("credit-note", index),
