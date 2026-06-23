@@ -207,8 +207,11 @@ export async function runIntent(
       const caption = isCommissionDescription(updated.description)
         ? params.groupMessage || updated.commissionPersonName || ""
         : `Invoice ${numberOf(updated)} — ${updated.clientName} (${money(updated.total)})${params.groupMessage ? `. ${params.groupMessage}` : ""}`;
-      const sentToGroup = await sendDocumentToAccountingGroup(updated, caption);
+      // Marios's copy is the always-on default and the priority — send it FIRST,
+      // so if WhatsApp rate-limits a trailing send it can only ever affect the
+      // group copy, never Marios's. Both sends are retry-hardened (whatsapp/client.ts).
       await notifyMariosApprovedAction(updated.id);
+      const sentToGroup = await sendDocumentToAccountingGroup(updated, caption);
       return {
         ok: true,
         documentId: updated.id,
