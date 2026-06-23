@@ -32,6 +32,7 @@ import { getDisplayNumber, getUnifiedFilename, isCommissionDescription } from "@
 import { buildDocumentPdfBytes } from "@/lib/invoices/pdf";
 import { createLogger } from "@/lib/logger";
 import { getWhatsAppClient } from "@/lib/whatsapp/client";
+import { Resend } from "resend";
 import type { DeliveryRecord } from "@/lib/invoices/types/deliveries";
 import {
   applyOfficialNumberToDocument,
@@ -313,6 +314,53 @@ export async function queueClientEmailAction(
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
   await queueClientEmail(document, sharedCcEmail);
+  return { ...current, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
+}
+
+const INVOICE_EMAIL_FROM =
+  process.env.INVOICE_EMAIL_FROM || process.env.INVITE_FROM_EMAIL || "CSC Zyprus Property Group <sophia@zyprus.com>";
+const sendEmailLogger = createLogger("invoices:send-email");
+
+/**
+ * Actually EMAIL the document (invoice / receipt / credit note) PDF to a
+ * recipient via Resend — the functional "Send email" action. Builds the PDF
+ * server-side and attaches it, then records the delivery for the audit trail.
+ */
+export async function sendInvoiceEmailAction(id: string, toEmail: string): Promise<DocumentsActionResult> {
+  const current = await listInvoiceDocuments();
+  const document = findDocument(current.documents, id);
+
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error("Email isn't configured (missing RESEND_API_KEY).");
+  const recipient = (toEmail || "").trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(recipient)) throw new Error("Please enter a valid email address.");
+
+  const label = document.kind === "credit-note" ? "Credit note" : document.kind === "receipt" ? "Receipt" : "Invoice";
+  const number = getDisplayNumber(document);
+  const pdf = Buffer.from(buildDocumentPdfBytes(document));
+
+  const resend = new Resend(apiKey);
+  const { error } = await resend.emails.send({
+    from: INVOICE_EMAIL_FROM,
+    to: recipient,
+    subject: `${label} ${number} — CSC Zyprus Property Group`,
+    text:
+      `Dear ${document.clientName},\n\n` +
+      `Please find attached ${label.toLowerCase()} ${number} from CSC Zyprus Property Group.\n\n` +
+      `Kind regards,\nCSC Zyprus Property Group`,
+    attachments: [{ filename: getUnifiedFilename(document), content: pdf }],
+  });
+  if (error) {
+    sendEmailLogger.error("Resend send failed", undefined, { documentId: id, error: error.message });
+    throw new Error(`Email failed: ${error.message ?? "unknown error"}`);
+  }
+
+  // Record the delivery (audit trail) — best-effort, never fail the send on it.
+  try {
+    await queueClientEmail(document, recipient);
+  } catch (e) {
+    sendEmailLogger.warn("Delivery record not written after email send", { documentId: id });
+  }
   return { ...current, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
 }
 

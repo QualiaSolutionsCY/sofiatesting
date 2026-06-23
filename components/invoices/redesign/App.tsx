@@ -14,8 +14,8 @@ import {
   markPaidAndIssueReceiptAction,
   notifyAccountingGroupOfInvoiceAction,
   notifyMariosApprovedAction,
-  queueClientEmailAction,
   regenerateStoredDocumentAction,
+  sendInvoiceEmailAction,
   sendToMariosAction,
   updateDocumentAction
 } from "@/lib/invoices/actions/documents";
@@ -438,11 +438,37 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       case "whatsapp-marios-mute":
         setToast("Notifications muted for this document.");
         break;
-      case "client-send-all":
+      case "client-send-all": {
+        const kindWord = selected.kind === "credit" ? "credit note" : selected.kind;
+        const to = window.prompt(
+          `Email this ${kindWord} (${selected.officialNo ?? selected.draftNo ?? ""}) to which address?`,
+          ""
+        );
+        if (!to || !to.trim()) break;
         startTransition(async () => {
-          const result = await queueClientEmailAction(selected.id, sharedCc);
-          reconcile(result.documents, selected.id);
-          setToast(`WhatsApp + Email queued for ${clientById(selected.client).name}.`);
+          try {
+            const result = await sendInvoiceEmailAction(selected.id, to.trim());
+            reconcile(result.documents, selected.id);
+            setToast(`Email sent to ${to.trim()}.`);
+          } catch (error) {
+            setToast(`Couldn't send email: ${error instanceof Error ? error.message : "please try again"}`);
+          }
+        });
+        break;
+      }
+      case "delete":
+        setConfirmState({
+          title: `Delete this ${selected.kind === "credit" ? "credit note" : selected.kind} permanently?`,
+          body: "This removes the document entirely. This cannot be undone.",
+          danger: true,
+          confirmLabel: "Delete permanently",
+          onConfirm: () => {
+            startTransition(async () => {
+              const result = await deleteDocumentAction(selected.id);
+              reconcile(result.documents, result.selectedId);
+              setToast("Document deleted.");
+            });
+          }
         });
         break;
       case "client-edit":

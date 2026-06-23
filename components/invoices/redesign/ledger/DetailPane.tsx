@@ -802,6 +802,14 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, 
               >
                 <Trash2 size={13} strokeWidth={1.7} /> Cancel this {kindLabel.toLowerCase()}
               </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="danger"
+                onClick={() => { onAct("delete"); setMoreOpen(false); }}
+              >
+                <Trash2 size={13} strokeWidth={1.7} /> Delete permanently
+              </button>
             </div>
           </details>
         </div>
