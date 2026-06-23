@@ -236,11 +236,17 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   for (const vx of [ML + 32, 410, 474]) line(vx, tableTop, vx, bottom, 0.5, 0.86);
 
   // ---- Totals ----
-  const rate = document.amount > 0 ? Math.round((document.vatAmount / document.amount) * 100) : document.vatMode === "no-vat" ? 0 : 19;
+  // Cyprus VAT is a fixed 19% — show it literally, never back-compute the rate
+  // from amounts (that broke on "included-VAT" invoices, where document.amount
+  // holds the GROSS, yielding a wrong 16% and a gross Subtotal line). Derive the
+  // net Subtotal from the total minus VAT so Subtotal + VAT = Total for every
+  // vatMode (plus-vat: net; included-vat: gross − VAT; no-vat: total).
+  const rate = document.vatMode === "no-vat" ? 0 : 19;
+  const subtotal = Math.abs(document.total) - Math.abs(document.vatAmount);
   const labelX = MR - 200;
   let ty = bottom - 26;
   text(labelX, ty, "Subtotal", 9.5, false, 0.42);
-  textRight(MR, ty, eur(document.amount), 9.5, false, 0.12);
+  textRight(MR, ty, eur(subtotal), 9.5, false, 0.12);
   ty -= 16;
   text(labelX, ty, `V.A.T ${rate}%`, 9.5, false, 0.42);
   textRight(MR, ty, eur(document.vatAmount), 9.5, false, 0.12);
