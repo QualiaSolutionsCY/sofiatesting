@@ -1,16 +1,5 @@
-import { creditNoteLineDescription, documentKindLabel, formatDate, getDisplayNumber, recurrenceLabel } from "@/lib/invoices/format";
+import { creditNoteLineDescription, documentKindLabel, formatDate, getDisplayNumber } from "@/lib/invoices/format";
 import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
-
-// Month-year label for the billing period — mirrors the redesign adapter's
-// private periodFromIssue (lib/invoices/redesign/adapter.ts:23-28) without
-// importing it, so the PDF's "Recurring · Monthly · May 2026" row matches the
-// on-screen TemplatePreview row.
-function periodLabelFromIssue(issueDate: string): string {
-  const [y, m] = (issueDate || "").split("-");
-  if (!y || !m) return "";
-  const month = new Date(Number(y), Number(m) - 1, 1).toLocaleString("en-GB", { month: "long" });
-  return `${month} ${y}`;
-}
 
 /**
  * Letterhead for the issuing entity. Mirrors the ENTITY constant the admin-panel
@@ -137,9 +126,6 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   ];
   if (!isCredit && !isReceipt && document.dueDate) {
     meta.push(["Due Date", formatDate(document.dueDate)]);
-  }
-  if (!isCredit && !isReceipt && document.recurrence !== "none") {
-    meta.push(["Recurring", `${recurrenceLabel(document.recurrence)} · ${periodLabelFromIssue(document.issueDate)}`]);
   }
   if (isCredit && document.sourceInvoiceNumber) meta.push(["Applies to", `Invoice ${document.sourceInvoiceNumber}`]);
 

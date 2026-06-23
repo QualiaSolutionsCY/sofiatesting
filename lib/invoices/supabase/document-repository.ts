@@ -32,13 +32,18 @@ let fallbackDocuments: InvoiceDocument[] = cloneDocuments([]);
 export async function listInvoiceDocuments(): Promise<DocumentRepositoryResult> {
   const supabase = createServiceSupabaseClient();
   if (!supabase) {
-    return { documents: cloneDocuments(fallbackDocuments), persistenceMode: "fallback" };
+    return { documents: cloneDocuments(listLiveFallbackDocuments()), persistenceMode: "fallback" };
   }
 
   const { data, error } = await supabase
     .from(SUPABASE_TABLES.documents)
     .select("*")
-    .order("updated_at", { ascending: false });
+    .is("deleted_at", null)
+    // Latest official invoice NUMBER first; numbers are monotonic-with-creation, so
+    // created_at desc is the tiebreak AND the order for drafts (NULL official_number → last).
+    // Both columns are immutable after creation, so editing (which only bumps updated_at) never reorders.
+    .order("official_number", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false });
 
   if (error) throw new Error(`Unable to load invoice documents: ${error.message}`);
 
@@ -76,12 +81,51 @@ export async function saveInvoiceDocument(
 export async function deleteInvoiceDocument(id: string): Promise<DocumentRepositoryResult> {
   const supabase = createServiceSupabaseClient();
   if (!supabase) {
-    fallbackDocuments = fallbackDocuments.filter((document) => document.id !== id);
-    return { documents: cloneDocuments(fallbackDocuments), persistenceMode: "fallback" };
+    softDeleteFallbackDocument(id);
+    return { documents: cloneDocuments(listLiveFallbackDocuments()), persistenceMode: "fallback" };
   }
 
-  const { error } = await supabase.from(SUPABASE_TABLES.documents).delete().eq("external_id", id);
+  const { error } = await supabase
+    .from(SUPABASE_TABLES.documents)
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("external_id", id);
   if (error) throw new Error(`Unable to delete invoice document: ${error.message}`);
+
+  return listInvoiceDocuments();
+}
+
+export async function listDeletedInvoiceDocuments(): Promise<DocumentRepositoryResult> {
+  const supabase = createServiceSupabaseClient();
+  if (!supabase) {
+    return { documents: cloneDocuments(listDeletedFallbackDocuments()), persistenceMode: "fallback" };
+  }
+
+  const { data, error } = await supabase
+    .from(SUPABASE_TABLES.documents)
+    .select("*")
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
+
+  if (error) throw new Error(`Unable to load deleted invoice documents: ${error.message}`);
+
+  return {
+    documents: (data as InvoiceDocumentRow[]).map(fromDocumentRow),
+    persistenceMode: "supabase"
+  };
+}
+
+export async function restoreInvoiceDocument(id: string): Promise<DocumentRepositoryResult> {
+  const supabase = createServiceSupabaseClient();
+  if (!supabase) {
+    restoreFallbackDocument(id);
+    return { documents: cloneDocuments(listLiveFallbackDocuments()), persistenceMode: "fallback" };
+  }
+
+  const { error } = await supabase
+    .from(SUPABASE_TABLES.documents)
+    .update({ deleted_at: null })
+    .eq("external_id", id);
+  if (error) throw new Error(`Unable to restore invoice document: ${error.message}`);
 
   return listInvoiceDocuments();
 }
@@ -203,6 +247,26 @@ function upsertFallbackDocument(document: InvoiceDocument) {
     return;
   }
   fallbackDocuments = fallbackDocuments.map((current) => (current.id === document.id ? document : current));
+}
+
+function listLiveFallbackDocuments() {
+  return fallbackDocuments.filter((document) => !document.deletedAt);
+}
+
+function listDeletedFallbackDocuments() {
+  return fallbackDocuments.filter((document) => Boolean(document.deletedAt));
+}
+
+function softDeleteFallbackDocument(id: string) {
+  fallbackDocuments = fallbackDocuments.map((document) =>
+    document.id === id ? { ...document, deletedAt: new Date().toISOString() } : document
+  );
+}
+
+function restoreFallbackDocument(id: string) {
+  fallbackDocuments = fallbackDocuments.map((document) =>
+    document.id === id ? { ...document, deletedAt: undefined } : document
+  );
 }
 
 function cloneDocuments(documents: InvoiceDocument[]) {

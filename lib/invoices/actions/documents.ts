@@ -10,7 +10,9 @@ import {
 import { getNextDraftSequence, getNextOfficialNumber } from "@/lib/invoices/numbering";
 import {
   deleteInvoiceDocument,
+  listDeletedInvoiceDocuments,
   listInvoiceDocuments,
+  restoreInvoiceDocument,
   retrieveStoredDocument,
   saveInvoiceDocument,
   saveInvoiceDocuments,
@@ -28,7 +30,7 @@ import {
 } from "@/lib/invoices/supabase/integration-repository";
 import { storeDocumentPdfInSupabase } from "@/lib/invoices/storage";
 import { INVOICE_AUTHORIZED_AGENTS } from "@/lib/invoices/constants";
-import { getDisplayNumber, getUnifiedFilename, isCommissionDescription } from "@/lib/invoices/format";
+import { getDisplayNumber, getUnifiedFilename } from "@/lib/invoices/format";
 import { buildDocumentPdfBytes } from "@/lib/invoices/pdf";
 import { createLogger } from "@/lib/logger";
 import { getWhatsAppClient } from "@/lib/whatsapp/client";
@@ -95,13 +97,16 @@ export async function updateDashboardControlsAction(
   return { ...result, selectedId: id };
 }
 
-export async function sendToMariosAction(id: string): Promise<DocumentsActionResult> {
+export async function sendToMariosAction(
+  id: string,
+  messageOverride?: string
+): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
   const updated = sendDraftToMarios(document);
   const result = await saveInvoiceDocument(updated, "Draft sent to Marios");
   await queueDraftToMarios(updated);
-  await notifyMariosOverWhatsApp(updated);
+  await notifyMariosOverWhatsApp(updated, { override: messageOverride });
   return { ...result, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
 }
 
@@ -125,7 +130,7 @@ const sendLogger = createLogger("invoices:send-to-marios");
  */
 async function notifyMariosOverWhatsApp(
   document: InvoiceDocument,
-  opts: { approved?: boolean } = {}
+  opts: { approved?: boolean; override?: string } = {}
 ): Promise<void> {
   const marios = INVOICE_AUTHORIZED_AGENTS.find((agent) => agent.name === "Marios Polyviou");
   if (!marios) {
@@ -137,20 +142,26 @@ async function notifyMariosOverWhatsApp(
   const correctionLine = document.correctionReason
     ? `\nCorrection: ${document.correctionReason}. Please ignore the previous version.`
     : "";
+  // A caller-supplied caption (Marios edited the message before sending — the
+  // "Edit message" action) wins over the default. An empty override means
+  // "send blank — just the PDF", per Marios's no-description rule.
   // Admin-panel invoices are already approved, so Marios gets a notification, not a
   // review request. He only approves via the Sophia chat flow.
-  const caption = document.kind === "receipt"
-    ? `Receipt ${displayNumber} — ${document.description}\n` +
-      `Client: ${document.clientName}\n\n` +
-      `Your copy — PDF attached. (Receipts are not posted to the accounting group.)`
+  const caption = opts.override !== undefined
+    ? opts.override.trim()
     : document.kind === "credit-note"
+    // Credit notes KEEP their cancellation reason — the accountant must know why
+    // the invoice was voided (Marios's explicit exception to the blank rule).
     ? `Credit note ${displayNumber}\n` +
       `Client: ${document.clientName}${correctionLine}\n\n` +
       `Your copy — invoice ${document.sourceInvoiceNumber || "—"} was cancelled. PDF attached.`
+    // Marios's copy is BLANK — just the PDF, no description (his "be blunt, just
+    // the PDF" rule). A correction keeps the "ignore the previous version" note.
+    : document.kind === "receipt"
+    ? ""
     : opts.approved
-    ? `Invoice issued: ${displayNumber}\n` +
-      `Client: ${document.clientName}${correctionLine}\n\n` +
-      `Approved automatically via the admin panel — no action needed. PDF attached for your records.`
+    ? correctionLine.trim()
+    // The review request keeps its instructions so reply-to-approve still works.
     : `Invoice for review: ${displayNumber}\n` +
       `Client: ${document.clientName}${correctionLine}\n\n` +
       `Reply ✓ to approve, or reply with the correction needed.`;
@@ -523,14 +534,12 @@ export async function sendDocumentToAccountingGroup(
 export async function notifyAccountingGroupOfInvoiceAction(id: string): Promise<boolean> {
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
-  // Commission invoices post to the group under the AGENT'S NAME only — the
-  // invoice number/client/amount already ride on the attached PDF + filename.
-  // This matches the Sophia/WhatsApp approval path; the generic "Invoice issued"
-  // caption is for every other (non-commission) invoice.
-  const caption = isCommissionDescription(document.description)
-    ? document.commissionPersonName || document.description
-    : `Invoice issued: ${getDisplayNumber(document)} · Client: ${document.clientName}\n\n` +
-      `Approved by Marios via the admin panel. PDF attached for accounting.`;
+  // Accounting group: the AGENT'S NAME only when there is one, otherwise BLANK —
+  // just the PDF (Marios's rule). The invoice number/client/amount ride on the
+  // attached PDF + filename, so no descriptive caption is posted.
+  const caption = document.requiresCommissionPerson && document.commissionPersonName
+    ? document.commissionPersonName
+    : "";
   return sendDocumentToAccountingGroup(document, caption);
 }
 
@@ -559,6 +568,82 @@ export async function cancelDeliveryAction(
 export async function deleteDocumentAction(id: string): Promise<DocumentsActionResult> {
   const result = await deleteInvoiceDocument(id);
   return { ...result, selectedId: result.documents[0]?.id };
+}
+
+/**
+ * Marios's "Correct & resend": after the corrected content is saved, the
+ * invoice is re-posted to the accounting group AND Marios IMMEDIATELY over
+ * WhatsApp (the real sender — not the manual queue) with a note to ignore the
+ * previous version. The invoice keeps its number and list position; only the
+ * content + correction reason change. Best-effort sends never break the save.
+ */
+export async function resendCorrectedInvoiceAction(
+  id: string,
+  reason: string
+): Promise<DocumentsActionResult> {
+  const current = await listInvoiceDocuments();
+  const document = findDocument(current.documents, id);
+  const trimmed = (reason || "").trim();
+  const corrected: InvoiceDocument = {
+    ...document,
+    correctionReason: trimmed || document.correctionReason,
+    storageStatus: "needs-regeneration",
+    whatsappStatus: "queued",
+    approvalTimeline: [
+      ...document.approvalTimeline,
+      { label: trimmed ? `Corrected & resent: ${trimmed}` : "Corrected & resent", at: new Date().toISOString(), by: "Marios" }
+    ]
+  };
+  const result = await saveInvoiceDocument(corrected, "Corrected and resent to the group");
+  // Record the delivery for the audit trail (best-effort).
+  try {
+    await queueCorrectedResend(corrected, trimmed || undefined);
+  } catch (error) {
+    sendLogger.warn("Corrected-resend delivery record not written", { documentId: id });
+  }
+  // Resend immediately to the accounting group + Marios with the ignore-previous
+  // note. The correction reason is the explicit exception to the blank rule.
+  const groupCaption =
+    `Corrected invoice ${getDisplayNumber(corrected)} — please use this version` +
+    (trimmed ? ` (${trimmed})` : "") +
+    `. Ignore the previous one.`;
+  await sendDocumentToAccountingGroup(corrected, groupCaption);
+  await notifyMariosOverWhatsApp(corrected, { approved: true });
+  return { ...result, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
+}
+
+/**
+ * Auto-email the approved invoice to Marios (his copy), used by the admin
+ * auto-approve-on-create flow. Best-effort: skips silently when RESEND_API_KEY
+ * or the INVOICE_MARIOS_EMAIL recipient is not configured, so it never breaks
+ * the create flow (and never sends during local testing without an inbox set).
+ */
+export async function autoEmailApprovedInvoiceAction(id: string): Promise<boolean> {
+  const to = process.env.INVOICE_MARIOS_EMAIL?.trim();
+  if (!to || !process.env.RESEND_API_KEY) {
+    sendEmailLogger.warn("Auto-email skipped (INVOICE_MARIOS_EMAIL or RESEND_API_KEY not set)", { documentId: id });
+    return false;
+  }
+  try {
+    await sendInvoiceEmailAction(id, to);
+    return true;
+  } catch (error) {
+    sendEmailLogger.warn("Auto-email of approved invoice to Marios failed", { documentId: id });
+    return false;
+  }
+}
+
+/** Load soft-deleted documents for the "Deleted" view (Marios wants deleted
+ * invoices retained and visible, not gone forever). */
+export async function loadDeletedDocumentsAction(): Promise<DocumentsActionResult> {
+  const result = await listDeletedInvoiceDocuments();
+  return { ...result, selectedId: result.documents[0]?.id };
+}
+
+/** Restore a soft-deleted document back to the live list. */
+export async function restoreDocumentAction(id: string): Promise<DocumentsActionResult> {
+  const result = await restoreInvoiceDocument(id);
+  return { ...result, selectedId: id };
 }
 
 async function mutateOne(

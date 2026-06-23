@@ -76,7 +76,8 @@ export function invoiceToDoc(invoice: InvoiceDocument): Doc {
       : undefined,
     receiptNo: invoice.receiptNumber,
     appliesTo: invoice.sourceInvoiceNumber,
-    timeline: timelineFromInvoice(invoice)
+    timeline: timelineFromInvoice(invoice),
+    deletedAt: invoice.deletedAt
   };
 }
 

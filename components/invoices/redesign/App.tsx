@@ -4,22 +4,26 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   applyOfficialNumberAction,
   approveDocumentAction,
+  autoEmailApprovedInvoiceAction,
   cancelWithCreditNoteAction,
   correctResendAction,
   createDocumentAction,
   deleteDocumentAction,
   forwardAccountingAction,
+  loadDeletedDocumentsAction,
   loadDocumentsAction,
-  markApprovedOnlyAction,
   markPaidAndIssueReceiptAction,
   notifyAccountingGroupOfInvoiceAction,
   notifyMariosApprovedAction,
   regenerateStoredDocumentAction,
+  resendCorrectedInvoiceAction,
+  restoreDocumentAction,
   sendInvoiceEmailAction,
   sendToMariosAction,
   updateDocumentAction
 } from "@/lib/invoices/actions/documents";
 import { docToInvoiceDocument, invoicesToDocs } from "@/lib/invoices/redesign/adapter";
+import { addOneMonth, rollDescriptionMonth } from "@/lib/invoices/format";
 import { downloadDocumentPdf } from "@/lib/invoices/downloads";
 import { clientById, nowStamp, replaceClientRegistry, todayStamp } from "@/lib/invoices/redesign/data";
 import type {
@@ -114,6 +118,11 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [tourOpen, setTourOpen] = useState(false);
   const [toast, setToast] = useState("");
+  // Soft-deleted documents, loaded on demand for the "Deleted" view (M4).
+  const [deletedDocs, setDeletedDocs] = useState<Doc[]>([]);
+  // Per-document edited WhatsApp captions (the "Edit message" action, M9). An
+  // empty string means "send blank — just the PDF". Absent = use the default.
+  const [msgOverrides, setMsgOverrides] = useState<Record<string, string>>({});
   const [, startTransition] = useTransition();
 
   useEffect(() => {
@@ -180,6 +189,21 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
     };
   }, [operator, composerOpen]);
 
+  // Load soft-deleted documents on demand when the "Deleted" view is opened (M4).
+  useEffect(() => {
+    if (filters.stage !== "deleted") return;
+    let cancelled = false;
+    loadDeletedDocumentsAction()
+      .then((result) => {
+        if (cancelled) return;
+        setDeletedDocs(invoicesToDocs(result.documents).docs);
+      })
+      .catch((error) => console.error("Failed to load deleted documents", error));
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.stage]);
+
   function reconcile(invoices: InvoiceDocument[], selectId?: string) {
     const { docs: nextDocs, clients: nextClients } = invoicesToDocs(invoices);
     replaceClientRegistry(nextClients);
@@ -218,7 +242,10 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
     setOperator("");
   };
 
-  const selected = docs.find((d) => d.id === selectedId) ?? null;
+  // The list shows soft-deleted documents under the "Deleted" view, the live set
+  // everywhere else (M4).
+  const viewDocs = filters.stage === "deleted" ? deletedDocs : docs;
+  const selected = viewDocs.find((d) => d.id === selectedId) ?? null;
 
   const advanceStageLocal = (id: string, nextStage: Stage, extras: Partial<Doc> = {}) => {
     setDocs((all) => all.map((d) => (d.id === id ? { ...d, ...extras, stage: nextStage } : d)));
@@ -427,14 +454,32 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         break;
       case "whatsapp-marios-resend":
         startTransition(async () => {
-          const result = await sendToMariosAction(selected.id);
+          const result = await sendToMariosAction(selected.id, msgOverrides[selected.id]);
           reconcile(result.documents, selected.id);
-          setToast("Bumped Marios in the CSC Review group.");
+          setToast("Resent to Marios in the CSC Review group.");
         });
         break;
-      case "whatsapp-marios-edit":
-        setToast("Message editor coming next — opens for the WhatsApp draft to Marios.");
+      case "whatsapp-marios-edit": {
+        // Marios edits the message that rides with the PDF before it's sent.
+        // Empty = send just the PDF, no description (his blank-message rule).
+        const current = selected;
+        const existing = msgOverrides[current.id] ?? "";
+        setConfirmState({
+          title: "Edit the WhatsApp message",
+          body: "This is the text sent with the PDF to Marios / the group. Leave it empty to send just the PDF (no description). Saved for the next send.",
+          confirmLabel: "Save message",
+          prompt: {
+            label: "Message (leave blank to send none)",
+            placeholder: existing || "Leave empty to send just the PDF",
+            required: false
+          },
+          onConfirm: (text) => {
+            setMsgOverrides((prev) => ({ ...prev, [current.id]: (text ?? "").trim() }));
+            setToast("Message saved — it'll be used the next time you send or resend.");
+          }
+        });
         break;
+      }
       case "whatsapp-marios-mute":
         setToast("Notifications muted for this document.");
         break;
@@ -458,17 +503,26 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       }
       case "delete":
         setConfirmState({
-          title: `Delete this ${selected.kind === "credit" ? "credit note" : selected.kind} permanently?`,
-          body: "This removes the document entirely. This cannot be undone.",
+          title: `Delete this ${selected.kind === "credit" ? "credit note" : selected.kind}?`,
+          body: "It moves to the Deleted view and can be restored from there — nothing is lost.",
           danger: true,
-          confirmLabel: "Delete permanently",
+          confirmLabel: "Delete",
           onConfirm: () => {
             startTransition(async () => {
               const result = await deleteDocumentAction(selected.id);
               reconcile(result.documents, result.selectedId);
-              setToast("Document deleted.");
+              setToast("Moved to Deleted — restore it any time from the Deleted view.");
             });
           }
+        });
+        break;
+      case "restore":
+        startTransition(async () => {
+          const result = await restoreDocumentAction(selected.id);
+          reconcile(result.documents, result.selectedId);
+          setDeletedDocs((prev) => prev.filter((d) => d.id !== selected.id));
+          setFilters((f) => ({ ...f, stage: "all" }));
+          setToast("Document restored.");
         });
         break;
       case "client-edit":
@@ -531,14 +585,29 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       }
 
       const created = await createDocumentAction(input);
+      const createdId = (created.selectedId ?? created.documents[0]?.id) as string;
 
-      // Manual approval flow (Marios's request): creating an invoice in the panel
-      // only parks a DRAFT. Approving (assign № + post to the accounting group)
-      // and marking it paid are separate, explicit steps — nothing is issued,
-      // sent, or marked paid on create.
-      reconcile(created.documents, created.selectedId);
-      setFilters((f) => ({ ...f, stage: "all" }));
-      setToast("Draft created — review it, then approve when ready.");
+      // Auto-approve (Marios's request): creating an invoice now issues it
+      // immediately — assign №, post to the accounting group, send Marios his
+      // copy, and email him the PDF — instead of parking a manual-approval draft.
+      // Notifications/email are best-effort (they no-op when WhatsApp/Resend are
+      // not configured), so a delivery hiccup never blocks the create.
+      try {
+        const approved = await approveDocumentAction(createdId);
+        if (input.kind === "invoice") {
+          await notifyAccountingGroupOfInvoiceAction(createdId);
+          await notifyMariosApprovedAction(createdId);
+          await autoEmailApprovedInvoiceAction(createdId);
+        }
+        reconcile(approved.documents, createdId);
+        setFilters((f) => ({ ...f, stage: "all" }));
+        setToast("Invoice created and auto-approved — sent to the accounting group and Marios.");
+      } catch (error) {
+        console.error("Auto-approve on create failed; left as draft", error);
+        reconcile(created.documents, createdId);
+        setFilters((f) => ({ ...f, stage: "all" }));
+        setToast("Draft created — auto-approve failed, approve it manually.");
+      }
     });
   }
 
@@ -598,9 +667,15 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
             net: sub,
             extra: 0,
             draftNo: d.officialNo ? `№ ${d.officialNo}` : d.draftNo || "Draft",
-            period: d.period || "",
+            // The run CREATES next month's invoice, so the review screen + preview
+            // show the NEXT period (June → July), matching the rolled description /
+            // advanced issue date applied on create. (Marios: "next month says July".)
+            period: rollDescriptionMonth(d.period || ""),
             sub,
-            total
+            total,
+            description: d.description || (d.lines || []).map((l) => l.desc).filter(Boolean).join("\n"),
+            issued: d.issued,
+            lines: d.lines
           };
         }),
     [docs]
@@ -610,7 +685,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
     <TemplateProvider>
     <div className="app-shell" data-persistence={persistenceMode}>
       <Sidebar operator={operator} docs={docs} onSignOut={signOut}>
-        <ListPane docs={docs} selectedId={selectedId} onSelect={setSelectedId} filters={filters} setFilters={setFilters} />
+        <ListPane docs={viewDocs} selectedId={selectedId} onSelect={setSelectedId} filters={filters} setFilters={setFilters} />
       </Sidebar>
       <div className="app-content">
         <Topbar
@@ -659,25 +734,25 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
             const targetDoc = docs.find((d) => d.id === id);
             if (!targetDoc) return;
             startTransition(async () => {
-              // 1. Save the corrected content
+              // 1. Save the corrected content (keep the invoice's recurrence so a
+              // monthly invoice isn't silently turned into a one-off on edit).
               await updateDocumentAction(id, {
                 kind: targetDoc.kind === "credit" ? "credit-note" : targetDoc.kind,
                 clientName: clientById(form.client).name,
                 description: form.lines.map((l) => l.desc.trim()).filter(Boolean).join("\n") || form.description || "",
-    lineItems: form.lines.map((l) => ({ description: l.desc, quantity: l.qty, unitPrice: l.unitPrice })),
+                lineItems: form.lines.map((l) => ({ description: l.desc, quantity: l.qty, unitPrice: l.unitPrice })),
                 amount: sub,
                 vatMode: form.vatMode,
                 issueDate: form.issued,
                 dueDate: form.due || undefined,
-                recurrence: "none"
+                recurrence: targetDoc.recurrence ?? "none"
               });
-              // 2. Auto-approve the corrected document and save it as a normal
-              // invoice — no "sent to accounting" resend step. (reason kept for
-              // the audit note via the save above.)
-              void reason;
-              const result = await markApprovedOnlyAction(id);
+              // 2. Resend the corrected invoice to the accounting group + Marios
+              // IMMEDIATELY, with a note to ignore the previous version. Keeps the
+              // same number/position — no stage change — so it stays in sequence.
+              const result = await resendCorrectedInvoiceAction(id, reason);
               reconcile(result.documents, id);
-              setToast(`Correction saved — ${targetDoc.kind === "credit" ? "credit note" : "invoice"} auto-approved.`);
+              setToast("Correction sent to the group — previous version superseded.");
             });
           }}
         />
@@ -716,22 +791,31 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           startTransition(async () => {
             let last = null;
             for (const r of rows) {
-              // Materialize a concrete one-off invoice for this period. recurrence
-              // stays "none" so the issued invoice doesn't re-enter next month's run
-              // (the recurring template invoice is what keeps the schedule).
+              // Materialize next month's concrete invoice from the recurring
+              // template: roll the month in the description forward (June → July)
+              // and advance the issue date by one month. recurrence stays "none"
+              // so the issued invoice doesn't re-enter next month's run (the
+              // recurring template invoice is what keeps the schedule).
+              const rolledLines = (r.lines && r.lines.length)
+                ? r.lines.map((l) => ({ description: rollDescriptionMonth(l.desc), quantity: l.qty, unitPrice: l.unitPrice }))
+                : undefined;
               last = await createDocumentAction({
                 kind: "invoice",
                 clientName: clientById(r.client).name,
-                description: `Recurring charge — ${r.period}`,
+                description: r.description ? rollDescriptionMonth(r.description) : `Recurring charge — ${r.period}`,
+                lineItems: rolledLines,
                 amount: r.sub,
                 vatMode: "plus-vat",
-                issueDate: todayStamp(),
+                issueDate: r.issued ? addOneMonth(r.issued) : todayStamp(),
                 recurrence: "none"
               });
             }
             if (last) reconcile(last.documents, last.selectedId);
             setRunOpen(false);
-            setToast(`Created ${rows.length} invoices — sent ahead of their due date.`);
+            setToast(`Created ${rows.length} invoice${rows.length === 1 ? "" : "s"} for next month — descriptions rolled forward.`);
+            // Guarantee the freshly created invoices show immediately without a
+            // manual refresh (F3).
+            refetchDocuments();
           });
         }}
         onPreview={(rows) => {

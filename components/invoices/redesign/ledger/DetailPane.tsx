@@ -553,7 +553,7 @@ function DeliveryPlan({
         }
       ],
       msg: hasNumber
-        ? `Marios — issued ${doc.officialNo} for ${cl.name}, ${cl.property}. Total ${fmt(doc.total)}. Filed. — Sophia`
+        ? `Just the PDF — no message (blank). Use “Edit message” to add a note for the group.`
         : doc.stage === "correction-needed"
           ? `Marios — corrected draft for ${cl.name}, ${cl.property} ready for re-review. ${fmt(doc.total)}. — Sophia`
           : `Marios — new draft for ${cl.name}, ${cl.property}. Total ${fmt(doc.total)}. Reply ✓ to approve, or write back with corrections. — Sophia`,
@@ -773,10 +773,16 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, 
             open={moreOpen}
             onToggle={(event) => setMoreOpen((event.currentTarget as HTMLDetailsElement).open)}
           >
-            <summary aria-label="More actions" title="More actions">
+            <summary aria-label="Actions" title="Actions">
               <MoreHorizontal size={15} strokeWidth={1.6} />
+              <span className="overflow-menu-label">Actions</span>
             </summary>
             <div className="overflow-menu-items" role="menu">
+              {doc.deletedAt ? (
+                <button type="button" role="menuitem" onClick={() => { onAct("restore"); setMoreOpen(false); }}>
+                  <RefreshCw size={13} strokeWidth={1.7} /> Restore
+                </button>
+              ) : null}
               <button type="button" role="menuitem" onClick={() => { onAct("duplicate"); setMoreOpen(false); }}>
                 <Copy size={13} strokeWidth={1.7} /> Duplicate as new draft
               </button>
@@ -798,7 +804,6 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, 
                 role="menuitem"
                 className="danger"
                 onClick={() => { onAct("cancel"); setMoreOpen(false); }}
-                disabled={doc.stage === "sent-to-accounting"}
               >
                 <Trash2 size={13} strokeWidth={1.7} /> Cancel this {kindLabel.toLowerCase()}
               </button>

@@ -12,7 +12,7 @@ import {
   storeDocumentPdfAction,
   updateDocumentAction,
 } from "@/lib/invoices/actions/documents";
-import { isCommissionDescription, stripAgentName } from "@/lib/invoices/format";
+import { stripAgentName } from "@/lib/invoices/format";
 import type { DocumentInput } from "@/lib/invoices/document-actions";
 import type { InvoiceDocument, VatMode } from "@/lib/invoices/types/invoice";
 
@@ -202,11 +202,14 @@ export async function runIntent(
       const num = updated.officialNumber ?? "assigned";
 
       // Approving ALWAYS auto-sends a copy to the accounting group AND to Marios —
-      // never ask "what message should I send?". Commission invoices carry the
-      // agent's name only; every other invoice uses the standard invoice line.
-      const caption = isCommissionDescription(updated.description)
-        ? params.groupMessage || updated.commissionPersonName || ""
-        : `Invoice ${numberOf(updated)} — ${updated.clientName} (${money(updated.total)})${params.groupMessage ? `. ${params.groupMessage}` : ""}`;
+      // never ask "what message should I send?". The group caption follows Marios's
+      // rule: an explicit typed override wins, otherwise it's the agent's name only
+      // when an agent exists (commission invoice), and blank for everything else.
+      const caption =
+        params.groupMessage?.trim() ||
+        (updated.requiresCommissionPerson && updated.commissionPersonName
+          ? updated.commissionPersonName
+          : "");
       const sentToGroup = await sendDocumentToAccountingGroup(updated, caption);
       await notifyMariosApprovedAction(updated.id);
       return {

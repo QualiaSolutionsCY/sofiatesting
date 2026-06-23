@@ -45,6 +45,7 @@ export type InvoiceDocumentRowPayload = {
   }>;
   metadata: Record<string, string | number | boolean | null>;
   notes: string[];
+  deleted_at?: string | null;
 };
 
 export type InvoiceDocumentRow = InvoiceDocumentRowPayload & {
@@ -152,7 +153,8 @@ export function toDocumentRow(document: InvoiceDocument): InvoiceDocumentRowPayl
       recurrence_day: document.recurrenceDay ?? null,
       document_label: document.label ?? null
     },
-    notes: document.notes
+    notes: document.notes,
+    deleted_at: document.deletedAt ?? null
   };
 }
 
@@ -207,7 +209,8 @@ export function fromDocumentRow(row: InvoiceDocumentRow): InvoiceDocument {
         by: "Sophia"
       }
     ],
-    notes: row.notes ?? []
+    notes: row.notes ?? [],
+    deletedAt: row.deleted_at ?? undefined
   };
 }
 
