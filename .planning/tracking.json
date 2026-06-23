@@ -107,13 +107,13 @@
   },
   "blockers": [],
   "session_started_at": "2026-06-09T07:29:56.378Z",
-  "last_updated": "2026-06-22T18:29:09.011Z",
+  "last_updated": "2026-06-23T18:16:06.153Z",
   "last_pushed_at": "2026-06-07T21:00:42Z",
   "last_commit": "7899d22",
   "build_count": 4,
   "deploy_count": 0,
   "deployed_url": "https://sofiatesting.vercel.app",
-  "notes": "Session report QS-REPORT-06 generated",
+  "notes": "Session report QS-REPORT-07 (EOD) generated; ship to main blocked — needs OWNER",
   "submitted_by": "",
   "lifetime": {
     "tasks_completed": 86,
@@ -124,6 +124,6 @@
     "updates_completed": 0,
     "offroad_count": 0
   },
-  "report_seq": 7,
+  "report_seq": 8,
   "lifecycle": "build"
 }
