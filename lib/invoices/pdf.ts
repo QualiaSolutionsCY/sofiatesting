@@ -1,4 +1,4 @@
-import { documentKindLabel, formatDate, getDisplayNumber, recurrenceLabel } from "@/lib/invoices/format";
+import { creditNoteLineDescription, documentKindLabel, formatDate, getDisplayNumber, recurrenceLabel } from "@/lib/invoices/format";
 import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 
 // Month-year label for the billing period — mirrors the redesign adapter's
@@ -189,7 +189,7 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   // Credit notes show a fixed reference line; everything else lists its line
   // items (falling back to the single description when none are stored).
   const items = isCredit
-    ? [{ desc: document.description || `Credit note for invoice no ${document.sourceInvoiceNumber || "—"}`, unit: document.amount, total: document.amount }]
+    ? [{ desc: creditNoteLineDescription(document.sourceInvoiceNumber, document.description), unit: document.amount, total: document.amount }]
     : document.lineItems && document.lineItems.length
       ? document.lineItems.map((li) => ({ desc: li.description || "—", unit: li.unitPrice, total: li.quantity * li.unitPrice }))
       : [{ desc: document.description || "—", unit: document.amount, total: document.amount }];

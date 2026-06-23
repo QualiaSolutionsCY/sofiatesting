@@ -66,6 +66,24 @@ export function isCommissionDescription(description: string): boolean {
   return /\bcommission\b|\bproperty sale\b|\bsale of (the )?property\b/i.test(description);
 }
 
+/**
+ * The line shown on a credit note: "Credit note for invoice no {X}" followed by
+ * the source invoice's original description. Used by BOTH the deterministic PDF
+ * (lib/invoices/pdf.ts) and the on-screen preview (TemplatePreview) so they never
+ * diverge. Newer credit notes already store the combined string as their
+ * description (starts with "Credit note") — returned as-is; older ones store only
+ * the original line — the reference is prepended so they read correctly too.
+ */
+export function creditNoteLineDescription(
+  sourceInvoiceNumber: string | undefined,
+  description: string | undefined
+): string {
+  const desc = (description ?? "").trim();
+  if (/^credit note/i.test(desc)) return desc;
+  const reference = `Credit note for invoice no ${sourceInvoiceNumber || "—"}`;
+  return desc ? `${reference}\n${desc}` : reference;
+}
+
 export function isValuationDescription(description: string): boolean {
   return /\bvaluation\b/i.test(description);
 }
