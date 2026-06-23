@@ -260,59 +260,28 @@ export class WhatsAppClient {
         uploadUrl: uploadResult.url,
       });
 
-      // Step 2: Send document using the temporary URL — WITH RETRY.
+      // Step 2: Send document using the temporary URL
       // Note: fileName is supported by the REST API but not in the SDK types, so
       // we cast. Without it WaSender shows the attachment as "document.pdf"
       // instead of the real invoice/receipt/credit-note filename.
-      //
-      // The send step is retried (mirroring uploadFileWithRetry) because the
-      // upload was already retry-hardened but the send was not. In flows that
-      // fire several document sends back-to-back (e.g. invoice approval posts to
-      // the accounting group AND to Marios), WaSender rate-limits the trailing
-      // send; without a retry that copy — Marios's — was silently dropped while
-      // the group's earlier send succeeded. Exponential backoff lets the rate
-      // limit clear so every recipient reliably gets their copy.
-      const sendMaxRetries = 2;
-      let sendLastError: unknown;
-      for (let attempt = 0; attempt <= sendMaxRetries; attempt++) {
-        try {
-          const response = await wasenderClient.sendDocument({
-            to: formatPhoneNumber(to),
-            documentUrl: uploadResult.url,
-            fileName: filename,
-            text: caption || `Document: ${filename}`,
-          } as Parameters<typeof wasenderClient.sendDocument>[0]);
+      const response = await wasenderClient.sendDocument({
+        to: formatPhoneNumber(to),
+        documentUrl: uploadResult.url,
+        fileName: filename,
+        text: caption || `Document: ${filename}`,
+      } as Parameters<typeof wasenderClient.sendDocument>[0]);
 
-          log.debug("Document sent successfully", {
-            to,
-            filename,
-            size: document.length,
-            attempt: attempt + 1,
-            rateLimit: response.rateLimit,
-          });
+      log.debug("Document sent successfully", {
+        to,
+        filename,
+        size: document.length,
+        rateLimit: response.rateLimit,
+      });
 
-          return {
-            success: true,
-            messageId: (response.response as any)?.id,
-          };
-        } catch (sendError) {
-          sendLastError = sendError;
-          if (attempt < sendMaxRetries) {
-            const apiErr = sendError as WasenderAPIError;
-            log.warn("Document send retry after error", {
-              to,
-              filename,
-              attempt: attempt + 1,
-              statusCode: apiErr.statusCode,
-              message: apiErr.apiMessage,
-            });
-            // Exponential backoff — same shape as uploadFileWithRetry.
-            await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
-          }
-        }
-      }
-      // Exhausted retries — surface to the outer catch for the existing error path.
-      throw sendLastError;
+      return {
+        success: true,
+        messageId: (response.response as any)?.id,
+      };
     } catch (error) {
       const apiError = error as WasenderAPIError;
       log.error("Send document error", error, {
