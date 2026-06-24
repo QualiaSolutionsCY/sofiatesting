@@ -96,18 +96,16 @@ function DocumentTab({
   const [form, setForm] = useState<InlineDocFormState>(() => docToFormState(doc));
   const [saveState, setSaveState] = useState<"idle" | "dirty" | "saving" | "saved">("idle");
 
+  // The form follows the SERVER doc: it re-loads on select AND re-syncs the instant a
+  // save lands (so saved changes show live and the toolbar leaves "Unsaved changes").
+  // Edits live in `form`, never in `doc`, so this key is stable while typing — it only
+  // changes when a different doc is selected or the saved content comes back changed.
+  const baselineKey = JSON.stringify(docToFormState(doc));
   useEffect(() => {
     setForm(docToFormState(doc));
     setSaveState("idle");
-  }, [doc.id]);
-
-  // After save completes, sync form to the server-side state of the doc
-  useEffect(() => {
-    if (saveState === "saved") {
-      setForm(docToFormState(doc));
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saveState]);
+  }, [baselineKey]);
 
   const dirty = useMemo(() => {
     const baseline = docToFormState(doc);
@@ -168,13 +166,18 @@ function DocumentTab({
     [doc, form, total, effectiveRate]
   );
 
-  const handleSave = () => {
+  // Save quietly — persist the edit WITHOUT re-sending to the group (drafts, and now
+  // also already-sent invoices when the operator doesn't need to notify anyone).
+  const handleSaveQuiet = () => {
     setSaveState("saving");
-    if (requiresCorrectionReason) {
-      onCorrectResend(form, form.correctionReason.trim());
-    } else {
-      onUpdate(form);
-    }
+    onUpdate(form);
+    setTimeout(() => setSaveState("saved"), 600);
+    setTimeout(() => setSaveState("idle"), 2200);
+  };
+  // Save AND re-send the corrected copy to Marios + the group (reason required).
+  const handleCorrectResend = () => {
+    setSaveState("saving");
+    onCorrectResend(form, form.correctionReason.trim());
     setTimeout(() => setSaveState("saved"), 600);
     setTimeout(() => setSaveState("idle"), 2200);
   };
@@ -236,15 +239,32 @@ function DocumentTab({
                 <button type="button" className="ghost" onClick={handleDiscard}>
                   Discard
                 </button>
-                <button
-                  type="button"
-                  className="primary"
-                  onClick={handleSave}
-                  disabled={!canSubmit}
-                  title={!canSubmit && requiresCorrectionReason ? "Add a correction reason first" : undefined}
-                >
-                  {requiresCorrectionReason ? "Correct & resend" : "Save changes"}
-                </button>
+                {requiresCorrectionReason ? (
+                  <>
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={handleSaveQuiet}
+                      disabled={!dirty}
+                      title="Save the change without notifying the group"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={handleCorrectResend}
+                      disabled={!canSubmit}
+                      title={!canSubmit ? "Add a correction reason first" : undefined}
+                    >
+                      Correct &amp; resend
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" className="primary" onClick={handleSaveQuiet} disabled={!canSubmit}>
+                    Save changes
+                  </button>
+                )}
               </div>
             ) : null}
           </div>
