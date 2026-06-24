@@ -559,8 +559,7 @@ function DeliveryPlan({
           : `Marios — new draft for ${cl.name}, ${cl.property}. Total ${fmt(doc.total)}. Reply ✓ to approve, or write back with corrections. — Sophia`,
       actions: [
         { label: "Resend", id: "whatsapp-marios-resend" },
-        { label: "Edit message", id: "whatsapp-marios-edit" },
-        { label: "Mute", id: "whatsapp-marios-mute" }
+        { label: "Edit message", id: "whatsapp-marios-edit" }
       ]
     },
     {
@@ -586,8 +585,7 @@ function DeliveryPlan({
         : "Disabled until the invoice is numbered.",
       actions: [
         { label: "Send email", id: "client-send-all" },
-        { label: "Edit message", id: "client-edit" },
-        { label: "Schedule", id: "client-schedule" }
+        { label: "Edit message", id: "client-edit" }
       ],
       disabled: !hasNumber
     },

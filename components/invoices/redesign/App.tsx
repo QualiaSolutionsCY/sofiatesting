@@ -123,6 +123,9 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
   // Per-document edited WhatsApp captions (the "Edit message" action, M9). An
   // empty string means "send blank — just the PDF". Absent = use the default.
   const [msgOverrides, setMsgOverrides] = useState<Record<string, string>>({});
+  // Per-document override for the CLIENT-delivery message (mirror of msgOverrides for
+  // Marios) — lets the operator edit the message sent with the client's email.
+  const [clientMsgOverrides, setClientMsgOverrides] = useState<Record<string, string>>({});
   const [, startTransition] = useTransition();
 
   useEffect(() => {
@@ -429,18 +432,28 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           setToast("PDF regenerated and re-uploaded.");
         });
         break;
-      case "cancel":
+      case "cancel": {
+        const willCreditNote = selected.kind === "invoice" && !!selected.officialNo;
         setConfirmState({
           title: "Cancel this document?",
-          body: "It will remain in the audit trail. Reversible only by duplicating into a new draft.",
+          body: willCreditNote
+            ? "This cancels the invoice and issues a linked credit note. Your reason is printed on the credit note and sent to the group, so the accountant knows why."
+            : "It will remain in the audit trail. Reversible only by duplicating into a new draft.",
           danger: true,
           confirmLabel: "Yes, cancel",
-          onConfirm: () => {
+          prompt: willCreditNote
+            ? {
+                label: "Reason for cancelling (printed on the credit note)",
+                placeholder: "e.g. Wrong amount — corrected on a new invoice.",
+                required: true
+              }
+            : undefined,
+          onConfirm: (reason) => {
             if (selected.kind === "invoice" && selected.officialNo) {
               startTransition(async () => {
-                const result = await cancelWithCreditNoteAction(selected.id);
+                const result = await cancelWithCreditNoteAction(selected.id, reason);
                 reconcile(result.documents, result.selectedId ?? selected.id);
-                setToast("Invoice cancelled with linked credit note.");
+                setToast("Invoice cancelled — credit note issued with your reason.");
               });
             } else {
               startTransition(async () => {
@@ -452,6 +465,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           }
         });
         break;
+      }
       case "whatsapp-marios-resend":
         startTransition(async () => {
           const result = await sendToMariosAction(selected.id, msgOverrides[selected.id]);
@@ -492,7 +506,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         if (!to || !to.trim()) break;
         startTransition(async () => {
           try {
-            const result = await sendInvoiceEmailAction(selected.id, to.trim());
+            const result = await sendInvoiceEmailAction(selected.id, to.trim(), clientMsgOverrides[selected.id] || undefined);
             reconcile(result.documents, selected.id);
             setToast(`Email sent to ${to.trim()}.`);
           } catch (error) {
@@ -525,9 +539,27 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           setToast("Document restored.");
         });
         break;
-      case "client-edit":
-        setToast("Message editor for client WhatsApp + email is staged.");
+      case "client-edit": {
+        // Marios edits the message the CLIENT receives with their emailed PDF.
+        // Stored per-document and used on the next "Send email". Blank = default body.
+        const current = selected;
+        const existing = clientMsgOverrides[current.id] ?? "";
+        setConfirmState({
+          title: "Edit the client message",
+          body: "This is the message the client gets with their invoice email. Leave blank to use the default. Saved for the next send.",
+          confirmLabel: "Save message",
+          prompt: {
+            label: "Client message",
+            placeholder: existing || "Dear {client}, please find your invoice attached…",
+            required: false
+          },
+          onConfirm: (text) => {
+            setClientMsgOverrides((prev) => ({ ...prev, [current.id]: (text ?? "").trim() }));
+            setToast("Client message saved — it'll be used the next time you email this document.");
+          }
+        });
         break;
+      }
       case "client-schedule":
         setToast("Scheduling UI is staged — send for 09:00 tomorrow (Europe/Nicosia).");
         break;

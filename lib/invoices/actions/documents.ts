@@ -337,7 +337,7 @@ const sendEmailLogger = createLogger("invoices:send-email");
  * recipient via Resend — the functional "Send email" action. Builds the PDF
  * server-side and attaches it, then records the delivery for the audit trail.
  */
-export async function sendInvoiceEmailAction(id: string, toEmail: string): Promise<DocumentsActionResult> {
+export async function sendInvoiceEmailAction(id: string, toEmail: string, customMessage?: string): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
 
@@ -356,9 +356,11 @@ export async function sendInvoiceEmailAction(id: string, toEmail: string): Promi
     to: recipient,
     subject: `${label} ${number} — CSC Zyprus Property Group`,
     text:
-      `Dear ${document.clientName},\n\n` +
-      `Please find attached ${label.toLowerCase()} ${number} from CSC Zyprus Property Group.\n\n` +
-      `Kind regards,\nCSC Zyprus Property Group`,
+      customMessage && customMessage.trim()
+        ? customMessage.trim()
+        : `Dear ${document.clientName},\n\n` +
+          `Please find attached ${label.toLowerCase()} ${number} from CSC Zyprus Property Group.\n\n` +
+          `Kind regards,\nCSC Zyprus Property Group`,
     attachments: [{ filename: getUnifiedFilename(document), content: pdf }],
   });
   if (error) {
@@ -419,8 +421,11 @@ export async function cancelWithCreditNoteAction(id: string, reason?: string): P
     current.documents.length + 1,
     trimmedReason ? `Invoice cancelled. Reason: ${trimmedReason}` : undefined
   );
-  // Carry the operator's reason onto the credit note so the group message + audit trail show it.
-  const creditNoteWithReason = trimmedReason ? { ...creditNote, correctionReason: trimmedReason } : creditNote;
+  // Carry the operator's reason onto the credit note so the group message + audit trail show it,
+  // AND print it on the credit-note PDF (appended to the description so the accountant sees why).
+  const creditNoteWithReason = trimmedReason
+    ? { ...creditNote, correctionReason: trimmedReason, description: `${creditNote.description}\nReason: ${trimmedReason}` }
+    : creditNote;
   // Credit notes are auto-approved on creation (never left as drafts): apply the
   // official number immediately and file the note under "Credited".
   const numberedCreditNote = applyOfficialNumberToDocument(

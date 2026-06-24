@@ -45,7 +45,7 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
   const [description, setDescription] = useState("");
   const [recurrence, setRecurrence] = useState<"none" | "monthly" | "yearly">("none");
   const [recurrenceEmail, setRecurrenceEmail] = useState("");
-  const [commission, setCommission] = useState(true);
+  const [commission, setCommission] = useState(false);
   const [agent, setAgent] = useState("");
   const [lines, setLines] = useState<LocalLine[]>([{ key: 1, desc: "", qty: 1, unitPrice: 0 }]);
   const [newClient, setNewClient] = useState({ name: "", property: "", address: "", vat: "" });
@@ -85,7 +85,7 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
       setDescription("");
       setRecurrence("none");
       setRecurrenceEmail("");
-      setCommission(true);
+      setCommission(false);
       setAgent("");
       setLines([{ key: 1, desc: "", qty: 1, unitPrice: 0 }]);
     }
