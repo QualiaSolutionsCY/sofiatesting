@@ -270,8 +270,10 @@ export class WhatsAppClient {
         fileName: filename,
         // An EXPLICIT empty caption ("") means "send just the PDF, no text" (Marios's
         // blank-invoice rule). Only fall back to the "Document: …" label when no
-        // caption was provided at all (undefined) — so `??`, not `||`.
-        text: caption ?? `Document: ${filename}`,
+        // caption was provided at all (undefined) — so `??`, not `||`. WaSender
+        // REJECTS a truly-empty `text` on a document send, so a blank caption is sent
+        // as a single space (renders blank in WhatsApp) — keeps the send working.
+        text: (caption ?? `Document: ${filename}`) || " ",
       } as Parameters<typeof wasenderClient.sendDocument>[0]);
 
       log.debug("Document sent successfully", {

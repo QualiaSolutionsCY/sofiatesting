@@ -7,7 +7,7 @@ import {
   updateDocumentDashboardControls,
   updateDocumentFromInput
 } from "@/lib/invoices/document-actions";
-import { getNextDraftSequence, getNextOfficialNumber } from "@/lib/invoices/numbering";
+import { getNextDraftSequence, getNextOfficialNumber, officialNumberOnApproval } from "@/lib/invoices/numbering";
 import {
   deleteInvoiceDocument,
   listDeletedInvoiceDocuments,
@@ -201,7 +201,7 @@ export async function approveDocumentAction(id: string): Promise<DocumentsAction
   const approved = markApproved(document);
   const numbered = applyOfficialNumberToDocument(
     approved,
-    document.officialNumber ?? getNextOfficialNumber(current.documents, document.kind)
+    document.officialNumber ?? officialNumberOnApproval(current.documents, document)
   );
   const result = await saveInvoiceDocument(numbered, "Approved and official number applied");
   return { ...result, selectedId: id };

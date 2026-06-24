@@ -601,7 +601,9 @@ export async function sendDocumentByUrl(
             to: phoneNumber,
             // Explicit "" = send just the PDF, no caption (Marios's blank-invoice
             // rule). Only default to "Invoice attached" when no caption was given.
-            text: caption ?? "Invoice attached",
+            // WaSender rejects a truly-empty text, so a blank caption goes as a single
+            // space (renders blank in WhatsApp) — keeps the document send working.
+            text: (caption ?? "Invoice attached") || " ",
             documentUrl,
             fileName,
           }),
