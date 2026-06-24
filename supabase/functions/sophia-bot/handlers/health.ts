@@ -47,6 +47,28 @@ export async function handleHealthCheck(
     };
   }
 
+  // Lightweight OpenRouter KEY check (credential-only via /api/v1/key — NO chat
+  // completion, so it costs zero tokens). Detects a revoked/invalid key without
+  // burning credits on every health check (a live completion probe would, and that
+  // headroom is what ran out and took Sophia down).
+  try {
+    const orKeyStart = Date.now();
+    const keyResp = await fetch("https://openrouter.ai/api/v1/key", {
+      headers: { Authorization: `Bearer ${Deno.env.get("OPENROUTER_API_KEY") ?? ""}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    checks.openrouterKey = {
+      status: keyResp.ok ? "healthy" : "unhealthy",
+      latencyMs: Date.now() - orKeyStart,
+      error: keyResp.ok ? undefined : `HTTP ${keyResp.status}`,
+    };
+  } catch (err) {
+    checks.openrouterKey = {
+      status: "unhealthy",
+      error: err instanceof Error ? err.message : "Connection failed",
+    };
+  }
+
   // Check Zyprus API
   // Note: /jsonapi returns 403 without auth, but that means the server is responding
   const zyprusUrl = Deno.env.get("ZYPRUS_API_URL");
