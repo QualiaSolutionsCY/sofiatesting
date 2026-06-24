@@ -264,16 +264,17 @@ export class WhatsAppClient {
       // Note: fileName is supported by the REST API but not in the SDK types, so
       // we cast. Without it WaSender shows the attachment as "document.pdf"
       // instead of the real invoice/receipt/credit-note filename.
+      // Marios's blank-invoice rule: an explicit empty caption ("") means "just the
+      // PDF, no text". WaSender rejects an empty OR whitespace-only `text`, so when the
+      // caption is blank we OMIT the text field entirely — `text` is optional for a
+      // document (wasenderapi DocumentUrlMessage), so the PDF sends with no caption. A
+      // missing caption (undefined) still gets the "Document: …" default.
+      const documentCaption = caption ?? `Document: ${filename}`;
       const response = await wasenderClient.sendDocument({
         to: formatPhoneNumber(to),
         documentUrl: uploadResult.url,
         fileName: filename,
-        // An EXPLICIT empty caption ("") means "send just the PDF, no text" (Marios's
-        // blank-invoice rule). Only fall back to the "Document: …" label when no
-        // caption was provided at all (undefined) — so `??`, not `||`. WaSender
-        // REJECTS a truly-empty `text` on a document send, so a blank caption is sent
-        // as a single space (renders blank in WhatsApp) — keeps the send working.
-        text: (caption ?? `Document: ${filename}`) || " ",
+        ...(documentCaption ? { text: documentCaption } : {}),
       } as Parameters<typeof wasenderClient.sendDocument>[0]);
 
       log.debug("Document sent successfully", {
