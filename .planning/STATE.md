@@ -8,7 +8,7 @@ Phase: 4 of 4 — Handoff
 Status: setup
 Assigned to: Profile: strict
 Profile: strict
-Last activity: 2026-06-23 — Session report QS-REPORT-08 generated
+Last activity: 2026-06-24 — Actions menu auto-closes on doc switch + outside-click; revealed Save button
 
 Progress: [████████░░] 75%
 
@@ -24,6 +24,6 @@ Progress: [████████░░] 75%
 None.
 
 ## Session
-Last session: 2026-06-23
+Last session: 2026-06-24
 Last worked by: Profile: strict
 Resume: —
