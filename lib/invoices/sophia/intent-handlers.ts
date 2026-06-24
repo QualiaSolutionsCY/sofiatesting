@@ -178,11 +178,14 @@ export async function runIntent(
       if (!pdf.pdfUrl) {
         return { ok: false, reply: `I couldn't generate the PDF for ${doc.clientName} just now.` };
       }
+      // M1 (Marios): a plain invoice goes out as JUST the PDF — no caption/description.
+      // Commission invoices and credit notes keep their descriptive line.
+      const plainInvoice = doc.kind === "invoice" && !doc.requiresCommissionPerson;
       return {
         ok: true,
         documentId: doc.id,
         ...pdf,
-        reply: `${doc.clientName} — ${numberOf(doc)} — ${money(doc.total)}. PDF attached.`,
+        reply: plainInvoice ? "" : `${doc.clientName} — ${numberOf(doc)} — ${money(doc.total)}. PDF attached.`,
       };
     }
 

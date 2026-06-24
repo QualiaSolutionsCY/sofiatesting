@@ -268,7 +268,10 @@ export class WhatsAppClient {
         to: formatPhoneNumber(to),
         documentUrl: uploadResult.url,
         fileName: filename,
-        text: caption || `Document: ${filename}`,
+        // An EXPLICIT empty caption ("") means "send just the PDF, no text" (Marios's
+        // blank-invoice rule). Only fall back to the "Document: …" label when no
+        // caption was provided at all (undefined) — so `??`, not `||`.
+        text: caption ?? `Document: ${filename}`,
       } as Parameters<typeof wasenderClient.sendDocument>[0]);
 
       log.debug("Document sent successfully", {

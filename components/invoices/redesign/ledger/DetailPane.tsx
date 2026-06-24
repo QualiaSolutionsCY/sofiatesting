@@ -813,7 +813,7 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, 
                 className="danger"
                 onClick={() => { onAct("delete"); setMoreOpen(false); }}
               >
-                <Trash2 size={13} strokeWidth={1.7} /> Delete permanently
+                <Trash2 size={13} strokeWidth={1.7} /> Delete
               </button>
             </div>
           </details>

@@ -599,7 +599,9 @@ export async function sendDocumentByUrl(
           },
           body: JSON.stringify({
             to: phoneNumber,
-            text: caption || "Invoice attached",
+            // Explicit "" = send just the PDF, no caption (Marios's blank-invoice
+            // rule). Only default to "Invoice attached" when no caption was given.
+            text: caption ?? "Invoice attached",
             documentUrl,
             fileName,
           }),

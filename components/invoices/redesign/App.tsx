@@ -753,6 +753,8 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
               const result = await resendCorrectedInvoiceAction(id, reason);
               reconcile(result.documents, id);
               setToast("Correction sent to the group — previous version superseded.");
+              // Pull fresh state so the corrected amount shows without a manual refresh.
+              refetchDocuments();
             });
           }}
         />
