@@ -16,7 +16,7 @@ import {
   RefreshCw,
   Trash2
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CLIENTS, ENTITY, clientById, fmt, metrics } from "@/lib/invoices/redesign/data";
 import { STAGES } from "@/lib/invoices/redesign/data";
 import { nextNumber, primaryAction, stageHeadline } from "@/lib/invoices/redesign/stages";
@@ -695,6 +695,23 @@ function Timeline({ events }: { events: Doc["timeline"] }) {
 
 export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, onAct, onOpenLightbox, onUpdateDoc, onCorrectResendDoc }: DetailPaneProps) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDetailsElement>(null);
+  // The Actions menu must auto-close when you switch to another document or click
+  // away — don't force the user to click the toggle again (Marios's note). Native
+  // <details> doesn't close on outside-click, so we handle both here.
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [doc?.id]);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onAway = (event: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(event.target as Node)) {
+        setMoreOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onAway);
+    return () => document.removeEventListener("mousedown", onAway);
+  }, [moreOpen]);
 
   if (!doc) {
     const m = metrics(allDocs);
@@ -769,6 +786,7 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, 
             <Download size={15} strokeWidth={1.6} />
           </button>
           <details
+            ref={moreRef}
             className="overflow-menu"
             open={moreOpen}
             onToggle={(event) => setMoreOpen((event.currentTarget as HTMLDetailsElement).open)}
