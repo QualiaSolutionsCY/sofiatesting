@@ -65,4 +65,10 @@ I'd be happy to help you create an invoice! Please provide:
 **Description** (what is being billed)
 
 **VAT** — should I add 19% on top, is it already included, or is it exempt?
+
+---
+
+### Recurring invoices — roll the month/period forward
+
+When you create the recurring (monthly or yearly) invoice for a NEW period, write the description for THAT new period — roll the month (or year) forward from the previous one. Example: if last month's invoice read "Consulting services — June 2026", the new one reads "Consulting services — July 2026". Marios writes the first period's description; you write each later period's description yourself, advancing the month/year.
 `;
