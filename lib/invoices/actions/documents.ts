@@ -56,6 +56,7 @@ export type DocumentsActionResult = {
   storageFile?: StoredDocumentMetadata;
   deliveries?: DeliveryRecord[];
   mariosNotified?: boolean;
+  accountingGroupNotified?: boolean;
 };
 
 export async function loadDocumentsAction(): Promise<DocumentsActionResult> {
@@ -320,8 +321,22 @@ export async function forwardAccountingAction(id: string): Promise<DocumentsActi
   const document = findDocument(current.documents, id);
   const updated = forwardToAccounting(document);
   const result = await saveInvoiceDocument(updated, "Forwarded to accounting");
+  // Actually post the PDF to the accounting group over WhatsApp (the real send) —
+  // same caption rule as notifyAccountingGroupOfInvoiceAction: the agent's name
+  // only when there's a commission person, otherwise blank (just the PDF).
+  const caption =
+    updated.requiresCommissionPerson && updated.commissionPersonName
+      ? updated.commissionPersonName
+      : "";
+  const accountingGroupNotified = await sendDocumentToAccountingGroup(updated, caption);
+  // Keep the queue row strictly for the audit record (no-op delivery backend).
   await queueAccountingHandoff(updated);
-  return { ...result, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
+  return {
+    ...result,
+    selectedId: id,
+    accountingGroupNotified,
+    deliveries: await listDeliveryRecordsForDocument(id)
+  };
 }
 
 export async function correctResendAction(

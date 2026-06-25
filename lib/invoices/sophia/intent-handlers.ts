@@ -3,11 +3,11 @@ import "server-only";
 import {
   approveDocumentAction,
   cancelWithCreditNoteAction,
-  correctResendAction,
   createDocumentAction,
   loadDocumentsAction,
   markPaidAndIssueReceiptAction,
   notifyMariosApprovedAction,
+  resendCorrectedInvoiceAction,
   sendDocumentToAccountingGroup,
   storeDocumentPdfAction,
   updateDocumentAction,
@@ -306,7 +306,7 @@ export async function runIntent(
       const res = await loadDocumentsAction();
       const doc = findDoc(res.documents, params);
       if (!doc) return { ok: false, reply: "I couldn't find that invoice." };
-      await correctResendAction(doc.id, params.correctionReason || "Correction requested");
+      await resendCorrectedInvoiceAction(doc.id, params.correctionReason || "Correction requested");
       return { ok: true, documentId: doc.id, reply: `Marked ${doc.clientName} for correction & resend.` };
     }
 
@@ -352,7 +352,7 @@ export async function runIntent(
       const res = await loadDocumentsAction();
       const doc = findDoc(res.documents, params);
       if (!doc) return { ok: false, reply: "I couldn't find that invoice to resend." };
-      await correctResendAction(doc.id, params.correctionReason || "Resend requested");
+      await resendCorrectedInvoiceAction(doc.id, params.correctionReason || "Resend requested");
       const pdf = await attachPdf(doc.id);
       return { ok: true, documentId: doc.id, ...pdf, reply: `Resent ${doc.clientName} (${numberOf(doc)}). PDF attached.` };
     }
