@@ -547,7 +547,11 @@ function DeliveryPlan({
 
   const clientReady = hasNumber;
   const clientDelivered = doc.stage === "sent-to-accounting";
-  const accountingDelivered = doc.stage === "sent-to-accounting";
+  // The accounting group receives the INVOICE (and credit notes) when they are
+  // APPROVED — never the receipt. Receipts are delivered to Marios only, so the
+  // accounting channel must never represent a receipt as "sent to accounting".
+  const isReceipt = doc.kind === "receipt";
+  const accountingDelivered = !isReceipt && hasNumber;
 
   type Card = {
     key: string;
@@ -611,30 +615,37 @@ function DeliveryPlan({
     },
     {
       key: "accounting",
-      eyebrow: "Accounting CC · dual channel",
+      eyebrow: "Accounting group · invoice copy",
       title: "Zyprus Accounting",
       channels: [
         {
           ic: <MessageCircle size={12} strokeWidth={1.6} />,
           addr: sharedCc || "+357 99 040 117",
-          state: accountingDelivered ? "ok" : "wait",
-          stateLabel: accountingDelivered ? "Sent" : "On payment"
+          state: isReceipt ? "off" : accountingDelivered ? "ok" : "wait",
+          stateLabel: isReceipt ? "Not sent" : accountingDelivered ? "Sent on approval" : "On approval"
         },
         {
           ic: <Mail size={12} strokeWidth={1.6} />,
           addr: accountingEmail || "accounting@zyprus.cy",
-          state: accountingDelivered ? "ok" : "wait",
-          stateLabel: accountingDelivered ? "Sent" : "On payment"
+          state: isReceipt ? "off" : accountingDelivered ? "ok" : "wait",
+          stateLabel: isReceipt ? "Not sent" : accountingDelivered ? "Sent on approval" : "On approval"
         }
       ],
-      msg: accountingDelivered
-        ? `Payment received · ${doc.officialNo} · ${fmt(doc.total)} · receipt ${doc.receiptNo} attached. From Marios C., via Sophia.`
-        : "Triggers automatically once the invoice is marked paid. Both WhatsApp and email will be CC'd with the receipt.",
-      actions: [
-        { label: "Resend both", id: "accounting-resend" },
-        { label: "Configure", id: "accounting-configure" }
-      ],
-      disabled: !accountingDelivered
+      // Receipts go to MARIOS ONLY — never the accounting group. The accounting
+      // group receives the invoice (and credit notes) when they are APPROVED, so
+      // the card reflects that and never claims a receipt was CC'd to accounting.
+      msg: isReceipt
+        ? "Receipts are delivered to Marios only — they are never sent to the accounting group."
+        : accountingDelivered
+          ? `${doc.kind === "credit" ? "Credit note" : "Invoice"} ${doc.officialNo} (${fmt(doc.total)}) sent to the accounting group on approval.`
+          : "The invoice is sent to the accounting group automatically when it's approved — receipts are not.",
+      actions: isReceipt
+        ? [{ label: "Configure", id: "accounting-configure" }]
+        : [
+            { label: "Resend both", id: "accounting-resend" },
+            { label: "Configure", id: "accounting-configure" }
+          ],
+      disabled: isReceipt ? true : !accountingDelivered
     }
   ];
 
