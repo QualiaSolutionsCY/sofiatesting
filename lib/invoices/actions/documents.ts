@@ -55,6 +55,7 @@ export type DocumentsActionResult = {
   persistenceMode: "supabase" | "fallback";
   storageFile?: StoredDocumentMetadata;
   deliveries?: DeliveryRecord[];
+  mariosNotified?: boolean;
 };
 
 export async function loadDocumentsAction(): Promise<DocumentsActionResult> {
@@ -117,8 +118,8 @@ export async function sendToMariosAction(
 export async function notifyMariosApprovedAction(id: string): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
-  await notifyMariosOverWhatsApp(document, { approved: true });
-  return { ...current, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
+  const mariosNotified = await notifyMariosOverWhatsApp(document, { approved: true });
+  return { ...current, selectedId: id, mariosNotified, deliveries: await listDeliveryRecordsForDocument(id) };
 }
 
 const sendLogger = createLogger("invoices:send-to-marios");
@@ -126,16 +127,18 @@ const sendLogger = createLogger("invoices:send-to-marios");
 /**
  * Actually deliver the review request to Marios over WhatsApp (PDF + caption),
  * using the same WaSenderAPI client the rest of the app sends with. Best-effort:
- * a send failure is logged but never breaks the status transition above.
+ * a send failure is logged but never throws. Returns true ONLY when a WhatsApp
+ * message (document OR text fallback) actually went out, so callers can gate
+ * their "sent to Marios" confirmation on the real result.
  */
 async function notifyMariosOverWhatsApp(
   document: InvoiceDocument,
   opts: { approved?: boolean; override?: string } = {}
-): Promise<void> {
+): Promise<boolean> {
   const marios = INVOICE_AUTHORIZED_AGENTS.find((agent) => agent.name === "Marios Polyviou");
   if (!marios) {
     sendLogger.warn("Marios is not in INVOICE_AUTHORIZED_AGENTS; skipping WhatsApp send");
-    return;
+    return false;
   }
 
   const displayNumber = getDisplayNumber(document);
@@ -170,7 +173,7 @@ async function notifyMariosOverWhatsApp(
     const client = getWhatsAppClient();
     if (!client.isConfigured()) {
       sendLogger.warn("WhatsApp client not configured; review request not sent to Marios");
-      return;
+      return false;
     }
 
     const pdf = Buffer.from(buildDocumentPdfBytes(document));
@@ -181,17 +184,32 @@ async function notifyMariosOverWhatsApp(
       caption,
     });
 
-    if (!sent.success) {
-      sendLogger.error("WhatsApp document send to Marios failed; falling back to text", undefined, {
-        documentId: document.id,
-        error: sent.error,
-      });
-      await client.sendMessage({ to: marios.msisdn, text: caption });
+    if (sent.success) {
+      return true;
     }
+
+    sendLogger.error("WhatsApp document send to Marios failed; falling back to text", undefined, {
+      documentId: document.id,
+      error: sent.error,
+    });
+    // A blank caption (receipts, blank-rule invoices) has NO valid text fallback —
+    // WaSender rejects empty/whitespace text (see lib/whatsapp/client.ts), and the
+    // empty-caption PDF is the only valid form. Don't fire an empty-text send that
+    // would itself fail silently; report the failure instead.
+    const fallbackText = caption.trim();
+    if (!fallbackText) {
+      sendLogger.error("Blank-caption document send to Marios failed; no text fallback possible", undefined, {
+        documentId: document.id,
+      });
+      return false;
+    }
+    const text = await client.sendMessage({ to: marios.msisdn, text: fallbackText });
+    return text.success;
   } catch (error) {
     sendLogger.error("Unexpected error sending review request to Marios", error, {
       documentId: document.id,
     });
+    return false;
   }
 }
 
@@ -519,6 +537,15 @@ export async function sendDocumentToAccountingGroup(
       caption
     });
     if (!sent.success) {
+      // The group caption is sometimes intentionally blank (just the PDF). A blank
+      // text fallback is impossible — WaSender rejects empty/whitespace text — so
+      // only attempt the text fallback when there is a non-empty caption.
+      if (!caption.trim()) {
+        sendLogger.error("Blank-caption document send to accounting group failed; no text fallback possible", undefined, {
+          documentId: document.id,
+        });
+        return false;
+      }
       const text = await client.sendMessage({ to: groupMsisdn, text: caption });
       return text.success;
     }
