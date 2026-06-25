@@ -214,14 +214,16 @@ export async function runIntent(
           ? updated.commissionPersonName
           : "");
       const sentToGroup = await sendDocumentToAccountingGroup(updated, caption);
-      await notifyMariosApprovedAction(updated.id);
+      const mResult = await notifyMariosApprovedAction(updated.id);
+      const mariosOk = mResult.mariosNotified ?? false;
       return {
         ok: true,
         documentId: updated.id,
         ...pdf,
-        reply: sentToGroup
-          ? `Approved ${updated.clientName} — № ${num}, and sent a copy to Marios and the accounting group.`
-          : `Approved ${updated.clientName} — № ${num}. (I couldn't reach the group just now.)`,
+        reply:
+          `Approved ${updated.clientName} — № ${num}. ` +
+          `${mariosOk ? "Sent Marios his copy" : "Couldn't reach Marios"}; ` +
+          `${sentToGroup ? "posted to the accounting group" : "couldn't reach the group"}.`,
       };
     }
 

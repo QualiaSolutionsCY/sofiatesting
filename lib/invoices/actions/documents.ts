@@ -108,8 +108,8 @@ export async function sendToMariosAction(
   const updated = sendDraftToMarios(document);
   const result = await saveInvoiceDocument(updated, "Draft sent to Marios");
   await queueDraftToMarios(updated);
-  await notifyMariosOverWhatsApp(updated, { override: messageOverride });
-  return { ...result, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
+  const mariosNotified = await notifyMariosOverWhatsApp(updated, { override: messageOverride });
+  return { ...result, selectedId: id, mariosNotified, deliveries: await listDeliveryRecordsForDocument(id) };
 }
 
 /**

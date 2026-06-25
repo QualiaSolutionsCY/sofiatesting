@@ -269,10 +269,20 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
             const result = await approveDocumentAction(selected.id);
             if (selected.kind === "invoice") {
               // An approved invoice ALWAYS goes to Marios (his copy) AND the
-              // accounting group — never the accounting group alone.
-              await notifyAccountingGroupOfInvoiceAction(selected.id);
-              await notifyMariosApprovedAction(selected.id);
-              setToast("Approved — sent to Marios and the accounting group. Mark as paid when payment arrives.");
+              // accounting group — never the accounting group alone. Gate the
+              // toast on the REAL send results so it never claims a delivery
+              // that didn't happen.
+              const groupOk = await notifyAccountingGroupOfInvoiceAction(selected.id);
+              const mResult = await notifyMariosApprovedAction(selected.id);
+              const mariosOk = mResult.mariosNotified ?? false;
+              setToast(
+                "Approved. " +
+                  [
+                    mariosOk ? "Sent to Marios" : "Marios delivery NOT confirmed",
+                    groupOk ? "posted to accounting group" : "accounting group NOT confirmed"
+                  ].join("; ") +
+                  ". Mark as paid when payment arrives."
+              );
             } else {
               setToast("Approved and numbered.");
             }
@@ -288,7 +298,11 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         startTransition(async () => {
           const result = await sendToMariosAction(selected.id);
           reconcile(result.documents, selected.id);
-          setToast("Resent to Marios — bumped in CSC Review group.");
+          setToast(
+            result.mariosNotified
+              ? "Sent to Marios."
+              : "Couldn't confirm the send to Marios — try again."
+          );
         });
         break;
       case "correction-needed":
@@ -470,7 +484,11 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         startTransition(async () => {
           const result = await sendToMariosAction(selected.id, msgOverrides[selected.id]);
           reconcile(result.documents, selected.id);
-          setToast("Resent to Marios in the CSC Review group.");
+          setToast(
+            result.mariosNotified
+              ? "Sent to Marios."
+              : "Couldn't confirm the send to Marios — try again."
+          );
         });
         break;
       case "whatsapp-marios-edit": {
@@ -567,7 +585,11 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         startTransition(async () => {
           const result = await forwardAccountingAction(selected.id);
           reconcile(result.documents, selected.id);
-          setToast("Accounting CC resent (WhatsApp + Email).");
+          setToast(
+            result.accountingGroupNotified
+              ? "Accounting copy resent over WhatsApp."
+              : "Couldn't confirm the accounting resend — try again."
+          );
         });
         break;
       case "accounting-configure":
@@ -627,13 +649,29 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       try {
         const approved = await approveDocumentAction(createdId);
         if (input.kind === "invoice") {
-          await notifyAccountingGroupOfInvoiceAction(createdId);
-          await notifyMariosApprovedAction(createdId);
-          await autoEmailApprovedInvoiceAction(createdId);
+          // Collect the REAL result of each channel so the toast claims only the
+          // ones that actually delivered — never an unconditional "sent".
+          const groupOk = await notifyAccountingGroupOfInvoiceAction(createdId);
+          const mResult = await notifyMariosApprovedAction(createdId);
+          const mariosOk = mResult.mariosNotified ?? false;
+          const emailOk = await autoEmailApprovedInvoiceAction(createdId);
+          reconcile(approved.documents, createdId);
+          setFilters((f) => ({ ...f, stage: "all" }));
+          const channels = [
+            mariosOk ? "Marios (WhatsApp)" : null,
+            groupOk ? "accounting group" : null,
+            emailOk ? "Marios (email)" : null
+          ].filter(Boolean);
+          setToast(
+            channels.length
+              ? `Invoice created and auto-approved — sent to ${channels.join(", ")}.`
+              : "Invoice created and auto-approved — delivery could not be confirmed on any channel."
+          );
+          return;
         }
         reconcile(approved.documents, createdId);
         setFilters((f) => ({ ...f, stage: "all" }));
-        setToast("Invoice created and auto-approved — sent to the accounting group and Marios.");
+        setToast("Invoice created and auto-approved.");
       } catch (error) {
         console.error("Auto-approve on create failed; left as draft", error);
         reconcile(created.documents, createdId);
