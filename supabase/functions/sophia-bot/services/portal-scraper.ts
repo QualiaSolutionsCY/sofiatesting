@@ -946,12 +946,15 @@ function mergeFirecrawlData(
   // logos/avatars/marketing branding thumbnails (P4b) so they never leak into
   // the Zyprus gallery.
   if (Array.isArray(scraped.imageUrls)) {
-    result.imageUrls = scraped.imageUrls.filter(
+    const clean = scraped.imageUrls.filter(
       (u): u is string =>
         typeof u === "string" &&
         u.startsWith("https") &&
         !/logo|avatar|icon|sprite|pixel|brand|watermark/i.test(u)
     );
+    // de-dupe: this Firecrawl merge path is the only one that did not run
+    // through a Set, so repeated gallery URLs leaked into the Zyprus upload.
+    result.imageUrls = Array.from(new Set(clean));
   }
   // Features
   if (Array.isArray(scraped.features)) {
