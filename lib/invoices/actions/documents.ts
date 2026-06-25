@@ -461,8 +461,7 @@ async function notifyGroupOfCreditNote(
   const creditNumber = getDisplayNumber(creditNote);
   const reasonLine = reason ? ` The reason is: ${reason}.` : "";
   const caption =
-    `Credit note ${creditNumber} regarding the cancellation of invoice ${invoiceNumber}.${reasonLine}\n\n` +
-    `Please read it alongside the attached credit note.`;
+    `Credit note ${creditNumber} regarding the cancellation of invoice ${invoiceNumber}.${reasonLine}`;
 
   // Group number from env only — never fall back to anyone's personal number.
   const groupMsisdn = process.env.INVOICE_ACCOUNTING_GROUP_MSISDN?.trim() || undefined;
