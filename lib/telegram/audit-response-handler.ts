@@ -22,7 +22,13 @@ const log = logger.telegram.child("audit-response");
 // Config — set to Vasya's actual Telegram user ID when known
 // ---------------------------------------------------------------------------
 
-const VASYA_TELEGRAM_USER_ID = 0; // TODO: Replace with actual Vasya's Telegram user ID
+// Vasia Iakovou's Telegram user ID (resolved from telegram_group_messages, 2026-06-25).
+// NOTE: the LIVE Telegram webhook delivers to the telegram-sophia edge function,
+// not this Next.js handler — the live resolver is in
+// supabase/functions/telegram-sophia/audit-response.ts.
+const VASYA_TELEGRAM_USER_ID = Number(
+  process.env.VASIA_TELEGRAM_USER_ID ?? "5527210755"
+);
 
 // ---------------------------------------------------------------------------
 // Response Patterns

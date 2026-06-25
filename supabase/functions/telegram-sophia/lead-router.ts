@@ -41,6 +41,7 @@ import {
   PAPHOS_OFFICE_FALLBACK_AGENTS,
   RUSSIAN_SPEAKER_AGENT,
 } from "./routing-constants.ts";
+import { handleAuditAlertResponse } from "./audit-response.ts";
 import { forwardMessage, sendMessage } from "./telegram-client.ts";
 import type {
   Agent,
@@ -458,6 +459,15 @@ export const handleGroupMessage = async (
   console.log(
     `[LeadRouter] Processing group message from "${chatTitle}": "${text.substring(0, 50)}..."`
   );
+
+  // 0. Audit-alert resolution. If this is Vasia replying to a missing-caller
+  //    alert, resolve the caller_alerts row and stop — it is a response, not a
+  //    new lead. Returns false (falls through) for every other message, so
+  //    normal lead routing below is unaffected. Sends nothing to Telegram.
+  if (await handleAuditAlertResponse(message)) {
+    console.log("[LeadRouter] Handled as audit-alert response");
+    return { success: true };
+  }
 
   // 1. Check if this is a lead-related message
   if (!isLeadMessage(text)) {

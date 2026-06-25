@@ -10,10 +10,17 @@ import { createClient } from "@supabase/supabase-js";
 import { chromium } from "playwright";
 
 // --- Config ---
-const CX3_URL = "https://185.162.18.158:5001";
-const CX3_USER = "000";
-const CX3_PASS = "5zFdWsMBWN";
+// Credentials come from the environment (see .env.local / Supabase secrets).
+// Never hardcode the 3CX password here — this file is committed to git.
+const CX3_URL = process.env.CX3_BASE_URL || "https://185.162.18.158:5001";
+const CX3_USER = process.env.CX3_USERNAME || "000";
+const CX3_PASS = process.env.CX3_PASSWORD;
 const TARGET_NUMBER = "22032770";
+
+if (!CX3_PASS) {
+  console.error("ERROR: Set CX3_PASSWORD env var (see .env.local)");
+  process.exit(1);
+}
 const INTERNAL_EXTENSIONS = ["70", "64", "99", "801", "900"];
 
 // Supabase

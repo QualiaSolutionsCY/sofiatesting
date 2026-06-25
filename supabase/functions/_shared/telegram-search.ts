@@ -35,7 +35,8 @@ export const REGIONAL_GROUP_IDS: Record<string, number> = {
 };
 
 export const ZYPRESS_OTHERS_CHAT_ID: number = -1_003_337_263_793;
-export const VASYA_TELEGRAM_USER_ID = 0; // Replace with actual Vasya's Telegram user ID
+// Vasia Iakovou's Telegram user ID (resolved from telegram_group_messages, 2026-06-25).
+export const VASYA_TELEGRAM_USER_ID = 5_527_210_755;
 
 // ---------------------------------------------------------------------------
 // Phone Number Normalization

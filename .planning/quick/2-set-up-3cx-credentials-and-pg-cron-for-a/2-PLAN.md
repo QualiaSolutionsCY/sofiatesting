@@ -49,7 +49,7 @@ Output: Fully operational call-audit system running on schedule.
   <action>
     1. Set 3CX credentials as Supabase secrets via CLI:
        ```
-       supabase secrets set CX3_BASE_URL=https://185.162.18.158:5001 CX3_USERNAME=000 CX3_PASSWORD=5zFdWsMBWN --project-ref vceeheaxcrhmpqueudqx
+       supabase secrets set CX3_BASE_URL=https://185.162.18.158:5001 CX3_USERNAME=000 CX3_PASSWORD=<see .env.local / 1Password — never commit> --project-ref vceeheaxcrhmpqueudqx
        ```
 
     2. Get the service_role key using Supabase MCP tool `get_project_api_keys` for project ref `vceeheaxcrhmpqueudqx`.

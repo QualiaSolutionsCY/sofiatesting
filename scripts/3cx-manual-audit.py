@@ -16,10 +16,16 @@ from datetime import datetime, timezone
 from playwright.sync_api import sync_playwright
 
 # --- Config ---
-CX3_URL = "https://185.162.18.158:5001"
-CX3_USER = "000"
-CX3_PASS = "5zFdWsMBWN"
+# Credentials come from the environment (see .env.local / Supabase secrets).
+# Never hardcode the 3CX password here — this file is committed to git.
+CX3_URL = os.environ.get("CX3_BASE_URL", "https://185.162.18.158:5001")
+CX3_USER = os.environ.get("CX3_USERNAME", "000")
+CX3_PASS = os.environ.get("CX3_PASSWORD", "")
 TARGET_NUMBER = "22032770"
+
+if not CX3_PASS:
+    print("ERROR: Set CX3_PASSWORD env var (see .env.local)")
+    sys.exit(1)
 INTERNAL_EXTENSIONS = ["70", "64", "99", "801", "900"]
 
 SUPABASE_URL = "https://vceeheaxcrhmpqueudqx.supabase.co"
