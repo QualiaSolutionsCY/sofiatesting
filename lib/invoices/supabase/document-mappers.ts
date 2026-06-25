@@ -70,6 +70,17 @@ export type ApprovalRowPayload = {
   event_at: string;
 };
 
+/** A row as it lives in invoice_approvals (FK is document_id, matching revisions). */
+export type ApprovalRow = {
+  id?: string;
+  document_id: string;
+  event_label: string;
+  event_status: InvoiceDocument["status"];
+  official_number?: string | null;
+  event_at: string;
+  created_at?: string;
+};
+
 export type PaymentRowPayload = {
   invoice_external_id: string;
   receipt_external_id?: string;
@@ -158,7 +169,40 @@ export function toDocumentRow(document: InvoiceDocument): InvoiceDocumentRowPayl
   };
 }
 
-export function fromDocumentRow(row: InvoiceDocumentRow): InvoiceDocument {
+/**
+ * Rebuild the approval timeline from the document's real invoice_approvals rows.
+ * When there are no approval rows yet (e.g. legacy documents saved before durable
+ * approvals were written), fall back to a single faithful entry derived from the
+ * document row's own status + timestamp — NOT a fabricated "Sophia" placeholder.
+ */
+export function buildApprovalTimeline(
+  row: InvoiceDocumentRow,
+  approvals: ApprovalRow[] = []
+): InvoiceDocument["approvalTimeline"] {
+  if (approvals.length > 0) {
+    return approvals
+      .slice()
+      .sort((a, b) => new Date(a.event_at).getTime() - new Date(b.event_at).getTime())
+      .map((approval) => ({
+        label: approval.event_label,
+        at: approval.event_at,
+        by: "Marios"
+      }));
+  }
+
+  return [
+    {
+      label: `${row.status} (loaded)`,
+      at: row.updated_at ?? row.created_at ?? new Date().toISOString(),
+      by: "System"
+    }
+  ];
+}
+
+export function fromDocumentRow(
+  row: InvoiceDocumentRow,
+  approvals: ApprovalRow[] = []
+): InvoiceDocument {
   return {
     id: row.external_id,
     kind: row.kind,
@@ -202,13 +246,7 @@ export function fromDocumentRow(row: InvoiceDocumentRow): InvoiceDocument {
     whatsappStatus: row.whatsapp_status,
     mariosReviewPhone: row.marios_review_phone,
     accountingGroupLabel: row.accounting_group_label,
-    approvalTimeline: [
-      {
-        label: "Loaded from Supabase document row",
-        at: row.updated_at ?? row.created_at ?? new Date().toISOString(),
-        by: "Sophia"
-      }
-    ],
+    approvalTimeline: buildApprovalTimeline(row, approvals),
     notes: row.notes ?? [],
     deletedAt: row.deleted_at ?? undefined
   };
