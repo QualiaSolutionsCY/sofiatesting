@@ -575,7 +575,7 @@ function DeliveryPlan({
     title: string;
     channels: Channel[];
     msg: string;
-    actions: Array<{ label: string; id: string }>;
+    actions: Array<{ label: string; id: string; disabled?: boolean }>;
     disabled?: boolean;
   };
 
@@ -624,9 +624,11 @@ function DeliveryPlan({
           } — via Sophia`
         : "Disabled until the invoice is numbered.",
       actions: [
-        { label: "Send email", id: "client-send-all" },
-        { label: "Edit email", id: "client-edit-email" },
-        { label: "Edit message", id: "client-edit" }
+        // Sending waits for the official number, but setting the recipient email and
+        // the message must work on a DRAFT too so the operator can prep delivery early.
+        { label: "Send email", id: "client-send-all", disabled: !hasNumber },
+        { label: "Edit email", id: "client-edit-email", disabled: false },
+        { label: "Edit message", id: "client-edit", disabled: false }
       ],
       disabled: !hasNumber
     },
@@ -698,7 +700,7 @@ function DeliveryPlan({
             <pre className="delivery-message">{c.msg}</pre>
             <div className="delivery-card-actions">
               {c.actions.map((a) => (
-                <button key={a.id} type="button" disabled={c.disabled} onClick={() => onAct(a.id)}>
+                <button key={a.id} type="button" disabled={a.disabled ?? c.disabled} onClick={() => onAct(a.id)}>
                   {a.label}
                 </button>
               ))}

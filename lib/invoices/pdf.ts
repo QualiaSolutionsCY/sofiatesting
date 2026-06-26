@@ -133,12 +133,15 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   ];
   if (!isCredit && !isReceipt && document.dueDate) meta.push(["Due Date:", formatDate(document.dueDate)]);
   if (isCredit && document.sourceInvoiceNumber) meta.push(["Applies to:", `Invoice ${document.sourceInvoiceNumber}`]);
-  const metaLabelX = 356;
-  const metaValueX = 452;
+  // Right-align the whole block to the table's right margin so the title (textRight to
+  // MR, above) sits directly ON TOP of it — "INVOICE"/"RECEIPT" caps the Date / No. /
+  // Due column as one unit, matching the preview's right-aligned header.
+  const metaValueR = MR;          // values right-aligned to the table edge (539)
+  const metaLabelR = MR - 100;    // labels right-aligned in a column left of the values
   let metaY = 742;
   for (const [label, value] of meta) {
-    text(metaLabelX, metaY, label, 9.5, false, 0.2);
-    text(metaValueX, metaY, value, 9.5, false, 0.2);
+    textRight(metaLabelR, metaY, label, 9.5, false, 0.2);
+    textRight(metaValueR, metaY, value, 9.5, false, 0.2);
     metaY -= 15;
   }
 

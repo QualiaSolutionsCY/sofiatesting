@@ -8330,3 +8330,64 @@ kbd {
   .detail-pane .inline-editor-lines { overflow-x: auto; }
   .detail-pane .inline-editor-lines-grid { min-width: 0; }
 }
+
+/* ============================================================================
+   AUTHORITATIVE PHONE LAYOUT (≤760px) — placed LAST so it wins the cascade over
+   the earlier, conflicting 980px / 720px / row-bar sidebar rules that were
+   producing a cramped vertical "rail" for the document list. One clean rule:
+   the whole page becomes a single vertical column — brand, the full-width
+   document list, then the detail pane. No reserved side column, no overflow.
+   ========================================================================== */
+@media (max-width: 760px) {
+  /* Kill the desktop sidebar+content flex row — stack as plain blocks. */
+  .app-shell {
+    display: block !important;
+    padding: 0 !important;
+    min-height: 100dvh;
+  }
+
+  /* Sidebar = full-width vertical block on top, not a fixed/sticky side column
+     and not a horizontal bar. Its children stack in order. */
+  .sidebar {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    position: static !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--rule) !important;
+    padding: 12px 14px !important;
+    gap: 12px !important;
+    overflow: visible !important;
+  }
+  .sidebar-brand { order: 0; }
+  .sidebar-section-head { display: flex !important; order: 1; }
+  .sidebar-footer {
+    order: 2;
+    margin: 0 !important;       /* undo the desktop row's margin-left:auto */
+    border-top: 1px solid var(--rule);
+    padding-top: 10px;
+  }
+
+  /* The document list: full width, a comfortable capped height that scrolls —
+     never the ~60px wide black rail it was collapsing into. */
+  .sidebar-list {
+    display: flex !important;
+    order: 3;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 48vh !important;
+    overflow-y: auto !important;
+  }
+  .sidebar .list-pane,
+  .sidebar .list-pane * { min-width: 0 !important; }
+  .sidebar .list-pane { width: 100% !important; }
+
+  /* Content + detail: full width, no min-width floors, tight padding. */
+  .app-content { width: 100% !important; min-width: 0 !important; padding: 12px !important; }
+  .app-content > .workspace { grid-template-columns: minmax(0, 1fr) !important; }
+  .app-content > .workspace .ledger-column { display: none !important; }
+  .detail-pane { padding: 12px !important; }
+}
