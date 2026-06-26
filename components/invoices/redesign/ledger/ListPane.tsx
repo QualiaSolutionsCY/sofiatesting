@@ -7,7 +7,7 @@ import { addOneMonth, formatDate } from "@/lib/invoices/format";
 import type { Doc, DocKind, Filters } from "@/lib/invoices/redesign/types";
 
 const STAGE_OPTIONS: Array<{ value: Filters["stage"]; label: string }> = [
-  { value: "all", label: "All statuses" },
+  { value: "all", label: "All Invoices" },
   { value: STAGES.DRAFT.id, label: STAGES.DRAFT.label },
   { value: STAGES.SENT_TO_MARIOS.id, label: STAGES.SENT_TO_MARIOS.label },
   { value: "approved-numbered", label: "Invoices" },
