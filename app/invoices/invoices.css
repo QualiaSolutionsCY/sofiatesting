@@ -4358,13 +4358,16 @@ body {
 }
 .run-controls .left { display: flex; gap: 14px; align-items: center; font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); }
 .run-controls .left b { color: var(--ink); font-weight: 600; }
-.run-controls .right { display: flex; gap: 8px; }
+.run-controls .right { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .run-controls .right button.ghost {
   appearance: none; border: 0; background: transparent;
   font: inherit; color: var(--muted); cursor: pointer;
   padding: 8px 12px; border-radius: 6px;
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 0.8rem;
+  /* Keep each label on one line so a constrained modal (tablet portrait) wraps the
+     buttons as whole units instead of breaking "Preview as PDF batch" mid-phrase. */
+  white-space: nowrap;
 }
 .run-controls .right button.ghost:hover { color: var(--ink); background: oklch(0 0 0 / 0.04); }
 
@@ -4556,24 +4559,47 @@ body {
     border-radius: 0;
   }
 
-  .run-head { grid-template-columns: 1fr; gap: 6px; padding: 20px 18px 0; }
+  /* Honor the notch / home-indicator so the header title and footer actions are
+     never clipped under the status bar or gesture pill on a full-screen sheet. */
+  .run-head {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: max(20px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 0 max(18px, env(safe-area-inset-left));
+  }
   .run-head h2 { font-size: clamp(1.4rem, 6.5vw, 1.85rem); }
   .run-head .by-sophia { margin-top: 8px; }
   .run-sum { text-align: left; }
   .run-sum strong { font-size: clamp(1.7rem, 9vw, 2.1rem); }
   .run-sum span { margin-top: 2px; }
 
-  .run-controls { flex-wrap: wrap; gap: 12px; padding: 14px 18px 12px; }
+  .run-controls {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 14px max(18px, env(safe-area-inset-right)) 12px max(18px, env(safe-area-inset-left));
+  }
   .run-controls .left { width: 100%; }
-  .run-controls .right { width: 100%; flex-wrap: wrap; gap: 8px; }
+  /* Three equal, single-row controls. The trailing label words collapse on phones
+     ("Preview as PDF batch" → "Preview") so each button stays one tidy line instead
+     of wrapping raggedly inside a narrow flex cell. */
+  .run-controls .right { width: 100%; display: flex; flex-wrap: nowrap; gap: 8px; }
+  .run-controls .right .ctl-ext { display: none; }
   .run-controls .right button.ghost {
-    flex: 1 1 auto;
+    flex: 1 1 0;
+    min-width: 0;
     justify-content: center;
-    min-height: 40px;
-    padding: 8px 10px;
+    min-height: 44px;
+    padding: 8px 6px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    font-size: 0.82rem;
+    white-space: nowrap;
   }
 
-  .run-list { padding: 0 18px; }
+  .run-list {
+    padding: 0 max(18px, env(safe-area-inset-right)) 0 max(18px, env(safe-area-inset-left));
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
   .run-row {
     grid-template-columns: auto minmax(0, 1fr);
     grid-template-areas:
@@ -4606,7 +4632,7 @@ body {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
-    padding: 16px 18px;
+    padding: 16px max(18px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
   }
   .run-foot .acts { width: 100%; }
   .run-foot .acts button.primary,
@@ -4615,6 +4641,22 @@ body {
     justify-content: center;
     min-height: 46px;
   }
+}
+
+/* ── Recurring-run overlay — small phones (≤400px) ───────────────────────
+   Tighten the gutters and trim the display number so a 320–390px portrait
+   screen keeps the list area generous and nothing crowds the edges. */
+@media (max-width: 400px) {
+  .run-head { padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); }
+  .run-controls { padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); }
+  .run-list { padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); }
+  .run-foot { padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); }
+
+  .run-sum strong { font-size: clamp(1.5rem, 8.5vw, 1.9rem); }
+  .run-controls .right { gap: 6px; }
+  .run-controls .right button.ghost { padding: 8px 4px; font-size: 0.78rem; }
+  .run-row { gap: 4px 10px; }
+  .run-row .who strong { font-size: 0.96rem; }
 }
 
 /* ── Welcome empty state (no doc selected) ───────────────────────────── */

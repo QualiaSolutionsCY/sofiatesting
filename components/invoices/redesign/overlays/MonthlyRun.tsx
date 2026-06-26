@@ -298,10 +298,10 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
           </div>
           <div className="right">
             <button type="button" className="ghost" onClick={() => onPreview(pickedRows)}>
-              <Eye size={13} strokeWidth={1.6} /> Preview as PDF batch
+              <Eye size={13} strokeWidth={1.6} /> Preview<span className="ctl-ext">&nbsp;as PDF batch</span>
             </button>
             <button type="button" className="ghost" onClick={onPause}>
-              <Pause size={13} strokeWidth={1.6} /> Pause this run
+              <Pause size={13} strokeWidth={1.6} /> Pause<span className="ctl-ext">&nbsp;this run</span>
             </button>
             <button type="button" className="ghost" onClick={handleClose}>
               <X size={13} strokeWidth={1.6} /> Close
