@@ -14,6 +14,7 @@ import {
   addOneYear,
   isCommissionDescription,
   rollDescriptionMonth,
+  rollDescriptionYear,
 } from "../../lib/invoices/format";
 
 test("R8 — commission is recognised from the agent's own words", async (t) => {
@@ -54,5 +55,16 @@ test("R15 — the recurring description rolls the month forward (one source of t
     const rolled = rollDescriptionMonth("Consulting services — June 2026");
     assert.match(rolled, /July/);
     assert.doesNotMatch(rolled, /June/);
+  });
+});
+
+test("R14/R15 — the YEARLY description rolls the year forward (PDF shows 2027, not 2026)", async (t) => {
+  await t.test("2026 → 2027 in the description", () => {
+    const rolled = rollDescriptionYear("Yearly service · 2026");
+    assert.match(rolled, /2027/);
+    assert.doesNotMatch(rolled, /2026/);
+  });
+  await t.test("leaves text without a year untouched", () => {
+    assert.equal(rollDescriptionYear("Annual maintenance"), "Annual maintenance");
   });
 });

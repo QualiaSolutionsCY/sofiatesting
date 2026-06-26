@@ -22,7 +22,7 @@ import {
   updateDocumentAction
 } from "@/lib/invoices/actions/documents";
 import { docToInvoiceDocument, invoicesToDocs } from "@/lib/invoices/redesign/adapter";
-import { addOneMonth, addOneYear, rollDescriptionMonth } from "@/lib/invoices/format";
+import { addOneMonth, addOneYear, rollDescriptionMonth, rollDescriptionYear } from "@/lib/invoices/format";
 import { downloadDocumentPdf } from "@/lib/invoices/downloads";
 import { clientById, nowStamp, replaceClientRegistry, todayStamp } from "@/lib/invoices/redesign/data";
 import type {
@@ -771,8 +771,10 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         });
     return {
       monthly: build("monthly", addOneMonth, rollDescriptionMonth),
-      // Yearly keeps the description as-is (no month roll) and advances a year (R14).
-      yearly: build("yearly", addOneYear, (text) => text)
+      // Yearly advances the year in BOTH the issue date (addOneYear) and the
+      // description text (rollDescriptionYear) so the upcoming instance's PDF
+      // shows the new year (e.g. 2026 → 2027), never the prior year (R14/R15).
+      yearly: build("yearly", addOneYear, rollDescriptionYear)
     };
   }, [docs, clientMsgOverrides]);
   const monthlyRows = recurringRows[runCadence];

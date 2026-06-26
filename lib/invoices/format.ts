@@ -174,3 +174,16 @@ export function rollDescriptionMonth(text: string): string {
     return cased;
   });
 }
+
+/**
+ * Roll any 4-digit year (20xx) in a description forward by one year, so a YEARLY
+ * invoice regenerated next year reads "…2027" where the previous one said
+ * "…2026". The yearly counterpart of rollDescriptionMonth — keeps the
+ * description's year in step with the advanced issue date (addOneYear) so the
+ * upcoming instance's PDF never shows the prior year. Months (if any) are left
+ * untouched; only the year advances for a yearly cadence.
+ */
+export function rollDescriptionYear(text: string): string {
+  if (!text) return text;
+  return text.replace(/\b(20\d{2})\b/g, (_match, year: string) => String(Number(year) + 1));
+}
