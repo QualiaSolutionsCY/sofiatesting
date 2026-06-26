@@ -169,6 +169,7 @@ export function docToInvoiceDocument(doc: Doc, client: Client): InvoiceDocument 
     paymentStatus: "not-required",
     sourceInvoiceNumber: doc.appliesTo,
     requiresCommissionPerson: !!doc.commission,
+    commissionPersonName: doc.commission?.agent || undefined,
     storageStatus: "not-generated",
     whatsappStatus: "planned",
     mariosReviewPhone: "",

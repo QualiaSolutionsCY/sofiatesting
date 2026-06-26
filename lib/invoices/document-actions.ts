@@ -69,7 +69,11 @@ export function createDocument(input: DocumentInput, index: number): InvoiceDocu
     ? lineItems.map((li) => li.description).filter(Boolean).join("\n")
     : normalizeInvoiceDescription(input.description);
   const { vatAmount, total } = calculateVat(amount, input.vatMode);
-  const requiresCommissionPerson = isCommissionDescription(description);
+  // A commission is flagged either by the description text OR by an explicit track-agent
+  // name from the composer's "Yes — track agent" flag — so the agent's name rides on the
+  // accounting-group WhatsApp caption even when "commission" isn't written in the lines.
+  const requiresCommissionPerson =
+    isCommissionDescription(description) || !!input.commissionPersonName?.trim();
   const label = isValuationDescription(description) ? "valuation" : undefined;
 
   return {
@@ -199,7 +203,11 @@ export function updateDocumentFromInput(
     ? lineItems.map((li) => li.description).filter(Boolean).join("\n")
     : normalizeInvoiceDescription(input.description);
   const { vatAmount, total } = calculateVat(amount, input.vatMode);
-  const requiresCommissionPerson = isCommissionDescription(description);
+  // A commission is flagged either by the description text OR by an explicit track-agent
+  // name from the composer's "Yes — track agent" flag — so the agent's name rides on the
+  // accounting-group WhatsApp caption even when "commission" isn't written in the lines.
+  const requiresCommissionPerson =
+    isCommissionDescription(description) || !!input.commissionPersonName?.trim();
   const label = isValuationDescription(description) ? "valuation" : undefined;
 
   return {
