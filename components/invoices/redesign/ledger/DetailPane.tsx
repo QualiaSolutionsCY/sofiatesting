@@ -28,6 +28,8 @@ interface DetailPaneProps {
   allDocs: Doc[];
   sharedCc: string;
   accountingEmail: string;
+  /** The resolved recipient email (invoice clientEmail or the "Edit email" override). */
+  clientEmail: string;
   operator: string;
   onAct: (action: string) => void;
   onOpenLightbox: (doc: Doc) => void;
@@ -521,21 +523,20 @@ function DeliveryPlan({
   doc,
   sharedCc,
   accountingEmail,
+  clientEmail,
   onAct
 }: {
   doc: Doc;
   sharedCc: string;
   accountingEmail: string;
+  clientEmail: string;
   onAct: (action: string) => void;
 }) {
   const cl = clientById(doc.client);
   const hasNumber = !!doc.officialNo;
   const clientHandle = cl.name.split(",")[0].split(" ")[0];
-  const clientEmail = `${cl.name
-    .split(",")[0]
-    .toLowerCase()
-    .replace(/[^a-z]/g, "")
-    .slice(0, 9)}@example.com`;
+  // The REAL recipient email (the invoice's clientEmail, or the operator's
+  // "Edit email" override) — never a fabricated placeholder. Empty until set.
   const clientPhone = hasNumber ? "+357 99 ••• 451" : "—";
 
   type ChannelState = "ok" | "ready" | "wait" | "off";
@@ -610,7 +611,7 @@ function DeliveryPlan({
       channels: [
         {
           ic: <Mail size={12} strokeWidth={1.6} />,
-          addr: clientReady ? clientEmail : "—",
+          addr: clientReady ? (clientEmail || "No email yet — use “Edit email”") : "—",
           state: clientDelivered ? "ok" : clientReady ? "ready" : "off",
           stateLabel: clientDelivered ? "Delivered" : clientReady ? "Ready" : "Locked"
         }
@@ -624,6 +625,7 @@ function DeliveryPlan({
         : "Disabled until the invoice is numbered.",
       actions: [
         { label: "Send email", id: "client-send-all" },
+        { label: "Edit email", id: "client-edit-email" },
         { label: "Edit message", id: "client-edit" }
       ],
       disabled: !hasNumber
@@ -737,7 +739,7 @@ function Timeline({ events }: { events: Doc["timeline"] }) {
   );
 }
 
-export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, onAct, onOpenLightbox, onUpdateDoc, onCorrectResendDoc }: DetailPaneProps) {
+export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, clientEmail, operator, onAct, onOpenLightbox, onUpdateDoc, onCorrectResendDoc }: DetailPaneProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDetailsElement>(null);
   // The Actions menu must auto-close when you switch to another document or click
@@ -927,7 +929,7 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, 
       />
 
       <section className="detail-section" id="sending">
-        <DeliveryPlan doc={doc} sharedCc={sharedCc} accountingEmail={accountingEmail} onAct={onAct} />
+        <DeliveryPlan doc={doc} sharedCc={sharedCc} accountingEmail={accountingEmail} clientEmail={clientEmail} onAct={onAct} />
       </section>
 
       {hasRelated ? (

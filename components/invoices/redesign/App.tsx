@@ -127,6 +127,9 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
   // Per-document override for the CLIENT-delivery message (mirror of msgOverrides for
   // Marios) — lets the operator edit the message sent with the client's email.
   const [clientMsgOverrides, setClientMsgOverrides] = useState<Record<string, string>>({});
+  // Per-document recipient-email override — the delivery card's "Edit email"
+  // action. Falls back to the invoice's stored clientEmail when unset.
+  const [clientEmailOverrides, setClientEmailOverrides] = useState<Record<string, string>>({});
   const [, startTransition] = useTransition();
 
   useEffect(() => {
@@ -543,18 +546,45 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         break;
       case "client-send-all": {
         const kindWord = selected.kind === "credit" ? "credit note" : selected.kind;
-        const to = window.prompt(
-          `Email this ${kindWord} (${selected.officialNo ?? selected.draftNo ?? ""}) to which address?`,
-          selected.clientEmail || ""
-        );
-        if (!to || !to.trim()) break;
+        // Use the recipient on file (the "Edit email" override or the invoice's
+        // clientEmail); only fall back to a prompt when none is set.
+        const stored = (clientEmailOverrides[selected.id] || selected.clientEmail || "").trim();
+        const to = (
+          stored ||
+          window.prompt(
+            `Email this ${kindWord} (${selected.officialNo ?? selected.draftNo ?? ""}) to which address?`,
+            ""
+          ) ||
+          ""
+        ).trim();
+        if (!to) break;
         startTransition(async () => {
           try {
-            const result = await sendInvoiceEmailAction(selected.id, to.trim(), clientMsgOverrides[selected.id] || undefined);
+            const result = await sendInvoiceEmailAction(selected.id, to, clientMsgOverrides[selected.id] || undefined);
             reconcile(result.documents, selected.id);
-            setToast(`Email sent to ${to.trim()}.`);
+            setToast(`Email sent to ${to}.`);
           } catch (error) {
             setToast(`Couldn't send email: ${error instanceof Error ? error.message : "please try again"}`);
+          }
+        });
+        break;
+      }
+      case "client-edit-email": {
+        // "Edit email" in the delivery card — set / change the recipient address.
+        const current = selected;
+        const existing = clientEmailOverrides[current.id] ?? current.clientEmail ?? "";
+        setConfirmState({
+          title: "Set the recipient email",
+          body: "The invoice email is sent to this address. Saved for this invoice; hit “Send email” to deliver it.",
+          confirmLabel: "Save email",
+          prompt: {
+            label: "Client email",
+            placeholder: existing || "client@example.com",
+            required: false
+          },
+          onConfirm: (text) => {
+            setClientEmailOverrides((prev) => ({ ...prev, [current.id]: (text ?? "").trim() }));
+            setToast("Recipient email saved — it'll be used on the next send.");
           }
         });
         break;
@@ -804,6 +834,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           allDocs={docs}
           sharedCc={sharedCc}
           accountingEmail={accountingEmail}
+          clientEmail={(selected && (clientEmailOverrides[selected.id] || selected.clientEmail)) || ""}
           operator={operator}
           onAct={handleAct}
           onOpenLightbox={setLightboxDoc}
