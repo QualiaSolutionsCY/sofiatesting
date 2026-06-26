@@ -1,17 +1,21 @@
 "use client";
 
 import { Check, Eye, Pause, Send, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clientById, fmt } from "@/lib/invoices/redesign/data";
 
-// Auto-saved per-row delivery drafts (client email + message) for the recurring run.
-// Persisted to localStorage so a half-filled recipient/message survives closing the
-// overlay or a page reload — the operator never re-types a delivery they already set.
-// Keyed by `${cadence}:${rowId}`; ONLY the delivery fields are stored (never the
-// rolled description/amount, which must always come fresh from the upcoming instance).
+// Auto-saved per-row run edits for the recurring batch. EVERY editable field
+// (description, net amount, client email, delivery message) is persisted to
+// localStorage so the operator's changes survive closing the overlay — by backdrop,
+// Cancel, Close, or Escape — or a full page reload; reopening the run restores them
+// as a draft. Keyed by `${cadence}:${rowId}`. Only fields the operator actually
+// changed are stored (diffed against the rolled-forward source), so an untouched row
+// never pins a stale description/amount, and drafts clear once the row is created.
 const DELIVERY_DRAFT_KEY = "sophia.run.delivery-drafts.v1";
 
 interface DeliveryDraft {
+  description?: string;
+  sub?: number;
   recipients?: string;
   message?: string;
 }
@@ -92,17 +96,54 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const flashTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
+  // Mirror the latest edits/source into a ref so the stable flush below always reads
+  // current values, even when invoked from a stale event-handler closure (Escape).
+  const stateRef = useRef({ edited: source, source, cadence });
+  stateRef.current = { edited, source, cadence };
+
+  // Persist every CHANGED field of every row to its draft (diffed against the
+  // rolled-forward source). Stable identity (reads the ref), so close paths can call
+  // it without re-binding. Untouched rows leave no draft; reverted fields drop the key.
+  const flushDrafts = useCallback(() => {
+    const { edited: ed, source: src, cadence: cad } = stateRef.current;
+    const map = readDeliveryDrafts();
+    ed.forEach((r) => {
+      const orig = src.find((s) => s.id === r.id);
+      if (!orig) return;
+      const key = `${cad}:${r.id}`;
+      const d: DeliveryDraft = {};
+      if (r.description !== orig.description) d.description = r.description;
+      if (r.sub !== orig.sub) d.sub = r.sub;
+      if ((r.recipients || "") !== (orig.recipients || "")) d.recipients = r.recipients;
+      if ((r.message || "") !== (orig.message || "")) d.message = r.message;
+      if (Object.keys(d).length) map[key] = d;
+      else delete map[key];
+    });
+    writeDeliveryDrafts(map);
+  }, []);
+
   useEffect(() => {
     if (open) {
-      // Seed from the rolled-forward source, then layer any auto-saved delivery draft
-      // (client email + message) on top so an in-progress delivery survives reopen.
+      // Seed from the rolled-forward source, then layer any auto-saved draft (a field
+      // the operator changed and didn't yet approve) on top so the run reopens exactly
+      // where they left off.
       const drafts = readDeliveryDrafts();
       setEdited(
         source.map((r) => {
           const d = drafts[`${cadence}:${r.id}`];
-          return d
-            ? { ...r, recipients: d.recipients ?? r.recipients, message: d.message ?? r.message }
-            : r;
+          if (!d) return r;
+          const next = { ...r };
+          if (d.description !== undefined) next.description = d.description;
+          if (d.recipients !== undefined) next.recipients = d.recipients;
+          if (d.message !== undefined) next.message = d.message;
+          if (d.sub !== undefined) {
+            // Recompute net/total from the saved net using the source row's VAT ratio.
+            const rate = r.total && r.sub ? r.total / r.sub - 1 : 0.19;
+            next.sub = d.sub;
+            next.net = d.sub;
+            next.total = d.sub * (1 + rate);
+          }
+          return next;
         })
       );
       setPicked(new Set(source.map((r) => r.id)));
@@ -120,10 +161,16 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      // Closing via Escape must save the in-progress edits too.
+      Object.values(saveTimers.current).forEach(clearTimeout);
+      flushDrafts();
+      onClose();
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, flushDrafts]);
 
   if (!open) return null;
 
@@ -157,10 +204,10 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
     );
   };
 
-  // Patch + auto-save a delivery field (client email / message). Updates the in-memory
-  // row immediately, then debounces a write to the localStorage draft and flashes the
-  // "Draft saved" cue for that row. Only delivery fields are persisted (see DRAFT_KEY).
-  const patchDelivery = (id: string, patch: DeliveryDraft) => {
+  // Patch + auto-save any editable field (description, net amount, client email,
+  // delivery message). Updates the in-memory row immediately, then debounces a write to
+  // the localStorage draft and flashes the "Draft saved" cue for that row.
+  const editRow = (id: string, patch: DeliveryDraft) => {
     patchRow(id, patch);
     clearTimeout(saveTimers.current[id]);
     saveTimers.current[id] = setTimeout(() => {
@@ -189,11 +236,20 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
     writeDeliveryDrafts(map);
   };
 
+  // Save-then-close. Every operator close path (backdrop, Cancel, Close, Escape)
+  // flushes the current edits to draft first, so nothing typed is lost — including a
+  // keystroke made inside the debounce window right before closing.
+  const handleClose = () => {
+    Object.values(saveTimers.current).forEach(clearTimeout);
+    flushDrafts();
+    onClose();
+  };
+
   const pickedRows = run.filter((r) => picked.has(r.id));
   const total = pickedRows.reduce((s, r) => s + r.total, 0);
 
   return (
-    <div className="run-backdrop" onClick={onClose}>
+    <div className="run-backdrop" onClick={handleClose}>
       <div className="run-shell" onClick={(event) => event.stopPropagation()}>
         <div className="run-head">
           <div>
@@ -247,7 +303,7 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
             <button type="button" className="ghost" onClick={onPause}>
               <Pause size={13} strokeWidth={1.6} /> Pause this run
             </button>
-            <button type="button" className="ghost" onClick={onClose}>
+            <button type="button" className="ghost" onClick={handleClose}>
               <X size={13} strokeWidth={1.6} /> Close
             </button>
           </div>
@@ -288,7 +344,7 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
                       value={r.description ?? ""}
                       placeholder="Description (rolled forward)"
                       aria-label="Description"
-                      onChange={(e) => patchRow(r.id, { description: e.target.value })}
+                      onChange={(e) => editRow(r.id, { description: e.target.value })}
                     />
                     <input
                       type="number"
@@ -296,7 +352,7 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
                       value={r.sub}
                       placeholder="Net amount"
                       aria-label="Net amount"
-                      onChange={(e) => patchRow(r.id, { sub: Number(e.target.value) || 0 })}
+                      onChange={(e) => editRow(r.id, { sub: Number(e.target.value) || 0 })}
                     />
                     <input
                       type="email"
@@ -304,7 +360,7 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
                       value={r.recipients ?? ""}
                       placeholder="Client email (leave blank to skip email)"
                       aria-label="Client email"
-                      onChange={(e) => patchDelivery(r.id, { recipients: e.target.value })}
+                      onChange={(e) => editRow(r.id, { recipients: e.target.value })}
                     />
                     <input
                       type="text"
@@ -312,7 +368,7 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
                       value={r.message ?? ""}
                       placeholder="Delivery message (optional)"
                       aria-label="Delivery message"
-                      onChange={(e) => patchDelivery(r.id, { message: e.target.value })}
+                      onChange={(e) => editRow(r.id, { message: e.target.value })}
                     />
                     <span
                       className={`run-edit-saved ${savedRows.has(r.id) ? "is-shown" : ""}`}
@@ -335,7 +391,7 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
             Selected total (incl. VAT) <b>{fmt(total)}</b>
           </div>
           <div className="acts">
-            <button type="button" className="ghost" onClick={onClose}>
+            <button type="button" className="ghost" onClick={handleClose}>
               Cancel
             </button>
             <button
