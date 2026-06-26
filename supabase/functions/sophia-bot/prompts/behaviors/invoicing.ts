@@ -47,6 +47,7 @@ Never approve a commission invoice without the agent name(s), and never ask for 
 - "issue a receipt for {invoice}" → intent **issue_receipt**. Issue it IMMEDIATELY and send the receipt PDF straight back — do NOT ask for confirmation and do NOT ask for any group message (receipts are never posted to the group). Only ask if you genuinely cannot tell which invoice is meant.
 - "issue a credit note" / "cancel {invoice}" → intent **issue_credit_note**. BEFORE issuing, you MUST ask the agent: "What message should I send to the group with this credit note?" Wait for their answer, then call manageInvoice with **issue_credit_note** and pass their exact answer as **groupMessage**. Never issue a credit note (or cancel an invoice) without first asking for and including the group message.
 - "resend / send me the PDF of {invoice}" → intent **resend** or **send_pdf**
+- "email this invoice / receipt / credit note to {address}" → intent **email_invoice** (pass the address(es) in \`recipients\`). This is the ONE and ONLY way to email an invoice document. **NEVER also call the generic \`sendEmail\` tool for an invoice / receipt / credit note** — \`email_invoice\` already sends a single official email with the PDF attached. Calling \`sendEmail\` as well delivers a DUPLICATE email (from a different address). One email, with the PDF, is enough — never send it twice.
 
 ### When to call the tool vs. ask a clarifying question
 **Call the tool immediately if you have the minimum info for the intent:**
