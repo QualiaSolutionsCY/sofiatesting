@@ -28,7 +28,12 @@ test("R8 — commission is recognised from the agent's own words", async (t) => 
     assert.equal(isCommissionDescription("Fee for the sale of land at Paphos"), true);
     assert.equal(isCommissionDescription("sale of the plot 5"), true);
   });
-  await t.test("a plain rental is NOT a commission", () => {
+  await t.test("'rent of …' / 'letting of …' is a rental commission (agent earns on rentals too)", () => {
+    assert.equal(isCommissionDescription("Commission for the rent of flat 5, Tala"), true);
+    assert.equal(isCommissionDescription("rent of apartment 12, Kato Paphos"), true);
+    assert.equal(isCommissionDescription("letting of the villa at Coral Bay"), true);
+  });
+  await t.test("a plain monthly rental is NOT a commission (no 'rent of')", () => {
     assert.equal(isCommissionDescription("Monthly rent for June 2026"), false);
     assert.equal(isCommissionDescription("Consulting services"), false);
   });

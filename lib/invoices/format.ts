@@ -63,7 +63,10 @@ export function getUnifiedFilename(document: InvoiceDocument): string {
 }
 
 export function isCommissionDescription(description: string): boolean {
-  return /\bcommission\b|\bproperty sale\b|\bsale of (the )?property\b|\bsale of (the )?(land|plot)\b/i.test(description);
+  // An agent earns commission on both SALES and RENTALS, so "sale of …" and
+  // "rent of …" / "letting of …" are commission triggers too — not just the
+  // literal word "commission" (Marios's rule).
+  return /\bcommission\b|\bproperty sale\b|\bsale of\b|\brent of\b|\bletting of\b/i.test(description);
 }
 
 /**

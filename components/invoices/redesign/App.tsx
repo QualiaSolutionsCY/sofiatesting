@@ -558,11 +558,15 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           ""
         ).trim();
         if (!to) break;
+        // Monthly/yearly invoices ALWAYS CC marios@zyprus.com (Marios's standing rule),
+        // alongside the bill-to recipient. One-off invoices go to the bill-to only.
+        const isRecurring = !!selected.recurrence && selected.recurrence !== "none";
+        const recipients = isRecurring ? [to, "marios@zyprus.com"] : to;
         startTransition(async () => {
           try {
-            const result = await sendInvoiceEmailAction(selected.id, to, clientMsgOverrides[selected.id] || undefined);
+            const result = await sendInvoiceEmailAction(selected.id, recipients, clientMsgOverrides[selected.id] || undefined);
             reconcile(result.documents, selected.id);
-            setToast(`Email sent to ${to}.`);
+            setToast(isRecurring ? `Email sent to ${to} (cc marios@zyprus.com).` : `Email sent to ${to}.`);
           } catch (error) {
             setToast(`Couldn't send email: ${error instanceof Error ? error.message : "please try again"}`);
           }
@@ -837,6 +841,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           sharedCc={sharedCc}
           accountingEmail={accountingEmail}
           clientEmail={(selected && (clientEmailOverrides[selected.id] || selected.clientEmail)) || ""}
+          clientMsg={(selected && clientMsgOverrides[selected.id]) || ""}
           operator={operator}
           onAct={handleAct}
           onOpenLightbox={setLightboxDoc}

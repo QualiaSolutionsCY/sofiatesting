@@ -135,7 +135,9 @@ function resolveEmailRecipients(doc: InvoiceDocument, explicit?: string[]): stri
 
   if (doc.recurrence !== "none") {
     const accounting = process.env.INVOICE_ACCOUNTING_EMAIL?.trim();
-    const mariosCc = process.env.INVOICE_MARIOS_EMAIL?.trim();
+    // Marios is ALWAYS cc'd on monthly/yearly invoices (his standing rule). Default to
+    // his address when the env override isn't set, so the CC never silently drops.
+    const mariosCc = process.env.INVOICE_MARIOS_EMAIL?.trim() || "marios@zyprus.com";
     // buildClientEmailMessage is the dashboard's client-email recipient model:
     // its `to` is the client's address. Reuse it so Sophia and the dashboard
     // resolve the same client recipient.

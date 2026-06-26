@@ -30,6 +30,8 @@ interface DetailPaneProps {
   accountingEmail: string;
   /** The resolved recipient email (invoice clientEmail or the "Edit email" override). */
   clientEmail: string;
+  /** The edited client message (the "Edit message" override) — shown in the delivery card so it's visible before sending. */
+  clientMsg: string;
   operator: string;
   onAct: (action: string) => void;
   onOpenLightbox: (doc: Doc) => void;
@@ -524,12 +526,14 @@ function DeliveryPlan({
   sharedCc,
   accountingEmail,
   clientEmail,
+  clientMsg,
   onAct
 }: {
   doc: Doc;
   sharedCc: string;
   accountingEmail: string;
   clientEmail: string;
+  clientMsg: string;
   onAct: (action: string) => void;
 }) {
   const cl = clientById(doc.client);
@@ -616,13 +620,18 @@ function DeliveryPlan({
           stateLabel: clientDelivered ? "Delivered" : clientReady ? "Ready" : "Locked"
         }
       ],
-      msg: hasNumber
-        ? `Hello ${clientHandle}, on behalf of Marios at CSC Zyprus — your ${
-            doc.kind === "credit" ? "credit note" : doc.kind === "receipt" ? "receipt" : "invoice"
-          } ${doc.officialNo} for ${doc.period} is attached. Total ${fmt(doc.total)}.${
-            doc.due && doc.kind === "invoice" ? ` Due ${doc.due}.` : ""
-          } — via Sophia`
-        : "Disabled until the invoice is numbered.",
+      // Show the operator's edited message (the "Edit message" override) verbatim so
+      // Marios sees exactly what the client will get before he sends. Falls back to
+      // the default template when he hasn't edited it.
+      msg: clientMsg.trim()
+        ? clientMsg.trim()
+        : hasNumber
+          ? `Hello ${clientHandle}, on behalf of Marios at CSC Zyprus — your ${
+              doc.kind === "credit" ? "credit note" : doc.kind === "receipt" ? "receipt" : "invoice"
+            } ${doc.officialNo} for ${doc.period} is attached. Total ${fmt(doc.total)}.${
+              doc.due && doc.kind === "invoice" ? ` Due ${doc.due}.` : ""
+            } — via Sophia`
+          : "Disabled until the invoice is numbered.",
       actions: [
         // Sending waits for the official number, but setting the recipient email and
         // the message must work on a DRAFT too so the operator can prep delivery early.
@@ -741,7 +750,7 @@ function Timeline({ events }: { events: Doc["timeline"] }) {
   );
 }
 
-export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, clientEmail, operator, onAct, onOpenLightbox, onUpdateDoc, onCorrectResendDoc }: DetailPaneProps) {
+export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, clientEmail, clientMsg, operator, onAct, onOpenLightbox, onUpdateDoc, onCorrectResendDoc }: DetailPaneProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDetailsElement>(null);
   // The Actions menu must auto-close when you switch to another document or click
@@ -931,7 +940,7 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, clientEmai
       />
 
       <section className="detail-section" id="sending">
-        <DeliveryPlan doc={doc} sharedCc={sharedCc} accountingEmail={accountingEmail} clientEmail={clientEmail} onAct={onAct} />
+        <DeliveryPlan doc={doc} sharedCc={sharedCc} accountingEmail={accountingEmail} clientEmail={clientEmail} clientMsg={clientMsg} onAct={onAct} />
       </section>
 
       {hasRelated ? (
