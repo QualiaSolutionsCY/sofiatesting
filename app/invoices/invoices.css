@@ -8390,4 +8390,24 @@ kbd {
   .app-content > .workspace { grid-template-columns: minmax(0, 1fr) !important; }
   .app-content > .workspace .ledger-column { display: none !important; }
   .detail-pane { padding: 12px !important; }
+
+  /* Header: compact & LEFT-aligned — not a bulky centered stack. */
+  .sidebar { align-items: stretch !important; gap: 8px !important; }
+  .sidebar-brand { justify-content: flex-start !important; padding: 0 2px !important; }
+  .sidebar-section-head { justify-content: space-between !important; padding: 0 2px !important; }
+  .sidebar-footer { justify-content: flex-start !important; padding: 8px 2px 0 !important; }
+
+  /* Topbar buttons: search full-width on top, the 3 tool icons grouped tight on the
+     left, "New invoice" full-width last — no scattered gaps. */
+  .app-content > .topbar { grid-template-columns: 1fr !important; gap: 10px !important; }
+  .topbar-actions {
+    justify-content: flex-start !important;
+    max-width: none !important;
+    gap: 8px !important;
+    align-items: center;
+  }
+  .topbar-actions .palette-trigger { flex: 1 1 100% !important; min-width: 0 !important; order: 0; }
+  .topbar-actions .icon-button,
+  .topbar-actions .topbar-settings { flex: 0 0 auto !important; order: 1; }
+  .topbar-actions .primary-action { flex: 1 1 100% !important; justify-content: center !important; order: 9; }
 }
