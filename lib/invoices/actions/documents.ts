@@ -363,6 +363,19 @@ export async function correctResendAction(
   const updated = markCorrectedForResend(document, reason || undefined);
   const result = await saveInvoiceDocument(updated, "Corrected resend queued");
   await queueCorrectedResend(updated, reason || undefined);
+  // Actually re-send the corrected invoice to the accounting GROUP (+ Marios) over
+  // WhatsApp — not just write an internal delivery record — with a note to ignore the
+  // previous version. markCorrectedForResend already flagged the PDF needs-regeneration,
+  // and sendDocumentToAccountingGroup rebuilds the PDF from `updated`, so the group
+  // receives the corrected content. Best-effort: a failed send never breaks the save.
+  // Mirrors resendCorrectedInvoiceAction (the inline-editor / Sophia path).
+  const trimmed = (reason || "").trim();
+  const groupCaption =
+    `Corrected invoice ${getDisplayNumber(updated)} — please use this version` +
+    (trimmed ? ` (${trimmed})` : "") +
+    `. Ignore the previous one.`;
+  await sendDocumentToAccountingGroup(updated, groupCaption);
+  await notifyMariosOverWhatsApp(updated, { approved: true });
   return { ...result, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
 }
 
