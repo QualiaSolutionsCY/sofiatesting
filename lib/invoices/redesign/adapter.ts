@@ -144,9 +144,17 @@ export function docToInvoiceDocument(doc: Doc, client: Client): InvoiceDocument 
     id: doc.id,
     kind: kindStorage(doc.kind),
     clientName: client.name,
-    clientEmail: undefined,
+    clientEmail: doc.clientEmail || undefined,
     billToLabel: client.property || "—",
     description: doc.description || doc.lines?.[0]?.desc || "",
+    // Carry the per-line breakdown so the downloaded PDF (pdf.ts) renders ONE ROW
+    // PER LINE ITEM, exactly like the on-screen TemplatePreview — instead of
+    // collapsing every line into a single combined row when lineItems is absent.
+    lineItems: (doc.lines || []).map((l) => ({
+      description: l.desc,
+      quantity: l.qty,
+      unitPrice: l.unitPrice
+    })),
     amount: round2(Math.abs(sub)),
     vatMode: doc.vatMode as VatMode,
     vatAmount: round2(Math.abs(vat)),

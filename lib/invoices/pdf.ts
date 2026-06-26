@@ -151,10 +151,10 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   }
   y -= 18;
 
-  // ---- Line-item table: Qty | Item | Description | Unit Price | Total ----
-  const xItem = 92;      // Qty | Item divider
-  const xDescDiv = 128;  // Item | Description divider
-  const xUnitDiv = 432;  // Description | Unit Price divider (wider Description, like 11491)
+  // ---- Line-item table: Item | Description | Unit Price | Total ----
+  // Matches TemplatePreview exactly: an Item-number column, NO Qty column.
+  const xItemDiv = 92;   // Item | Description divider
+  const xUnitDiv = 432;  // Description | Unit Price divider (wide Description, like 11491)
   const xTotalDiv = 490; // Unit Price | Total divider
   const unitR = 486;
   const totalR = MR - 8;
@@ -163,26 +163,26 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
 
   // Header row: bold labels, no fill (matches the reference's white header row).
   const hb = tableTop - 15;
-  text(ML + 8, hb, "Qty", 9, true, 0.1);
-  text(xItem + 8, hb, "Item", 9, true, 0.1);
-  text(xDescDiv + 8, hb, "Description", 9, true, 0.1);
+  text(ML + 8, hb, "Item", 9, true, 0.1);
+  text(xItemDiv + 8, hb, "Description", 9, true, 0.1);
   textRight(unitR, hb, "Unit Price", 9, true, 0.1);
   textRight(totalR, hb, "Total", 9, true, 0.1);
 
   const bodyTop = tableTop - headerH;
-  // Credit notes show a fixed reference line; everything else lists its line items.
+  // Credit notes show a fixed reference line; everything else lists ONE ROW PER
+  // line item (same source the on-screen TemplatePreview iterates).
   const items = isCredit
-    ? [{ desc: creditNoteLineDescription(document.sourceInvoiceNumber, document.description), unit: document.amount, total: document.amount, qty: 1 }]
+    ? [{ desc: creditNoteLineDescription(document.sourceInvoiceNumber, document.description), unit: document.amount, total: document.amount }]
     : document.lineItems && document.lineItems.length
-      ? document.lineItems.map((li) => ({ desc: li.description || "—", unit: li.unitPrice, total: li.quantity * li.unitPrice, qty: li.quantity }))
-      : [{ desc: document.description || "—", unit: document.amount, total: document.amount, qty: 1 }];
+      ? document.lineItems.map((li) => ({ desc: li.description || "—", unit: li.unitPrice, total: li.quantity * li.unitPrice }))
+      : [{ desc: document.description || "—", unit: document.amount, total: document.amount }];
   const lineH = 13;
   let cursor = bodyTop - 16;
   let rowH = 0;
-  items.forEach((it) => {
-    const dLines = wrapText(it.desc, xUnitDiv - xDescDiv - 14, 9.5, false);
-    text(ML + 14, cursor, String(it.qty), 9.5, false, 0.15);
-    dLines.forEach((ln, i) => text(xDescDiv + 8, cursor - i * lineH, ln, 9.5, false, 0.15));
+  items.forEach((it, idx) => {
+    const dLines = wrapText(it.desc, xUnitDiv - xItemDiv - 14, 9.5, false);
+    text(ML + 8, cursor, String(idx + 1), 9.5, false, 0.15);
+    dLines.forEach((ln, i) => text(xItemDiv + 8, cursor - i * lineH, ln, 9.5, false, 0.15));
     textRight(unitR, cursor, eur(it.unit), 9.5, false, 0.15);
     textRight(totalR, cursor, eur(it.total), 9.5, false, 0.15);
     const h = Math.max(20, 8 + dLines.length * lineH);
@@ -208,7 +208,7 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   line(ML, bottom, MR, bottom, 0.7, 0.5);
   line(ML, tableTop, ML, bottom, 0.7, 0.5);
   line(MR, tableTop, MR, bottom, 0.7, 0.5);
-  for (const vx of [xItem, xDescDiv, xUnitDiv, xTotalDiv]) line(vx, tableTop, vx, bottom, 0.6, 0.65);
+  for (const vx of [xItemDiv, xUnitDiv, xTotalDiv]) line(vx, tableTop, vx, bottom, 0.6, 0.65);
 
   // ---- Totals (right-aligned, no box) ----
   // Cyprus VAT is a fixed 19% but the label shows only "V.A.T" to match the
