@@ -35,12 +35,17 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
         if (filters.kind !== "all" && doc.kind !== filters.kind) return false;
         // Each filter shows ONLY its own kind of document — never mixed.
         if (filters.stage === "approved-numbered") {
-          // "Invoices" = invoices once issued; stays here through paid.
+          // "Invoices" = every invoice that became real: issued (approved /
+          // numbered / paid) AND the ones later voided (cancelled / credited).
+          // Marios's rule: "everything under invoice, even the cancelled ones."
+          // Drafts (pre-number) stay under the Draft filter.
           if (doc.kind !== "invoice") return false;
           if (
             doc.stage !== STAGES.APPROVED.id &&
             doc.stage !== STAGES.NUMBERED.id &&
-            doc.stage !== STAGES.SENT_TO_ACCOUNTING.id
+            doc.stage !== STAGES.SENT_TO_ACCOUNTING.id &&
+            doc.stage !== STAGES.CANCELLED.id &&
+            doc.stage !== STAGES.CREDITED.id
           ) {
             return false;
           }
