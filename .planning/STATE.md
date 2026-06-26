@@ -8,7 +8,7 @@ Phase: 4 of 4 — Handoff
 Status: setup
 Assigned to: Profile: strict
 Profile: strict
-Last activity: 2026-06-26 — correct&resend now sends corrected invoice to accounting group (correctResendAction)
+Last activity: 2026-06-26 — stop duplicate invoice email: email_invoice only, forbid generic sendEmail for invoice docs
 
 Progress: [████████░░] 75%
 

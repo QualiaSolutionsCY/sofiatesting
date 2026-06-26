@@ -107,16 +107,16 @@
   },
   "blockers": [],
   "session_started_at": "2026-06-09T07:29:56.378Z",
-  "last_updated": "2026-06-26T12:17:31.974Z",
-  "last_pushed_at": "2026-06-26T09:35:46Z",
-  "last_commit": "6021792",
+  "last_updated": "2026-06-26T14:15:24.822Z",
+  "last_pushed_at": "2026-06-26T14:05:39Z",
+  "last_commit": "810ac13",
   "build_count": 4,
   "deploy_count": 0,
   "deployed_url": "https://sofiatesting.vercel.app",
-  "notes": "correct&resend now sends corrected invoice to accounting group (correctResendAction)",
+  "notes": "stop duplicate invoice email: email_invoice only, forbid generic sendEmail for invoice docs",
   "submitted_by": "",
   "lifetime": {
-    "tasks_completed": 89,
+    "tasks_completed": 90,
     "phases_completed": 34,
     "milestones_completed": 8,
     "total_phases": 31,
@@ -124,6 +124,6 @@
     "updates_completed": 0,
     "offroad_count": 0
   },
-  "report_seq": 11,
+  "report_seq": 12,
   "lifecycle": "build"
 }
