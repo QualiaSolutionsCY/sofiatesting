@@ -51,7 +51,7 @@ export function stageHeadline(stage: Stage): { title: string; body: string } {
     case "sent-to-accounting":
       return { title: "Paid · receipt sent to accounting", body: "Cycle complete. Receipt was issued and hand-off is logged." };
     case "credited":
-      return { title: "Credited — invoice no longer collectable", body: "A credit note was issued against this invoice. The credit note is the active document." };
+      return { title: "Credit note — invoice no longer collectable", body: "A credit note was issued against this invoice. The credit note is the active document." };
     case "cancelled":
       return { title: "Cancelled before numbering", body: "Document was voided before receiving an official number. No accounting impact." };
     default:
@@ -68,7 +68,7 @@ export function stampFor(stage: Stage): { label: string; cls: string } | null {
     case "approved": return { label: "Approved", cls: "is-approved" };
     case "numbered": return { label: "Numbered", cls: "is-approved" };
     case "sent-to-accounting": return { label: "Paid", cls: "is-paid" };
-    case "credited": return { label: "Credited", cls: "is-credited" };
+    case "credited": return { label: "Credit note", cls: "is-credited" };
     case "cancelled": return { label: "Void", cls: "is-cancelled" };
     default: return null;
   }

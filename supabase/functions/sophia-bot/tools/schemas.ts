@@ -382,6 +382,7 @@ const manageInvoiceSchema = z.object({
     "issue_credit_note",
     "resend",
     "send_pdf",
+    "email_invoice",
   ]),
   client: z.string().max(200).optional(),
   amount: z.number().min(0).max(100_000_000).optional(),
@@ -391,6 +392,8 @@ const manageInvoiceSchema = z.object({
   officialNumber: z.string().max(120).optional(),
   correctionReason: z.string().max(1000).optional(),
   groupMessage: z.string().max(2000).optional(),
+  // Explicit email recipients for the email_invoice intent (multi-email send).
+  recipients: z.array(z.string().max(200)).max(20).optional(),
   dueDate: z.string().max(40).optional(),
   dueDays: z.number().int().min(0).max(365).optional(),
   recurrence: z.enum(["none", "monthly", "yearly"]).optional(),

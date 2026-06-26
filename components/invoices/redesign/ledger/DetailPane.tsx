@@ -91,10 +91,37 @@ function DocumentTab({
 }) {
   // Already-sent docs (numbered, sent-to-accounting) → correction-resend mode required
   const isSent = !!doc.officialNo || doc.stage === "numbered" || doc.stage === "sent-to-accounting";
-  const editable = doc.stage !== "credited" && doc.kind !== "receipt"; // credited docs and issued receipts are final — they need a separate new invoice
+  // Final stages are read-only: credited, PAID (a paid invoice sits at "sent-to-accounting"),
+  // and cancelled — plus issued receipts. These need a separate new invoice/credit note,
+  // never an in-place edit. Drafts and sent-but-unpaid invoices still edit as before.
+  const editable =
+    doc.stage !== "credited" &&
+    doc.stage !== "sent-to-accounting" &&
+    doc.stage !== "cancelled" &&
+    doc.kind !== "receipt";
   const requiresCorrectionReason = isSent && editable;
   const [form, setForm] = useState<InlineDocFormState>(() => docToFormState(doc));
   const [saveState, setSaveState] = useState<"idle" | "dirty" | "saving" | "saved">("idle");
+
+  // Fit-to-width preview: measure the stage and scale the WHOLE A4 page down to its
+  // width with ONE deterministic transform (no overflow:auto clipping the bottom, no
+  // random zoom). A4 portrait at 96dpi is 794px; the computed factor is surfaced as a
+  // readable label so the on-screen scale is intentional.
+  const A4_WIDTH_PX = 794;
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [previewScale, setPreviewScale] = useState(1);
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const measure = () => {
+      const avail = stage.clientWidth;
+      if (avail > 0) setPreviewScale(Math.min(1, avail / A4_WIDTH_PX));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(stage);
+    return () => ro.disconnect();
+  }, []);
 
   // The form follows the SERVER doc: it re-loads on select AND re-syncs the instant a
   // save lands (so saved changes show live and the toolbar leaves "Unsaved changes").
@@ -270,33 +297,9 @@ function DocumentTab({
           </div>
 
           <fieldset className="inline-editor-fieldset" disabled={!editable}>
-            <div className="inline-editor-row">
-              <label className="inline-editor-field">
-                <span>Invoice number</span>
-                <input
-                  value={doc.officialNo ?? doc.draftNo ?? ""}
-                  readOnly
-                  disabled
-                  style={{ fontFamily: "var(--font-mono)" }}
-                />
-              </label>
-              <label className="inline-editor-field">
-                <span>Status</span>
-                <input
-                  value={
-                    doc.officialNo
-                      ? `№ ${doc.officialNo} · locked`
-                      : doc.stage === "approved"
-                        ? `Next: ${nextNumber(doc)} (assign below)`
-                        : "Draft — sequence assigned after Marios approval"
-                  }
-                  readOnly
-                  disabled
-                  style={{ fontFamily: "var(--font-mono)", fontSize: "0.78rem" }}
-                />
-              </label>
-            </div>
-
+            {/* Invoice number + Status display fields removed (R11b) — Marios never
+               edits them and they were read-only display only (not bound to save).
+               The number still shows in the detail header (detail-number). */}
             {doc.stage === "approved" ? (
               <div className="inline-editor-callout brand">
                 <Hash size={16} strokeWidth={1.6} />
@@ -484,6 +487,9 @@ function DocumentTab({
         <main className="inline-editor-preview" aria-label="Live invoice preview">
           <div className="inline-editor-preview-eyebrow">
             <span>Live preview</span>
+            <span className="inline-editor-preview-scale" title="On-screen fit — the PDF prints full size">
+              {Math.round(previewScale * 100)}%
+            </span>
             <button
               type="button"
               className="inline-editor-preview-expand"
@@ -493,7 +499,16 @@ function DocumentTab({
               Open fullscreen
             </button>
           </div>
-          <div className="inline-editor-preview-stage">
+          <div
+            ref={stageRef}
+            className="inline-editor-preview-stage"
+            style={
+              {
+                "--preview-scale": String(previewScale),
+                "--preview-page-width": `${A4_WIDTH_PX}px`
+              } as React.CSSProperties
+            }
+          >
             <TemplatePreview doc={previewDoc} />
           </div>
         </main>

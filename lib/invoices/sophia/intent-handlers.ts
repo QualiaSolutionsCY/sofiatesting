@@ -9,10 +9,12 @@ import {
   notifyMariosApprovedAction,
   resendCorrectedInvoiceAction,
   sendDocumentToAccountingGroup,
+  sendInvoiceEmailAction,
   storeDocumentPdfAction,
   updateDocumentAction,
 } from "@/lib/invoices/actions/documents";
 import { stripAgentName } from "@/lib/invoices/format";
+import { buildClientEmailMessage } from "@/lib/invoices/email";
 import type { DocumentInput } from "@/lib/invoices/document-actions";
 import type { InvoiceDocument, VatMode } from "@/lib/invoices/types/invoice";
 
@@ -27,7 +29,8 @@ export type SophiaIntent =
   | "issue_receipt"
   | "issue_credit_note"
   | "resend"
-  | "send_pdf";
+  | "send_pdf"
+  | "email_invoice";
 
 export interface IntentParams {
   client?: string;
@@ -38,6 +41,9 @@ export interface IntentParams {
   officialNumber?: string;
   correctionReason?: string;
   groupMessage?: string;
+  /** Explicit email recipients for the email_invoice intent. A single request to
+   * "email this invoice to a@x.com and b@y.com" maps to all of them. */
+  recipients?: string[];
   recurrence?: "none" | "monthly" | "yearly";
   recurrenceDay?: number;
   /** New due date as an ISO date (YYYY-MM-DD), for edit_invoice. */
@@ -90,6 +96,50 @@ function findDoc(docs: InvoiceDocument[], p: IntentParams): InvoiceDocument | nu
     if (hit) return hit;
   }
   return null;
+}
+
+/**
+ * Resolve the email recipients for the email_invoice intent.
+ *
+ * - Explicit addresses (the agent named who to send to) always win and are used
+ *   verbatim — this is the multi-email case (R6).
+ * - Otherwise, for a recurring (monthly/yearly) invoice we mirror the dashboard's
+ *   client-email model (R7): accounting + Marios CC + the client's own address.
+ *   The accounting/CC addresses come from env (never hardcoded); the client
+ *   address comes from buildClientEmailMessage's recipient model.
+ * Falsy/blank entries are filtered and duplicates collapsed.
+ */
+function resolveEmailRecipients(doc: InvoiceDocument, explicit?: string[]): string[] {
+  const clean = (list: (string | undefined)[]): string[] => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const raw of list) {
+      const v = (raw || "").trim();
+      if (!v) continue;
+      const key = v.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(v);
+    }
+    return out;
+  };
+
+  if (explicit && explicit.length > 0) {
+    return clean(explicit);
+  }
+
+  if (doc.recurrence !== "none") {
+    const accounting = process.env.INVOICE_ACCOUNTING_EMAIL?.trim();
+    const mariosCc = process.env.INVOICE_MARIOS_EMAIL?.trim();
+    // buildClientEmailMessage is the dashboard's client-email recipient model:
+    // its `to` is the client's address. Reuse it so Sophia and the dashboard
+    // resolve the same client recipient.
+    const clientMessage = buildClientEmailMessage(doc, mariosCc ?? "");
+    return clean([accounting, mariosCc, clientMessage.to]);
+  }
+
+  // Non-recurring with no explicit recipients: fall back to the client's address.
+  return clean([doc.clientEmail]);
 }
 
 /** Generate + store the PDF for a document and return its public URL + filename. */
@@ -317,6 +367,11 @@ export async function runIntent(
       const res = await loadDocumentsAction();
       const doc = findDoc(res.documents, params);
       if (!doc) return { ok: false, reply: "I couldn't find that invoice." };
+      // A cancelled / credited invoice has been voided — refuse the receipt at
+      // this layer too (the server action mirrors the same guard).
+      if (doc.status === "cancelled" || doc.status === "credited") {
+        return { ok: false, reply: "That invoice has been cancelled — I can't issue a receipt for it." };
+      }
       // notifyMarios:false — the bot delivers the receipt PDF to the requester
       // itself (one PDF build, one send), so Sophia replies faster and Marios
       // isn't messaged twice when he's the one asking.
@@ -357,6 +412,35 @@ export async function runIntent(
       await resendCorrectedInvoiceAction(doc.id, params.correctionReason || "Resend requested");
       const pdf = await attachPdf(doc.id);
       return { ok: true, documentId: doc.id, ...pdf, reply: `Resent ${doc.clientName} (${numberOf(doc)}). PDF attached.` };
+    }
+
+    case "email_invoice": {
+      const res = await loadDocumentsAction();
+      const doc = findDoc(res.documents, params);
+      if (!doc) return { ok: false, reply: "I couldn't find that invoice to email." };
+
+      const recipients = resolveEmailRecipients(doc, params.recipients);
+      if (recipients.length === 0) {
+        return {
+          ok: false,
+          reply: "I don't have an email address to send this to — give me the recipient address(es).",
+        };
+      }
+      try {
+        await sendInvoiceEmailAction(doc.id, recipients);
+      } catch (error) {
+        return {
+          ok: false,
+          reply: "I couldn't email that invoice just now.",
+          error: error instanceof Error ? error.message : "email failed",
+        };
+      }
+      const recap = recipients.length === 1 ? recipients[0] : `${recipients.length} recipients`;
+      return {
+        ok: true,
+        documentId: doc.id,
+        reply: `Emailed ${doc.clientName} — ${numberOf(doc)} to ${recap}.`,
+      };
     }
 
     default:

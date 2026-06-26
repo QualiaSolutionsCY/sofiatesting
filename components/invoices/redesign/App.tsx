@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   applyOfficialNumberAction,
   approveDocumentAction,
-  autoEmailApprovedInvoiceAction,
   cancelWithCreditNoteAction,
   correctResendAction,
   createDocumentAction,
@@ -23,7 +22,7 @@ import {
   updateDocumentAction
 } from "@/lib/invoices/actions/documents";
 import { docToInvoiceDocument, invoicesToDocs } from "@/lib/invoices/redesign/adapter";
-import { addOneMonth, rollDescriptionMonth } from "@/lib/invoices/format";
+import { addOneMonth, addOneYear, rollDescriptionMonth } from "@/lib/invoices/format";
 import { downloadDocumentPdf } from "@/lib/invoices/downloads";
 import { clientById, nowStamp, replaceClientRegistry, todayStamp } from "@/lib/invoices/redesign/data";
 import type {
@@ -113,6 +112,8 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
   const [lightboxDoc, setLightboxDoc] = useState<Doc | null>(null);
   const [batchPreview, setBatchPreview] = useState<Doc[] | null>(null);
   const [runOpen, setRunOpen] = useState(false);
+  // Which recurring cadence the run overlay is showing — monthly or yearly (R14).
+  const [runCadence, setRunCadence] = useState<"monthly" | "yearly">("monthly");
   const [recurringPanelOpen, setRecurringPanelOpen] = useState(false);
   const [recurringRuns, setRecurringRuns] = useState<RecurringRun[]>([]);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
@@ -259,41 +260,66 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
   function handleAct(stageOrAction: string) {
     if (!selected) return;
     switch (stageOrAction) {
-      case "draft":
-        startTransition(async () => {
-          // Manual step: approve the draft, assign its official number, and post
-          // the PDF to the accounting group. Payment is a SEPARATE step — the
-          // invoice is NOT marked paid here. Use "Mark as paid → issue receipt"
-          // when the money actually arrives.
-          try {
-            const result = await approveDocumentAction(selected.id);
-            if (selected.kind === "invoice") {
-              // An approved invoice ALWAYS goes to Marios (his copy) AND the
-              // accounting group — never the accounting group alone. Gate the
-              // toast on the REAL send results so it never claims a delivery
-              // that didn't happen.
-              const groupOk = await notifyAccountingGroupOfInvoiceAction(selected.id);
-              const mResult = await notifyMariosApprovedAction(selected.id);
-              const mariosOk = mResult.mariosNotified ?? false;
-              setToast(
-                "Approved. " +
-                  [
-                    mariosOk ? "Sent to Marios" : "Marios delivery NOT confirmed",
-                    groupOk ? "posted to accounting group" : "accounting group NOT confirmed"
-                  ].join("; ") +
-                  ". Mark as paid when payment arrives."
-              );
-            } else {
-              setToast("Approved and numbered.");
-            }
-            reconcile(result.documents, selected.id);
-            setFilters((f) => ({ ...f, stage: "all" }));
-          } catch (error) {
-            console.error("Approve from draft failed", error);
-            setToast("Couldn't approve this invoice — please try again.");
+      case "draft": {
+        // R18b: approving a draft no longer sends immediately. Open an editable
+        // message (seeded from any saved override) and only approve + notify when
+        // the operator confirms — restoring the approve → edit-message → send step.
+        const current = selected;
+        const existingMsg = msgOverrides[current.id] ?? "";
+        setConfirmState({
+          title: "Approve and send this invoice?",
+          body:
+            "This assigns the official number and posts the PDF to Marios and the accounting group. Edit the message that rides with the PDF below — leave it blank to keep the saved/default text. Payment is a separate step.",
+          confirmLabel: "Approve & send",
+          prompt: {
+            label: "Message sent with the PDF",
+            placeholder: existingMsg || "Leave blank to send the default message",
+            required: false
+          },
+          onConfirm: (text) => {
+            // An empty textarea means "keep what was already saved" — the edited
+            // text is persisted into msgOverrides so the existing send/resend
+            // plumbing (sendToMariosAction etc.) uses it. NOTE: the FIRST group
+            // send below does not yet accept a per-call message (see risks).
+            const edited = (text ?? "").trim();
+            const messageToUse = edited || existingMsg;
+            setMsgOverrides((prev) => ({ ...prev, [current.id]: messageToUse }));
+            startTransition(async () => {
+              // Approve the draft, assign its official number, and post the PDF to
+              // the accounting group + Marios. Payment is a SEPARATE step — the
+              // invoice is NOT marked paid here.
+              try {
+                const result = await approveDocumentAction(current.id);
+                if (current.kind === "invoice") {
+                  // An approved invoice ALWAYS goes to Marios (his copy) AND the
+                  // accounting group — never the accounting group alone. Gate the
+                  // toast on the REAL send results so it never claims a delivery
+                  // that didn't happen.
+                  const groupOk = await notifyAccountingGroupOfInvoiceAction(current.id);
+                  const mResult = await notifyMariosApprovedAction(current.id);
+                  const mariosOk = mResult.mariosNotified ?? false;
+                  setToast(
+                    "Approved. " +
+                      [
+                        mariosOk ? "Sent to Marios" : "Marios delivery NOT confirmed",
+                        groupOk ? "posted to accounting group" : "accounting group NOT confirmed"
+                      ].join("; ") +
+                      ". Mark as paid when payment arrives."
+                  );
+                } else {
+                  setToast("Approved and numbered.");
+                }
+                reconcile(result.documents, current.id);
+                setFilters((f) => ({ ...f, stage: "all" }));
+              } catch (error) {
+                console.error("Approve from draft failed", error);
+                setToast("Couldn't approve this invoice — please try again.");
+              }
+            });
           }
         });
         break;
+      }
       case "sent-to-marios":
         startTransition(async () => {
           const result = await sendToMariosAction(selected.id);
@@ -641,43 +667,13 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       const created = await createDocumentAction(input);
       const createdId = (created.selectedId ?? created.documents[0]?.id) as string;
 
-      // Auto-approve (Marios's request): creating an invoice now issues it
-      // immediately — assign №, post to the accounting group, send Marios his
-      // copy, and email him the PDF — instead of parking a manual-approval draft.
-      // Notifications/email are best-effort (they no-op when WhatsApp/Resend are
-      // not configured), so a delivery hiccup never blocks the create.
-      try {
-        const approved = await approveDocumentAction(createdId);
-        if (input.kind === "invoice") {
-          // Collect the REAL result of each channel so the toast claims only the
-          // ones that actually delivered — never an unconditional "sent".
-          const groupOk = await notifyAccountingGroupOfInvoiceAction(createdId);
-          const mResult = await notifyMariosApprovedAction(createdId);
-          const mariosOk = mResult.mariosNotified ?? false;
-          const emailOk = await autoEmailApprovedInvoiceAction(createdId);
-          reconcile(approved.documents, createdId);
-          setFilters((f) => ({ ...f, stage: "all" }));
-          const channels = [
-            mariosOk ? "Marios (WhatsApp)" : null,
-            groupOk ? "accounting group" : null,
-            emailOk ? "Marios (email)" : null
-          ].filter(Boolean);
-          setToast(
-            channels.length
-              ? `Invoice created and auto-approved — sent to ${channels.join(", ")}.`
-              : "Invoice created and auto-approved — delivery could not be confirmed on any channel."
-          );
-          return;
-        }
-        reconcile(approved.documents, createdId);
-        setFilters((f) => ({ ...f, stage: "all" }));
-        setToast("Invoice created and auto-approved.");
-      } catch (error) {
-        console.error("Auto-approve on create failed; left as draft", error);
-        reconcile(created.documents, createdId);
-        setFilters((f) => ({ ...f, stage: "all" }));
-        setToast("Draft created — auto-approve failed, approve it manually.");
-      }
+      // Create produces a REVIEWABLE draft (R18a). It is NOT auto-approved or
+      // auto-sent — the operator reviews it, then approves from the draft CTA,
+      // which opens an editable message + sends (handleAct "draft", R18b). This
+      // restores the approve → preview → edit-message → send step.
+      reconcile(created.documents, createdId);
+      setFilters((f) => ({ ...f, stage: "all" }));
+      setToast("Draft created — review it, then approve to send.");
     });
   }
 
@@ -694,7 +690,11 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           setComposerOpen(true);
           break;
         case "run-monthly":
+          setRunCadence("monthly");
+          setRunOpen(true);
+          break;
         case "run-yearly":
+          setRunCadence("yearly");
           setRunOpen(true);
           break;
         case "filter-marios":
@@ -721,35 +721,61 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
     }
   }
 
-  // Monthly batch is sourced from real monthly-recurring invoices so each one
-  // shows up in the run and can be issued on its date.
-  const monthlyRows = useMemo(
-    () =>
+  // Recurring batch projects the UPCOMING (next, not-yet-issued) instance of each
+  // recurring invoice (R4). The number field is blank — the next instance has no
+  // official № until the run materializes it. The rolled description, rolled lines,
+  // and advanced issue date are computed ONCE here so the list, the PDF preview,
+  // and the create path all consume the SAME values (R15). Monthly rolls the month
+  // forward (June → July) via rollDescriptionMonth + addOneMonth; yearly advances
+  // the issue date by a year and keeps the description as-is — same upcoming /
+  // no-number / editable / email-on-approve behaviour for both cadences (R14).
+  // Per-row recipient + delivery message are seeded so the batch can email each
+  // invoice on approve (R17).
+  const recurringRows = useMemo(() => {
+    const build = (
+      recurrence: "monthly" | "yearly",
+      advance: (stamp: string) => string,
+      rollDesc: (text: string) => string
+    ) =>
       docs
-        .filter((d) => d.kind === "invoice" && d.recurrence === "monthly")
+        .filter((d) => d.kind === "invoice" && d.recurrence === recurrence)
         .map((d) => {
           const sub = (d.lines || []).reduce((s, l) => s + l.qty * l.unitPrice, 0) || Math.abs(d.total);
           const rate = d.vatMode === "no-vat" ? 0 : d.vatRate || 0;
           const total = d.vatMode === "included-vat" ? sub : sub + (sub * rate) / 100;
+          const baseDescription =
+            d.description || (d.lines || []).map((l) => l.desc).filter(Boolean).join("\n");
+          const rolledDescription = baseDescription ? rollDesc(baseDescription) : baseDescription;
+          const rolledLines = (d.lines || []).map((l) => ({ ...l, desc: rollDesc(l.desc) }));
           return {
             id: d.id,
             client: d.client,
             net: sub,
             extra: 0,
-            draftNo: d.officialNo ? `№ ${d.officialNo}` : d.draftNo || "Draft",
-            // The run CREATES next month's invoice, so the review screen + preview
-            // show the NEXT period (June → July), matching the rolled description /
-            // advanced issue date applied on create. (Marios: "next month says July".)
-            period: rollDescriptionMonth(d.period || ""),
+            // Upcoming instance has no number yet — blank the № column (R4).
+            draftNo: "",
+            period: rollDesc(d.period || ""),
             sub,
             total,
-            description: d.description || (d.lines || []).map((l) => l.desc).filter(Boolean).join("\n"),
-            issued: d.issued,
-            lines: d.lines
+            // Precomputed (rolled) — consumed verbatim by preview AND create (R15).
+            description: rolledDescription,
+            lines: rolledLines,
+            // Advance the issue date to the upcoming instance (R4/R14).
+            issued: d.issued ? advance(d.issued) : d.issued,
+            // Client delivery (R17): recipient is filled by the operator in the run
+            // overlay (R5); the message defaults to any saved client-message override
+            // for the template, editable per upcoming row.
+            recipients: undefined as string | undefined,
+            message: clientMsgOverrides[d.id] || undefined
           };
-        }),
-    [docs]
-  );
+        });
+    return {
+      monthly: build("monthly", addOneMonth, rollDescriptionMonth),
+      // Yearly keeps the description as-is (no month roll) and advances a year (R14).
+      yearly: build("yearly", addOneYear, (text) => text)
+    };
+  }, [docs, clientMsgOverrides]);
+  const monthlyRows = recurringRows[runCadence];
 
   return (
     <TemplateProvider>
@@ -793,7 +819,10 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
                 vatMode: form.vatMode,
                 issueDate: form.issued,
                 dueDate: form.due || undefined,
-                recurrence: targetDoc.kind === "credit" ? "none" : "none"
+                // Keep the invoice's existing recurrence on a quiet Save — never
+                // silently turn a monthly invoice one-off (which would drop it out
+                // of the Monthly filter / run). Mirrors onCorrectResendDoc below.
+                recurrence: targetDoc.recurrence ?? "none"
               });
               reconcile(result.documents, id);
               setToast("Invoice updated.");
@@ -862,55 +891,90 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           if (rows.length === 0) return;
           startTransition(async () => {
             let last = null;
+            let emailed = 0;
             for (const r of rows) {
               // Materialize next month's concrete invoice from the recurring
-              // template: roll the month in the description forward (June → July)
-              // and advance the issue date by one month. recurrence stays "none"
-              // so the issued invoice doesn't re-enter next month's run (the
-              // recurring template invoice is what keeps the schedule).
+              // template. The description, line items and issue date were ALREADY
+              // rolled forward ONCE in the monthlyRows mapper (R15) — consume them
+              // verbatim here (and after any in-run edits, R5), never re-rolling or
+              // fabricating a "Recurring charge" line. recurrence stays "none" so
+              // the issued invoice doesn't re-enter next month's run (the recurring
+              // template invoice is what keeps the schedule).
               const rolledLines = (r.lines && r.lines.length)
-                ? r.lines.map((l) => ({ description: rollDescriptionMonth(l.desc), quantity: l.qty, unitPrice: l.unitPrice }))
+                ? r.lines.map((l) => ({ description: l.desc, quantity: l.qty, unitPrice: l.unitPrice }))
                 : undefined;
               last = await createDocumentAction({
                 kind: "invoice",
                 clientName: clientById(r.client).name,
-                description: r.description ? rollDescriptionMonth(r.description) : `Recurring charge — ${r.period}`,
+                description: r.description ?? "",
                 lineItems: rolledLines,
                 amount: r.sub,
                 vatMode: "plus-vat",
-                issueDate: r.issued ? addOneMonth(r.issued) : todayStamp(),
+                issueDate: r.issued || todayStamp(),
                 recurrence: "none"
               });
+              // Deliver each materialized invoice to its client (R17). Reuse the
+              // single email path (CONTRACT-EMAIL) with the row's recipient(s) and
+              // its delivery-message override — no second email path. Best-effort:
+              // a delivery hiccup never blocks the rest of the batch.
+              const createdId = (last.selectedId ?? last.documents[0]?.id) as string | undefined;
+              const recipients = (r.recipients ?? "")
+                .split(/[,;\s]+/)
+                .map((s) => s.trim())
+                .filter(Boolean);
+              if (createdId && recipients.length) {
+                try {
+                  await sendInvoiceEmailAction(
+                    createdId,
+                    recipients.length === 1 ? recipients[0] : recipients,
+                    r.message?.trim() || undefined
+                  );
+                  emailed += 1;
+                } catch (error) {
+                  console.error("Monthly-run email failed for", createdId, error);
+                }
+              }
             }
             if (last) reconcile(last.documents, last.selectedId);
             setRunOpen(false);
-            setToast(`Created ${rows.length} invoice${rows.length === 1 ? "" : "s"} for next month — descriptions rolled forward.`);
+            setToast(
+              `Created ${rows.length} invoice${rows.length === 1 ? "" : "s"} for next month — descriptions rolled forward` +
+                (emailed ? `, emailed ${emailed}.` : ".")
+            );
             // Guarantee the freshly created invoices show immediately without a
             // manual refresh (F3).
             refetchDocuments();
           });
         }}
         onPreview={(rows) => {
-          const previewDocs: Doc[] = rows.map((r) => ({
-            id: r.id,
-            kind: "invoice",
-            stage: "draft",
-            draftNo: r.draftNo,
-            officialNo: null,
-            client: r.client,
-            issued: todayStamp(),
-            due: "",
-            period: r.period,
-            vatRate: 19,
-            vatMode: "plus-vat",
-            lines: [
-              { desc: `Recurring charge — ${r.period}`, qty: 1, unitPrice: r.net },
-              ...(r.extra ? [{ desc: "Additional charges", qty: 1, unitPrice: r.extra }] : [])
-            ],
-            total: r.total,
-            description: "",
-            timeline: []
-          }));
+          const previewDocs: Doc[] = rows.map((r) => {
+            // Consume the precomputed (rolled) description + lines VERBATIM — the
+            // exact values the create path will use (R15) — so the preview, the
+            // list and the materialized invoice never diverge. No fabricated
+            // "Recurring charge" line; fall back to a single net line only when the
+            // template carried no line items at all.
+            const previewLines = (r.lines && r.lines.length)
+              ? r.lines.map((l) => ({ desc: l.desc, qty: l.qty, unitPrice: l.unitPrice }))
+              : [{ desc: r.description || r.period, qty: 1, unitPrice: r.sub }];
+            return {
+              id: r.id,
+              kind: "invoice" as const,
+              stage: "draft" as const,
+              // Upcoming instance has no number yet (R4) — blank.
+              draftNo: r.draftNo || null,
+              officialNo: null,
+              client: r.client,
+              issued: r.issued || todayStamp(),
+              due: "",
+              period: r.period,
+              vatRate: 19,
+              vatMode: "plus-vat" as const,
+              lines: previewLines,
+              total: r.total,
+              description: r.description ?? "",
+              timeline: []
+            };
+          });
           if (previewDocs.length === 0) return;
           setBatchPreview(previewDocs);
           setLightboxDoc(previewDocs[0]);

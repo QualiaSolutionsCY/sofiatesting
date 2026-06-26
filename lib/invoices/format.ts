@@ -37,7 +37,7 @@ export function statusLabel(status: InvoiceDocument["status"]): string {
     "correction-needed": "Correction needed",
     "corrected-resend": "Corrected resend",
     cancelled: "Cancelled",
-    credited: "Credited"
+    credited: "Credit note"
   };
 
   return labels[status];
@@ -63,7 +63,7 @@ export function getUnifiedFilename(document: InvoiceDocument): string {
 }
 
 export function isCommissionDescription(description: string): boolean {
-  return /\bcommission\b|\bproperty sale\b|\bsale of (the )?property\b/i.test(description);
+  return /\bcommission\b|\bproperty sale\b|\bsale of (the )?property\b|\bsale of (the )?(land|plot)\b/i.test(description);
 }
 
 /**
@@ -129,6 +129,23 @@ export function addOneMonth(dateStr: string): string {
   const day = date.getDate();
   date.setDate(1);
   date.setMonth(date.getMonth() + 1);
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  date.setDate(Math.min(day, lastDay));
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Add one calendar year to a `yyyy-mm-dd` date string, clamping the day to the
+ * new month's length (e.g. Feb 29 in a leap year → Feb 28 the next year).
+ * Used for yearly recurrence: next year's invoice keeps the same day-of-month.
+ */
+export function addOneYear(stamp: string): string {
+  if (!stamp) return stamp;
+  const date = new Date(stamp);
+  if (Number.isNaN(date.getTime())) return stamp;
+  const day = date.getDate();
+  date.setDate(1);
+  date.setFullYear(date.getFullYear() + 1);
   const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   date.setDate(Math.min(day, lastDay));
   return date.toISOString().slice(0, 10);

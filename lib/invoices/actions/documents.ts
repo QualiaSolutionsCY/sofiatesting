@@ -57,6 +57,10 @@ export type DocumentsActionResult = {
   deliveries?: DeliveryRecord[];
   mariosNotified?: boolean;
   accountingGroupNotified?: boolean;
+  /** Set when an action was rejected by a server-side rule (e.g. editing a paid
+   * invoice). The document set is returned unchanged so callers can surface this
+   * message without the action throwing. */
+  error?: string;
 };
 
 export async function loadDocumentsAction(): Promise<DocumentsActionResult> {
@@ -83,6 +87,17 @@ export async function updateDocumentAction(
 ): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
+  // Paid-immutable rule, enforced server-side (not only in the DetailPane UI):
+  // once an invoice has been paid/forwarded to accounting its figures are locked,
+  // so reject the edit and return the unchanged set with a clear error rather
+  // than throwing.
+  if (document.status === "sent-to-accounting") {
+    return {
+      ...current,
+      selectedId: id,
+      error: "This invoice has been paid and forwarded to accounting — its details are locked and can't be edited.",
+    };
+  }
   const updated = updateDocumentFromInput(document, input);
   const result = await saveInvoiceDocument(updated, "Document edited");
   return { ...result, selectedId: id };
@@ -366,18 +381,34 @@ const INVOICE_EMAIL_FROM =
 const sendEmailLogger = createLogger("invoices:send-email");
 
 /**
- * Actually EMAIL the document (invoice / receipt / credit note) PDF to a
- * recipient via Resend — the functional "Send email" action. Builds the PDF
- * server-side and attaches it, then records the delivery for the audit trail.
+ * Actually EMAIL the document (invoice / receipt / credit note) PDF to one or
+ * more recipients via Resend — the functional "Send email" action. Builds the
+ * PDF server-side and attaches it, then records the delivery for the audit trail.
+ *
+ * `recipients` is back-compatible: a single string still works (the admin panel
+ * passes one address), and an array sends to every address in one Resend message
+ * (Resend `to:` accepts `string[]`). Used by the Sophia email_invoice flow to
+ * deliver a monthly invoice to accounting + Marios CC + the client at once.
  */
-export async function sendInvoiceEmailAction(id: string, toEmail: string, customMessage?: string): Promise<DocumentsActionResult> {
+export async function sendInvoiceEmailAction(
+  id: string,
+  recipients: string | string[],
+  customMessage?: string
+): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error("Email isn't configured (missing RESEND_API_KEY).");
-  const recipient = (toEmail || "").trim();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(recipient)) throw new Error("Please enter a valid email address.");
+
+  // Normalize to an array, trim, drop blanks, and validate each address.
+  const emailRe = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  const toList = (Array.isArray(recipients) ? recipients : [recipients])
+    .map((r) => (r || "").trim())
+    .filter(Boolean);
+  if (toList.length === 0) throw new Error("Please enter a valid email address.");
+  const invalid = toList.find((r) => !emailRe.test(r));
+  if (invalid) throw new Error("Please enter a valid email address.");
 
   const label = document.kind === "credit-note" ? "Credit note" : document.kind === "receipt" ? "Receipt" : "Invoice";
   const number = getDisplayNumber(document);
@@ -386,7 +417,7 @@ export async function sendInvoiceEmailAction(id: string, toEmail: string, custom
   const resend = new Resend(apiKey);
   const { error } = await resend.emails.send({
     from: INVOICE_EMAIL_FROM,
-    to: recipient,
+    to: toList,
     subject: `${label} ${number} — CSC Zyprus Property Group`,
     text:
       customMessage && customMessage.trim()
@@ -403,7 +434,7 @@ export async function sendInvoiceEmailAction(id: string, toEmail: string, custom
 
   // Record the delivery (audit trail) — best-effort, never fail the send on it.
   try {
-    await queueClientEmail(document, recipient);
+    await queueClientEmail(document, toList.join(", "));
   } catch (e) {
     sendEmailLogger.warn("Delivery record not written after email send", { documentId: id });
   }
@@ -422,6 +453,12 @@ export async function markPaidAndIssueReceiptAction(
   const current = await listInvoiceDocuments();
   const invoice = findDocument(current.documents, id);
   if (invoice.kind !== "invoice") return { ...current, selectedId: id };
+  // A cancelled / credited invoice has been voided — never issue a receipt
+  // against it (mirrors the Sophia intent-handler guard). Return the current
+  // state unchanged rather than minting a receipt for money that wasn't owed.
+  if (invoice.status === "cancelled" || invoice.status === "credited") {
+    return { ...current, selectedId: id };
+  }
 
   const { invoice: paidInvoice, receipt } = markPaidWithReceipt(invoice, current.documents.length + 1);
   // Receipts issued from the admin panel are auto-approved + numbered immediately

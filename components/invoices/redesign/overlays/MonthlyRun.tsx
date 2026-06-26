@@ -9,15 +9,25 @@ export interface MonthlyRow {
   client: string;
   net: number;
   extra: number;
+  // Number column. For UPCOMING (not-yet-issued) rows this is blank "" — the next
+  // instance has no official № until it's materialized on approve (R4).
   draftNo: string;
   period: string;
   sub: number;
   total: number;
   note?: string;
-  // Source template fields used to generate next month's invoice (month-roll).
+  // Precomputed, rolled-forward fields — the SINGLE source of truth shared by the
+  // list, the PDF preview, and the create path (R15). description/lines already
+  // have the month advanced (June → July) so no consumer re-rolls or fabricates a
+  // "Recurring charge" line.
   description?: string;
+  // The issue date for the UPCOMING instance (already advanced one month, R4).
   issued?: string;
   lines?: Array<{ desc: string; qty: number; unitPrice: number }>;
+  // Per-row client delivery (R17): email recipient(s) + message override sent with
+  // the materialized invoice. recipients absent = no email for this row.
+  recipients?: string;
+  message?: string;
 }
 
 interface MonthlyRunProps {
@@ -31,13 +41,23 @@ interface MonthlyRunProps {
 }
 
 export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPause, rows }: MonthlyRunProps) {
-  const run = useMemo<MonthlyRow[]>(() => rows ?? [], [rows]);
+  const source = useMemo<MonthlyRow[]>(() => rows ?? [], [rows]);
 
-  const [picked, setPicked] = useState<Set<string>>(() => new Set(run.map((r) => r.id)));
+  // In-memory, per-row edits for the UPCOMING materialization (R5). Editing a row
+  // here affects ONLY the invoice this run creates — it never mutates the issued
+  // ledger docs the batch was derived from. Seeded from the incoming rows; reset
+  // whenever the run reopens with a fresh source.
+  const [edited, setEdited] = useState<MonthlyRow[]>(source);
+  const run = edited;
+
+  const [picked, setPicked] = useState<Set<string>>(() => new Set(source.map((r) => r.id)));
 
   useEffect(() => {
-    if (open) setPicked(new Set(run.map((r) => r.id)));
-  }, [open, run]);
+    if (open) {
+      setEdited(source);
+      setPicked(new Set(source.map((r) => r.id)));
+    }
+  }, [open, source]);
 
   useEffect(() => {
     if (!open) return;
@@ -57,6 +77,25 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
   const toggleAll = () => {
     if (picked.size === run.length) setPicked(new Set());
     else setPicked(new Set(run.map((r) => r.id)));
+  };
+
+  // Patch one upcoming row in memory. `net`/`sub`/`total` are kept in sync when the
+  // amount is edited so the selected-total and the materialized invoice agree.
+  const patchRow = (id: string, patch: Partial<MonthlyRow>) => {
+    setEdited((prev) =>
+      prev.map((r) => {
+        if (r.id !== id) return r;
+        const next = { ...r, ...patch };
+        if (patch.sub !== undefined) {
+          // Derive the VAT rate from the row's PREVIOUS net→total ratio (default
+          // 19%) so the recomputed total tracks the edited net amount.
+          const rate = r.total && r.sub ? r.total / r.sub - 1 : 0.19;
+          next.net = patch.sub;
+          next.total = patch.sub * (1 + rate);
+        }
+        return next;
+      })
+    );
   };
 
   const pickedRows = run.filter((r) => picked.has(r.id));
@@ -148,8 +187,46 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
                     {cl.property} · {r.period}
                     {r.note ? ` · ${r.note}` : ""}
                   </span>
+                  {/* Editable upcoming-row fields (R5/R17): description, amount,
+                      recipient email and the delivery message. Edits affect ONLY
+                      the invoice this run materializes — never the issued ledger. */}
+                  <div className="run-edit">
+                    <input
+                      type="text"
+                      className="run-edit-field"
+                      value={r.description ?? ""}
+                      placeholder="Description (rolled forward)"
+                      aria-label="Description"
+                      onChange={(e) => patchRow(r.id, { description: e.target.value })}
+                    />
+                    <input
+                      type="number"
+                      className="run-edit-amount"
+                      value={r.sub}
+                      placeholder="Net amount"
+                      aria-label="Net amount"
+                      onChange={(e) => patchRow(r.id, { sub: Number(e.target.value) || 0 })}
+                    />
+                    <input
+                      type="email"
+                      className="run-edit-field"
+                      value={r.recipients ?? ""}
+                      placeholder="Client email (leave blank to skip email)"
+                      aria-label="Client email"
+                      onChange={(e) => patchRow(r.id, { recipients: e.target.value })}
+                    />
+                    <input
+                      type="text"
+                      className="run-edit-field"
+                      value={r.message ?? ""}
+                      placeholder="Delivery message (optional)"
+                      aria-label="Delivery message"
+                      onChange={(e) => patchRow(r.id, { message: e.target.value })}
+                    />
+                  </div>
                 </div>
                 <div className="amt">{fmt(r.total)}</div>
+                {/* Upcoming instances have no number yet (R4) — blank the № cell. */}
                 <div className="ix">{r.draftNo}</div>
               </div>
             );

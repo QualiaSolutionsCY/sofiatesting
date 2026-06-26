@@ -7348,6 +7348,24 @@ kbd {
 }
 .inline-editor-preview-expand:hover { background: oklch(0 0 0); color: oklch(1 0 0); }
 
+/* R13 — on-screen fit indicator. "Live preview" stays left; the scale % + the
+   fullscreen button group on the right so the displayed zoom reads intentionally. */
+.inline-editor-preview-eyebrow > span:first-child { margin-right: auto; }
+.inline-editor-preview-scale {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: oklch(0.45 0 0);
+  background: var(--surface-2, oklch(0.96 0 0));
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 2px 6px;
+  margin-right: 8px;
+  text-transform: none;
+  white-space: nowrap;
+}
+
 .template-preview {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -7902,20 +7920,32 @@ kbd {
   overflow: hidden;
 }
 
-/* Preview takes full container width, full height; no zoom hack */
+/* R13 — Fit-to-width preview. Render the WHOLE A4 page at one deterministic scale
+   (transform: scale(var(--preview-scale)), set in DetailPane from a ResizeObserver)
+   instead of the old zoom/overflow:auto combo that clipped the bottom (totals + bank
+   numbers) behind a scrollbar. The page is laid out at its natural A4 width, scaled
+   down to the column width, top-left origin, so it is fully visible with no clipping.
+   The stage itself owns vertical scroll only if a very tall doc ever exceeds it. */
+.detail-pane .inline-editor-preview-stage {
+  overflow: auto !important;
+}
 .detail-pane .inline-editor-preview-stage .template-preview {
-  zoom: 1 !important;
-  width: 100% !important;
+  zoom: 1 !important; /* override the legacy cascade (1418/2034/6816/6890) deterministically */
+  width: var(--preview-page-width, 794px) !important;
   max-width: none !important;
-  height: 100% !important;
+  height: auto !important;
   min-height: 0 !important;
   margin: 0 !important;
-  overflow: auto !important;
+  overflow: visible !important;
+  transform: scale(var(--preview-scale, 1));
+  transform-origin: top left;
+  flex: 0 0 auto !important;
+  align-self: flex-start !important;
   border: 1px solid var(--line) !important;
   border-radius: 3px !important;
 }
-.detail-pane .inline-editor-preview-stage .template-preview::-webkit-scrollbar { width: 6px; }
-.detail-pane .inline-editor-preview-stage .template-preview::-webkit-scrollbar-thumb {
+.detail-pane .inline-editor-preview-stage::-webkit-scrollbar { width: 6px; }
+.detail-pane .inline-editor-preview-stage::-webkit-scrollbar-thumb {
   background: oklch(0.85 0 0);
   border-radius: 3px;
 }

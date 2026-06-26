@@ -90,6 +90,10 @@ export async function handleManageInvoice(
     dueDays: args.dueDays,
     recurrence: args.recurrence,
     recurrenceDay: args.recurrenceDay,
+    // Forward the requested email recipients so `email_invoice` can send to the
+    // exact addresses the agent named over WhatsApp (R6 multi-email). Without
+    // this the bot path would drop them and fall back to the default recipient.
+    recipients: args.recipients,
   };
 
   const result = await callInvoiceIntent(

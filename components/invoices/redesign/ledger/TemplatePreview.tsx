@@ -50,6 +50,8 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
             <br />
             {tpl.contactLine}
             <br />
+            V.A.T Reg. No. : {tpl.vatNo}
+            <br />
             CREA License No. {tpl.creaLicense}
             <br />
             CREA Reg No. {tpl.creaReg}
@@ -139,7 +141,7 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
         <div style={{ display: "grid", gridTemplateColumns: "auto auto", gap: "4px 24px" }}>
           <span style={{ color: "var(--ink-soft)" }}>Subtotal</span>
           <span style={{ textAlign: "right" }}>€{amount(sub)}</span>
-          <span style={{ color: "var(--ink-soft)" }}>V.A.T {rate}%</span>
+          <span style={{ color: "var(--ink-soft)" }}>V.A.T</span>
           <span style={{ textAlign: "right" }}>€{amount(vat)}</span>
           <span style={{ fontWeight: 700, paddingTop: 6, borderTop: "1px solid var(--ink-soft)" }}>
             Total
@@ -172,16 +174,15 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
               marginBottom: 4
             }}
           >
-            {isReceipt ? "Acknowledgement" : "Settlement"}
+            {isReceipt ? "Acknowledgement" : "Banking Details"}
           </div>
           <div style={{ color: "var(--ink-soft)", lineHeight: 1.55 }}>
             {isReceipt ? (
               <>{tpl.receiptNote}</>
             ) : (
+              // Matches pdf.ts "Banking Details" block — no settlement note, just the
+              // bank lines, so the on-screen preview and the downloaded PDF agree.
               <>
-                {tpl.settlementNote}
-                <br />
-                <br />
                 {tpl.bankName}
                 <br />
                 Account Name: {tpl.accountName}

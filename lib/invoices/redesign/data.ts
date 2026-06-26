@@ -17,7 +17,7 @@ export const STAGES: Record<string, StageDescriptor> = {
   APPROVED: { id: "approved", label: "Approved", chip: "stage-approved" },
   NUMBERED: { id: "numbered", label: "Approved", chip: "stage-numbered" },
   SENT_TO_ACCOUNTING: { id: "sent-to-accounting", label: "Receipt", chip: "stage-sent-to-accounting" },
-  CREDITED: { id: "credited", label: "Credited", chip: "stage-credited" },
+  CREDITED: { id: "credited", label: "Credit note", chip: "stage-credited" },
   CANCELLED: { id: "cancelled", label: "Cancelled", chip: "stage-cancelled" }
 };
 

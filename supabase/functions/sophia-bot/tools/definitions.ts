@@ -740,9 +740,10 @@ export const TOOLS: ToolDefinition[] = [
               "issue_credit_note",
               "resend",
               "send_pdf",
+              "email_invoice",
             ],
             description:
-              "The invoicing action to perform. Use edit_invoice to actually change an existing invoice's fields (description, amount, VAT, or due date) — before OR after approval.",
+              "The invoicing action to perform. Use edit_invoice to actually change an existing invoice's fields (description, amount, VAT, or due date) — before OR after approval. Use email_invoice to EMAIL an invoice's PDF to one or more email addresses (pass them in recipients).",
           },
           client: {
             type: "string",
@@ -784,6 +785,12 @@ export const TOOLS: ToolDefinition[] = [
             type: "string",
             description:
               "For issue_credit_note: the exact message the agent wants sent to the accounting group alongside the credit note. ALWAYS ask the agent what this message should say before issuing a credit note, then pass their answer here.",
+          },
+          recipients: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "For email_invoice: the email address(es) to send the invoice PDF to. When the agent says 'email this invoice to a@x.com and b@y.com', pass BOTH addresses here — Sophia can email an invoice to as many recipients as requested. For a monthly/recurring invoice with no addresses given, leave this empty and the system emails accounting, Marios (CC), and the client automatically.",
           },
           recurrence: {
             type: "string",
