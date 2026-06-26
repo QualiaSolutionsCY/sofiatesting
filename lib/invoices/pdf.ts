@@ -141,10 +141,8 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
     metaY -= 15;
   }
 
-  // ---- Bill To ----
+  // ---- Recipient (client name) — "Bill To" heading removed per client request ----
   let y = Math.min(headerY, metaY) - 18;
-  text(ML, y, isReceipt ? "Received From:" : "Bill To:", 10, true, 0.1);
-  y -= 15;
   text(ML, y, document.clientName, 10, false, 0.15);
   y -= 13;
   if (document.clientEmail) {

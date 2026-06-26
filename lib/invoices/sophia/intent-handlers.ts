@@ -37,6 +37,11 @@ export interface IntentParams {
   amount?: number;
   vatMode?: "plus" | "included" | "none";
   description?: string;
+  /** Recipient email for the invoice, captured the same way the dashboard's
+   * recurring-email field captures it. Stored as the document's clientEmail so
+   * a recurring invoice knows where each issue should be sent. Optional for
+   * one-off invoices. */
+  clientEmail?: string;
   documentId?: string;
   officialNumber?: string;
   correctionReason?: string;
@@ -176,6 +181,10 @@ export async function runIntent(
       const input: DocumentInput = {
         kind: "invoice",
         clientName: params.client,
+        // Capture the recipient email when provided (per SHARED CONTRACT, stored
+        // as the document's clientEmail). Absent → left undefined, preserving the
+        // existing create_draft behaviour for invoices created without an email.
+        clientEmail: params.clientEmail?.trim() || undefined,
         description: stripAgentName(params.description) || "Services rendered",
         amount: params.amount,
         vatMode: mapVat(params.vatMode),

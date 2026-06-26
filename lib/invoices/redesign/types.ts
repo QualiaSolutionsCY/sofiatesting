@@ -46,6 +46,9 @@ export interface Doc {
   officialNo: string | null;
   pdf?: string;
   client: string;
+  // Recipient email the invoice is sent to (DocumentInput.clientEmail ->
+  // InvoiceDocument.clientEmail). Set for any invoice now, not just recurring.
+  clientEmail?: string;
   issued: string;
   due?: string;
   paidOn?: string;

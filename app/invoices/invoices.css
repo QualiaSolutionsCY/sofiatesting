@@ -5177,7 +5177,14 @@ body {
 
 .binder-body {
   position: relative;
-  overflow: hidden;
+  /* Scroll the FULL A4 page vertically inside the lightbox so the bottom of a tall
+     invoice (totals + Banking Details) is always reachable. Page turning stays on the
+     explicit arrows/keys — there is no wheel-to-navigate binding. */
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-block: 38px;
   background:
     /* center spine shadow */
     linear-gradient(90deg, transparent 49%, oklch(0.4 0.02 70 / 0.18) 50%, transparent 51%),
@@ -5186,7 +5193,11 @@ body {
   border-left: 1px solid oklch(0.78 0.03 70);
   border-right: 1px solid oklch(0.78 0.03 70);
   display: grid;
-  place-items: center;
+  /* Pin a tall page to the top (so its letterhead is visible and the rest scrolls into
+     view); only a short page is vertically centred. justify-items keeps it centred
+     horizontally. */
+  align-items: start;
+  justify-items: center;
   padding: 38px 28px;
 }
 .binder-body::before {
@@ -5219,6 +5230,10 @@ body {
 
 .binder-page {
   position: relative;
+  /* Grow to the full natural A4 height of the invoice — never clip the page so the
+     totals + Banking Details block at the bottom is reachable by scrolling .binder-body. */
+  height: auto;
+  max-height: none;
   background: white;
   border: 1px solid oklch(0.85 0.012 80);
   border-radius: 3px;

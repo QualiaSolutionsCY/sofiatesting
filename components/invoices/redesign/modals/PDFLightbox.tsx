@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeft, ArrowRight, Download, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Doc } from "@/lib/invoices/redesign/types";
 import { docToInvoiceDocument } from "@/lib/invoices/redesign/adapter";
 import { clientById } from "@/lib/invoices/redesign/data";
@@ -18,10 +18,17 @@ interface PDFLightboxProps {
 export function PDFLightbox({ doc, allDocs, onClose, onNavigate }: PDFLightboxProps) {
   const [flipping, setFlipping] = useState<string | null>(null);
   const [displayDoc, setDisplayDoc] = useState<Doc | null>(doc);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (doc) setDisplayDoc(doc);
   }, [doc]);
+
+  // Each newly-shown document starts scrolled to its letterhead, not mid-page from the
+  // previous invoice. The body itself scrolls vertically to reveal totals + bank block.
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 });
+  }, [displayDoc?.id]);
 
   useEffect(() => {
     if (!doc || !displayDoc) return;
@@ -103,7 +110,7 @@ export function PDFLightbox({ doc, allDocs, onClose, onNavigate }: PDFLightboxPr
             <X size={15} strokeWidth={1.6} />
           </button>
         </div>
-        <div className="binder-body">
+        <div className="binder-body" ref={bodyRef}>
           <div className={`binder-page-wrap ${flipping || ""}`}>
             <div className="binder-page behind" aria-hidden />
             <div className="binder-page">

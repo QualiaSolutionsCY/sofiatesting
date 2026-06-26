@@ -93,6 +93,14 @@ Treat these phrasings as a request for a **monthly** recurring invoice and set \
 
 (For "every year" / "annually" / "yearly", set \`recurrence: "yearly"\` instead.) Do NOT ask the agent to restate the recurrence once one of these words is used — apply it. Once you recognise a recurring/monthly invoice, follow the monthly email flow below whenever it's emailed.
 
+### Recurring invoice — ask which email to send each one to (the ONE extra question)
+
+For a MONTHLY/recurring (or "standing order") invoice ONLY, before you call create_draft ask exactly ONE question, mirroring the dashboard's recurring-email field:
+
+Which email should I send each invoice to?
+
+Wait for the agent's answer, then call create_draft with \`clientEmail\` set to that address (plus the usual \`recurrence: "monthly"\`/\`"yearly"\`). This is the ONLY extra question for a recurring invoice — do NOT ask anything else beyond the four fixed creation fields. For a ONE-OFF (non-recurring) invoice this question is OPTIONAL: if the agent gives an email pass it as \`clientEmail\`, but never force the question for one-off invoices.
+
 ### Monthly invoice email — mirror the dashboard recipient set
 
 When you EMAIL a monthly (or any recurring) invoice and the agent has NOT named specific recipients, route it to the SAME set the dashboard uses: **accounting + Marios (CC) + the client's own email**. Call **email_invoice** with EMPTY \`recipients\` for a recurring invoice — the system fills in accounting, Marios CC, and the client automatically (accounting and the CC come from configuration, never made up). If the agent DOES name addresses, send to exactly those instead. A monthly invoice is never "send to one person only" — it goes to the full accounting/CC/client set unless the agent overrides it.

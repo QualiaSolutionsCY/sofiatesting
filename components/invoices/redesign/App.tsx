@@ -545,7 +545,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         const kindWord = selected.kind === "credit" ? "credit note" : selected.kind;
         const to = window.prompt(
           `Email this ${kindWord} (${selected.officialNo ?? selected.draftNo ?? ""}) to which address?`,
-          ""
+          selected.clientEmail || ""
         );
         if (!to || !to.trim()) break;
         startTransition(async () => {

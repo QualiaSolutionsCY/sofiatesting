@@ -79,6 +79,10 @@ export async function handleManageInvoice(
 
   const params: Record<string, unknown> = {
     client: args.client,
+    // Forward the recipient email so create_draft can store it as the document's
+    // clientEmail (per SHARED CONTRACT). For monthly/recurring invoices Sophia
+    // asks Marios which email to send each invoice to and passes it here.
+    clientEmail: args.clientEmail,
     amount: args.amount,
     vatMode: args.vatMode,
     description: args.description,

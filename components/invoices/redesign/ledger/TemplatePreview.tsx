@@ -85,17 +85,6 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
       </div>
 
       <div className="template-bill-to">
-        <div
-          style={{
-            fontSize: ".7rem",
-            letterSpacing: ".14em",
-            textTransform: "uppercase",
-            color: "var(--muted)",
-            marginBottom: 6
-          }}
-        >
-          {isReceipt ? "Received from" : "Bill to"}
-        </div>
         <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>{cl.name}</div>
         {cl.vat && cl.vat !== "—" ? <div style={{ color: "var(--ink-soft)" }}>VAT&nbsp;{cl.vat}</div> : null}
       </div>

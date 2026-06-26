@@ -68,6 +68,8 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
         initial.vatMode === "included-vat" ? "included-vat" : initial.vatMode === "no-vat" ? "no-vat" : "plus-vat"
       );
       setDescription(initial.description || "");
+      setRecurrence(initial.recurrence ?? "none");
+      setRecurrenceEmail(initial.clientEmail ?? "");
       setCommission(!!initial.commission);
       setAgent(initial.commission?.agent ?? "");
       const seed: LocalLine[] = initial.lines && initial.lines.length
@@ -197,7 +199,9 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
       lines: lines.map(({ desc, qty, unitPrice }) => ({ desc, qty: Number(qty), unitPrice: Number(unitPrice) })),
       description,
       recurrence,
-      recurrenceEmail: recurrence !== "none" ? recurrenceEmail.trim() : "",
+      // The email field is now shown for every invoice (not just recurring) and
+      // maps to clientEmail (SHARED CONTRACT). Send it for ALL documents.
+      recurrenceEmail: recurrenceEmail.trim(),
       commission: commission ? { agent, rate: "5%", amount: sub * 0.05 } : null,
       newClient: createdClient,
       sourceInvoiceId: isSourceMode ? sourceInvoiceId : undefined,
@@ -483,17 +487,19 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
               <option value="yearly">Yearly · same date each year</option>
             </select>
           </label>
-          {recurrence !== "none" ? (
-            <label style={{ gridColumn: "1 / -1" }}>
-              <span>Send recurring invoice to (email)</span>
-              <input
-                type="email"
-                value={recurrenceEmail}
-                onChange={(event) => setRecurrenceEmail(event.target.value)}
-                placeholder="client@example.com — Sophia emails each invoice here"
-              />
-            </label>
-          ) : null}
+          <label style={{ gridColumn: "1 / -1" }}>
+            <span>Client email (where the invoice is sent)</span>
+            <input
+              type="email"
+              value={recurrenceEmail}
+              onChange={(event) => setRecurrenceEmail(event.target.value)}
+              placeholder={
+                recurrence !== "none"
+                  ? "client@example.com — Sophia emails each recurring invoice here"
+                  : "client@example.com — where this invoice is emailed"
+              }
+            />
+          </label>
           <label>
             <span>Commission flag</span>
             <select value={commission ? "yes" : "no"} onChange={(event) => setCommission(event.target.value === "yes")}>

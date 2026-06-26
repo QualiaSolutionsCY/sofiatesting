@@ -58,6 +58,7 @@ export function invoiceToDoc(invoice: InvoiceDocument): Doc {
     officialNo: invoice.officialNumber ?? null,
     pdf: invoice.storagePath ? invoice.storagePath.split("/").at(-1) : undefined,
     client: clientIdFromName(invoice.clientName),
+    clientEmail: invoice.clientEmail ?? undefined,
     issued: invoice.issueDate,
     due: invoice.dueDate,
     paidOn: invoice.paidAt,

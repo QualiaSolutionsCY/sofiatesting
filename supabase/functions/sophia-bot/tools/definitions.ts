@@ -749,6 +749,11 @@ export const TOOLS: ToolDefinition[] = [
             type: "string",
             description: "Client / tenant name (for create_draft, or to locate a document)",
           },
+          clientEmail: {
+            type: "string",
+            description:
+              "For create_draft: the email address each invoice should be sent to. For a MONTHLY/recurring (or 'standing order') invoice you MUST first ask the agent 'Which email should I send each invoice to?' and pass their answer here (this mirrors the dashboard's recurring-email field). Optional for one-off invoices.",
+          },
           amount: { type: "number", description: "Amount in EUR (for create_draft)" },
           vatMode: {
             type: "string",

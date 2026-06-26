@@ -385,6 +385,9 @@ const manageInvoiceSchema = z.object({
     "email_invoice",
   ]),
   client: z.string().max(200).optional(),
+  // Recipient email for create_draft (mirrors the dashboard's recurring-email
+  // field). Stored as the document's clientEmail. Optional for one-off invoices.
+  clientEmail: optionalEmail(),
   amount: z.number().min(0).max(100_000_000).optional(),
   vatMode: z.enum(["plus", "included", "none"]).optional(),
   description: z.string().max(2000).optional(),
