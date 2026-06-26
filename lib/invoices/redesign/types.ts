@@ -160,5 +160,5 @@ export interface ConfirmState {
   confirmLabel?: string;
   cancelLabel?: string;
   onConfirm?: (reason?: string) => void;
-  prompt?: { label: string; placeholder?: string; required?: boolean };
+  prompt?: { label: string; placeholder?: string; required?: boolean; initial?: string };
 }

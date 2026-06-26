@@ -579,7 +579,8 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           confirmLabel: "Save email",
           prompt: {
             label: "Client email",
-            placeholder: existing || "client@example.com",
+            placeholder: "client@example.com",
+            initial: existing,
             required: false
           },
           onConfirm: (text) => {
@@ -624,7 +625,8 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           confirmLabel: "Save message",
           prompt: {
             label: "Client message",
-            placeholder: existing || "Dear {client}, please find your invoice attached…",
+            placeholder: "Dear {client}, please find your invoice attached…",
+            initial: existing,
             required: false
           },
           onConfirm: (text) => {

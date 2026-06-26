@@ -11,8 +11,10 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({ state, onClose }: ConfirmDialogProps) {
   const [reason, setReason] = useState("");
 
+  // Seed the field with the existing value (e.g. the current recipient email or saved
+  // message) so the operator can EDIT it, not retype from scratch. Falls back to empty.
   useEffect(() => {
-    setReason("");
+    setReason(state?.prompt?.initial ?? "");
   }, [state]);
 
   const reasonRequired = !!state?.prompt?.required;

@@ -38,6 +38,24 @@ function writeDeliveryDrafts(map: Record<string, DeliveryDraft>) {
   }
 }
 
+// Rebuild a row's line items from the single description/net the run row exposes, so
+// the PDF preview AND the materialized invoice reflect run edits live — not just the
+// right-hand total. Extra lines are preserved: the first line carries the edited
+// description and absorbs any net delta so the line-sum still equals the shown net.
+function syncRowLines(row: MonthlyRow, changed: { description?: boolean; sub?: boolean }): MonthlyRow["lines"] {
+  const lines =
+    row.lines && row.lines.length
+      ? row.lines.map((l) => ({ ...l }))
+      : [{ desc: row.description ?? "", qty: 1, unitPrice: row.sub }];
+  if (changed.description) lines[0] = { ...lines[0], desc: row.description ?? "" };
+  if (changed.sub) {
+    const others = lines.slice(1).reduce((s, l) => s + l.qty * l.unitPrice, 0);
+    const qty = lines[0].qty || 1;
+    lines[0] = { ...lines[0], unitPrice: (row.sub - others) / qty };
+  }
+  return lines;
+}
+
 export interface MonthlyRow {
   id: string;
   client: string;
@@ -143,6 +161,10 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
             next.net = d.sub;
             next.total = d.sub * (1 + rate);
           }
+          // Keep line items in sync so the restored draft's preview matches the edits.
+          if (d.description !== undefined || d.sub !== undefined) {
+            next.lines = syncRowLines(next, { description: d.description !== undefined, sub: d.sub !== undefined });
+          }
           return next;
         })
       );
@@ -198,6 +220,11 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
           const rate = r.total && r.sub ? r.total / r.sub - 1 : 0.19;
           next.net = patch.sub;
           next.total = patch.sub * (1 + rate);
+        }
+        // Sync the line items to the edited description/amount so the PDF preview and
+        // the created invoice update in real time — not just the right-hand total.
+        if (patch.description !== undefined || patch.sub !== undefined) {
+          next.lines = syncRowLines(next, { description: patch.description !== undefined, sub: patch.sub !== undefined });
         }
         return next;
       })
