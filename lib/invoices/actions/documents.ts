@@ -194,18 +194,31 @@ async function notifyMariosOverWhatsApp(
     }
 
     const pdf = Buffer.from(buildDocumentPdfBytes(document));
-    const sent = await client.sendDocument({
-      to: marios.msisdn,
-      document: pdf,
-      filename: getUnifiedFilename(document),
-      caption,
-    });
+    const sendDoc = () =>
+      client.sendDocument({
+        to: marios.msisdn,
+        document: pdf,
+        filename: getUnifiedFilename(document),
+        caption,
+      });
+
+    // The approve / credit-note flows post the PDF to the accounting group
+    // IMMEDIATELY before this Marios send, and WaSender can rate-limit (429) the
+    // back-to-back second document send — which previously dropped Marios's copy of
+    // the approved invoice / credit note (or fell through to a misleading text).
+    // Retry the document send a couple of times with a short backoff so Marios
+    // RELIABLY receives the actual PDF, not just a description.
+    let sent = await sendDoc();
+    for (let attempt = 0; attempt < 2 && !sent.success; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
+      sent = await sendDoc();
+    }
 
     if (sent.success) {
       return true;
     }
 
-    sendLogger.error("WhatsApp document send to Marios failed; falling back to text", undefined, {
+    sendLogger.error("WhatsApp document send to Marios failed after retries; falling back to text", undefined, {
       documentId: document.id,
       error: sent.error,
     });
