@@ -919,6 +919,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       <MonthlyRunOverlay
         open={runOpen}
         rows={monthlyRows}
+        cadence={runCadence}
         onClose={() => setRunOpen(false)}
         onApproveAll={(rows) => {
           if (rows.length === 0) return;

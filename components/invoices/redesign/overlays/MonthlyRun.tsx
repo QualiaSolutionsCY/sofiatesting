@@ -1,8 +1,38 @@
 "use client";
 
 import { Check, Eye, Pause, Send, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { clientById, fmt } from "@/lib/invoices/redesign/data";
+
+// Auto-saved per-row delivery drafts (client email + message) for the recurring run.
+// Persisted to localStorage so a half-filled recipient/message survives closing the
+// overlay or a page reload — the operator never re-types a delivery they already set.
+// Keyed by `${cadence}:${rowId}`; ONLY the delivery fields are stored (never the
+// rolled description/amount, which must always come fresh from the upcoming instance).
+const DELIVERY_DRAFT_KEY = "sophia.run.delivery-drafts.v1";
+
+interface DeliveryDraft {
+  recipients?: string;
+  message?: string;
+}
+
+function readDeliveryDrafts(): Record<string, DeliveryDraft> {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(window.localStorage.getItem(DELIVERY_DRAFT_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeDeliveryDrafts(map: Record<string, DeliveryDraft>) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(DELIVERY_DRAFT_KEY, JSON.stringify(map));
+  } catch {
+    // Best-effort: a full/blocked localStorage must not break the run.
+  }
+}
 
 export interface MonthlyRow {
   id: string;
@@ -38,9 +68,12 @@ interface MonthlyRunProps {
   onPause: () => void;
   // Real monthly-recurring invoices to run this batch from.
   rows?: MonthlyRow[];
+  // Which cadence this run shows — scopes the auto-saved delivery drafts so a
+  // monthly row's draft never leaks onto the same client's yearly row (R14).
+  cadence?: "monthly" | "yearly";
 }
 
-export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPause, rows }: MonthlyRunProps) {
+export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPause, rows, cadence = "monthly" }: MonthlyRunProps) {
   const source = useMemo<MonthlyRow[]>(() => rows ?? [], [rows]);
 
   // In-memory, per-row edits for the UPCOMING materialization (R5). Editing a row
@@ -52,12 +85,38 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
 
   const [picked, setPicked] = useState<Set<string>>(() => new Set(source.map((r) => r.id)));
 
+  // Row ids currently showing the "Draft saved" cue. Each auto-save flashes the cue
+  // for its row, then it fades. Per-row debounce + flash timers live in refs so they
+  // survive re-renders and can be cleared on unmount.
+  const [savedRows, setSavedRows] = useState<Set<string>>(new Set());
+  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const flashTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
   useEffect(() => {
     if (open) {
-      setEdited(source);
+      // Seed from the rolled-forward source, then layer any auto-saved delivery draft
+      // (client email + message) on top so an in-progress delivery survives reopen.
+      const drafts = readDeliveryDrafts();
+      setEdited(
+        source.map((r) => {
+          const d = drafts[`${cadence}:${r.id}`];
+          return d
+            ? { ...r, recipients: d.recipients ?? r.recipients, message: d.message ?? r.message }
+            : r;
+        })
+      );
       setPicked(new Set(source.map((r) => r.id)));
     }
-  }, [open, source]);
+  }, [open, source, cadence]);
+
+  // Clear any pending timers on unmount so a debounced save can't fire into a gone tree.
+  useEffect(
+    () => () => {
+      Object.values(saveTimers.current).forEach(clearTimeout);
+      Object.values(flashTimers.current).forEach(clearTimeout);
+    },
+    []
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -96,6 +155,38 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
         return next;
       })
     );
+  };
+
+  // Patch + auto-save a delivery field (client email / message). Updates the in-memory
+  // row immediately, then debounces a write to the localStorage draft and flashes the
+  // "Draft saved" cue for that row. Only delivery fields are persisted (see DRAFT_KEY).
+  const patchDelivery = (id: string, patch: DeliveryDraft) => {
+    patchRow(id, patch);
+    clearTimeout(saveTimers.current[id]);
+    saveTimers.current[id] = setTimeout(() => {
+      const map = readDeliveryDrafts();
+      const key = `${cadence}:${id}`;
+      map[key] = { ...(map[key] || {}), ...patch };
+      writeDeliveryDrafts(map);
+      // Flash "saved" for this row, then fade.
+      setSavedRows((prev) => new Set(prev).add(id));
+      clearTimeout(flashTimers.current[id]);
+      flashTimers.current[id] = setTimeout(() => {
+        setSavedRows((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }, 1600);
+    }, 450);
+  };
+
+  // Drop the auto-saved drafts for rows we just materialized — the delivery has been
+  // consumed, so it must not reappear as a stale draft on next month's run.
+  const clearDrafts = (ids: string[]) => {
+    const map = readDeliveryDrafts();
+    ids.forEach((id) => delete map[`${cadence}:${id}`]);
+    writeDeliveryDrafts(map);
   };
 
   const pickedRows = run.filter((r) => picked.has(r.id));
@@ -193,7 +284,7 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
                   <div className="run-edit">
                     <input
                       type="text"
-                      className="run-edit-field"
+                      className="run-edit-field run-edit-desc"
                       value={r.description ?? ""}
                       placeholder="Description (rolled forward)"
                       aria-label="Description"
@@ -209,20 +300,26 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
                     />
                     <input
                       type="email"
-                      className="run-edit-field"
+                      className="run-edit-field run-edit-email"
                       value={r.recipients ?? ""}
                       placeholder="Client email (leave blank to skip email)"
                       aria-label="Client email"
-                      onChange={(e) => patchRow(r.id, { recipients: e.target.value })}
+                      onChange={(e) => patchDelivery(r.id, { recipients: e.target.value })}
                     />
                     <input
                       type="text"
-                      className="run-edit-field"
+                      className="run-edit-field run-edit-msg"
                       value={r.message ?? ""}
                       placeholder="Delivery message (optional)"
                       aria-label="Delivery message"
-                      onChange={(e) => patchRow(r.id, { message: e.target.value })}
+                      onChange={(e) => patchDelivery(r.id, { message: e.target.value })}
                     />
+                    <span
+                      className={`run-edit-saved ${savedRows.has(r.id) ? "is-shown" : ""}`}
+                      aria-live="polite"
+                    >
+                      <Check size={10} strokeWidth={2.2} /> Draft saved
+                    </span>
                   </div>
                 </div>
                 <div className="amt">{fmt(r.total)}</div>
@@ -245,6 +342,7 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
               type="button"
               className="primary"
               onClick={() => {
+                clearDrafts(pickedRows.map((r) => r.id));
                 onApproveAll(pickedRows);
                 onClose();
               }}

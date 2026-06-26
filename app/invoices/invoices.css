@@ -4428,6 +4428,69 @@ body {
   text-align: right;
 }
 
+/* Per-row delivery editor (description / net / client email / message). Laid out on a
+   2-column grid so nothing is cut: description + message span the full width, the net
+   amount and the client email share a row. Inputs inherit the composer field treatment
+   (surface, hairline, brand focus ring) instead of raw browser defaults. */
+.run-edit {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 8px 10px;
+  align-items: center;
+  margin-top: 12px;
+  max-width: 580px;
+}
+.run-edit input {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 12px;
+  border: var(--hairline);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.01em;
+  transition: border-color 160ms var(--ease), background 160ms var(--ease), box-shadow 160ms var(--ease);
+}
+.run-edit input::placeholder { color: var(--muted); }
+.run-edit input:focus-visible {
+  outline: none;
+  border-color: var(--brand);
+  background: var(--surface);
+  box-shadow: var(--ring);
+}
+.run-edit .run-edit-desc { grid-column: 1 / -1; }
+.run-edit .run-edit-amount { grid-column: 1; font-variant-numeric: tabular-nums lining-nums; }
+.run-edit .run-edit-email { grid-column: 2; }
+.run-edit .run-edit-msg { grid-column: 1 / -1; }
+
+/* Auto-save cue — appears on the row after a debounced save, then fades. */
+.run-edit-saved {
+  grid-column: 1 / -1;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 0;
+  margin-top: -8px;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--brand-strong);
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 200ms var(--ease), transform 200ms var(--ease);
+  pointer-events: none;
+}
+.run-edit-saved.is-shown {
+  height: auto;
+  margin-top: 0;
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .run-foot {
   display: flex;
   justify-content: space-between;
@@ -4477,6 +4540,82 @@ body {
   cursor: pointer;
 }
 .run-foot .acts button.ghost:hover { background: oklch(0 0 0 / 0.04); }
+
+/* ── Recurring-run overlay — phone responsiveness (≤720px) ───────────────
+   On phones the overlay becomes a full-screen sheet: roomy edges, a stacked
+   header, wrapping controls, and a per-row delivery editor that drops to a
+   single column of touch-sized fields. Inputs are 16px here so iOS Safari
+   doesn't auto-zoom the viewport when the client email / message is focused. */
+@media (max-width: 720px) {
+  .run-backdrop { padding: 0; }
+  .run-shell {
+    width: 100%;
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+
+  .run-head { grid-template-columns: 1fr; gap: 6px; padding: 20px 18px 0; }
+  .run-head h2 { font-size: clamp(1.4rem, 6.5vw, 1.85rem); }
+  .run-head .by-sophia { margin-top: 8px; }
+  .run-sum { text-align: left; }
+  .run-sum strong { font-size: clamp(1.7rem, 9vw, 2.1rem); }
+  .run-sum span { margin-top: 2px; }
+
+  .run-controls { flex-wrap: wrap; gap: 12px; padding: 14px 18px 12px; }
+  .run-controls .left { width: 100%; }
+  .run-controls .right { width: 100%; flex-wrap: wrap; gap: 8px; }
+  .run-controls .right button.ghost {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 40px;
+    padding: 8px 10px;
+  }
+
+  .run-list { padding: 0 18px; }
+  .run-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "check who"
+      "amt   amt";
+    gap: 4px 12px;
+    align-items: start;
+    padding: 18px 0;
+  }
+  .run-row .check { grid-area: check; margin-top: 2px; }
+  .run-row .who { grid-area: who; }
+  .run-row .amt { grid-area: amt; justify-self: end; font-size: 1.18rem; }
+  /* Upcoming rows carry no official № yet — drop the blank column on phones. */
+  .run-row .ix { display: none; }
+
+  .run-edit {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 14px;
+    max-width: none;
+  }
+  .run-edit .run-edit-desc,
+  .run-edit .run-edit-amount,
+  .run-edit .run-edit-email,
+  .run-edit .run-edit-msg { grid-column: 1 / -1; }
+  .run-edit input { min-height: 44px; font-size: 16px; }
+  .run-edit-saved { justify-self: start; font-size: 0.72rem; }
+
+  .run-foot {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 16px 18px;
+  }
+  .run-foot .acts { width: 100%; }
+  .run-foot .acts button.primary,
+  .run-foot .acts button.ghost {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 46px;
+  }
+}
 
 /* ── Welcome empty state (no doc selected) ───────────────────────────── */
 .welcome-state {
