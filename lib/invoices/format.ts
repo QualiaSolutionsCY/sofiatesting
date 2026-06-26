@@ -63,10 +63,12 @@ export function getUnifiedFilename(document: InvoiceDocument): string {
 }
 
 export function isCommissionDescription(description: string): boolean {
-  // An agent earns commission on both SALES and RENTALS, so "sale of …" and
-  // "rent of …" / "letting of …" are commission triggers too — not just the
-  // literal word "commission" (Marios's rule).
-  return /\bcommission\b|\bproperty sale\b|\bsale of\b|\brent of\b|\bletting of\b/i.test(description);
+  // Marios's rule: ONLY three triggers start the commission flow (and the
+  // "which agent?" question) — "commission", "sale of …", and "rent of …" /
+  // "rental of …" (an agent earns commission on rentals as well as sales). ANY
+  // other description (plain "rent" / "monthly rent", cleaning, consulting,
+  // management fee, services, …) is a NORMAL invoice — never asked about an agent.
+  return /\bcommission\b|\bsale of\b|\brent(al)? of\b/i.test(description);
 }
 
 /**

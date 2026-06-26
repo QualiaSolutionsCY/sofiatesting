@@ -28,14 +28,22 @@ test("R8 — commission is recognised from the agent's own words", async (t) => 
     assert.equal(isCommissionDescription("Fee for the sale of land at Paphos"), true);
     assert.equal(isCommissionDescription("sale of the plot 5"), true);
   });
-  await t.test("'rent of …' / 'letting of …' is a rental commission (agent earns on rentals too)", () => {
+  await t.test("'rent of …' / 'rental of …' is a rental commission (agent earns on rentals too)", () => {
     assert.equal(isCommissionDescription("Commission for the rent of flat 5, Tala"), true);
     assert.equal(isCommissionDescription("rent of apartment 12, Kato Paphos"), true);
-    assert.equal(isCommissionDescription("letting of the villa at Coral Bay"), true);
+    assert.equal(isCommissionDescription("rental of the villa at Coral Bay"), true);
   });
-  await t.test("a plain monthly rental is NOT a commission (no 'rent of')", () => {
+  await t.test("Marios's rule: ANY word except commission / sale of / rent(al) of is a NORMAL invoice", () => {
+    // These three are the ONLY triggers — everything else proceeds normally with
+    // no "which agent?" question.
     assert.equal(isCommissionDescription("Monthly rent for June 2026"), false);
+    assert.equal(isCommissionDescription("rent for June"), false);
     assert.equal(isCommissionDescription("Consulting services"), false);
+    assert.equal(isCommissionDescription("Cleaning services 500 euros"), false);
+    assert.equal(isCommissionDescription("Management fee for July"), false);
+    assert.equal(isCommissionDescription("Reservation deposit"), false);
+    assert.equal(isCommissionDescription("letting of the villa"), false); // 'letting of' is NOT a trigger
+    assert.equal(isCommissionDescription("property sale 382"), false); // 'property sale' alone is NOT a trigger
   });
 });
 
