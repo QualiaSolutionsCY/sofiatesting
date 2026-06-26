@@ -158,9 +158,9 @@ async function notifyMariosOverWhatsApp(
   }
 
   const displayNumber = getDisplayNumber(document);
-  const correctionLine = document.correctionReason
-    ? `\nCorrection: ${document.correctionReason}. Please ignore the previous version.`
-    : "";
+  // The cancellation / correction reason is NEVER placed on a caption — it must not
+  // appear on or alongside any invoice/receipt/credit-note. (correctionReason stays
+  // on the record for the audit trail only.)
   // A caller-supplied caption (Marios edited the message before sending — the
   // "Edit message" action) wins over the default. An empty override means
   // "send blank — just the PDF", per Marios's no-description rule.
@@ -169,20 +169,18 @@ async function notifyMariosOverWhatsApp(
   const caption = opts.override !== undefined
     ? opts.override.trim()
     : document.kind === "credit-note"
-    // Credit notes KEEP their cancellation reason — the accountant must know why
-    // the invoice was voided (Marios's explicit exception to the blank rule).
     ? `Credit note ${displayNumber}\n` +
-      `Client: ${document.clientName}${correctionLine}\n\n` +
+      `Client: ${document.clientName}\n\n` +
       `Your copy — invoice ${document.sourceInvoiceNumber || "—"} was cancelled. PDF attached.`
     // Marios's copy is BLANK — just the PDF, no description (his "be blunt, just
-    // the PDF" rule). A correction keeps the "ignore the previous version" note.
+    // the PDF" rule).
     : document.kind === "receipt"
     ? ""
     : opts.approved
-    ? correctionLine.trim()
+    ? ""
     // The review request keeps its instructions so reply-to-approve still works.
     : `Invoice for review: ${displayNumber}\n` +
-      `Client: ${document.clientName}${correctionLine}\n\n` +
+      `Client: ${document.clientName}\n\n` +
       `Reply ✓ to approve, or reply with the correction needed.`;
 
   try {
@@ -369,11 +367,9 @@ export async function correctResendAction(
   // and sendDocumentToAccountingGroup rebuilds the PDF from `updated`, so the group
   // receives the corrected content. Best-effort: a failed send never breaks the save.
   // Mirrors resendCorrectedInvoiceAction (the inline-editor / Sophia path).
-  const trimmed = (reason || "").trim();
+  // The correction reason is NEVER placed on a caption sent with the document.
   const groupCaption =
-    `Corrected invoice ${getDisplayNumber(updated)} — please use this version` +
-    (trimmed ? ` (${trimmed})` : "") +
-    `. Ignore the previous one.`;
+    `Corrected invoice ${getDisplayNumber(updated)} — please use this version. Ignore the previous one.`;
   await sendDocumentToAccountingGroup(updated, groupCaption);
   await notifyMariosOverWhatsApp(updated, { approved: true });
   return { ...result, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
@@ -504,10 +500,11 @@ export async function cancelWithCreditNoteAction(id: string, reason?: string): P
     current.documents.length + 1,
     trimmedReason ? `Invoice cancelled. Reason: ${trimmedReason}` : undefined
   );
-  // Carry the operator's reason onto the credit note so the group message + audit trail show it,
-  // AND print it on the credit-note PDF (appended to the description so the accountant sees why).
+  // Keep the operator's reason on the record (correctionReason) for the audit trail
+  // ONLY — never append it to the credit-note description, which is rendered on the
+  // PDF body and the on-screen preview. The reason must not appear on any document.
   const creditNoteWithReason = trimmedReason
-    ? { ...creditNote, correctionReason: trimmedReason, description: `${creditNote.description}\nReason: ${trimmedReason}` }
+    ? { ...creditNote, correctionReason: trimmedReason }
     : creditNote;
   // Credit notes are auto-approved on creation (never left as drafts): apply the
   // official number immediately and file the note under "Credited".
@@ -521,7 +518,7 @@ export async function cancelWithCreditNoteAction(id: string, reason?: string): P
     "Invoice cancelled with auto-approved credit note"
   );
   await queueCreditNoteDelivery(approvedCreditNote);
-  await notifyGroupOfCreditNote(cancelledInvoice, approvedCreditNote, trimmedReason);
+  await notifyGroupOfCreditNote(cancelledInvoice, approvedCreditNote);
   // Marios ALWAYS gets his own copy of the credit note, not only the group.
   await notifyMariosOverWhatsApp(approvedCreditNote);
   return {
@@ -532,19 +529,18 @@ export async function cancelWithCreditNoteAction(id: string, reason?: string): P
 }
 
 /**
- * Send the linked credit note to the accounting/CSC group with the operator's reason,
- * so the group reads the cancellation context alongside the credit note PDF. Best-effort.
+ * Send the linked credit note to the accounting/CSC group, referencing the cancelled
+ * invoice number only — the cancellation reason is NEVER included on or alongside the
+ * document. Best-effort.
  */
 async function notifyGroupOfCreditNote(
   invoice: InvoiceDocument,
-  creditNote: InvoiceDocument,
-  reason: string
+  creditNote: InvoiceDocument
 ): Promise<void> {
   const invoiceNumber = getDisplayNumber(invoice);
   const creditNumber = getDisplayNumber(creditNote);
-  const reasonLine = reason ? ` The reason is: ${reason}.` : "";
   const caption =
-    `Credit note ${creditNumber} regarding the cancellation of invoice ${invoiceNumber}.${reasonLine}`;
+    `Credit note ${creditNumber} regarding the cancellation of invoice ${invoiceNumber}.`;
 
   // Group number from env only — never fall back to anyone's personal number.
   const groupMsisdn = process.env.INVOICE_ACCOUNTING_GROUP_MSISDN?.trim() || undefined;
@@ -698,11 +694,9 @@ export async function resendCorrectedInvoiceAction(
     sendLogger.warn("Corrected-resend delivery record not written", { documentId: id });
   }
   // Resend immediately to the accounting group + Marios with the ignore-previous
-  // note. The correction reason is the explicit exception to the blank rule.
+  // note. The correction reason is NEVER placed on the caption.
   const groupCaption =
-    `Corrected invoice ${getDisplayNumber(corrected)} — please use this version` +
-    (trimmed ? ` (${trimmed})` : "") +
-    `. Ignore the previous one.`;
+    `Corrected invoice ${getDisplayNumber(corrected)} — please use this version. Ignore the previous one.`;
   await sendDocumentToAccountingGroup(corrected, groupCaption);
   await notifyMariosOverWhatsApp(corrected, { approved: true });
   return { ...result, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };

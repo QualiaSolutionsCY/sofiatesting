@@ -103,8 +103,9 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   // Mirrors Marios's template (Invoice 11491): no status stamp; the document title
   // sits near the top, the company letterhead on the left, the Date / No. / Due
   // meta on the right (label + value, both left-aligned).
-  const titleCenterX = 360;
-  text(titleCenterX - textWidth(title, 22, true) / 2, 768, title, 22, true, 0.1);
+  // Title is RIGHT-anchored to the table's right margin (over the meta block),
+  // not centred — matches the preview h3 (text-align: right).
+  textRight(MR, 768, title, 22, true, 0.1);
 
   // Company letterhead (left).
   let headerY = 708;
@@ -142,22 +143,19 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   }
 
   // ---- Recipient (client name) — "Bill To" heading removed per client request ----
-  let y = Math.min(headerY, metaY) - 18;
+  // No client email under the name (kept only for sending); the table sits tight
+  // beneath the name.
+  let y = Math.min(headerY, metaY) - 14;
   text(ML, y, document.clientName, 10, false, 0.15);
-  y -= 13;
-  if (document.clientEmail) {
-    text(ML, y, document.clientEmail, 9, false, 0.35);
-    y -= 12;
-  }
-  y -= 18;
+  y -= 8;
 
   // ---- Line-item table: Item | Description | Unit Price | Total ----
   // Matches TemplatePreview exactly: an Item-number column, NO Qty column.
   const xItemDiv = 92;   // Item | Description divider
-  const xUnitDiv = 432;  // Description | Unit Price divider (wide Description, like 11491)
-  const xTotalDiv = 490; // Unit Price | Total divider
-  const unitR = 486;
-  const totalR = MR - 8;
+  const xUnitDiv = 408;  // Description | Unit Price divider (wider Unit Price column so numbers fit)
+  const xTotalDiv = 484; // Unit Price | Total divider
+  const unitR = xTotalDiv - 6; // value right-edge 6pt inside its right divider
+  const totalR = MR - 6;       // value right-edge 6pt inside the right border
   const headerH = 22;
   const tableTop = y;
 
@@ -218,7 +216,7 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   // Credit notes store a negative total; show the magnitude (the "Balance credited"
   // label carries the sign).
   const totalDisplay = eur(Math.abs(document.total));
-  const valR = MR - 4;        // values right-aligned here
+  const valR = MR - 6;        // values right-aligned here (6pt inside the right border)
   const labelR = valR - 86;   // labels right-aligned just left of the value column
   let ty = bottom - 22;
   const totalsRow = (label: string, value: string, bold: boolean) => {

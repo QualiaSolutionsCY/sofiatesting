@@ -3065,7 +3065,8 @@ em, i, .filters-disclosure > summary em {
   background: oklch(0.998 0.002 95);
   color: var(--ink);
   padding: 0;
-  font-family: "Georgia", "Times New Roman", serif;
+  /* Match the downloaded PDF, which embeds Times-Roman / Times-Bold (pdf.ts). */
+  font-family: "Times New Roman", Times, serif;
 }
 
 .template-preview-bar {
@@ -3121,9 +3122,10 @@ em, i, .filters-disclosure > summary em {
 
 .template-header h3 {
   color: var(--ink);
-  font-family: "Georgia", "Times New Roman", serif;
+  /* Match the PDF title (Times-Bold, right-anchored to the right margin, pdf.ts). */
+  font-family: "Times New Roman", Times, serif;
   font-size: 1.85rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.01em;
   margin-bottom: 10px;
   text-align: right;
@@ -3157,8 +3159,9 @@ em, i, .filters-disclosure > summary em {
 }
 
 .template-bill-to {
-  margin-top: 28px;
-  margin-bottom: 20px;
+  /* Name sits tight against the line-items table (mirrors pdf.ts y -= 8). */
+  margin-top: 16px;
+  margin-bottom: 4px;
   display: grid;
   gap: 3px;
   font-size: 1.05rem;
@@ -3172,7 +3175,9 @@ em, i, .filters-disclosure > summary em {
 
 .template-table th,
 .template-table td {
-  border: 1px solid var(--ink-soft);
+  /* Light gray rules to match the PDF dividers (outer box gray 0.5, column
+     dividers gray 0.65 — pdf.ts), not the heavy --ink-soft. */
+  border: 1px solid oklch(0.78 0.004 95);
   padding: 9px 10px;
   vertical-align: top;
   text-align: left;
@@ -3182,7 +3187,7 @@ em, i, .filters-disclosure > summary em {
 
 .template-table th {
   background: oklch(0.95 0.008 95);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .template-table th:first-child,
@@ -3211,14 +3216,23 @@ em, i, .filters-disclosure > summary em {
 /* Ruled invoice table: Item · Description · Unit Price · Total (matches printed layout) */
 .template-table-ruled th,
 .template-table-ruled td { width: auto; text-align: left; }
+/* Item column: left-aligned to mirror the PDF item number set at ML+8 (pdf.ts). */
 .template-table-ruled th:nth-child(1),
-.template-table-ruled td:nth-child(1) { width: 50px; text-align: center; }
+.template-table-ruled td:nth-child(1) { width: 58px; text-align: left; }
 .template-table-ruled th:nth-child(2),
 .template-table-ruled td:nth-child(2) { width: auto; text-align: left; }
+/* Unit Price / Total: wide enough for euro amounts, right-aligned with the same
+   right inset the PDF gives its values (totalR = MR - 6). */
 .template-table-ruled th:nth-child(3),
 .template-table-ruled td:nth-child(3),
 .template-table-ruled th:nth-child(4),
-.template-table-ruled td:nth-child(4) { width: 96px; text-align: right; white-space: nowrap; }
+.template-table-ruled td:nth-child(4) {
+  width: 110px;
+  text-align: right;
+  white-space: nowrap;
+  padding-right: 12px;
+  font-variant-numeric: tabular-nums;
+}
 .template-table-ruled .template-desc-cell { text-align: left; }
 
 /* The filler row only stretches the table in the big/fullscreen/print views. */

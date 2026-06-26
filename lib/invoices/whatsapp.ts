@@ -31,8 +31,9 @@ export function buildWhatsappMessage(
  *  - Marios / client group: ALWAYS blank — just the PDF.
  *  - Accounting group: the agent name ONLY when an agent exists; otherwise blank.
  *  - No agent at all: blank for both targets.
- *  - Credit notes: keep the cancellation/correction reason text — the accountant
- *    needs to know why an invoice was cancelled.
+ *  - Credit notes: reference the source invoice number ONLY — the cancellation /
+ *    correction reason is NEVER put on the caption (it must not appear on or with
+ *    any invoice/receipt/credit-note).
  *  - Explicit override: an operator-typed caption wins over the blank default.
  */
 function buildWhatsappCaption(
@@ -43,16 +44,12 @@ function buildWhatsappCaption(
   const trimmedOverride = override?.trim();
   if (trimmedOverride) return trimmedOverride;
 
-  // Credit notes always carry their cancellation reason + source invoice so the
-  // accounting group knows why the original invoice was cancelled.
+  // Credit notes reference ONLY the source invoice number — never the cancellation
+  // / correction reason. The reason must not appear on or alongside any document.
   if (document.kind === "credit-note") {
-    const correctionLine = document.correctionReason
-      ? `Correction: ${document.correctionReason}. Please ignore the previous version.`
+    return document.sourceInvoiceNumber
+      ? `Cancels/source invoice: ${document.sourceInvoiceNumber}.`
       : "";
-    const sourceLine = document.sourceInvoiceNumber
-      ? ` Cancels/source invoice: ${document.sourceInvoiceNumber}.`
-      : "";
-    return `${correctionLine}${sourceLine}`.trim();
   }
 
   // Accounting group: agent name only when an agent is present. Marios and the

@@ -129,18 +129,19 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
       <div className="template-totals">
         <div style={{ display: "grid", gridTemplateColumns: "auto auto", gap: "4px 24px" }}>
           <span style={{ color: "var(--ink-soft)" }}>Subtotal</span>
-          <span style={{ textAlign: "right" }}>€{amount(sub)}</span>
+          <span style={{ textAlign: "right", whiteSpace: "nowrap" }}>€{amount(sub)}</span>
           <span style={{ color: "var(--ink-soft)" }}>V.A.T</span>
-          <span style={{ textAlign: "right" }}>€{amount(vat)}</span>
-          <span style={{ fontWeight: 700, paddingTop: 6, borderTop: "1px solid var(--ink-soft)" }}>
+          <span style={{ textAlign: "right", whiteSpace: "nowrap" }}>€{amount(vat)}</span>
+          <span style={{ fontWeight: 700, paddingTop: 6, borderTop: "1px solid oklch(0.78 0.004 95)" }}>
             Total
           </span>
           <span
             style={{
               fontWeight: 700,
               paddingTop: 6,
-              borderTop: "1px solid var(--ink-soft)",
-              textAlign: "right"
+              borderTop: "1px solid oklch(0.78 0.004 95)",
+              textAlign: "right",
+              whiteSpace: "nowrap"
             }}
           >
             €{amount(total)}
@@ -148,7 +149,9 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
           <span style={{ fontWeight: 700, fontSize: "1.1rem" }}>
             {isCredit ? "Balance credited" : "Balance Due"}
           </span>
-          <span style={{ fontWeight: 700, fontSize: "1.1rem", textAlign: "right" }}>€{amount(total)}</span>
+          <span style={{ fontWeight: 700, fontSize: "1.1rem", textAlign: "right", whiteSpace: "nowrap" }}>
+            €{amount(total)}
+          </span>
         </div>
       </div>
 
