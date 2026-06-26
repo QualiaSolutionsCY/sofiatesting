@@ -8397,17 +8397,45 @@ kbd {
   .sidebar-section-head { justify-content: space-between !important; padding: 0 2px !important; }
   .sidebar-footer { justify-content: flex-start !important; padding: 8px 2px 0 !important; }
 
-  /* Topbar buttons: search full-width on top, the 3 tool icons grouped tight on the
-     left, "New invoice" full-width last — no scattered gaps. */
+  /* Topbar: the sidebar already shows "INVOICES" + a search, so on phones drop the
+     redundant topbar title AND the ⌘K palette (a desktop keyboard shortcut). What's
+     left is one tidy toolbar row: the 3 tool icons grouped left + "New invoice". */
   .app-content > .topbar { grid-template-columns: 1fr !important; gap: 10px !important; }
+  .app-content > .topbar .topbar-title { display: none !important; }
+  .topbar-actions .palette-trigger { display: none !important; }
+  /* Override the 2-col GRID (line ~3734) that was scattering the icons — use a flex
+     row so the icons sit tight on the left and New invoice fills the rest. */
   .topbar-actions {
+    display: flex !important;
+    grid-template-columns: none !important;
+    flex-wrap: nowrap !important;
     justify-content: flex-start !important;
     max-width: none !important;
     gap: 8px !important;
     align-items: center;
   }
-  .topbar-actions .palette-trigger { flex: 1 1 100% !important; min-width: 0 !important; order: 0; }
   .topbar-actions .icon-button,
-  .topbar-actions .topbar-settings { flex: 0 0 auto !important; order: 1; }
-  .topbar-actions .primary-action { flex: 1 1 100% !important; justify-content: center !important; order: 9; }
+  .topbar-actions .topbar-settings { flex: 0 0 auto !important; }
+  .topbar-actions .primary-action { flex: 1 1 auto !important; justify-content: center !important; }
+
+  /* Preview: never force the 640px min-width on a phone — let the A4 document fit the
+     viewport width (it stays readable; tap to open the full-screen binder for detail). */
+  .draft-preview-panel { overflow-x: hidden !important; }
+  .draft-preview-panel .template-preview,
+  .detail-pane .tab-content .draft-preview-panel .template-preview { min-width: 0 !important; width: 100% !important; }
+
+  /* Line-item table (inline preview AND the fullscreen binder): shrink Item/Unit/Total
+     + padding so the Description column keeps real width and its header never crushes
+     into a vertical letter-stack. */
+  .template-table { width: calc(100% - 16px) !important; margin: 0 auto !important; min-height: 0 !important; table-layout: fixed; }
+  .template-table th,
+  .template-table td { padding: 6px 5px !important; font-size: 0.72rem !important; }
+  .template-table th:first-child,
+  .template-table td:first-child { width: 24px !important; }
+  .template-table th:nth-child(3),
+  .template-table th:nth-child(4),
+  .template-table td:nth-child(3),
+  .template-table td:nth-child(4) { width: 54px !important; white-space: nowrap; }
+  .template-table th:nth-child(2),
+  .template-table td:nth-child(2) { white-space: normal; overflow-wrap: break-word; }
 }
