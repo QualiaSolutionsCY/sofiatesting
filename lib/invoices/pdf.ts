@@ -145,10 +145,11 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
     metaY -= 15;
   }
 
-  // ---- Recipient (client name) — "Bill To" heading removed per client request ----
-  // No client email under the name (kept only for sending); the table sits tight
-  // beneath the name.
+  // ---- Recipient: a small "Bill To" label with the client name beneath it ----
+  // (Marios's request — the label + name only; no email or other details under it.)
   let y = Math.min(headerY, metaY) - 14;
+  text(ML, y, "Bill To", 8, false, 0.5);
+  y -= 13;
   text(ML, y, document.clientName, 10, false, 0.15);
   y -= 8;
 

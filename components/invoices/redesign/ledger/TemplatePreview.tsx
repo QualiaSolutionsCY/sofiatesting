@@ -85,6 +85,7 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
       </div>
 
       <div className="template-bill-to">
+        <div style={{ fontSize: "0.7rem", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ink-soft)", marginBottom: 2 }}>Bill To</div>
         <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>{cl.name}</div>
         {cl.vat && cl.vat !== "—" ? <div style={{ color: "var(--ink-soft)" }}>VAT&nbsp;{cl.vat}</div> : null}
       </div>
