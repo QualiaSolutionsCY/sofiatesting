@@ -280,10 +280,10 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
             required: false
           },
           onConfirm: (text) => {
-            // An empty textarea means "keep what was already saved" — the edited
-            // text is persisted into msgOverrides so the existing send/resend
-            // plumbing (sendToMariosAction etc.) uses it. NOTE: the FIRST group
-            // send below does not yet accept a per-call message (see risks).
+            // An empty textarea means "keep what was already saved". The edited text
+            // is both persisted into msgOverrides (for later resends) AND passed
+            // directly to the first group + Marios sends below, so the message the
+            // operator writes here actually rides with the PDF on this approve.
             const edited = (text ?? "").trim();
             const messageToUse = edited || existingMsg;
             setMsgOverrides((prev) => ({ ...prev, [current.id]: messageToUse }));
@@ -298,8 +298,8 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
                   // accounting group — never the accounting group alone. Gate the
                   // toast on the REAL send results so it never claims a delivery
                   // that didn't happen.
-                  const groupOk = await notifyAccountingGroupOfInvoiceAction(current.id);
-                  const mResult = await notifyMariosApprovedAction(current.id);
+                  const groupOk = await notifyAccountingGroupOfInvoiceAction(current.id, messageToUse);
+                  const mResult = await notifyMariosApprovedAction(current.id, messageToUse);
                   const mariosOk = mResult.mariosNotified ?? false;
                   setToast(
                     "Approved. " +

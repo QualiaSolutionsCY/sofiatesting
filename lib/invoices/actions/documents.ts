@@ -131,10 +131,13 @@ export async function sendToMariosAction(
  * Admin-panel auto-approval: notify Marios that the invoice is already approved and
  * issued (FYI message + PDF), without sending a review/approval request.
  */
-export async function notifyMariosApprovedAction(id: string): Promise<DocumentsActionResult> {
+export async function notifyMariosApprovedAction(id: string, message?: string): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
-  const mariosNotified = await notifyMariosOverWhatsApp(document, { approved: true });
+  // The operator's approve-dialog message rides with Marios's PDF when provided;
+  // blank/undefined keeps the default (just the PDF).
+  const override = message?.trim() ? message.trim() : undefined;
+  const mariosNotified = await notifyMariosOverWhatsApp(document, { approved: true, override });
   return { ...current, selectedId: id, mariosNotified, deliveries: await listDeliveryRecordsForDocument(id) };
 }
 
@@ -623,15 +626,18 @@ export async function sendDocumentToAccountingGroup(
  * "Invoice issued" caption via the existing group sender. Best-effort: returns
  * false (never throws) so a send failure cannot break the issue/paid flow.
  */
-export async function notifyAccountingGroupOfInvoiceAction(id: string): Promise<boolean> {
+export async function notifyAccountingGroupOfInvoiceAction(id: string, message?: string): Promise<boolean> {
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
-  // Accounting group: the AGENT'S NAME only when there is one, otherwise BLANK —
-  // just the PDF (Marios's rule). The invoice number/client/amount ride on the
-  // attached PDF + filename, so no descriptive caption is posted.
-  const caption = document.requiresCommissionPerson && document.commissionPersonName
-    ? document.commissionPersonName
-    : "";
+  // The operator's approve-dialog message rides with the PDF when provided. Else the
+  // AGENT'S NAME for a commission invoice, otherwise BLANK — just the PDF (Marios's
+  // rule). The invoice number/client/amount ride on the attached PDF + filename.
+  const written = message?.trim();
+  const caption = written
+    ? written
+    : document.requiresCommissionPerson && document.commissionPersonName
+      ? document.commissionPersonName
+      : "";
   return sendDocumentToAccountingGroup(document, caption);
 }
 
