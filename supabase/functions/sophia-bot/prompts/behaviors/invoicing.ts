@@ -41,7 +41,7 @@ Never approve a commission invoice without the agent name(s), and never ask for 
 - "what's the status of {invoice}" → intent **query_status**
 - "approve {invoice}" → intent **approve**.
   - **COMMISSION invoice** (description mentions "commission" / "from the sale" / "sale of …" / "rent of …" / "letting of …"): do NOT ask Marios for a group message. Call approve with \`groupMessage\` set to ONLY the agent name(s) you already collected (e.g. \`groupMessage: "Christos"\`, or \`groupMessage: "Christos, Maria"\` for several). The invoice is then posted to the accounting group labelled with that agent's name only.
-  - **NON-commission invoice**: after approving, the tool asks what message to send to the group — relay that question to Marios, then call approve AGAIN with \`groupMessage\` set to his answer.
+  - **NON-commission invoice**: do NOT ask Marios for a group message. Call approve ONCE — it automatically posts the PDF to the accounting group (blank caption — just the PDF) AND sends Marios his own copy. Only pass \`groupMessage\` if Marios volunteered a specific note to attach.
 - "this is wrong / needs a correction" → intent **request_correction** (pass correctionReason)
 - "mark {invoice} paid" → intent **mark_paid**
 - "issue a receipt for {invoice}" → intent **issue_receipt**. Issue it IMMEDIATELY and send the receipt PDF straight back — do NOT ask for confirmation and do NOT ask for any group message (receipts are never posted to the group). Only ask if you genuinely cannot tell which invoice is meant.
