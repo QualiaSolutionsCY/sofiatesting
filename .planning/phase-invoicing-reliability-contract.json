@@ -1,0 +1,301 @@
+{
+  "version": 1,
+  "phase": 99,
+  "goal": "No invoicing delivery path reports success unless the send actually succeeded; two legal documents can never share an official number; the approval audit trail is durably recorded.",
+  "why": "Marios reports 'the system says it sent but nothing arrived.' The audit found 1 CRITICAL (duplicate legal numbers under concurrency) and 15 HIGH (send paths report success while delivering nothing).",
+  "generated_at": "2026-06-25T12:41:20Z",
+  "generated_by": "planner",
+  "source_plan_hash": "sha256:345c8bcd077e6b53bd4cea43d34e5f8831ae462ffeb6482ff1e6d34c0511c09a",
+  "success_criteria": [
+    "npx tsc --noEmit exits 0 for lib/, components/, app/.",
+    "Task 4 edge change passes deno check (tsc does not cover supabase/functions/**).",
+    "Every named toast/reply references a real send-result variable; no unconditional success string remains.",
+    "notifyMariosOverWhatsApp returns a boolean; the blank-caption empty-text fallback is removed in both Marios and accounting-group senders.",
+    "forwardAccountingAction calls sendDocumentToAccountingGroup; Sophia request_correction/resend call resendCorrectedInvoiceAction; deliverWithManualProvider no longer records queueStatus 'sent'.",
+    "Edge documentSent = res.ok; saveLastDocument only on res.ok.",
+    "Migration creates a partial unique index on (kind, official_number); numbering allocation is transactional with a 23505 retry (or RPC).",
+    "writeRelatedRows inserts into invoice_approvals; fromDocumentRow no longer hardcodes 'Loaded from Supabase document row'.",
+    "Existing passing flows unbroken: normal invoice create/approve delivery, credit-note caption, receipt->Marios-only, admin Send-email."
+  ],
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Thread real send-result booleans through the Marios-WhatsApp action layer + fix the blank-caption fallback",
+      "wave": 1,
+      "depends_on": [],
+      "persona": "backend",
+      "files_modify": [
+        "lib/invoices/actions/documents.ts"
+      ],
+      "files_create": [],
+      "files_delete": [],
+      "acceptance_criteria": [
+        "notifyMariosOverWhatsApp returns Promise<boolean>, true only when a WhatsApp message actually succeeded.",
+        "notifyMariosApprovedAction surfaces the boolean (mariosNotified on DocumentsActionResult).",
+        "Blank-caption PDF-send failure never calls sendMessage({text:''}); it retries the document or returns false.",
+        "sendDocumentToAccountingGroup blank-caption fallback has the same guard.",
+        "Existing callers still compile and keep working."
+      ],
+      "action": "Make notifyMariosOverWhatsApp (documents.ts:131-196) return Promise<boolean> (false on guard/catch, sent.success on success); in the failure branch (:184-190) only do the text fallback when caption.trim() is non-empty, else return false. notifyMariosApprovedAction (:117-122) surfaces it as mariosNotified; add the field to DocumentsActionResult. Same blank-caption guard in sendDocumentToAccountingGroup (:521-524). Leave notifyGroupOfCreditNote unchanged. Full steps in the plan markdown.",
+      "context_files": [
+        "lib/invoices/actions/documents.ts",
+        "lib/whatsapp/client.ts",
+        ".planning/reports/review/REVIEW.md"
+      ],
+      "verification": [
+        {
+          "type": "grep-match",
+          "path": "lib/invoices/actions/documents.ts",
+          "pattern": "sendMessage\\(\\{ to: marios.msisdn, text: caption \\}\\)",
+          "expect": "absent"
+        },
+        {
+          "type": "grep-match",
+          "path": "lib/invoices/actions/documents.ts",
+          "pattern": "mariosNotified",
+          "expect": "present"
+        },
+        {
+          "type": "command-exit",
+          "command": "npx tsc --noEmit",
+          "expected_exit": 0
+        }
+      ]
+    },
+    {
+      "id": "T2",
+      "title": "Wire forwardAccountingAction and Sophia request_correction/resend to REAL senders; relabel the no-op manual provider",
+      "wave": 2,
+      "depends_on": [
+        "T1"
+      ],
+      "persona": "backend",
+      "files_modify": [
+        "lib/invoices/actions/documents.ts",
+        "lib/invoices/sophia/intent-handlers.ts",
+        "lib/invoices/integrations/manual-provider.ts"
+      ],
+      "files_create": [],
+      "files_delete": [],
+      "acceptance_criteria": [
+        "forwardAccountingAction calls sendDocumentToAccountingGroup with the same caption rule, keeps queueAccountingHandoff for audit only, and surfaces the real result (accountingGroupNotified).",
+        "Sophia request_correction and resend intents call resendCorrectedInvoiceAction (the real sender) instead of the queue-only correctResendAction.",
+        "deliverWithManualProvider no longer reports queueStatus 'sent' (now 'failed') for a non-send.",
+        "npx tsc --noEmit exits 0."
+      ],
+      "action": "forwardAccountingAction (documents.ts:300-307): call sendDocumentToAccountingGroup(updated, caption) before queueAccountingHandoff; add accountingGroupNotified to DocumentsActionResult. intent-handlers.ts: use resendCorrectedInvoiceAction in request_correction (:305-310) and resend (:351-357) instead of correctResendAction. manual-provider.ts:13-24: change queueStatus 'sent' to 'failed', keep deliveryStatus 'manual-copy-ready'. Full steps in the plan markdown.",
+      "context_files": [
+        "lib/invoices/actions/documents.ts",
+        "lib/invoices/sophia/intent-handlers.ts",
+        "lib/invoices/integrations/manual-provider.ts",
+        "lib/invoices/supabase/schema.ts",
+        ".planning/reports/review/REVIEW.md"
+      ],
+      "verification": [
+        {
+          "type": "grep-match",
+          "path": "lib/invoices/actions/documents.ts",
+          "pattern": "sendDocumentToAccountingGroup",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "lib/invoices/sophia/intent-handlers.ts",
+          "pattern": "resendCorrectedInvoiceAction",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "lib/invoices/integrations/manual-provider.ts",
+          "pattern": "queueStatus: \"sent\"",
+          "expect": "absent"
+        },
+        {
+          "type": "command-exit",
+          "command": "npx tsc --noEmit",
+          "expected_exit": 0
+        }
+      ]
+    },
+    {
+      "id": "T3",
+      "title": "Gate every admin toast and the Sophia approve reply on the real send results",
+      "wave": 3,
+      "depends_on": [
+        "T1",
+        "T2"
+      ],
+      "persona": "frontend",
+      "files_modify": [
+        "components/invoices/redesign/App.tsx",
+        "lib/invoices/sophia/intent-handlers.ts"
+      ],
+      "files_create": [],
+      "files_delete": [],
+      "acceptance_criteria": [
+        "Approve-from-draft toast names each channel that actually succeeded (capture group boolean + mariosNotified).",
+        "Auto-approve-on-create toast claims only the channels (group/Marios/email) that returned true.",
+        "Accounting-resend toast gated on forwardAccountingAction result; the false 'Email' claim is dropped.",
+        "sent-to-marios toast gated on a real Marios-notified signal; 'bumped in CSC Review group' copy corrected.",
+        "Sophia approve reply worded from BOTH the group flag and the Marios flag, naming who was reached.",
+        "npx tsc --noEmit exits 0."
+      ],
+      "action": "Thread the Marios boolean through sendToMariosAction (documents.ts:100-111). In App.tsx gate the approve-from-draft (:262-285), auto-approve-on-create (:627-636), accounting-resend (:566-571) and sent-to-marios (:287-292) toasts on the real booleans. In intent-handlers.ts approve (:216-224) word the reply from both group and Marios flags. Remove the unconditional strings. Full steps in the plan markdown.",
+      "context_files": [
+        "components/invoices/redesign/App.tsx",
+        "lib/invoices/sophia/intent-handlers.ts",
+        "lib/invoices/actions/documents.ts",
+        ".planning/reports/review/REVIEW.md"
+      ],
+      "verification": [
+        {
+          "type": "grep-match",
+          "path": "components/invoices/redesign/App.tsx",
+          "pattern": "sent to Marios and the accounting group",
+          "expect": "absent"
+        },
+        {
+          "type": "grep-match",
+          "path": "components/invoices/redesign/App.tsx",
+          "pattern": "WhatsApp \\+ Email",
+          "expect": "absent"
+        },
+        {
+          "type": "grep-match",
+          "path": "components/invoices/redesign/App.tsx",
+          "pattern": "mariosNotified|accountingGroupNotified|groupOk|mariosOk|emailOk",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "lib/invoices/sophia/intent-handlers.ts",
+          "pattern": "mariosNotified|mariosOk",
+          "expect": "present"
+        },
+        {
+          "type": "command-exit",
+          "command": "npx tsc --noEmit",
+          "expected_exit": 0
+        }
+      ]
+    },
+    {
+      "id": "T4",
+      "title": "Fix the edge documentSent bug: set it from the real send result, only save last-document on success",
+      "wave": 1,
+      "depends_on": [],
+      "persona": "backend",
+      "files_modify": [
+        "supabase/functions/sophia-bot/tools/handlers/invoice.ts"
+      ],
+      "files_create": [],
+      "files_delete": [],
+      "acceptance_criteria": [
+        "Handler captures the Response from sendDocumentByUrl and sets documentSent = res.ok.",
+        "saveLastDocument is only called when res.ok is true.",
+        "On a non-ok response documentSent stays false (webhook falls through to the text reply) and the status is logged.",
+        "deno check passes on the touched file (tsc does NOT cover edge functions).",
+        "No behavior change on the success path (backwards compatible)."
+      ],
+      "action": "In invoice.ts:111-134 replace await sendDocumentByUrl(...) with const res = await sendDocumentByUrl(...); set documentSent = res.ok (replacing the unconditional documentSent = true at :118); wrap the saveLastDocument block (:123-131) in if (res.ok); log res.status when !res.ok; remove the misleading 'Non-fatal' comment (:133).",
+      "context_files": [
+        "supabase/functions/sophia-bot/tools/handlers/invoice.ts",
+        "supabase/functions/sophia-bot/utils/wasend.ts",
+        ".planning/reports/review/REVIEW.md"
+      ],
+      "verification": [
+        {
+          "type": "grep-match",
+          "path": "supabase/functions/sophia-bot/tools/handlers/invoice.ts",
+          "pattern": "documentSent = res.ok",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "supabase/functions/sophia-bot/tools/handlers/invoice.ts",
+          "pattern": "documentSent = true",
+          "expect": "absent"
+        },
+        {
+          "type": "grep-match",
+          "path": "supabase/functions/sophia-bot/tools/handlers/invoice.ts",
+          "pattern": "if \\(res.ok\\)",
+          "expect": "present"
+        },
+        {
+          "type": "command-exit",
+          "command": "deno check supabase/functions/sophia-bot/tools/handlers/invoice.ts",
+          "expected_exit": 0
+        }
+      ]
+    },
+    {
+      "id": "T5",
+      "title": "Official-number integrity (DB unique index + transactional allocation + 23505 retry) and durable approval audit trail",
+      "wave": 1,
+      "depends_on": [],
+      "persona": "architect",
+      "files_modify": [
+        "lib/invoices/supabase/document-repository.ts",
+        "lib/invoices/supabase/document-mappers.ts"
+      ],
+      "files_create": [
+        "supabase/migrations/20260625120000_invoice_number_integrity_and_approvals.sql"
+      ],
+      "files_delete": [],
+      "acceptance_criteria": [
+        "Migration creates a partial unique index on invoice_documents (kind, official_number) WHERE official_number IS NOT NULL AND deleted_at IS NULL.",
+        "Official-number allocation is transactional (allocate_official_number RPC) OR saveInvoiceDocument retries the upsert on a 23505 unique violation; a concurrent collision yields distinct numbers, never a duplicate.",
+        "writeRelatedRows inserts approval events into invoice_approvals keyed by the resolved internal document_id.",
+        "fromDocumentRow no longer hardcodes 'Loaded from Supabase document row'; approvalTimeline is rebuilt from the DB.",
+        "Migration is idempotent; if supabase db push fails on history mismatch, apply via dashboard SQL editor (project vceeheaxcrhmpqueudqx) and note it.",
+        "npx tsc --noEmit exits 0."
+      ],
+      "action": "New migration 20260625120000_invoice_number_integrity_and_approvals.sql: partial UNIQUE INDEX on (kind, official_number) WHERE official_number IS NOT NULL AND deleted_at IS NULL, plus an allocate_official_number(p_kind) RPC (FOR UPDATE, trailing-numeric max, per-kind floors). writeRelatedRows (:202-241) inserts toApprovalRows keyed by document_id. fromDocumentRow (:205-211) drops the fabricated entry, hydrating approvalTimeline from the DB. Wire the RPC OR a 23505 retry in saveInvoiceDocument.",
+      "context_files": [
+        "lib/invoices/supabase/document-repository.ts",
+        "lib/invoices/supabase/document-mappers.ts",
+        "lib/invoices/numbering.ts",
+        "lib/invoices/actions/documents.ts",
+        "supabase/migrations/20260623120000_invoice_soft_delete.sql",
+        ".planning/reports/review/REVIEW.md"
+      ],
+      "verification": [
+        {
+          "type": "file-exists",
+          "path": "supabase/migrations/20260625120000_invoice_number_integrity_and_approvals.sql",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "supabase/migrations/20260625120000_invoice_number_integrity_and_approvals.sql",
+          "pattern": "CREATE UNIQUE INDEX",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "supabase/migrations/20260625120000_invoice_number_integrity_and_approvals.sql",
+          "pattern": "kind, official_number",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "lib/invoices/supabase/document-repository.ts",
+          "pattern": "invoice_approvals|SUPABASE_TABLES.approvals|toApprovalRows",
+          "expect": "present"
+        },
+        {
+          "type": "grep-match",
+          "path": "lib/invoices/supabase/document-mappers.ts",
+          "pattern": "Loaded from Supabase document row",
+          "expect": "absent"
+        },
+        {
+          "type": "command-exit",
+          "command": "npx tsc --noEmit",
+          "expected_exit": 0
+        }
+      ]
+    }
+  ]
+}

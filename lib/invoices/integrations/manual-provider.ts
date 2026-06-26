@@ -13,7 +13,8 @@ export async function deliverWithManualProvider(
   return {
     provider: "manual",
     providerMessageId,
-    queueStatus: "sent",
+    // Not a real send — recorded as failed/manual-copy-ready so the audit trail never claims delivery.
+    queueStatus: "failed",
     deliveryStatus: "manual-copy-ready",
     rawResponse: {
       mode: "manual",

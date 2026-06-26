@@ -3,7 +3,7 @@
 import { ChevronDown, FileMinus, FileText, Receipt as ReceiptIcon, Search } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 import { STAGES, clientById, fmt } from "@/lib/invoices/redesign/data";
-import { formatDate } from "@/lib/invoices/format";
+import { addOneMonth, formatDate } from "@/lib/invoices/format";
 import type { Doc, DocKind, Filters } from "@/lib/invoices/redesign/types";
 
 const STAGE_OPTIONS: Array<{ value: Filters["stage"]; label: string }> = [
@@ -16,7 +16,8 @@ const STAGE_OPTIONS: Array<{ value: Filters["stage"]; label: string }> = [
   { value: STAGES.CREDITED.id, label: STAGES.CREDITED.label },
   { value: STAGES.CANCELLED.id, label: STAGES.CANCELLED.label },
   { value: "recurrence-monthly", label: "Monthly" },
-  { value: "recurrence-yearly", label: "Yearly" }
+  { value: "recurrence-yearly", label: "Yearly" },
+  { value: "deleted", label: "Deleted" }
 ];
 
 interface ListPaneProps {
@@ -59,6 +60,9 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
           if (doc.kind !== "invoice" || doc.recurrence !== "monthly") return false;
         } else if (filters.stage === "recurrence-yearly") {
           if (doc.kind !== "invoice" || doc.recurrence !== "yearly") return false;
+        } else if (filters.stage === "deleted") {
+          // The "Deleted" view is fed the already-soft-deleted set from the
+          // server, so no extra stage filter is applied — show them all.
         } else if (filters.stage !== "all") {
           // Draft / Sent to Marios / Paid / Cancelled — invoices only, by stage.
           if (doc.kind !== "invoice") return false;
@@ -82,9 +86,18 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
           if (!hay.includes(q.replace(/[€,\s]/g, "") ) && !hay.includes(q)) return false;
         }
         return true;
+      })
+      // Latest → oldest by invoice NUMBER (Marios's rule): numbered invoices by
+      // number desc, then drafts (no number) by issue date desc. Editing never
+      // reorders, because neither sort key changes on edit (unlike updated_at).
+      .sort((a, b) => {
+        const an = a.officialNo ? Number(a.officialNo.replace(/\D/g, "")) : null;
+        const bn = b.officialNo ? Number(b.officialNo.replace(/\D/g, "")) : null;
+        if (an !== null && bn !== null) return bn - an;
+        if (an !== null) return -1;
+        if (bn !== null) return 1;
+        return (b.issued || "").localeCompare(a.issued || "");
       });
-    // No re-sort: order is inherited from the repository (updated_at desc),
-    // so the most recently created/updated invoice stays on top.
   }, [docs, filters]);
 
   const kindIcon = (kind: DocKind): ReactNode => {
@@ -149,6 +162,11 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
                     <span className="row-date">{formatDate(doc.issued)}</span>
                     {doc.kind !== "credit" ? (
                       (() => {
+                        // A cancelled / credit-noted invoice reads "Cancelled" (red),
+                        // never "Unpaid".
+                        if (doc.stage === STAGES.CANCELLED.id || doc.stage === STAGES.CREDITED.id) {
+                          return <span className="row-pay is-cancelled">Cancelled</span>;
+                        }
                         const paid = !!doc.paidOn || !!doc.receiptNo || doc.stage === STAGES.SENT_TO_ACCOUNTING.id;
                         if (paid) return <span className="row-pay is-paid">Paid</span>;
                         if (doc.stage === STAGES.APPROVED.id) return <span className="row-pay is-approved">Approved</span>;
@@ -158,6 +176,10 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
                     {/* Credit notes store a negative total; show the magnitude here (the
                         "Credited" label carries the sign) so the row reads €7,140 not €-7,140. */}
                     <span className="row-total">{fmt(Math.abs(doc.total))}</span>
+                    {/* Monthly invoices show when the next one is due to be created. */}
+                    {doc.kind === "invoice" && doc.recurrence === "monthly" && doc.issued ? (
+                      <span className="row-date" title="Next monthly invoice">↻ {formatDate(addOneMonth(doc.issued))}</span>
+                    ) : null}
                   </span>
                 </div>
               </button>

@@ -63,3 +63,9 @@ app/api.admin.disabled/
 app/(admin.disabled)/
 .vercel
 supabase/.temp/
+.codex/
+.playwright-mcp/
+.planning/.session-usage.json
+/qa-*.png
+/e2e-*.jpeg
+/*.jpeg

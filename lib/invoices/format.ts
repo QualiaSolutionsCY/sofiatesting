@@ -111,3 +111,49 @@ export function stripAgentName(desc?: string): string {
     .replace(/[\s,;:–—-]+$/, "")
     .trim();
 }
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+] as const;
+
+/**
+ * Add one calendar month to a `yyyy-mm-dd` date string, rolling the year at
+ * December and clamping the day to the new month's length (e.g. Jan 31 → Feb 28).
+ * Used for monthly recurrence: next month's invoice keeps the same day-of-month.
+ */
+export function addOneMonth(dateStr: string): string {
+  if (!dateStr) return dateStr;
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return dateStr;
+  const day = date.getDate();
+  date.setDate(1);
+  date.setMonth(date.getMonth() + 1);
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  date.setDate(Math.min(day, lastDay));
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Roll any English month name in a description forward by one month, so a
+ * monthly invoice regenerated next month reads "…July 2026" where the previous
+ * one said "…June 2026" (Marios writes June, Sophia rolls it to July). A 4-digit
+ * year directly after the month is incremented when the month rolls Dec→Jan.
+ */
+export function rollDescriptionMonth(text: string): string {
+  if (!text) return text;
+  const monthPattern = new RegExp(`\\b(${MONTH_NAMES.join("|")})\\b(\\s+(\\d{4}))?`, "gi");
+  return text.replace(monthPattern, (match, month: string, _withYear: string | undefined, year: string | undefined) => {
+    const index = MONTH_NAMES.findIndex((name) => name.toLowerCase() === month.toLowerCase());
+    if (index === -1) return match;
+    const nextIndex = (index + 1) % 12;
+    const nextName = MONTH_NAMES[nextIndex];
+    // Preserve the original casing (Title-case vs lower-case) of the matched month.
+    const cased = month[0] === month[0].toUpperCase() ? nextName : nextName.toLowerCase();
+    if (year) {
+      const nextYear = Number(year) + (nextIndex === 0 ? 1 : 0);
+      return `${cased} ${nextYear}`;
+    }
+    return cased;
+  });
+}

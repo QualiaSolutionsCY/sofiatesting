@@ -109,28 +109,39 @@ export async function handleManageInvoice(
     // receipt/credit-note is never mislabelled as an invoice.
     const docMeta = fallbackDocMeta(intent);
     try {
-      await sendDocumentByUrl(
+      // sendDocumentByUrl NEVER throws — it returns a Response (503 breaker-open,
+      // 500 fetch error, or the WaSend status). documentSent MUST reflect the real
+      // outcome: if we set it true on a failed send, webhook.ts suppresses the text
+      // reply and the agent gets NEITHER the PDF NOR the confirmation text.
+      const res = await sendDocumentByUrl(
         phoneNumber || agent?.mobile || "",
         result.pdfUrl,
         result.filename || docMeta.filename,
         result.reply
       );
-      documentSent = true;
-      // Register the invoice/receipt/credit-note PDF as the user's "last document"
-      // so that if they then ask Sophia to email it, the email auto-attach picks
-      // THIS document (not an unrelated DOCX). Stored under bare international
-      // digits to match how the email handler looks it up.
-      const lastDocUserId = (phoneNumber || agent?.mobile || "").replace(/[^\d]/g, "");
-      if (lastDocUserId) {
-        await saveLastDocument(
-          lastDocUserId,
-          result.pdfUrl,
-          result.filename || docMeta.filename,
-          docMeta.type
-        );
+      documentSent = res.ok;
+      if (res.ok) {
+        // Register the invoice/receipt/credit-note PDF as the user's "last document"
+        // so that if they then ask Sophia to email it, the email auto-attach picks
+        // THIS document (not an unrelated DOCX). Stored under bare international
+        // digits to match how the email handler looks it up. Only on a confirmed
+        // send — never register an undelivered PDF as the "last document".
+        const lastDocUserId = (phoneNumber || agent?.mobile || "").replace(/[^\d]/g, "");
+        if (lastDocUserId) {
+          await saveLastDocument(
+            lastDocUserId,
+            result.pdfUrl,
+            result.filename || docMeta.filename,
+            docMeta.type
+          );
+        }
+      } else {
+        // documentSent stays false so webhook.ts falls through to the text reply.
+        console.error("sendDocumentByUrl non-ok", res.status);
       }
     } catch (_e) {
-      // Non-fatal — the text reply still goes out even if the file send fails.
+      // sendDocumentByUrl is designed not to throw, but guard genuine throws here;
+      // documentSent stays false so the text reply still goes out.
     }
   }
 

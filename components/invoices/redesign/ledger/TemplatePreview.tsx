@@ -72,14 +72,6 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
                 <dd>{formatDate(doc.due)}</dd>
               </div>
             ) : null}
-            {!isCredit && !isReceipt && doc.recurrence && doc.recurrence !== "none" ? (
-              <div>
-                <dt>Recurring</dt>
-                <dd>
-                  {doc.recurrence === "monthly" ? "Monthly" : "Yearly"} · {doc.period}
-                </dd>
-              </div>
-            ) : null}
             {isCredit && doc.appliesTo ? (
               <div>
                 <dt>Applies to</dt>

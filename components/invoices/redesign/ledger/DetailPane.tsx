@@ -16,7 +16,7 @@ import {
   RefreshCw,
   Trash2
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CLIENTS, ENTITY, clientById, fmt, metrics } from "@/lib/invoices/redesign/data";
 import { STAGES } from "@/lib/invoices/redesign/data";
 import { nextNumber, primaryAction, stageHeadline } from "@/lib/invoices/redesign/stages";
@@ -96,18 +96,16 @@ function DocumentTab({
   const [form, setForm] = useState<InlineDocFormState>(() => docToFormState(doc));
   const [saveState, setSaveState] = useState<"idle" | "dirty" | "saving" | "saved">("idle");
 
+  // The form follows the SERVER doc: it re-loads on select AND re-syncs the instant a
+  // save lands (so saved changes show live and the toolbar leaves "Unsaved changes").
+  // Edits live in `form`, never in `doc`, so this key is stable while typing — it only
+  // changes when a different doc is selected or the saved content comes back changed.
+  const baselineKey = JSON.stringify(docToFormState(doc));
   useEffect(() => {
     setForm(docToFormState(doc));
     setSaveState("idle");
-  }, [doc.id]);
-
-  // After save completes, sync form to the server-side state of the doc
-  useEffect(() => {
-    if (saveState === "saved") {
-      setForm(docToFormState(doc));
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saveState]);
+  }, [baselineKey]);
 
   const dirty = useMemo(() => {
     const baseline = docToFormState(doc);
@@ -168,13 +166,18 @@ function DocumentTab({
     [doc, form, total, effectiveRate]
   );
 
-  const handleSave = () => {
+  // Save quietly — persist the edit WITHOUT re-sending to the group (drafts, and now
+  // also already-sent invoices when the operator doesn't need to notify anyone).
+  const handleSaveQuiet = () => {
     setSaveState("saving");
-    if (requiresCorrectionReason) {
-      onCorrectResend(form, form.correctionReason.trim());
-    } else {
-      onUpdate(form);
-    }
+    onUpdate(form);
+    setTimeout(() => setSaveState("saved"), 600);
+    setTimeout(() => setSaveState("idle"), 2200);
+  };
+  // Save AND re-send the corrected copy to Marios + the group (reason required).
+  const handleCorrectResend = () => {
+    setSaveState("saving");
+    onCorrectResend(form, form.correctionReason.trim());
     setTimeout(() => setSaveState("saved"), 600);
     setTimeout(() => setSaveState("idle"), 2200);
   };
@@ -236,15 +239,32 @@ function DocumentTab({
                 <button type="button" className="ghost" onClick={handleDiscard}>
                   Discard
                 </button>
-                <button
-                  type="button"
-                  className="primary"
-                  onClick={handleSave}
-                  disabled={!canSubmit}
-                  title={!canSubmit && requiresCorrectionReason ? "Add a correction reason first" : undefined}
-                >
-                  {requiresCorrectionReason ? "Correct & resend" : "Save changes"}
-                </button>
+                {requiresCorrectionReason ? (
+                  <>
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={handleSaveQuiet}
+                      disabled={!dirty}
+                      title="Save the change without notifying the group"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={handleCorrectResend}
+                      disabled={!canSubmit}
+                      title={!canSubmit ? "Add a correction reason first" : undefined}
+                    >
+                      Correct &amp; resend
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" className="primary" onClick={handleSaveQuiet} disabled={!canSubmit}>
+                    Save changes
+                  </button>
+                )}
               </div>
             ) : null}
           </div>
@@ -527,7 +547,11 @@ function DeliveryPlan({
 
   const clientReady = hasNumber;
   const clientDelivered = doc.stage === "sent-to-accounting";
-  const accountingDelivered = doc.stage === "sent-to-accounting";
+  // The accounting group receives the INVOICE (and credit notes) when they are
+  // APPROVED — never the receipt. Receipts are delivered to Marios only, so the
+  // accounting channel must never represent a receipt as "sent to accounting".
+  const isReceipt = doc.kind === "receipt";
+  const accountingDelivered = !isReceipt && hasNumber;
 
   type Card = {
     key: string;
@@ -553,14 +577,13 @@ function DeliveryPlan({
         }
       ],
       msg: hasNumber
-        ? `Marios — issued ${doc.officialNo} for ${cl.name}, ${cl.property}. Total ${fmt(doc.total)}. Filed. — Sophia`
+        ? `Just the PDF — no message (blank). Use “Edit message” to add a note for the group.`
         : doc.stage === "correction-needed"
           ? `Marios — corrected draft for ${cl.name}, ${cl.property} ready for re-review. ${fmt(doc.total)}. — Sophia`
           : `Marios — new draft for ${cl.name}, ${cl.property}. Total ${fmt(doc.total)}. Reply ✓ to approve, or write back with corrections. — Sophia`,
       actions: [
         { label: "Resend", id: "whatsapp-marios-resend" },
-        { label: "Edit message", id: "whatsapp-marios-edit" },
-        { label: "Mute", id: "whatsapp-marios-mute" }
+        { label: "Edit message", id: "whatsapp-marios-edit" }
       ]
     },
     {
@@ -586,37 +609,43 @@ function DeliveryPlan({
         : "Disabled until the invoice is numbered.",
       actions: [
         { label: "Send email", id: "client-send-all" },
-        { label: "Edit message", id: "client-edit" },
-        { label: "Schedule", id: "client-schedule" }
+        { label: "Edit message", id: "client-edit" }
       ],
       disabled: !hasNumber
     },
     {
       key: "accounting",
-      eyebrow: "Accounting CC · dual channel",
+      eyebrow: "Accounting group · invoice copy",
       title: "Zyprus Accounting",
       channels: [
         {
           ic: <MessageCircle size={12} strokeWidth={1.6} />,
           addr: sharedCc || "+357 99 040 117",
-          state: accountingDelivered ? "ok" : "wait",
-          stateLabel: accountingDelivered ? "Sent" : "On payment"
+          state: isReceipt ? "off" : accountingDelivered ? "ok" : "wait",
+          stateLabel: isReceipt ? "Not sent" : accountingDelivered ? "Sent on approval" : "On approval"
         },
         {
           ic: <Mail size={12} strokeWidth={1.6} />,
           addr: accountingEmail || "accounting@zyprus.cy",
-          state: accountingDelivered ? "ok" : "wait",
-          stateLabel: accountingDelivered ? "Sent" : "On payment"
+          state: isReceipt ? "off" : accountingDelivered ? "ok" : "wait",
+          stateLabel: isReceipt ? "Not sent" : accountingDelivered ? "Sent on approval" : "On approval"
         }
       ],
-      msg: accountingDelivered
-        ? `Payment received · ${doc.officialNo} · ${fmt(doc.total)} · receipt ${doc.receiptNo} attached. From Marios C., via Sophia.`
-        : "Triggers automatically once the invoice is marked paid. Both WhatsApp and email will be CC'd with the receipt.",
-      actions: [
-        { label: "Resend both", id: "accounting-resend" },
-        { label: "Configure", id: "accounting-configure" }
-      ],
-      disabled: !accountingDelivered
+      // Receipts go to MARIOS ONLY — never the accounting group. The accounting
+      // group receives the invoice (and credit notes) when they are APPROVED, so
+      // the card reflects that and never claims a receipt was CC'd to accounting.
+      msg: isReceipt
+        ? "Receipts are delivered to Marios only — they are never sent to the accounting group."
+        : accountingDelivered
+          ? `${doc.kind === "credit" ? "Credit note" : "Invoice"} ${doc.officialNo} (${fmt(doc.total)}) sent to the accounting group on approval.`
+          : "The invoice is sent to the accounting group automatically when it's approved — receipts are not.",
+      actions: isReceipt
+        ? [{ label: "Configure", id: "accounting-configure" }]
+        : [
+            { label: "Resend both", id: "accounting-resend" },
+            { label: "Configure", id: "accounting-configure" }
+          ],
+      disabled: isReceipt ? true : !accountingDelivered
     }
   ];
 
@@ -695,6 +724,23 @@ function Timeline({ events }: { events: Doc["timeline"] }) {
 
 export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, onAct, onOpenLightbox, onUpdateDoc, onCorrectResendDoc }: DetailPaneProps) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDetailsElement>(null);
+  // The Actions menu must auto-close when you switch to another document or click
+  // away — don't force the user to click the toggle again (Marios's note). Native
+  // <details> doesn't close on outside-click, so we handle both here.
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [doc?.id]);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onAway = (event: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(event.target as Node)) {
+        setMoreOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onAway);
+    return () => document.removeEventListener("mousedown", onAway);
+  }, [moreOpen]);
 
   if (!doc) {
     const m = metrics(allDocs);
@@ -769,14 +815,21 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, 
             <Download size={15} strokeWidth={1.6} />
           </button>
           <details
+            ref={moreRef}
             className="overflow-menu"
             open={moreOpen}
             onToggle={(event) => setMoreOpen((event.currentTarget as HTMLDetailsElement).open)}
           >
-            <summary aria-label="More actions" title="More actions">
+            <summary aria-label="Actions" title="Actions">
               <MoreHorizontal size={15} strokeWidth={1.6} />
+              <span className="overflow-menu-label">Actions</span>
             </summary>
             <div className="overflow-menu-items" role="menu">
+              {doc.deletedAt ? (
+                <button type="button" role="menuitem" onClick={() => { onAct("restore"); setMoreOpen(false); }}>
+                  <RefreshCw size={13} strokeWidth={1.7} /> Restore
+                </button>
+              ) : null}
               <button type="button" role="menuitem" onClick={() => { onAct("duplicate"); setMoreOpen(false); }}>
                 <Copy size={13} strokeWidth={1.7} /> Duplicate as new draft
               </button>
@@ -798,7 +851,6 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, 
                 role="menuitem"
                 className="danger"
                 onClick={() => { onAct("cancel"); setMoreOpen(false); }}
-                disabled={doc.stage === "sent-to-accounting"}
               >
                 <Trash2 size={13} strokeWidth={1.7} /> Cancel this {kindLabel.toLowerCase()}
               </button>
@@ -808,7 +860,7 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, operator, 
                 className="danger"
                 onClick={() => { onAct("delete"); setMoreOpen(false); }}
               >
-                <Trash2 size={13} strokeWidth={1.7} /> Delete permanently
+                <Trash2 size={13} strokeWidth={1.7} /> Delete
               </button>
             </div>
           </details>

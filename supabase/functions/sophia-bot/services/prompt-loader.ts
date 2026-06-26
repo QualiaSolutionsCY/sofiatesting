@@ -81,6 +81,11 @@ const FALLBACK_PROMPTS: Record<string, string> = {
 const FILE_OVERRIDE_KEYS = [
   "safety_rules", // Never auto-optimize — safety is non-negotiable
   "templates", // Template content lives in files only (not in DB)
+  // Pinned to the file version: autoresearch (prompt-optimizer) kept rewriting the
+  // invoicing prompt and making Sophia improvise extra questions (commission /
+  // "which agent" on rentals, re-confirming VAT after "with VAT"). The invoicing
+  // flow is fixed and operator-owned — it must NOT be auto-optimized.
+  "invoicing",
 ];
 
 interface PromptRow {

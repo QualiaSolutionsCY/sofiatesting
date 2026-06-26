@@ -588,6 +588,10 @@ export async function sendDocumentByUrl(
     );
   }
   const sendUrl = `${WASEND_BASE_URL}/send-message`;
+  // Blank caption ("") → OMIT `text` so the PDF sends with NO caption (Marios's
+  // blank-invoice rule). WaSender rejects an empty/whitespace text, so the field is
+  // left out entirely; a missing caption still defaults to "Invoice attached".
+  const docCaption = caption ?? "Invoice attached";
   try {
     const res = await withRetry(
       () =>
@@ -599,7 +603,7 @@ export async function sendDocumentByUrl(
           },
           body: JSON.stringify({
             to: phoneNumber,
-            text: caption || "Invoice attached",
+            ...(docCaption ? { text: docCaption } : {}),
             documentUrl,
             fileName,
           }),

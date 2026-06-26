@@ -29,6 +29,27 @@ export function officialNumberPlaceholder(kind: DocumentKind): string {
   return `Waiting for client-provided ${label} sequence after Marios approval`;
 }
 
+/**
+ * Official number to assign when a draft is approved. The number the agent already
+ * saw on the draft (e.g. 11437) must carry through to the official invoice — it must
+ * NOT jump to a lower next-official value (11435) just because earlier drafts were
+ * never approved. So we reuse the draft's own sequence, unless that exact number is
+ * already taken by another official (then fall back to the next official in sequence).
+ */
+export function officialNumberOnApproval(documents: InvoiceDocument[], document: InvoiceDocument): string {
+  const seq = extractSequence(document.draftNumber);
+  if (Number.isFinite(seq) && seq > 0) {
+    const taken = documents.some(
+      (other) =>
+        other.id !== document.id &&
+        other.kind === document.kind &&
+        extractSequence(other.officialNumber) === seq
+    );
+    if (!taken) return String(seq);
+  }
+  return getNextOfficialNumber(documents, document.kind);
+}
+
 export function getNextOfficialNumber(documents: InvoiceDocument[], kind: DocumentKind): string {
   const numbers = documents
     .filter((document) => document.kind === kind)

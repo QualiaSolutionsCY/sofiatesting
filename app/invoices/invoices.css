@@ -6612,6 +6612,7 @@ body {
 .list-pane .row-pay.is-paid { background: oklch(0.92 0.06 150); color: oklch(0.42 0.12 150); }
 .list-pane .row-pay.is-unpaid { background: oklch(0.93 0.05 70); color: oklch(0.5 0.12 70); }
 .list-pane .row-pay.is-approved { background: oklch(0.93 0.04 235); color: oklch(0.46 0.11 235); }
+.list-pane .row-pay.is-cancelled { background: var(--red-weak); color: var(--red-strong); }
 .sidebar .document-row.is-selected .row-pay { background: oklch(1 0 0 / 0.18); color: oklch(1 0 0); }
 .list-pane .row-side {
   display: flex;
@@ -7190,14 +7191,18 @@ kbd {
 }
 .detail-header-actions .icon-button:hover { background: oklch(0 0 0); color: oklch(1 0 0); }
 .overflow-menu > summary {
-  width: 30px;
+  width: auto;
+  min-width: 30px;
   height: 30px;
+  gap: 6px;
+  padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 3px;
   background: var(--surface);
   color: oklch(0.2 0 0);
 }
 .overflow-menu > summary:hover { background: oklch(0 0 0); color: oklch(1 0 0); }
+.overflow-menu-label { font-size: 0.8rem; font-weight: 500; line-height: 1; }
 .overflow-menu-items {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -7976,4 +7981,112 @@ kbd {
   .detail-pane .inline-editor {
     grid-template-columns: minmax(340px, 380px) minmax(0, 1fr) !important;
   }
+}
+
+/* ============================================================================
+   M7 — Mobile responsiveness (usable at 375px). Scoped overrides ONLY; desktop
+   (>720px) layout is untouched. Placed last so these win the cascade over the
+   480px sidebar / 1fr workspace / 980px collapse rules defined earlier.
+   ========================================================================== */
+
+@media (max-width: 720px) {
+  /* Shell: sidebar + content row → stack vertically, no reserved 320/480px column. */
+  .app-shell {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* Sidebar: full-width strip on top, no fixed width, no sticky 100vh column.
+     Re-show the document list (the earlier 980px rule hid it) and cap its
+     height so it scrolls instead of pushing the detail pane off-screen. */
+  .sidebar {
+    width: 100% !important;
+    flex-shrink: 1;
+    position: static;
+    height: auto;
+    max-height: 52vh;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 10px 12px;
+    gap: 10px;
+    overflow: hidden;
+  }
+  .sidebar-section-head { display: flex; }
+  .sidebar-list { display: flex; max-height: 38vh; }
+
+  /* Content: tighter padding so nothing exceeds the 375px viewport. */
+  .app-content {
+    padding: 12px;
+  }
+
+  /* Workspace: single column, no min-width floors → never wider than viewport. */
+  .app-content > .workspace {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px;
+  }
+
+  /* Detail pane: reduce padding on phones. */
+  .detail-pane {
+    padding: 12px 12px 14px;
+  }
+
+  /* Palette trigger: allow it to shrink below its 260px desktop min-width and
+     hide the long label so it never overflows the topbar row. */
+  .topbar-actions { max-width: none; }
+  .palette-trigger {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .palette-trigger span { display: none; }
+
+  /* List rows: wrap long client names / numbers instead of forcing overflow,
+     and keep each row a comfortable ≥44px touch target. */
+  .list-pane .document-row,
+  .sidebar .document-row {
+    min-height: 44px;
+    padding-top: 9px;
+    padding-bottom: 9px;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+  .list-pane .row-client,
+  .list-pane .row-title,
+  .sidebar .row-title,
+  .sidebar .row-client {
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+  .list-pane .row-meta,
+  .sidebar .row-meta { flex-wrap: wrap; }
+
+  /* Interactive controls keep a ≥44px tap height on phones. */
+  .sidebar-nav-item,
+  .primary-action,
+  .app-content > .topbar .primary-action,
+  .stage-cta,
+  .topbar-settings,
+  .topbar-actions .icon-button,
+  .palette-trigger { min-height: 44px; }
+}
+
+@media (max-width: 480px) {
+  /* Phone: even tighter chrome, fully drop fixed minimums so 375px never scrolls
+     horizontally. */
+  .app-content { padding: 10px; }
+  .sidebar { max-height: 46vh; padding: 8px 10px; }
+  .sidebar-list { max-height: 32vh; }
+  .detail-pane { padding: 10px 10px 12px; }
+
+  /* Topbar stacks its title and actions so the action row gets full width. */
+  .app-content > .topbar {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .topbar-actions { justify-content: flex-start; }
+
+  /* Inline editor lines table can scroll inside its own box rather than widen
+     the page. */
+  .detail-pane .inline-editor-lines { overflow-x: auto; }
+  .detail-pane .inline-editor-lines-grid { min-width: 0; }
 }

@@ -3,16 +3,16 @@ import "server-only";
 import {
   approveDocumentAction,
   cancelWithCreditNoteAction,
-  correctResendAction,
   createDocumentAction,
   loadDocumentsAction,
   markPaidAndIssueReceiptAction,
   notifyMariosApprovedAction,
+  resendCorrectedInvoiceAction,
   sendDocumentToAccountingGroup,
   storeDocumentPdfAction,
   updateDocumentAction,
 } from "@/lib/invoices/actions/documents";
-import { isCommissionDescription, stripAgentName } from "@/lib/invoices/format";
+import { stripAgentName } from "@/lib/invoices/format";
 import type { DocumentInput } from "@/lib/invoices/document-actions";
 import type { InvoiceDocument, VatMode } from "@/lib/invoices/types/invoice";
 
@@ -178,11 +178,14 @@ export async function runIntent(
       if (!pdf.pdfUrl) {
         return { ok: false, reply: `I couldn't generate the PDF for ${doc.clientName} just now.` };
       }
+      // M1 (Marios): a plain invoice goes out as JUST the PDF — no caption/description.
+      // Commission invoices and credit notes keep their descriptive line.
+      const plainInvoice = doc.kind === "invoice" && !doc.requiresCommissionPerson;
       return {
         ok: true,
         documentId: doc.id,
         ...pdf,
-        reply: `${doc.clientName} — ${numberOf(doc)} — ${money(doc.total)}. PDF attached.`,
+        reply: plainInvoice ? "" : `${doc.clientName} — ${numberOf(doc)} — ${money(doc.total)}. PDF attached.`,
       };
     }
 
@@ -202,20 +205,25 @@ export async function runIntent(
       const num = updated.officialNumber ?? "assigned";
 
       // Approving ALWAYS auto-sends a copy to the accounting group AND to Marios —
-      // never ask "what message should I send?". Commission invoices carry the
-      // agent's name only; every other invoice uses the standard invoice line.
-      const caption = isCommissionDescription(updated.description)
-        ? params.groupMessage || updated.commissionPersonName || ""
-        : `Invoice ${numberOf(updated)} — ${updated.clientName} (${money(updated.total)})${params.groupMessage ? `. ${params.groupMessage}` : ""}`;
+      // never ask "what message should I send?". The group caption follows Marios's
+      // rule: an explicit typed override wins, otherwise it's the agent's name only
+      // when an agent exists (commission invoice), and blank for everything else.
+      const caption =
+        params.groupMessage?.trim() ||
+        (updated.requiresCommissionPerson && updated.commissionPersonName
+          ? updated.commissionPersonName
+          : "");
       const sentToGroup = await sendDocumentToAccountingGroup(updated, caption);
-      await notifyMariosApprovedAction(updated.id);
+      const mResult = await notifyMariosApprovedAction(updated.id);
+      const mariosOk = mResult.mariosNotified ?? false;
       return {
         ok: true,
         documentId: updated.id,
         ...pdf,
-        reply: sentToGroup
-          ? `Approved ${updated.clientName} — № ${num}, and sent a copy to Marios and the accounting group.`
-          : `Approved ${updated.clientName} — № ${num}. (I couldn't reach the group just now.)`,
+        reply:
+          `Approved ${updated.clientName} — № ${num}. ` +
+          `${mariosOk ? "Sent Marios his copy" : "Couldn't reach Marios"}; ` +
+          `${sentToGroup ? "posted to the accounting group" : "couldn't reach the group"}.`,
       };
     }
 
@@ -300,7 +308,7 @@ export async function runIntent(
       const res = await loadDocumentsAction();
       const doc = findDoc(res.documents, params);
       if (!doc) return { ok: false, reply: "I couldn't find that invoice." };
-      await correctResendAction(doc.id, params.correctionReason || "Correction requested");
+      await resendCorrectedInvoiceAction(doc.id, params.correctionReason || "Correction requested");
       return { ok: true, documentId: doc.id, reply: `Marked ${doc.clientName} for correction & resend.` };
     }
 
@@ -346,7 +354,7 @@ export async function runIntent(
       const res = await loadDocumentsAction();
       const doc = findDoc(res.documents, params);
       if (!doc) return { ok: false, reply: "I couldn't find that invoice to resend." };
-      await correctResendAction(doc.id, params.correctionReason || "Resend requested");
+      await resendCorrectedInvoiceAction(doc.id, params.correctionReason || "Resend requested");
       const pdf = await attachPdf(doc.id);
       return { ok: true, documentId: doc.id, ...pdf, reply: `Resent ${doc.clientName} (${numberOf(doc)}). PDF attached.` };
     }

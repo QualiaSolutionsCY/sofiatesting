@@ -64,6 +64,8 @@ export interface Doc {
   appliesTo?: string;
   appliesToId?: string;
   timeline: TimelineEvent[];
+  // Set when the document is soft-deleted (shown in the "Deleted" view, M4).
+  deletedAt?: string;
 }
 
 export interface Client {
@@ -79,7 +81,7 @@ export interface Filters {
   // "approved-numbered" is a merged filter that matches both Approved and Numbered docs.
   // "recurrence-monthly" / "recurrence-yearly" filter by the invoice's recurrence schedule.
   // "kind-receipt" filters to receipts only.
-  stage: "all" | Stage | "approved-numbered" | "recurrence-monthly" | "recurrence-yearly" | "kind-receipt";
+  stage: "all" | Stage | "approved-numbered" | "recurrence-monthly" | "recurrence-yearly" | "kind-receipt" | "deleted";
   q: string;
   from: string;
   to: string;

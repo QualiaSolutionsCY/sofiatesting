@@ -14,6 +14,10 @@ export interface MonthlyRow {
   sub: number;
   total: number;
   note?: string;
+  // Source template fields used to generate next month's invoice (month-roll).
+  description?: string;
+  issued?: string;
+  lines?: Array<{ desc: string; qty: number; unitPrice: number }>;
 }
 
 interface MonthlyRunProps {

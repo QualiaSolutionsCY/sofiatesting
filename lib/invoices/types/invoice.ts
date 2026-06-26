@@ -77,6 +77,8 @@ export type InvoiceDocument = {
   accountingGroupLabel: string;
   approvalTimeline: ApprovalEvent[];
   notes: string[];
+  /** Soft-delete marker — set when the document is moved to the "Deleted invoices" view. */
+  deletedAt?: string;
 };
 
 export type DocumentFilters = {
