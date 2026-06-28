@@ -132,7 +132,9 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
     [numberLabel, getDisplayNumber(document)]
   ];
   if (!isCredit && !isReceipt && document.dueDate) meta.push(["Due Date:", formatDate(document.dueDate)]);
-  if (isCredit && document.sourceInvoiceNumber) meta.push(["Applies to:", `Invoice ${document.sourceInvoiceNumber}`]);
+  // No "Applies to: Invoice N" line on credit notes — the invoice number is already
+  // in the line-item description ("Credit note for invoice no N"), so it would just
+  // duplicate it (Marios's request).
   // Right-align the whole block to the table's right margin so the title (textRight to
   // MR, above) sits directly ON TOP of it — "INVOICE"/"RECEIPT" caps the Date / No. /
   // Due column as one unit, matching the preview's right-aligned header.

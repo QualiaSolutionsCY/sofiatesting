@@ -74,12 +74,8 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
                 <dd>{formatDate(doc.due)}</dd>
               </div>
             ) : null}
-            {isCredit && doc.appliesTo ? (
-              <div>
-                <dt>Applies to</dt>
-                <dd>Invoice {doc.appliesTo}</dd>
-              </div>
-            ) : null}
+            {/* No "Applies to: Invoice N" on credit notes — the number is already in
+                the line-item description, so it would just duplicate it. */}
           </dl>
         </div>
       </div>
