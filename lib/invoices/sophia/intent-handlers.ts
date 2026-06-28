@@ -86,12 +86,15 @@ function numberOf(d: InvoiceDocument): string {
 }
 
 function findDoc(docs: InvoiceDocument[], p: IntentParams): InvoiceDocument | null {
-  if (p.documentId) {
+  // Match against ANY identifier Sophia passed — `documentId` OR `officialNumber`
+  // (for "invoice no 11450" she puts the bare number in either field). Normalize so
+  // "№ 11450", " 11450 ", and "INV-2026-11450-DRAFT" all resolve to a document.
+  const refs = [p.documentId, p.officialNumber]
+    .map((r) => (r ?? "").toString().replace(/^№\s*/, "").trim())
+    .filter(Boolean);
+  for (const ref of refs) {
     const byId = docs.find(
-      (d) =>
-        d.id === p.documentId ||
-        d.draftNumber === p.documentId ||
-        d.officialNumber === p.documentId
+      (d) => d.id === ref || d.draftNumber === ref || d.officialNumber === ref
     );
     if (byId) return byId;
   }
