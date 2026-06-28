@@ -291,24 +291,30 @@ export async function storeDocumentPdfAction(id: string): Promise<DocumentsActio
     throw new Error(storage.reason);
   }
 
-  const stored = markStorageReady(document);
-  const result = await saveInvoiceDocument(
-    {
-      ...stored,
-      storagePath: storage.ok ? storage.file.path : stored.storagePath,
-      notes: storage.ok
-        ? stored.notes
-        : [...stored.notes, "Local fallback metadata saved because Supabase Storage is not configured."]
-    },
-    "PDF stored"
-  );
-  return {
-    ...result,
-    selectedId: id,
-    storageFile: storage.ok
-      ? { filename: storage.file.path.split("/").at(-1) ?? storage.file.path, path: storage.file.path, contentType: "application/pdf", publicUrl: storage.file.publicUrl }
-      : undefined
-  };
+  // The PDF is already uploaded + signed at this point. The metadata save below is
+  // SECONDARY — if it throws (e.g. a concurrent write right after approval), we must
+  // STILL hand back the signed URL so callers (Sophia's approve / email_invoice) can
+  // deliver the PDF. Previously a save failure here threw and dropped the URL, so the
+  // approved PDF never reached the chat reply (and Marios).
+  const storageFile = storage.ok
+    ? { filename: storage.file.path.split("/").at(-1) ?? storage.file.path, path: storage.file.path, contentType: "application/pdf" as const, publicUrl: storage.file.publicUrl }
+    : undefined;
+  try {
+    const stored = markStorageReady(document);
+    const result = await saveInvoiceDocument(
+      {
+        ...stored,
+        storagePath: storage.ok ? storage.file.path : stored.storagePath,
+        notes: storage.ok
+          ? stored.notes
+          : [...stored.notes, "Local fallback metadata saved because Supabase Storage is not configured."]
+      },
+      "PDF stored"
+    );
+    return { ...result, selectedId: id, storageFile };
+  } catch {
+    return { ...current, selectedId: id, storageFile };
+  }
 }
 
 export async function retrieveStoredDocumentAction(id: string): Promise<DocumentsActionResult> {

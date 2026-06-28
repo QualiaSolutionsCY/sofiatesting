@@ -153,6 +153,26 @@ export async function handleManageInvoice(
     }
   }
 
+  // Marios's OWN copy of the approved invoice. The accounting group already gets it,
+  // but his DIRECT copy must go through THIS sender (the bot's 1:1 channel, which he
+  // has an open chat with from approving) — the Vercel-side notify can't reliably DM
+  // him. Blank caption — just the PDF (Marios's rule). Best-effort; skip when Marios
+  // is the approver (no double-send) or no PDF URL was produced.
+  const MARIOS_MSISDN = "35799921560";
+  const requesterDigits = (phoneNumber || agent?.mobile || "").replace(/[^\d]/g, "");
+  if (intent === "approve" && result.ok && result.pdfUrl && !requesterDigits.endsWith("99921560")) {
+    try {
+      await sendDocumentByUrl(
+        MARIOS_MSISDN,
+        result.pdfUrl,
+        result.filename || fallbackDocMeta(intent).filename,
+        ""
+      );
+    } catch (_e) {
+      // never block the agent's reply on Marios's copy
+    }
+  }
+
   return result.ok
     ? {
         success: true,
