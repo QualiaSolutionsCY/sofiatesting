@@ -440,7 +440,21 @@ async function callOpenRouter(
         }));
 
         if (aiRes.status === 429 && retries < maxRetries) {
-          const delay = baseDelay * 2 ** retries;
+          // Ride out transient rate limits (common when the OpenRouter account
+          // is near its spend cap) instead of hard-failing to the user.
+          // 1) Honor the server's Retry-After when present — it's more accurate
+          //    than a blind exponential — but CAP it so a long wait can't blow
+          //    the Edge Function's ~120s wall.
+          // 2) Add jitter so many concurrent WhatsApp webhooks don't retry in
+          //    lockstep and immediately re-trigger the same 429.
+          const MAX_BACKOFF_MS = 8000;
+          const retryAfterSec = Number(aiRes.headers.get("retry-after"));
+          const baseWait =
+            Number.isFinite(retryAfterSec) && retryAfterSec > 0
+              ? retryAfterSec * 1000
+              : baseDelay * 2 ** retries;
+          const delay =
+            Math.min(baseWait, MAX_BACKOFF_MS) + Math.floor(Math.random() * 500);
           logger.info(
             `OpenRouter rate limited (429). Retrying in ${delay}ms... (attempt ${retries + 1}/${maxRetries})`,
             { category: LogCategory.GENERAL }
