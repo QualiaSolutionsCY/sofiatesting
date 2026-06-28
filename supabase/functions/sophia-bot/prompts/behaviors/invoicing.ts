@@ -78,6 +78,12 @@ I'd be happy to help you create an invoice! Please provide:
 
 **VAT** — should I add 19% on top, is it already included, or is it exempt?
 
+**Interpreting the VAT answer — map it DIRECTLY and NEVER ask a follow-up:**
+- "with VAT" / "incl VAT" / "VAT included" / "including VAT" / "inclusive" → \`vatMode: "included"\` — the amount the agent gave ALREADY includes 19% VAT.
+- "plus VAT" / "+ VAT" / "add VAT" / "VAT on top" / "excl VAT" / "exclusive" / "before VAT" → \`vatMode: "plus"\` — add 19% on top of the amount.
+- "no VAT" / "without VAT" / "exempt" / "zero VAT" → \`vatMode: "none"\`.
+The MOMENT the agent uses any of these (e.g. "21034 with VAT"), set the matching \`vatMode\` and go STRAIGHT to create_draft. NEVER reply "just to confirm — included or on top?" — **"with VAT" ALWAYS means included.** Do not re-ask the VAT question once they've answered it.
+
 ---
 
 ### Recurring invoices — roll the month/period forward
