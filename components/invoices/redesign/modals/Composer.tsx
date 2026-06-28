@@ -418,10 +418,18 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
                     <span className="line-field-label">Unit €</span>
                     <input
                       className="price"
-                      type="number"
-                      step="0.01"
-                      value={l.unitPrice}
-                      onChange={(event) => updateLine(l.key, "unitPrice", event.target.value)}
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      value={l.unitPrice || ""}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        // Accept empty + a single in-progress decimal; reject letters.
+                        // Stored as a raw string — the line total / submit coerce via
+                        // Number(), and `|| ""` shows empty instead of a stuck "0".
+                        if (raw !== "" && !/^\d*\.?\d*$/.test(raw)) return;
+                        updateLine(l.key, "unitPrice", raw);
+                      }}
                     />
                   </label>
                   <div className="line-amt-field">

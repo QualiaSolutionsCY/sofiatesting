@@ -293,6 +293,12 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
               // invoice is NOT marked paid here.
               try {
                 const result = await approveDocumentAction(current.id);
+                // Reflect the approval in the UI IMMEDIATELY, BEFORE the
+                // best-effort group/Marios sends below. Those are delivery
+                // side-effects; a throw in one of them must never skip this
+                // reconcile and leave a stale "DRAFT" until a manual Refresh.
+                reconcile(result.documents, current.id);
+                setFilters((f) => ({ ...f, stage: "all" }));
                 if (current.kind === "invoice") {
                   // An approved invoice ALWAYS goes to Marios (his copy) AND the
                   // accounting group — never the accounting group alone. Gate the
@@ -312,11 +318,12 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
                 } else {
                   setToast("Approved and numbered.");
                 }
-                reconcile(result.documents, current.id);
-                setFilters((f) => ({ ...f, stage: "all" }));
               } catch (error) {
                 console.error("Approve from draft failed", error);
                 setToast("Couldn't approve this invoice — please try again.");
+                // A delivery step may have thrown AFTER the approve persisted —
+                // re-pull so the list/detail still show the approved, numbered state.
+                refetchDocuments();
               }
             });
           }
@@ -494,9 +501,18 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           onConfirm: (reason) => {
             if (selected.kind === "invoice" && selected.officialNo) {
               startTransition(async () => {
-                const result = await cancelWithCreditNoteAction(selected.id, reason);
-                reconcile(result.documents, result.selectedId ?? selected.id);
-                setToast("Invoice cancelled — credit note issued with your reason.");
+                try {
+                  const result = await cancelWithCreditNoteAction(selected.id, reason);
+                  reconcile(result.documents, result.selectedId ?? selected.id);
+                  setToast("Invoice cancelled — credit note issued with your reason.");
+                } catch (error) {
+                  // The cancel + credit note can persist before a best-effort group
+                  // send throws — re-pull so the UI shows the cancelled invoice and
+                  // the new credit note instead of staying stale until a manual Refresh.
+                  console.error("Cancel via credit note failed", error);
+                  setToast("Cancelled — refreshing to confirm the credit note.");
+                  refetchDocuments();
+                }
               });
             } else {
               startTransition(async () => {
