@@ -107,6 +107,14 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
 
   const [picked, setPicked] = useState<Set<string>>(() => new Set(source.map((r) => r.id)));
 
+  // Raw text buffer for the amount inputs, keyed by row id. The numeric model
+  // (`r.sub`) can't represent an empty field or an in-progress decimal like
+  // "595." — binding the input straight to it snaps a cleared field back to "0"
+  // (the "zero I can't remove" bug). We display this buffer while editing and
+  // keep `r.sub` in sync for the totals; on blur we drop it so the field shows
+  // the normalized number again.
+  const [amountText, setAmountText] = useState<Record<string, string>>({});
+
   // Row ids currently showing the "Draft saved" cue. Each auto-save flashes the cue
   // for its row, then it fades. Per-row debounce + flash timers live in refs so they
   // survive re-renders and can be cleared on unmount.
@@ -374,12 +382,26 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
                       onChange={(e) => editRow(r.id, { description: e.target.value })}
                     />
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       className="run-edit-amount"
-                      value={r.sub}
+                      value={amountText[r.id] ?? (r.sub === 0 ? "" : String(r.sub))}
                       placeholder="Net amount"
                       aria-label="Net amount"
-                      onChange={(e) => editRow(r.id, { sub: Number(e.target.value) || 0 })}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        // allow empty + a single in-progress decimal; reject letters
+                        if (raw !== "" && !/^\d*\.?\d*$/.test(raw)) return;
+                        setAmountText((m) => ({ ...m, [r.id]: raw }));
+                        editRow(r.id, { sub: raw === "" ? 0 : Number(raw) || 0 });
+                      }}
+                      onBlur={() =>
+                        setAmountText((m) => {
+                          const next = { ...m };
+                          delete next[r.id];
+                          return next;
+                        })
+                      }
                     />
                     <input
                       type="email"
