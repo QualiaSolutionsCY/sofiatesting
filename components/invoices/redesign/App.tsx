@@ -24,7 +24,7 @@ import {
 import { docToInvoiceDocument, invoicesToDocs } from "@/lib/invoices/redesign/adapter";
 import { addOneMonth, addOneYear, rollDescriptionMonth, rollDescriptionYear } from "@/lib/invoices/format";
 import { downloadDocumentPdf } from "@/lib/invoices/downloads";
-import { clientById, nowStamp, replaceClientRegistry, todayStamp } from "@/lib/invoices/redesign/data";
+import { clientById, fmt, nowStamp, replaceClientRegistry, todayStamp } from "@/lib/invoices/redesign/data";
 import type {
   Client,
   ComposerForm,
@@ -562,9 +562,25 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         // alongside the bill-to recipient. One-off invoices go to the bill-to only.
         const isRecurring = !!selected.recurrence && selected.recurrence !== "none";
         const recipients = isRecurring ? [to, "marios@zyprus.com"] : to;
+        // The email body must match what the operator SEES in the client-delivery
+        // box: their saved "Edit message" override, else the SAME composed default
+        // the card shows (mirror of DetailPane's client card, lines ~626-634). Without
+        // this the send dropped the visible message and fell back to a generic template.
+        const clientHandle = clientById(selected.client).name.split(",")[0].split(" ")[0];
+        const kindNoun =
+          selected.kind === "credit" ? "credit note" : selected.kind === "receipt" ? "receipt" : "invoice";
+        const composedClientMessage = selected.officialNo
+          ? `Hello ${clientHandle}, on behalf of Marios at CSC Zyprus — your ${kindNoun} ${selected.officialNo} for ${selected.period} is attached. Total ${fmt(selected.total)}.${
+              selected.due && selected.kind === "invoice" ? ` Due ${selected.due}.` : ""
+            } — via Sophia`
+          : undefined;
         startTransition(async () => {
           try {
-            const result = await sendInvoiceEmailAction(selected.id, recipients, clientMsgOverrides[selected.id] || undefined);
+            const result = await sendInvoiceEmailAction(
+              selected.id,
+              recipients,
+              clientMsgOverrides[selected.id] || composedClientMessage
+            );
             reconcile(result.documents, selected.id);
             setToast(isRecurring ? `Email sent to ${to} (cc marios@zyprus.com).` : `Email sent to ${to}.`);
           } catch (error) {
