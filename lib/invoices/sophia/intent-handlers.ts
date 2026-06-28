@@ -162,14 +162,15 @@ function resolveEmailRecipients(doc: InvoiceDocument, explicit?: string[]): stri
 }
 
 /** Generate + store the PDF for a document and return its public URL + filename. */
-async function attachPdf(documentId: string): Promise<{ pdfUrl?: string; filename?: string }> {
+async function attachPdf(documentId: string, doc?: InvoiceDocument): Promise<{ pdfUrl?: string; filename?: string }> {
   // Retry: storeDocumentPdfAction can transiently fail right after approval (the
   // just-numbered doc is being written concurrently), which dropped the approved
   // PDF URL — so neither the chat reply nor Marios's copy could be sent. A few
-  // retries make the URL reliably available.
+  // retries make the URL reliably available. Pass `doc` to render from the fresh
+  // (approved) document so the PDF shows № N, not the DRAFT number.
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const res = await storeDocumentPdfAction(documentId);
+      const res = await storeDocumentPdfAction(documentId, doc);
       if (res.storageFile?.publicUrl) {
         return { pdfUrl: res.storageFile.publicUrl, filename: res.storageFile.filename };
       }
@@ -281,7 +282,7 @@ export async function runIntent(
         const out = await approveDocumentAction(doc.id);
         updated = out.documents.find((d) => d.id === doc.id) ?? doc;
       }
-      const pdf = await attachPdf(updated.id);
+      const pdf = await attachPdf(updated.id, updated);
       const num = updated.officialNumber ?? "assigned";
 
       // Approving ALWAYS auto-sends a copy to the accounting group AND to Marios —

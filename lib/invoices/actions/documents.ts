@@ -283,9 +283,12 @@ export async function markStoredAction(id: string): Promise<DocumentsActionResul
   return storeDocumentPdfAction(id);
 }
 
-export async function storeDocumentPdfAction(id: string): Promise<DocumentsActionResult> {
+export async function storeDocumentPdfAction(id: string, providedDocument?: InvoiceDocument): Promise<DocumentsActionResult> {
   const current = await listInvoiceDocuments();
-  const document = findDocument(current.documents, id);
+  // Use the caller's freshly-updated document when provided (e.g. the just-approved
+  // doc WITH its official number). Re-loading by id can return a stale pre-approval
+  // version, which renders the PDF with the DRAFT number instead of № N.
+  const document = providedDocument ?? findDocument(current.documents, id);
   const storage = await storeDocumentPdfInSupabase(document);
   if (!storage.ok && current.persistenceMode === "supabase") {
     throw new Error(storage.reason);
