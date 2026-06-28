@@ -93,10 +93,22 @@ function findDoc(docs: InvoiceDocument[], p: IntentParams): InvoiceDocument | nu
     .map((r) => (r ?? "").toString().replace(/^№\s*/, "").trim())
     .filter(Boolean);
   for (const ref of refs) {
-    const byId = docs.find(
+    const exact = docs.find(
       (d) => d.id === ref || d.draftNumber === ref || d.officialNumber === ref
     );
-    if (byId) return byId;
+    if (exact) return exact;
+    // Tolerant match — Sophia may pass "INV-2026-11451" (no -DRAFT suffix) or just the
+    // bare number for an approved/cancelled invoice. Match the ref's TRAILING number
+    // against the official number, or the ref as a PREFIX of the draft number. This
+    // resolves a cancelled-but-still-stored invoice instead of failing (so Sophia
+    // never improvises "removed from the system" — she just sends it).
+    const trailing = ref.match(/\d+/g)?.at(-1) ?? "";
+    const fuzzy = docs.find(
+      (d) =>
+        (!!trailing && d.officialNumber === trailing) ||
+        (ref.length >= 4 && !!d.draftNumber && d.draftNumber.startsWith(ref))
+    );
+    if (fuzzy) return fuzzy;
   }
   if (p.client) {
     const q = p.client.toLowerCase();
