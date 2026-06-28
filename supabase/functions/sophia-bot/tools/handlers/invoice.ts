@@ -121,12 +121,23 @@ export async function handleManageInvoice(
       // 500 fetch error, or the WaSend status). documentSent MUST reflect the real
       // outcome: if we set it true on a failed send, webhook.ts suppresses the text
       // reply and the agent gets NEITHER the PDF NOR the confirmation text.
-      const res = await sendDocumentByUrl(
+      let res = await sendDocumentByUrl(
         phoneNumber || agent?.mobile || "",
         result.pdfUrl,
         result.filename || docMeta.filename,
         result.reply
       );
+      // Retry on 429 (rate-limit) — approval fires several WhatsApp sends in a burst,
+      // so the agent's own PDF copy can get throttled. Back off and retry only on 429.
+      for (let i = 0; i < 3 && res.status === 429; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        res = await sendDocumentByUrl(
+          phoneNumber || agent?.mobile || "",
+          result.pdfUrl,
+          result.filename || docMeta.filename,
+          result.reply
+        );
+      }
       documentSent = res.ok;
       if (res.ok) {
         // Register the invoice/receipt/credit-note PDF as the user's "last document"
