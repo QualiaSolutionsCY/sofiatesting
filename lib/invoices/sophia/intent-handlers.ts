@@ -134,15 +134,12 @@ function resolveEmailRecipients(doc: InvoiceDocument, explicit?: string[]): stri
   }
 
   if (doc.recurrence !== "none") {
+    // Monthly/yearly recurring email goes to accounting + the client in the
+    // WhatsApp/Sophia flow. Marios's CC on recurring invoices is handled ONLY in
+    // the ADMIN PANEL "Send email" — keep the two flows separate, never mixed.
     const accounting = process.env.INVOICE_ACCOUNTING_EMAIL?.trim();
-    // Marios is ALWAYS cc'd on monthly/yearly invoices (his standing rule). Default to
-    // his address when the env override isn't set, so the CC never silently drops.
-    const mariosCc = process.env.INVOICE_MARIOS_EMAIL?.trim() || "marios@zyprus.com";
-    // buildClientEmailMessage is the dashboard's client-email recipient model:
-    // its `to` is the client's address. Reuse it so Sophia and the dashboard
-    // resolve the same client recipient.
-    const clientMessage = buildClientEmailMessage(doc, mariosCc ?? "");
-    return clean([accounting, mariosCc, clientMessage.to]);
+    const clientMessage = buildClientEmailMessage(doc, "");
+    return clean([accounting, clientMessage.to]);
   }
 
   // Non-recurring with no explicit recipients: fall back to the client's address.
