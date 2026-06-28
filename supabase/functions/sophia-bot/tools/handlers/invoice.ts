@@ -160,24 +160,34 @@ export async function handleManageInvoice(
   // is the approver (no double-send) or no PDF URL was produced.
   const MARIOS_MSISDN = "35799921560";
   const requesterDigits = (phoneNumber || agent?.mobile || "").replace(/[^\d]/g, "");
-  if (intent === "approve" && result.ok && result.pdfUrl && !requesterDigits.endsWith("99921560")) {
-    try {
-      await sendDocumentByUrl(
-        MARIOS_MSISDN,
-        result.pdfUrl,
-        result.filename || fallbackDocMeta(intent).filename,
-        ""
-      );
-    } catch (_e) {
-      // never block the agent's reply on Marios's copy
+  let mariosNote = "";
+  if (intent === "approve" && result.ok) {
+    if (!result.pdfUrl) {
+      mariosNote = "\n\n(diag — Marios copy skipped: no PDF URL produced)";
+    } else if (requesterDigits.endsWith("99921560")) {
+      mariosNote = "\n\n(diag — you are Marios; copy is this message)";
+    } else {
+      try {
+        const mres = await sendDocumentByUrl(
+          MARIOS_MSISDN,
+          result.pdfUrl,
+          result.filename || fallbackDocMeta(intent).filename,
+          ""
+        );
+        mariosNote = mres.ok
+          ? "\n\n(diag — Marios copy delivered ✓)"
+          : `\n\n(diag — Marios copy send returned ${mres.status})`;
+      } catch (_e) {
+        mariosNote = "\n\n(diag — Marios copy send threw an error)";
+      }
     }
   }
 
   return result.ok
     ? {
         success: true,
-        message: result.reply,
-        documentSent,
+        message: result.reply + mariosNote,
+        documentSent: documentSent && !mariosNote, // when we appended a diag note, send it as text so it's visible
         data: { documentId: result.documentId, pdfUrl: result.pdfUrl },
       }
     : { success: false, message: result.reply, error: result.error };

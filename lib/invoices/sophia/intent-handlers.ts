@@ -163,13 +163,20 @@ function resolveEmailRecipients(doc: InvoiceDocument, explicit?: string[]): stri
 
 /** Generate + store the PDF for a document and return its public URL + filename. */
 async function attachPdf(documentId: string): Promise<{ pdfUrl?: string; filename?: string }> {
-  try {
-    const res = await storeDocumentPdfAction(documentId);
-    if (res.storageFile?.publicUrl) {
-      return { pdfUrl: res.storageFile.publicUrl, filename: res.storageFile.filename };
+  // Retry: storeDocumentPdfAction can transiently fail right after approval (the
+  // just-numbered doc is being written concurrently), which dropped the approved
+  // PDF URL — so neither the chat reply nor Marios's copy could be sent. A few
+  // retries make the URL reliably available.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await storeDocumentPdfAction(documentId);
+      if (res.storageFile?.publicUrl) {
+        return { pdfUrl: res.storageFile.publicUrl, filename: res.storageFile.filename };
+      }
+    } catch {
+      // best-effort — never fail the intent on PDF storage.
     }
-  } catch {
-    // PDF generation/storage is best-effort — never fail the intent on it.
+    await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
   }
   return {};
 }
