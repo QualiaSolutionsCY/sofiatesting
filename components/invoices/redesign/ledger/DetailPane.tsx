@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Activity,
   AlertTriangle,
   Command,
   Copy,
@@ -472,19 +471,6 @@ function DocumentTab({
                 </div>
               </div>
             </div>
-
-            {doc.commission ? (
-              <div className="inline-editor-callout brand">
-                <Activity size={16} strokeWidth={1.6} />
-                <div>
-                  <strong>Commission flagged · {doc.commission.agent}</strong>
-                  <p>
-                    Agent of record: <b>{doc.commission.agent}</b> · rate <b>{doc.commission.rate}</b> · amount{" "}
-                    <b>{fmt(doc.commission.amount)}</b>.
-                  </p>
-                </div>
-              </div>
-            ) : null}
           </fieldset>
         </aside>
 
