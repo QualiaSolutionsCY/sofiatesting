@@ -545,7 +545,7 @@ export async function cancelWithCreditNoteAction(id: string, reason?: string): P
     "Invoice cancelled with auto-approved credit note"
   );
   await queueCreditNoteDelivery(approvedCreditNote);
-  await notifyGroupOfCreditNote(cancelledInvoice, approvedCreditNote);
+  await notifyGroupOfCreditNote(cancelledInvoice, approvedCreditNote, trimmedReason);
   // Marios ALWAYS gets his own copy of the credit note, not only the group.
   await notifyMariosOverWhatsApp(approvedCreditNote);
   return {
@@ -556,18 +556,23 @@ export async function cancelWithCreditNoteAction(id: string, reason?: string): P
 }
 
 /**
- * Send the linked credit note to the accounting/CSC group, referencing the cancelled
- * invoice number only — the cancellation reason is NEVER included on or alongside the
- * document. Best-effort.
+ * Send the linked credit note to the accounting/CSC group. When the operator typed a
+ * cancellation reason it is used as the group caption (the message the accountant sees);
+ * an empty reason falls back to the default credit-note notice. The reason is never
+ * rendered on the document/PDF itself. Best-effort.
  */
 async function notifyGroupOfCreditNote(
   invoice: InvoiceDocument,
-  creditNote: InvoiceDocument
+  creditNote: InvoiceDocument,
+  reason?: string
 ): Promise<void> {
   const invoiceNumber = getDisplayNumber(invoice);
   const creditNumber = getDisplayNumber(creditNote);
-  const caption =
-    `Credit note ${creditNumber} regarding the cancellation of invoice ${invoiceNumber}.`;
+  // The operator's typed cancellation reason is the caption sent to the group; an
+  // empty reason falls back to the default credit-note notice.
+  const caption = reason?.trim()
+    ? reason.trim()
+    : `Credit note ${creditNumber} regarding the cancellation of invoice ${invoiceNumber}.`;
 
   // Group number from env only — never fall back to anyone's personal number.
   const groupMsisdn = process.env.INVOICE_ACCOUNTING_GROUP_MSISDN?.trim() || undefined;
