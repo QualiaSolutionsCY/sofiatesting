@@ -392,9 +392,11 @@ export async function correctResendAction(
   // and sendDocumentToAccountingGroup rebuilds the PDF from `updated`, so the group
   // receives the corrected content. Best-effort: a failed send never breaks the save.
   // Mirrors resendCorrectedInvoiceAction (the inline-editor / Sophia path).
-  // The correction reason is NEVER placed on a caption sent with the document.
-  const groupCaption =
-    `Corrected invoice ${getDisplayNumber(updated)} — please use this version. Ignore the previous one.`;
+  // When the operator typed a correction reason, THAT is the caption sent to the
+  // group; an empty reason falls back to the default notice.
+  const groupCaption = reason?.trim()
+    ? reason.trim()
+    : `Corrected invoice ${getDisplayNumber(updated)} — please use this version. Ignore the previous one.`;
   await sendDocumentToAccountingGroup(updated, groupCaption);
   await notifyMariosOverWhatsApp(updated, { approved: true });
   return { ...result, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
@@ -721,10 +723,12 @@ export async function resendCorrectedInvoiceAction(
   } catch (error) {
     sendLogger.warn("Corrected-resend delivery record not written", { documentId: id });
   }
-  // Resend immediately to the accounting group + Marios with the ignore-previous
-  // note. The correction reason is NEVER placed on the caption.
-  const groupCaption =
-    `Corrected invoice ${getDisplayNumber(corrected)} — please use this version. Ignore the previous one.`;
+  // Resend immediately to the accounting group + Marios. When the operator typed a
+  // correction reason, THAT is the caption sent to the group; an empty reason falls
+  // back to the default "ignore the previous version" notice.
+  const groupCaption = trimmed
+    ? trimmed
+    : `Corrected invoice ${getDisplayNumber(corrected)} — please use this version. Ignore the previous one.`;
   await sendDocumentToAccountingGroup(corrected, groupCaption);
   await notifyMariosOverWhatsApp(corrected, { approved: true });
   return { ...result, selectedId: id, deliveries: await listDeliveryRecordsForDocument(id) };
