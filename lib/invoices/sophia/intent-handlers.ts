@@ -297,6 +297,21 @@ export async function runIntent(
       const sentToGroup = await sendDocumentToAccountingGroup(updated, caption);
       const mResult = await notifyMariosApprovedAction(updated.id);
       const mariosOk = mResult.mariosNotified ?? false;
+
+      // Email the invoice to the CLIENT when an address was captured (Sophia asks
+      // for it on recurring/monthly invoices). marios@zyprus.com is ALWAYS CC'd by
+      // default. Best-effort — a failed client email never fails the approve itself.
+      let clientEmailed = false;
+      const clientEmail = updated.clientEmail?.trim();
+      if (updated.kind === "invoice" && clientEmail) {
+        try {
+          await sendInvoiceEmailAction(updated.id, [clientEmail, "marios@zyprus.com"]);
+          clientEmailed = true;
+        } catch {
+          // swallow — the approve already succeeded; the email is best-effort.
+        }
+      }
+
       return {
         ok: true,
         documentId: updated.id,
@@ -304,7 +319,8 @@ export async function runIntent(
         reply:
           `Approved ${updated.clientName} — № ${num}. ` +
           `${mariosOk ? "Sent Marios his copy" : "Couldn't reach Marios"}; ` +
-          `${sentToGroup ? "posted to the accounting group" : "couldn't reach the group"}.`,
+          `${sentToGroup ? "posted to the accounting group" : "couldn't reach the group"}` +
+          `${clientEmailed ? `; emailed to ${clientEmail} (cc marios@zyprus.com)` : ""}.`,
       };
     }
 
