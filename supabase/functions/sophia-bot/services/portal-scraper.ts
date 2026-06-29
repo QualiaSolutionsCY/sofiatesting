@@ -1152,6 +1152,24 @@ function parsePortalStructured(
     }
   }
 
+  // --- REMU location: from the page <title> (authoritative, deterministic) ---
+  // Title form: "{Type} for sale in {Area},{District} ID.{id},0 REMU"
+  // (e.g. "Field for sale in Agia Varvara,Nicosia ID.17166,0 REMU"). REMU's
+  // address is otherwise only in Firecrawl's non-deterministic LLM extract, so
+  // it would silently drop on some runs (Lauren 2026-06-29: address missed on a
+  // re-run she'd had correct before). Parse the title and override — it is the
+  // property's own authoritative location.
+  if (portal === "remu") {
+    const tm = html.match(
+      /<title>[\s\S]*?\bin\s+([^,<]+?)\s*,\s*([A-Za-zͰ-Ͽ]+)\s+ID\./i
+    );
+    if (tm) {
+      const area = tm[1].replace(/\s+/g, " ").trim();
+      const district = tm[2].trim();
+      if (area && district) result.location = `${district}, ${area}`;
+    }
+  }
+
   // --- Gallery: deterministic per-portal CDN paths (authoritative when found) ---
   const gallery = new Set<string>();
   if (portal === "altamira") {
