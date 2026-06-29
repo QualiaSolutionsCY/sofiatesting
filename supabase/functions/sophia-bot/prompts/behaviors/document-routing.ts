@@ -71,6 +71,8 @@ If user provides only a first name (single word like "Marios", "Anna", "George")
 → "I need the full name (first and last). What is [Name]'s surname?"
 NEVER generate a document with only a first name — always ask for the surname first.
 
+**EXCEPTION — the commission agent name is NOT a document person field.** The name the agent gives in answer to "Which agent made the sale or rental?" on a COMMISSION invoice is only the accounting-group label — it is NEVER printed on any invoice or document. The full-name rule above therefore does NOT apply to it. Accept WHATEVER name is provided — one word or two, first-name-only like "Andreas" is perfectly fine — use it exactly as given, and **NEVER ask for that agent's surname or full name** (never "What is Andreas's surname?", never "I need the full name for the commission record"). Just take the name and proceed to create the draft.
+
 ### Step 2: Extract Fields from User's Message
 Silently extract any information already provided:
 - Names mentioned → Client Name(s)
