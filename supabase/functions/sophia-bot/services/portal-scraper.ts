@@ -435,13 +435,20 @@ export async function extractFromBankPortal(
 }
 
 /**
- * Probe REMU's image handler to build the real gallery URL list.
+ * Build REMU's real gallery URL list. REMU (Bank of Cyprus) is a JS-rendered
+ * SPA whose photos are served by an extension-less handler
+ * `{listing-dir}/imgHandler.ashx?ref={id}&order={N}&serial={M}`. The raw HTML
+ * carries only the Google map-pin icon as a real <img> (which is what the old
+ * code wrongly grabbed — Lauren 2026-06-29 "a picture of something else").
  *
- * REMU (Bank of Cyprus) is a JS-rendered SPA whose photos are served by
- * `{listing-dir}/imgHandler.ashx?ref={listingId}&order={N}&serial=1`, order
- * starting at 1 and incrementing until the handler returns a 404 HTML page.
- * The URLs carry no image extension and aren't in the raw HTML, so we derive
- * them from the listing id and probe (cheap HEAD requests) until the first gap.
+ * Convention verified live 2026-06-29 against listings 17166 + 28513:
+ *   - the COVER is `order=0` but its `serial` VARIES per listing (0 or 2) and
+ *     cannot be guessed — so we read the exact refs the page itself embeds;
+ *   - additional gallery shots are `order=1,2,3…&serial=1`, contiguous.
+ * Strategy: take the page-embedded refs (authoritative cover + first shot),
+ * then probe forward on serial=1 until the first gap. Cheap HEAD probes; the
+ * handler returns a 200 text/html page (not a 404) past the last photo, so we
+ * gate strictly on an `image/*` content-type.
  */
 async function fetchRemuGallery(url: string): Promise<string[]> {
   const clean = url.split(/[?#]/)[0];
@@ -449,46 +456,77 @@ async function fetchRemuGallery(url: string): Promise<string[]> {
   if (!idMatch) return [];
   const ref = idMatch[1];
   const dir = clean.slice(0, clean.lastIndexOf("/") + 1); // …/cyprus/
-  const handler = (order: number) =>
-    `${dir}imgHandler.ashx?ref=${ref}&order=${order}&serial=1`;
+  const handler = (order: number, serial: number) =>
+    `${dir}imgHandler.ashx?ref=${ref}&order=${order}&serial=${serial}`;
+
+  const isImage = async (u: string): Promise<boolean> => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const r = await fetch(u, { method: "HEAD", signal: controller.signal });
+      clearTimeout(timeout);
+      const ct = r.headers.get("content-type") || "";
+      return r.ok && ct.startsWith("image/");
+    } catch {
+      return false;
+    }
+  };
 
   const found: string[] = [];
+  const seenOrders = new Set<number>();
   const MAX = 40; // hard cap — REMU listings never exceed this
-  const BATCH = 6; // probe a few orders at once to bound latency
 
-  for (let start = 1; start <= MAX; start += BATCH) {
-    const orders: number[] = [];
-    for (let i = start; i < start + BATCH && i <= MAX; i++) orders.push(i);
-
-    const results = await Promise.all(
-      orders.map(async (order) => {
-        const u = handler(order);
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 8000);
-          const r = await fetch(u, {
-            method: "HEAD",
-            signal: controller.signal,
-          });
-          clearTimeout(timeout);
-          const ct = r.headers.get("content-type") || "";
-          return r.ok && ct.startsWith("image/") ? u : null;
-        } catch {
-          return null;
-        }
-      })
+  // 1) Use the imgHandler refs the page embeds — they carry the exact
+  //    order+serial for the cover (serial unguessable) and the first shot.
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+    const pageRes = await fetch(clean, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+      },
+      signal: controller.signal,
+      redirect: "follow",
+    });
+    clearTimeout(timeout);
+    const html = pageRes.ok ? await pageRes.text() : "";
+    const embedded = Array.from(
+      new Set(
+        Array.from(
+          html.matchAll(/imgHandler\.ashx\?ref=\d+&order=(\d+)&serial=\d+/gi)
+        ).map((m) => m[0])
+      )
     );
-
-    // Append in order; stop at the first gap (orders are sequential).
-    let hitGap = false;
-    for (const u of results) {
-      if (u) found.push(u);
-      else {
-        hitGap = true;
-        break;
+    // cover (order=0) first, then ascending — keeps the main photo at index 0.
+    embedded.sort((a, b) => {
+      const oa = Number(a.match(/order=(\d+)/i)?.[1] ?? 0);
+      const ob = Number(b.match(/order=(\d+)/i)?.[1] ?? 0);
+      return oa - ob;
+    });
+    for (const rel of embedded) {
+      const order = Number(rel.match(/order=(\d+)/i)?.[1] ?? -1);
+      const u = dir + rel;
+      if (order >= 0 && !seenOrders.has(order) && (await isImage(u))) {
+        seenOrders.add(order);
+        found.push(u);
       }
     }
-    if (hitGap) break;
+  } catch {
+    // page fetch failed — fall through to the blind probe below.
+  }
+
+  // 2) Probe forward for gallery shots the page didn't embed (serial=1),
+  //    starting past the highest order we already have, stop at the first gap.
+  const maxKnown = seenOrders.size ? Math.max(...seenOrders) : 0;
+  for (let order = maxKnown + 1; order <= MAX; order++) {
+    const u = handler(order, 1);
+    if (await isImage(u)) {
+      seenOrders.add(order);
+      found.push(u);
+    } else {
+      break;
+    }
   }
 
   return found;
