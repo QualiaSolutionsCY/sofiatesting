@@ -882,6 +882,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
             const targetDoc = docs.find((d) => d.id === id);
             if (!targetDoc) return;
             startTransition(async () => {
+              try {
               const result = await updateDocumentAction(id, {
                 kind: targetDoc.kind === "credit" ? "credit-note" : targetDoc.kind,
                 clientName: clientById(form.client).name,
@@ -898,6 +899,11 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
               });
               reconcile(result.documents, id);
               setToast("Invoice updated.");
+              } catch (error) {
+                console.error("Save failed", error);
+                setToast(`Couldn't save: ${error instanceof Error ? error.message : "please try again"}`);
+                refetchDocuments();
+              }
             });
           }}
           onCorrectResendDoc={(id, form, reason) => {
@@ -905,6 +911,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
             const targetDoc = docs.find((d) => d.id === id);
             if (!targetDoc) return;
             startTransition(async () => {
+              try {
               // 1. Save the corrected content (keep the invoice's recurrence so a
               // monthly invoice isn't silently turned into a one-off on edit).
               await updateDocumentAction(id, {
@@ -926,6 +933,14 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
               setToast("Correction sent to the group — previous version superseded.");
               // Pull fresh state so the corrected amount shows without a manual refresh.
               refetchDocuments();
+              } catch (error) {
+                // The content saved but a delivery step (e.g. the WhatsApp group send)
+                // threw — surface it as a toast instead of crashing the whole app, and
+                // re-pull so the saved correction is reflected.
+                console.error("Correct & resend failed", error);
+                setToast(`Saved, but couldn't notify the group: ${error instanceof Error ? error.message : "please try again"}`);
+                refetchDocuments();
+              }
             });
           }}
         />
