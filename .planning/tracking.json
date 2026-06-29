@@ -107,16 +107,16 @@
   },
   "blockers": [],
   "session_started_at": "2026-06-09T07:29:56.378Z",
-  "last_updated": "2026-06-28T12:52:38.182Z",
+  "last_updated": "2026-06-29T14:10:21.261Z",
   "last_pushed_at": "2026-06-28T09:09:16Z",
   "last_commit": "a6b923e",
   "build_count": 4,
   "deploy_count": 0,
   "deployed_url": "https://sofiatesting.vercel.app",
-  "notes": "Fix client-delivery email: send the composed message shown in the box, not a generic body (App.tsx); deployed",
+  "notes": "Fix: commission agent name exempt from full-name rule (no surname Q); deployed sophia-bot + cleared Marios chat_history",
   "submitted_by": "",
   "lifetime": {
-    "tasks_completed": 93,
+    "tasks_completed": 96,
     "phases_completed": 34,
     "milestones_completed": 8,
     "total_phases": 31,
@@ -124,6 +124,6 @@
     "updates_completed": 0,
     "offroad_count": 0
   },
-  "report_seq": 13,
+  "report_seq": 14,
   "lifecycle": "build"
 }
