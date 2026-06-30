@@ -64,6 +64,7 @@ import {
   isDocumentUrl,
   isLocationAStreetInUrl,
   isStreetAddress,
+  isValidCyprusCoord,
 } from "../validators/location.ts";
 import {
   acquireUploadLock,
@@ -690,7 +691,7 @@ export async function handleCreateLandListing(
     aiMessageParts.length > 0 ? aiMessageParts.join("\n") : null;
 
   // 9b. Resolve coordinates
-  const resolvedCoordinates =
+  const rawResolvedCoordinates =
     (args.coordinates as { lat: number; lon: number } | undefined) ||
     (() => {
       if (locationUrl) {
@@ -755,6 +756,22 @@ export async function handleCreateLandListing(
       }
       return;
     })();
+
+  // Reject coordinates outside Cyprus (sea pins from LLM-fabricated values or
+  // comma-decimal truncation like 34,32). REMU/Altia QA 2026-06-30.
+  const resolvedCoordinates =
+    rawResolvedCoordinates &&
+    isValidCyprusCoord(rawResolvedCoordinates.lat, rawResolvedCoordinates.lon)
+      ? rawResolvedCoordinates
+      : undefined;
+  if (rawResolvedCoordinates && !resolvedCoordinates) {
+    logger.warn("Dropped out-of-Cyprus coordinates — leaving map PIN unset", {
+      category: LogCategory.TOOL,
+      operation: "createLandListing",
+      lat: rawResolvedCoordinates.lat,
+      lon: rawResolvedCoordinates.lon,
+    });
+  }
 
   // 9c. Check we have at least 1 valid image
   if (validImages.length === 0) {

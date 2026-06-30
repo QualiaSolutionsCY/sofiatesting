@@ -11,6 +11,7 @@ import {
 } from "../../agents/identifier.ts";
 import { DEFAULT_COORDINATES } from "../../config/business-rules.ts";
 import { isBankPropertyUrl } from "../../rules/bank-detection.ts";
+import { isValidCyprusCoord } from "../validators/location.ts";
 import { checkForDuplicates } from "../../services/duplicate-checker.ts";
 import {
   generateImageWarnings,
@@ -172,7 +173,7 @@ export async function handleCreatePropertyListing(
   }
 
   // Step 9b: Resolve coordinates
-  const resolvedCoordinates =
+  const rawResolvedCoordinates =
     (args.coordinates as { lat: number; lon: number } | undefined) ||
     (() => {
       if (locationUrl) {
@@ -237,6 +238,22 @@ export async function handleCreatePropertyListing(
       }
       return;
     })();
+
+  // Reject coordinates outside Cyprus (sea pins from LLM-fabricated values or
+  // comma-decimal truncation like 34,32). REMU/Altia QA 2026-06-30.
+  const resolvedCoordinates =
+    rawResolvedCoordinates &&
+    isValidCyprusCoord(rawResolvedCoordinates.lat, rawResolvedCoordinates.lon)
+      ? rawResolvedCoordinates
+      : undefined;
+  if (rawResolvedCoordinates && !resolvedCoordinates) {
+    logger.warn("Dropped out-of-Cyprus coordinates — leaving map PIN unset", {
+      category: LogCategory.TOOL,
+      operation: "createPropertyListing",
+      lat: rawResolvedCoordinates.lat,
+      lon: rawResolvedCoordinates.lon,
+    });
+  }
 
   // P3: when a bank listing ended up with no coordinates, surface it in the
   // reviewer notes (potentialDuplicateNote is appended to My Notes downstream)

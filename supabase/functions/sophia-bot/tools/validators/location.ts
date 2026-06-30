@@ -6,6 +6,23 @@
 import { REGION_LOCATIONS } from "../../config/business-rules.ts";
 
 /**
+ * True only if (lat, lon) falls inside Cyprus's geographic bounding box.
+ *
+ * Guards against map pins landing in the sea. Two failure modes seen in live
+ * QA (REMU + Altia, 2026-06-30): an LLM fabricating coordinates from the
+ * scraper's "typically 34–36 / 32–34" schema hint, and comma-decimal values
+ * ("34,7720") truncated by parseFloat to integers ("34,32" → open sea SW of
+ * the island). Bounds are deliberately generous (whole island incl. Karpasia)
+ * so no real listing is rejected: lat 34.4–35.8, lon 32.1–34.7.
+ */
+export function isValidCyprusCoord(lat: unknown, lon: unknown): boolean {
+  const la = typeof lat === "number" ? lat : Number(lat);
+  const lo = typeof lon === "number" ? lon : Number(lon);
+  if (!Number.isFinite(la) || !Number.isFinite(lo)) return false;
+  return la >= 34.4 && la <= 35.8 && lo >= 32.1 && lo <= 34.7;
+}
+
+/**
  * Extract area/neighborhood name from a Google Maps URL.
  * Google Maps encodes place names in the !2s... proto buffer segments.
  * E.g., "!2sKato+Paphos,+Paphos,+Cyprus" → "Kato Paphos, Paphos"
