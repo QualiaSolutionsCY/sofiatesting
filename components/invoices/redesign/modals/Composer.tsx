@@ -21,16 +21,23 @@ interface ComposerProps {
   onCreate: (form: ComposerForm) => void;
   // All documents — used to offer existing invoices when issuing a receipt.
   invoices?: Doc[];
+  /** True while a create/update server action is in flight — disables submit so a
+   * second fast click can't fire the create/update twice. */
+  busy?: boolean;
 }
 
 interface LocalLine {
   key: number;
   desc: string;
   qty: number;
-  unitPrice: number;
+  // The unit-price input buffers raw text while the operator types (so an
+  // in-progress decimal like "5." isn't clobbered). The type reflects that
+  // honestly — every consumer coerces via Number() before doing arithmetic —
+  // instead of lying that a string field is a number.
+  unitPrice: number | string;
 }
 
-export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: ComposerProps) {
+export function Composer({ open, onClose, prefill, onCreate, invoices = [], busy = false }: ComposerProps) {
   const initial = prefill ?? null;
   const isEdit = !!initial?.id;
 
@@ -241,7 +248,11 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
     if (!inv) return;
     setVatMode(inv.vatMode);
     setVatRate(inv.vatRate);
-    setDue(inv.officialNo || "");
+    // Source mode (receipt/credit) shows the invoice picker, not the due-date
+    // field — so leave `due` empty rather than polluting the date-typed state with
+    // the official № string (which would make Date.parse(due) NaN). The source
+    // invoice reference is carried by sourceInvoiceId / previewDoc.appliesTo.
+    setDue("");
     setDescription(
       kind === "credit"
         ? `Credit note for invoice ${inv.officialNo}`
@@ -562,7 +573,7 @@ export function Composer({ open, onClose, prefill, onCreate, invoices = [] }: Co
           <button type="button" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" disabled={(isNewClient && !newClient.name.trim()) || (isSourceMode && !sourceInvoiceId)}>
+          <button type="submit" disabled={busy || (isNewClient && !newClient.name.trim()) || (isSourceMode && !sourceInvoiceId)} aria-busy={busy}>
             <Send size={14} strokeWidth={1.6} />
             {isEdit
               ? "Save changes"

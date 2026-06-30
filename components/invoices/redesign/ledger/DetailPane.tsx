@@ -25,6 +25,9 @@ import { TemplatePreview } from "./TemplatePreview";
 interface DetailPaneProps {
   doc: Doc | null;
   allDocs: Doc[];
+  /** True while a server action is in flight — disables the primary CTA and
+   * delivery buttons so a second fast click can't fire approve/number/send twice. */
+  busy?: boolean;
   sharedCc: string;
   accountingEmail: string;
   /** The resolved recipient email (invoice clientEmail or the "Edit email" override). */
@@ -81,12 +84,14 @@ function computeVat(sub: number, mode: VatMode): { vatAmount: number; total: num
 
 function DocumentTab({
   doc,
+  busy,
   onAct,
   onOpenLightbox,
   onUpdate,
   onCorrectResend
 }: {
   doc: Doc;
+  busy: boolean;
   onAct: (action: string) => void;
   onOpenLightbox: (doc: Doc) => void;
   onUpdate: (form: InlineDocFormState) => void;
@@ -104,7 +109,13 @@ function DocumentTab({
     doc.kind !== "receipt";
   const requiresCorrectionReason = isSent && editable;
   const [form, setForm] = useState<InlineDocFormState>(() => docToFormState(doc));
-  const [saveState, setSaveState] = useState<"idle" | "dirty" | "saving" | "saved">("idle");
+  const [saveState, setSaveState] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
+  // Tracks a save we kicked off so we can resolve its REAL outcome (not a timer):
+  // when the parent finishes the action, `busy` flips back to false. If the server
+  // doc changed (a successful save re-syncs it via reconcile → new baselineKey) we
+  // show "Saved"; if it didn't change, the action failed → "Couldn't save".
+  const saveInFlight = useRef(false);
+  const saveBaselineRef = useRef("");
 
   // Fit-to-width preview: measure the stage and scale the WHOLE A4 page down to its
   // width with ONE deterministic transform (no overflow:auto clipping the bottom, no
@@ -133,6 +144,15 @@ function DocumentTab({
   const baselineKey = JSON.stringify(docToFormState(doc));
   useEffect(() => {
     setForm(docToFormState(doc));
+    // A baseline change while a save is in flight means the save LANDED (the parent
+    // re-synced the server doc) — surface a real "Saved", then settle to idle. A
+    // baseline change with no save in flight is just a different doc being selected.
+    if (saveInFlight.current && baselineKey !== saveBaselineRef.current) {
+      saveInFlight.current = false;
+      setSaveState("saved");
+      const t = setTimeout(() => setSaveState("idle"), 1800);
+      return () => clearTimeout(t);
+    }
     setSaveState("idle");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baselineKey]);
@@ -146,9 +166,27 @@ function DocumentTab({
   const canSubmit = dirty && (!requiresCorrectionReason || form.correctionReason.trim().length > 0);
 
   useEffect(() => {
-    if (saveState === "saving") return;
+    // Don't stomp transient outcome states — only reflect dirtiness from a settled
+    // (idle/dirty) baseline. "saving" waits for the action; "saved"/"error" are
+    // shown for a beat by their own timers.
+    if (saveState === "saving" || saveState === "saved" || saveState === "error") return;
     setSaveState(dirty ? "dirty" : "idle");
   }, [dirty, saveState]);
+
+  // Resolve a FAILED save from the real action outcome: when the parent finishes
+  // (busy → false) and the form is still in flight with an UNCHANGED baseline, the
+  // action rejected (the parent's catch re-pulls but the doc content didn't change)
+  // — surface a real error instead of the old hardcoded "Saved" timer.
+  useEffect(() => {
+    if (busy) return;
+    if (!saveInFlight.current) return;
+    if (baselineKey !== saveBaselineRef.current) return; // success handled above
+    saveInFlight.current = false;
+    setSaveState("error");
+    const t = setTimeout(() => setSaveState(dirty ? "dirty" : "idle"), 2600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy, baselineKey]);
 
   const updateField = <K extends keyof InlineDocFormState>(field: K, value: InlineDocFormState[K]) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -198,18 +236,20 @@ function DocumentTab({
 
   // Save quietly — persist the edit WITHOUT re-sending to the group (drafts, and now
   // also already-sent invoices when the operator doesn't need to notify anyone).
+  // The "Saved"/"Couldn't save" outcome is driven by the REAL action result (the
+  // busy/baseline effects above), not a fixed timer.
   const handleSaveQuiet = () => {
+    saveInFlight.current = true;
+    saveBaselineRef.current = baselineKey;
     setSaveState("saving");
     onUpdate(form);
-    setTimeout(() => setSaveState("saved"), 600);
-    setTimeout(() => setSaveState("idle"), 2200);
   };
   // Save AND re-send the corrected copy to Marios + the group (reason required).
   const handleCorrectResend = () => {
+    saveInFlight.current = true;
+    saveBaselineRef.current = baselineKey;
     setSaveState("saving");
     onCorrectResend(form, form.correctionReason.trim());
-    setTimeout(() => setSaveState("saved"), 600);
-    setTimeout(() => setSaveState("idle"), 2200);
   };
 
   const handleDiscard = () => {
@@ -245,7 +285,7 @@ function DocumentTab({
           </div>
           <div className="numbering-controls">
             <input defaultValue={nextNumber(doc)} />
-            <button type="button" onClick={() => onAct("number")}>
+            <button type="button" onClick={() => onAct("number")} disabled={busy} aria-busy={busy}>
               <Hash size={14} strokeWidth={1.6} /> Lock &amp; number
             </button>
           </div>
@@ -261,6 +301,7 @@ function DocumentTab({
             <span className={`inline-editor-status inline-editor-status-${saveState}`}>
               {saveState === "saving" && "Saving…"}
               {saveState === "saved" && "Saved"}
+              {saveState === "error" && "Couldn't save — try again"}
               {saveState === "dirty" && "Unsaved changes"}
               {saveState === "idle" && (editable ? "Saved" : "Read only")}
             </span>
@@ -275,7 +316,8 @@ function DocumentTab({
                       type="button"
                       className="ghost"
                       onClick={handleSaveQuiet}
-                      disabled={!dirty}
+                      disabled={!dirty || busy}
+                      aria-busy={busy}
                       title="Save the change without notifying the group"
                     >
                       Save
@@ -284,14 +326,15 @@ function DocumentTab({
                       type="button"
                       className="primary"
                       onClick={handleCorrectResend}
-                      disabled={!canSubmit}
+                      disabled={!canSubmit || busy}
+                      aria-busy={busy}
                       title={!canSubmit ? "Add a correction reason first" : undefined}
                     >
                       Correct &amp; resend
                     </button>
                   </>
                 ) : (
-                  <button type="button" className="primary" onClick={handleSaveQuiet} disabled={!canSubmit}>
+                  <button type="button" className="primary" onClick={handleSaveQuiet} disabled={!canSubmit || busy} aria-busy={busy}>
                     Save changes
                   </button>
                 )}
@@ -360,6 +403,18 @@ function DocumentTab({
                   type="date"
                   value={form.issued}
                   onChange={(event) => updateField("issued", event.target.value)}
+                />
+              </label>
+              {/* Marios #17: the number must be VISIBLE before approval. Show the
+                  official № once assigned, otherwise the pending draft number — never
+                  blank — so the operator always knows which document they're on. */}
+              <label className="inline-editor-field">
+                <span>{doc.officialNo ? "Invoice number" : "Draft number (pending)"}</span>
+                <input
+                  type="text"
+                  value={doc.officialNo ? `№ ${doc.officialNo}` : doc.draftNo || nextNumber(doc)}
+                  readOnly
+                  style={{ fontFamily: "var(--font-mono)" }}
                 />
               </label>
             </div>
@@ -513,6 +568,7 @@ function DeliveryPlan({
   accountingEmail,
   clientEmail,
   clientMsg,
+  busy,
   onAct
 }: {
   doc: Doc;
@@ -520,6 +576,7 @@ function DeliveryPlan({
   accountingEmail: string;
   clientEmail: string;
   clientMsg: string;
+  busy: boolean;
   onAct: (action: string) => void;
 }) {
   const cl = clientById(doc.client);
@@ -695,7 +752,7 @@ function DeliveryPlan({
             <pre className="delivery-message">{c.msg}</pre>
             <div className="delivery-card-actions">
               {c.actions.map((a) => (
-                <button key={a.id} type="button" disabled={a.disabled ?? c.disabled} onClick={() => onAct(a.id)}>
+                <button key={a.id} type="button" disabled={busy || (a.disabled ?? c.disabled)} aria-busy={busy} onClick={() => onAct(a.id)}>
                   {a.label}
                 </button>
               ))}
@@ -707,36 +764,96 @@ function DeliveryPlan({
   );
 }
 
-function Timeline({ events }: { events: Doc["timeline"] }) {
+// Richer history (Marios #19): the raw approval events PLUS a derived summary of
+// the document's own facts (issued date, paid date, receipt + credit links) that
+// the approvalTimeline doesn't carry. The receipt entry is CLICKABLE — it opens the
+// issued receipt via the same "sent-to-accounting" action the detail header uses.
+function Timeline({ doc, events = [], onAct }: { doc: Doc; events?: Doc["timeline"]; onAct: (action: string) => void }) {
+  type Row = { at: string; who: string; what: string; body?: string; onClick?: () => void };
+  const rows: Row[] = [];
+
+  // Anchor: the issued date — always known, even when no approval events exist.
+  if (doc.issued) {
+    rows.push({ at: doc.issued, who: "Sophia", what: doc.officialNo ? `Issued as № ${doc.officialNo}` : "Draft created" });
+  }
+  // Raw approval events (email sent / approved / corrected …). Drop the placeholder
+  // "—" body so empty bodies don't render a blank line.
+  for (const e of events) {
+    rows.push({ at: e.at, who: e.who, what: e.what, body: e.body && e.body !== "—" ? e.body : undefined });
+  }
+  // Derived summary facts the approvalTimeline doesn't include.
+  if (doc.paidOn) {
+    rows.push({ at: doc.paidOn, who: "Sophia", what: "Payment received — marked paid" });
+  }
+  if (doc.receiptNo) {
+    // Clickable: opens the issued receipt (the detail header's "Open issued receipt"
+    // routes through the same "sent-to-accounting" action).
+    rows.push({
+      at: doc.paidOn || doc.issued,
+      who: "Sophia",
+      what: `Receipt № ${doc.receiptNo} issued`,
+      body: "Open the receipt",
+      onClick: () => onAct("sent-to-accounting")
+    });
+  }
+  if (doc.creditedBy) {
+    rows.push({ at: doc.issued, who: "Sophia", what: "Cancelled via credit note", body: "Open the linked credit note", onClick: () => onAct("credited") });
+  }
+
   return (
     <section className="timeline">
       <div className="section-heading">
         <div>
           <p className="eyebrow">History</p>
-          <h3>Everything that's happened to this {events.length === 1 ? "document" : "document, newest first"}</h3>
+          <h3>Everything that's happened to this {rows.length === 1 ? "document" : "document, newest first"}</h3>
         </div>
-        <strong>{events.length} {events.length === 1 ? "event" : "events"}</strong>
+        <strong>{rows.length} {rows.length === 1 ? "event" : "events"}</strong>
       </div>
-      {events
-        .slice()
-        .reverse()
-        .map((e, i) => (
-          <div key={i} className="timeline-event">
-            <span />
-            <div>
-              <strong>{e.what}</strong>
-              <p>{e.body !== "—" ? e.body : ""}</p>
+      {rows.length === 0 ? (
+        <p className="timeline-empty">No activity recorded yet.</p>
+      ) : (
+        rows
+          .slice()
+          .reverse()
+          .map((e, i) => (
+            <div key={i} className="timeline-event">
+              <span />
+              <div>
+                <strong>{e.what}</strong>
+                {e.body ? (
+                  e.onClick ? (
+                    <button
+                      type="button"
+                      className="timeline-link"
+                      onClick={e.onClick}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        color: "var(--brand-strong, #2563eb)",
+                        font: "inherit",
+                        textDecoration: "underline",
+                        cursor: "pointer"
+                      }}
+                    >
+                      {e.body}
+                    </button>
+                  ) : (
+                    <p>{e.body}</p>
+                  )
+                ) : null}
+              </div>
+              <div className="row-date">
+                {e.at} · {e.who}
+              </div>
             </div>
-            <div className="row-date">
-              {e.at} · {e.who}
-            </div>
-          </div>
-        ))}
+          ))
+      )}
     </section>
   );
 }
 
-export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, clientEmail, clientMsg, operator, onAct, onOpenLightbox, onUpdateDoc, onCorrectResendDoc }: DetailPaneProps) {
+export function DetailPane({ doc, allDocs, busy = false, sharedCc, accountingEmail, clientEmail, clientMsg, operator, onAct, onOpenLightbox, onUpdateDoc, onCorrectResendDoc }: DetailPaneProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDetailsElement>(null);
   // The Actions menu must auto-close when you switch to another document or click
@@ -818,7 +935,7 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, clientEmai
     <aside className="detail-pane">
       <header className="detail-header">
         <div className="detail-header-actions">
-          <button type="button" className="primary-action stage-cta" onClick={() => onAct(stage.id)} title={action.small}>
+          <button type="button" className="primary-action stage-cta" onClick={() => onAct(stage.id)} title={action.small} disabled={busy} aria-busy={busy}>
             {action.icon}
             <span>{action.label}</span>
           </button>
@@ -919,6 +1036,7 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, clientEmai
 
       <DocumentTab
         doc={doc}
+        busy={busy}
         onAct={onAct}
         onOpenLightbox={onOpenLightbox}
         onUpdate={(form) => onUpdateDoc(doc.id, form)}
@@ -926,7 +1044,7 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, clientEmai
       />
 
       <section className="detail-section" id="sending">
-        <DeliveryPlan doc={doc} sharedCc={sharedCc} accountingEmail={accountingEmail} clientEmail={clientEmail} clientMsg={clientMsg} onAct={onAct} />
+        <DeliveryPlan doc={doc} sharedCc={sharedCc} accountingEmail={accountingEmail} clientEmail={clientEmail} clientMsg={clientMsg} busy={busy} onAct={onAct} />
       </section>
 
       {hasRelated ? (
@@ -967,7 +1085,7 @@ export function DetailPane({ doc, allDocs, sharedCc, accountingEmail, clientEmai
       ) : null}
 
       <section className="detail-section" id="history">
-        <Timeline events={doc.timeline || []} />
+        <Timeline doc={doc} events={doc.timeline || []} onAct={onAct} />
       </section>
     </aside>
   );

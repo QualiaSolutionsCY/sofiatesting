@@ -84,7 +84,23 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
             total.toLocaleString("en-GB"),
             total.toLocaleString("en-GB", { minimumFractionDigits: 2 })
           ];
-          const hay = [cl.name, cl.property, doc.officialNo, doc.draftNo, doc.pdf, doc.receiptNo, doc.issued, ...amountForms]
+          // Search across the client, the property identifier, document numbers,
+          // the description + line items (Marios #22), the amount, and BOTH the raw
+          // and the displayed date so typing either form matches.
+          const lineText = (doc.lines || []).map((l) => l.desc).join(" ");
+          const hay = [
+            cl.name,
+            cl.property,
+            doc.officialNo,
+            doc.draftNo,
+            doc.pdf,
+            doc.receiptNo,
+            doc.description,
+            lineText,
+            doc.issued,
+            formatDate(doc.issued),
+            ...amountForms
+          ]
             .filter(Boolean)
             .join(" ")
             .toLowerCase();

@@ -1475,6 +1475,7 @@ em, i, .filters-disclosure > summary em {
 .inline-editor-status-saving { color: var(--amber-strong, var(--brand-strong)); }
 .inline-editor-status-saved { color: var(--brand-strong); }
 .inline-editor-status-dirty { color: var(--amber-strong, var(--brand-strong)); }
+.inline-editor-status-error { color: var(--danger, #c0362c); }
 
 .inline-editor-actions {
   display: inline-flex;
@@ -3053,6 +3054,26 @@ em, i, .filters-disclosure > summary em {
   font-family: var(--font-mono);
   font-size: 0.76rem;
   font-weight: 400;
+}
+
+.timeline-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--brand-strong);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.timeline-link:hover { opacity: 0.8; }
+
+.timeline-empty {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
 }
 
 /* ----------------------------------------------------------------------------

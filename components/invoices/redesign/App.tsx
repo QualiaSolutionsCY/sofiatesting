@@ -75,6 +75,14 @@ function vatRateToMode(rate: number): "plus-vat" | "no-vat" {
   return rate === 0 ? "no-vat" : "plus-vat";
 }
 
+// Minimal RFC-pragmatic email check — rejects obviously malformed addresses
+// (missing @, missing domain dot, whitespace) before we hand them to the email
+// send action. Not a full RFC 5322 validator; just enough to catch typos.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function isValidEmail(value: string): boolean {
+  return EMAIL_RE.test(value.trim());
+}
+
 function formToDocumentInput(form: ComposerForm): DocumentInput {
   const sub = form.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
   const clientName = form.newClient?.name ?? clientById(form.client).name;
@@ -130,7 +138,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
   // Per-document recipient-email override — the delivery card's "Edit email"
   // action. Falls back to the invoice's stored clientEmail when unset.
   const [clientEmailOverrides, setClientEmailOverrides] = useState<Record<string, string>>({});
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     if (preAuthed) return;
@@ -332,13 +340,19 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       }
       case "sent-to-marios":
         startTransition(async () => {
-          const result = await sendToMariosAction(selected.id);
-          reconcile(result.documents, selected.id);
-          setToast(
-            result.mariosNotified
-              ? "Sent to Marios."
-              : "Couldn't confirm the send to Marios — try again."
-          );
+          try {
+            const result = await sendToMariosAction(selected.id);
+            reconcile(result.documents, selected.id);
+            setToast(
+              result.mariosNotified
+                ? "Sent to Marios."
+                : "Couldn't confirm the send to Marios — try again."
+            );
+          } catch (error) {
+            console.error("Send to Marios failed", error);
+            setToast(`Couldn't send to Marios: ${error instanceof Error ? error.message : "please try again"}`);
+            refetchDocuments();
+          }
         });
         break;
       case "correction-needed":
@@ -347,17 +361,29 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         break;
       case "corrected-resend":
         startTransition(async () => {
-          const result = await correctResendAction(selected.id, selected.correction?.reason ?? "");
-          reconcile(result.documents, selected.id);
-          setToast("Resent correction.");
+          try {
+            const result = await correctResendAction(selected.id, selected.correction?.reason ?? "");
+            reconcile(result.documents, selected.id);
+            setToast("Resent correction.");
+          } catch (error) {
+            console.error("Corrected resend failed", error);
+            setToast(`Couldn't resend correction: ${error instanceof Error ? error.message : "please try again"}`);
+            refetchDocuments();
+          }
         });
         break;
       case "approved":
       case "number":
         startTransition(async () => {
-          const result = await approveDocumentAction(selected.id);
-          reconcile(result.documents, selected.id);
-          setToast("Locked and official number assigned.");
+          try {
+            const result = await approveDocumentAction(selected.id);
+            reconcile(result.documents, selected.id);
+            setToast("Locked and official number assigned.");
+          } catch (error) {
+            console.error("Approve / number failed", error);
+            setToast(`Couldn't lock & number: ${error instanceof Error ? error.message : "please try again"}`);
+            refetchDocuments();
+          }
         });
         break;
       case "numbered":
@@ -370,10 +396,16 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           break;
         }
         startTransition(async () => {
-          const result = await markPaidAndIssueReceiptAction(selected.id);
-          reconcile(result.documents, result.selectedId ?? selected.id);
-          setFilters((f) => ({ ...f, stage: "all" }));
-          setToast("Receipt issued.");
+          try {
+            const result = await markPaidAndIssueReceiptAction(selected.id);
+            reconcile(result.documents, result.selectedId ?? selected.id);
+            setFilters((f) => ({ ...f, stage: "all" }));
+            setToast("Receipt issued.");
+          } catch (error) {
+            console.error("Issue receipt failed", error);
+            setToast(`Couldn't issue receipt: ${error instanceof Error ? error.message : "please try again"}`);
+            refetchDocuments();
+          }
         });
         break;
       case "sent-to-accounting": {
@@ -467,9 +499,15 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           },
           onConfirm: (reason) => {
             startTransition(async () => {
-              const result = await cancelWithCreditNoteAction(selected.id, reason);
-              reconcile(result.documents, result.selectedId ?? selected.id);
-              setToast("Credit note issued — original cancelled, group notified with your reason.");
+              try {
+                const result = await cancelWithCreditNoteAction(selected.id, reason);
+                reconcile(result.documents, result.selectedId ?? selected.id);
+                setToast("Credit note issued — original cancelled, group notified with your reason.");
+              } catch (error) {
+                console.error("Issue credit note failed", error);
+                setToast(`Couldn't issue credit note: ${error instanceof Error ? error.message : "please try again"}`);
+                refetchDocuments();
+              }
             });
           }
         });
@@ -477,9 +515,15 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       }
       case "regenerate":
         startTransition(async () => {
-          const result = await regenerateStoredDocumentAction(selected.id);
-          reconcile(result.documents, selected.id);
-          setToast("PDF regenerated and re-uploaded.");
+          try {
+            const result = await regenerateStoredDocumentAction(selected.id);
+            reconcile(result.documents, selected.id);
+            setToast("PDF regenerated and re-uploaded.");
+          } catch (error) {
+            console.error("Regenerate PDF failed", error);
+            setToast(`Couldn't regenerate PDF: ${error instanceof Error ? error.message : "please try again"}`);
+            refetchDocuments();
+          }
         });
         break;
       case "cancel": {
@@ -516,9 +560,15 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
               });
             } else {
               startTransition(async () => {
-                const result = await deleteDocumentAction(selected.id);
-                reconcile(result.documents, result.selectedId);
-                setToast("Document cancelled.");
+                try {
+                  const result = await deleteDocumentAction(selected.id);
+                  reconcile(result.documents, result.selectedId);
+                  setToast("Document cancelled.");
+                } catch (error) {
+                  console.error("Cancel (delete) failed", error);
+                  setToast(`Couldn't cancel: ${error instanceof Error ? error.message : "please try again"}`);
+                  refetchDocuments();
+                }
               });
             }
           }
@@ -527,13 +577,19 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
       }
       case "whatsapp-marios-resend":
         startTransition(async () => {
-          const result = await sendToMariosAction(selected.id, msgOverrides[selected.id]);
-          reconcile(result.documents, selected.id);
-          setToast(
-            result.mariosNotified
-              ? "Sent to Marios."
-              : "Couldn't confirm the send to Marios — try again."
-          );
+          try {
+            const result = await sendToMariosAction(selected.id, msgOverrides[selected.id]);
+            reconcile(result.documents, selected.id);
+            setToast(
+              result.mariosNotified
+                ? "Sent to Marios."
+                : "Couldn't confirm the send to Marios — try again."
+            );
+          } catch (error) {
+            console.error("Resend to Marios failed", error);
+            setToast(`Couldn't resend to Marios: ${error instanceof Error ? error.message : "please try again"}`);
+            refetchDocuments();
+          }
         });
         break;
       case "whatsapp-marios-edit": {
@@ -574,6 +630,13 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           ""
         ).trim();
         if (!to) break;
+        // Guard against a malformed recipient before we hit the send action — the
+        // address can come from the stored override, the invoice, or a free-text
+        // prompt, so it must be re-validated here regardless of source.
+        if (!isValidEmail(to)) {
+          setToast("That recipient email isn't valid — fix it with “Edit email” and try again.");
+          break;
+        }
         // Monthly/yearly invoices ALWAYS CC marios@zyprus.com (Marios's standing rule),
         // alongside the bill-to recipient. One-off invoices go to the bill-to only.
         const isRecurring = !!selected.recurrence && selected.recurrence !== "none";
@@ -620,7 +683,14 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
             required: false
           },
           onConfirm: (text) => {
-            setClientEmailOverrides((prev) => ({ ...prev, [current.id]: (text ?? "").trim() }));
+            const next = (text ?? "").trim();
+            // Reject a malformed address so it can never reach the send action — a
+            // blank entry is allowed (clears the override back to the stored email).
+            if (next && !isValidEmail(next)) {
+              setToast("That doesn't look like a valid email — check it and try again.");
+              return;
+            }
+            setClientEmailOverrides((prev) => ({ ...prev, [current.id]: next }));
             setToast("Recipient email saved — it'll be used on the next send.");
           }
         });
@@ -634,20 +704,32 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           confirmLabel: "Delete",
           onConfirm: () => {
             startTransition(async () => {
-              const result = await deleteDocumentAction(selected.id);
-              reconcile(result.documents, result.selectedId);
-              setToast("Moved to Deleted — restore it any time from the Deleted view.");
+              try {
+                const result = await deleteDocumentAction(selected.id);
+                reconcile(result.documents, result.selectedId);
+                setToast("Moved to Deleted — restore it any time from the Deleted view.");
+              } catch (error) {
+                console.error("Delete failed", error);
+                setToast(`Couldn't delete: ${error instanceof Error ? error.message : "please try again"}`);
+                refetchDocuments();
+              }
             });
           }
         });
         break;
       case "restore":
         startTransition(async () => {
-          const result = await restoreDocumentAction(selected.id);
-          reconcile(result.documents, result.selectedId);
-          setDeletedDocs((prev) => prev.filter((d) => d.id !== selected.id));
-          setFilters((f) => ({ ...f, stage: "all" }));
-          setToast("Document restored.");
+          try {
+            const result = await restoreDocumentAction(selected.id);
+            reconcile(result.documents, result.selectedId);
+            setDeletedDocs((prev) => prev.filter((d) => d.id !== selected.id));
+            setFilters((f) => ({ ...f, stage: "all" }));
+            setToast("Document restored.");
+          } catch (error) {
+            console.error("Restore failed", error);
+            setToast(`Couldn't restore: ${error instanceof Error ? error.message : "please try again"}`);
+            refetchDocuments();
+          }
         });
         break;
       case "client-edit": {
@@ -677,13 +759,19 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         break;
       case "accounting-resend":
         startTransition(async () => {
-          const result = await forwardAccountingAction(selected.id);
-          reconcile(result.documents, selected.id);
-          setToast(
-            result.accountingGroupNotified
-              ? "Accounting copy resent over WhatsApp."
-              : "Couldn't confirm the accounting resend — try again."
-          );
+          try {
+            const result = await forwardAccountingAction(selected.id);
+            reconcile(result.documents, selected.id);
+            setToast(
+              result.accountingGroupNotified
+                ? "Accounting copy resent over WhatsApp."
+                : "Couldn't confirm the accounting resend — try again."
+            );
+          } catch (error) {
+            console.error("Accounting resend failed", error);
+            setToast(`Couldn't resend to accounting: ${error instanceof Error ? error.message : "please try again"}`);
+            refetchDocuments();
+          }
         });
         break;
       case "accounting-configure":
@@ -699,49 +787,61 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
     const input = formToDocumentInput(form);
 
     startTransition(async () => {
-      if (isEdit) {
-        const result = await updateDocumentAction(form.editingId as string, input);
-        if ("officialNumber" in input && form.officialNo && result.documents.find((d) => d.id === (result.selectedId ?? ""))) {
-          const finalResult = await applyOfficialNumberAction(result.selectedId as string, form.officialNo);
-          reconcile(finalResult.documents, finalResult.selectedId);
-        } else {
-          reconcile(result.documents, result.selectedId);
+      try {
+        if (isEdit) {
+          const result = await updateDocumentAction(form.editingId as string, input);
+          if ("officialNumber" in input && form.officialNo && result.documents.find((d) => d.id === (result.selectedId ?? ""))) {
+            const finalResult = await applyOfficialNumberAction(result.selectedId as string, form.officialNo);
+            reconcile(finalResult.documents, finalResult.selectedId);
+            // Manual number entry rejects on collision (server returns .error and
+            // leaves the number unchanged) — surface it instead of a false success.
+            if (finalResult.error) {
+              setToast(finalResult.error);
+              return;
+            }
+          } else {
+            reconcile(result.documents, result.selectedId);
+          }
+          setToast("Document updated.");
+          return;
         }
-        setToast("Document updated.");
-        return;
-      }
 
-      // Receipt from the composer: issue it against the chosen existing invoice
-      // (marks the invoice paid + creates the linked receipt). Never standalone.
-      if (form.kind === "receipt" && form.sourceInvoiceId) {
-        const result = await markPaidAndIssueReceiptAction(form.sourceInvoiceId);
-        reconcile(result.documents, result.selectedId ?? form.sourceInvoiceId);
+        // Receipt from the composer: issue it against the chosen existing invoice
+        // (marks the invoice paid + creates the linked receipt). Never standalone.
+        if (form.kind === "receipt" && form.sourceInvoiceId) {
+          const result = await markPaidAndIssueReceiptAction(form.sourceInvoiceId);
+          reconcile(result.documents, result.selectedId ?? form.sourceInvoiceId);
+          setFilters((f) => ({ ...f, stage: "all" }));
+          setToast("Receipt issued.");
+          return;
+        }
+
+        // Credit note from the composer: issue it against the chosen existing
+        // invoice (cancels the invoice + creates the auto-approved credit note).
+        // Mirrors the cancel-with-credit-note action; never standalone.
+        if (form.kind === "credit" && form.sourceInvoiceId) {
+          const result = await cancelWithCreditNoteAction(form.sourceInvoiceId, form.creditReason);
+          reconcile(result.documents, result.selectedId ?? form.sourceInvoiceId);
+          setFilters((f) => ({ ...f, stage: "credited" }));
+          setToast("Credit note issued — original cancelled, group notified.");
+          return;
+        }
+
+        const created = await createDocumentAction(input);
+        const createdId = (created.selectedId ?? created.documents[0]?.id) as string;
+
+        // Create produces a REVIEWABLE draft (R18a). It is NOT auto-approved or
+        // auto-sent — the operator reviews it, then approves from the draft CTA,
+        // which opens an editable message + sends (handleAct "draft", R18b). This
+        // restores the approve → preview → edit-message → send step.
+        reconcile(created.documents, createdId);
         setFilters((f) => ({ ...f, stage: "all" }));
-        setToast("Receipt issued.");
-        return;
+        setToast("Draft created — review it, then approve to send.");
+      } catch (error) {
+        console.error("Create / update document failed", error);
+        setToast(`Couldn't save the document: ${error instanceof Error ? error.message : "please try again"}`);
+        refetchDocuments();
       }
-
-      // Credit note from the composer: issue it against the chosen existing
-      // invoice (cancels the invoice + creates the auto-approved credit note).
-      // Mirrors the cancel-with-credit-note action; never standalone.
-      if (form.kind === "credit" && form.sourceInvoiceId) {
-        const result = await cancelWithCreditNoteAction(form.sourceInvoiceId, form.creditReason);
-        reconcile(result.documents, result.selectedId ?? form.sourceInvoiceId);
-        setFilters((f) => ({ ...f, stage: "credited" }));
-        setToast("Credit note issued — original cancelled, group notified.");
-        return;
-      }
-
-      const created = await createDocumentAction(input);
-      const createdId = (created.selectedId ?? created.documents[0]?.id) as string;
-
-      // Create produces a REVIEWABLE draft (R18a). It is NOT auto-approved or
-      // auto-sent — the operator reviews it, then approves from the draft CTA,
-      // which opens an editable message + sends (handleAct "draft", R18b). This
-      // restores the approve → preview → edit-message → send step.
-      reconcile(created.documents, createdId);
-      setFilters((f) => ({ ...f, stage: "all" }));
-      setToast("Draft created — review it, then approve to send.");
     });
   }
 
@@ -830,6 +930,11 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
             lines: rolledLines,
             // Advance the issue date to the upcoming instance (R4/R14).
             issued: d.issued ? advance(d.issued) : d.issued,
+            // Carry the SOURCE invoice's VAT treatment through so the materialized
+            // invoice (and its preview) re-issue with the same VAT the template used
+            // — a no-vat / included-vat recurring invoice must not become +19%.
+            vatMode: d.vatMode,
+            vatRate: rate,
             // Client delivery (R17): recipient is filled by the operator in the run
             // overlay (R5); the message defaults to any saved client-message override
             // for the template, editable per upcoming row.
@@ -870,6 +975,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         <DetailPane
           doc={selected}
           allDocs={docs}
+          busy={isPending}
           sharedCc={sharedCc}
           accountingEmail={accountingEmail}
           clientEmail={(selected && (clientEmailOverrides[selected.id] || selected.clientEmail)) || ""}
@@ -956,6 +1062,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         prefill={composerPrefill}
         onCreate={handleCreate}
         invoices={docs}
+        busy={isPending}
       />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onAction={handlePaletteAction} />
       <PDFLightbox
@@ -980,6 +1087,8 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           startTransition(async () => {
             let last = null;
             let emailed = 0;
+            let created = 0;
+            try {
             for (const r of rows) {
               // Materialize next month's concrete invoice from the recurring
               // template. The description, line items and issue date were ALREADY
@@ -997,10 +1106,14 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
                 description: r.description ?? "",
                 lineItems: rolledLines,
                 amount: r.sub,
-                vatMode: "plus-vat",
+                // Re-issue with the SOURCE invoice's VAT treatment (R-VAT) — never a
+                // blanket "plus-vat", which silently added 19% to no-vat/included
+                // recurring invoices. Default only when the row carried no mode.
+                vatMode: r.vatMode ?? "plus-vat",
                 issueDate: r.issued || todayStamp(),
                 recurrence: "none"
               });
+              created += 1;
               // Deliver each materialized invoice to its client (R17). Reuse the
               // single email path (CONTRACT-EMAIL) with the row's recipient(s) and
               // its delivery-message override — no second email path. Best-effort:
@@ -1032,6 +1145,16 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
             // Guarantee the freshly created invoices show immediately without a
             // manual refresh (F3).
             refetchDocuments();
+            } catch (error) {
+              // A failed create mid-batch must not stall the UI with an uncaught
+              // rejection — surface how far we got and reconcile what landed.
+              console.error("Monthly run failed", error);
+              if (last) reconcile(last.documents, last.selectedId);
+              setToast(
+                `Monthly run stopped after ${created} of ${rows.length} — ${error instanceof Error ? error.message : "please retry"}`
+              );
+              refetchDocuments();
+            }
           });
         }}
         onPreview={(rows) => {
@@ -1055,8 +1178,10 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
               issued: r.issued || todayStamp(),
               due: "",
               period: r.period,
-              vatRate: 19,
-              vatMode: "plus-vat" as const,
+              // Mirror the source invoice's VAT so preview == issued — a no-vat /
+              // included-vat recurring invoice previews (and issues) without +19%.
+              vatRate: r.vatRate ?? 19,
+              vatMode: r.vatMode ?? "plus-vat",
               lines: previewLines,
               total: r.total,
               description: r.description ?? "",

@@ -3,6 +3,7 @@
 import { Check, Eye, Pause, Send, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clientById, fmt } from "@/lib/invoices/redesign/data";
+import type { VatMode } from "@/lib/invoices/redesign/types";
 
 // Auto-saved per-row run edits for the recurring batch. EVERY editable field
 // (description, net amount, client email, delivery message) is persisted to
@@ -80,6 +81,11 @@ export interface MonthlyRow {
   // the materialized invoice. recipients absent = no email for this row.
   recipients?: string;
   message?: string;
+  // The SOURCE invoice's VAT treatment, carried through so the materialized
+  // invoice (and its preview) re-issue with the same VAT the template used — a
+  // no-vat / included-vat recurring invoice must never be re-issued at +19%.
+  vatMode?: VatMode;
+  vatRate?: number;
 }
 
 interface MonthlyRunProps {
