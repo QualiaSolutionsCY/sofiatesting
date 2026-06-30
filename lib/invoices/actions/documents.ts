@@ -12,6 +12,8 @@ import {
   deleteInvoiceDocument,
   listDeletedInvoiceDocuments,
   listInvoiceDocuments,
+  mintOfficialNumber,
+  OfficialNumberCollisionError,
   restoreInvoiceDocument,
   retrieveStoredDocument,
   saveInvoiceDocument,
@@ -247,10 +249,19 @@ export async function approveDocumentAction(id: string): Promise<DocumentsAction
   const current = await listInvoiceDocuments();
   const document = findDocument(current.documents, id);
   const approved = markApproved(document);
-  const numbered = applyOfficialNumberToDocument(
-    approved,
-    document.officialNumber ?? officialNumberOnApproval(current.documents, document)
-  );
+  // AUTO/approval numbering path: mint the official number ATOMICALLY via the
+  // allocate_official_number RPC (advisory-locked max+1 per kind) instead of computing
+  // Math.max+1 over a possibly-stale in-memory list, which two concurrent approvals
+  // could read identically and assign the same legal number. An already-numbered
+  // document keeps its number. The RPC is the happy path; when it's unavailable
+  // (no service client / not deployed) fall back to officialNumberOnApproval so
+  // behavior stays backward-compatible. The (kind, official_number) unique index +
+  // auto-reallocation retry in saveInvoiceDocument remains the hard backstop.
+  const officialNumber =
+    document.officialNumber ??
+    (await mintOfficialNumber(document.kind)) ??
+    officialNumberOnApproval(current.documents, document);
+  const numbered = applyOfficialNumberToDocument(approved, officialNumber);
   const result = await saveInvoiceDocument(numbered, "Approved and official number applied");
   return { ...result, selectedId: id };
 }
@@ -272,11 +283,24 @@ export async function applyOfficialNumberAction(
   id: string,
   number: string
 ): Promise<DocumentsActionResult> {
-  return mutateOne(
-    id,
-    (document) => applyOfficialNumberToDocument(document, number),
-    "Official number applied"
-  );
+  const current = await listInvoiceDocuments();
+  const document = findDocument(current.documents, id);
+  const numbered = applyOfficialNumberToDocument(document, number);
+  // MANUAL entry: the operator typed an exact legal number. If it collides with an
+  // existing live document of the same kind, the save MUST reject (numbering:"manual")
+  // rather than silently reallocating a DIFFERENT number and reporting success. Surface
+  // the collision as a returned error so the operator can correct it.
+  try {
+    const result = await saveInvoiceDocument(numbered, "Official number applied", {
+      numbering: "manual",
+    });
+    return { ...result, selectedId: id };
+  } catch (error) {
+    if (error instanceof OfficialNumberCollisionError) {
+      return { ...current, selectedId: id, error: error.message };
+    }
+    throw error;
+  }
 }
 
 export async function markStoredAction(id: string): Promise<DocumentsActionResult> {
@@ -450,10 +474,27 @@ export async function sendInvoiceEmailAction(
   const number = getDisplayNumber(document);
   const pdf = Buffer.from(buildDocumentPdfBytes(document));
 
+  // Marios gets a copy of EVERY emailed invoice/receipt/credit-note. Per Marios's
+  // own rule: monthly/recurring documents go to him as a BLIND copy (bcc) so the
+  // client never sees him on a recurring run, while one-off documents copy him
+  // visibly (cc). Recurrence is read off the loaded document (recurrence !== "none").
+  // Falsy env (not configured) → no copy; never throw on a missing inbox.
+  const mariosEmail = process.env.INVOICE_MARIOS_EMAIL?.trim();
+  const isRecurring = document.recurrence !== "none";
+  // Don't copy Marios if he's already an explicit recipient (avoids a duplicate).
+  const mariosCopy =
+    mariosEmail && !toList.some((r) => r.toLowerCase() === mariosEmail.toLowerCase())
+      ? mariosEmail
+      : undefined;
+  // Replies should reach a real inbox, not the AI sender address. Only set when configured.
+  const replyTo = process.env.INVOICE_REPLY_TO?.trim() || undefined;
+
   const resend = new Resend(apiKey);
   const { error } = await resend.emails.send({
     from: INVOICE_EMAIL_FROM,
     to: toList,
+    ...(mariosCopy ? (isRecurring ? { bcc: [mariosCopy] } : { cc: [mariosCopy] }) : {}),
+    ...(replyTo ? { replyTo } : {}),
     subject: `${label} ${number} — CSC Zyprus Property Group`,
     text:
       customMessage && customMessage.trim()
@@ -623,12 +664,30 @@ export async function sendDocumentToAccountingGroup(
       return false;
     }
     const pdf = Buffer.from(buildDocumentPdfBytes(document));
-    const sent = await client.sendDocument({
-      to: groupMsisdn,
-      document: pdf,
-      filename: getUnifiedFilename(document),
-      caption
-    });
+    const sendDoc = () =>
+      client.sendDocument({
+        to: groupMsisdn,
+        document: pdf,
+        filename: getUnifiedFilename(document),
+        caption
+      });
+
+    // Parity with the Marios leg (notifyMariosOverWhatsApp): WaSender can 429 a
+    // back-to-back document send (the group post often fires right before/after the
+    // Marios copy), which previously dropped the group's PDF on the first failure.
+    // Retry up to 2 more times with a bounded backoff. The WaSender client's
+    // sendDocument return ({ success, messageId?, error? }) does NOT surface a
+    // Retry-After header, so we honor it when present (none today) and otherwise use
+    // an increasing backoff with jitter. Bounded — never unbounded.
+    let sent = await sendDoc();
+    for (let attempt = 0; attempt < 2 && !sent.success; attempt++) {
+      const retryAfterMs = (sent as { retryAfterMs?: number }).retryAfterMs;
+      const backoff = retryAfterMs && retryAfterMs > 0
+        ? retryAfterMs
+        : 1500 * (attempt + 1) + Math.floor(Math.random() * 500);
+      await new Promise((resolve) => setTimeout(resolve, backoff));
+      sent = await sendDoc();
+    }
     if (!sent.success) {
       // The group caption is sometimes intentionally blank (just the PDF). A blank
       // text fallback is impossible — WaSender rejects empty/whitespace text — so

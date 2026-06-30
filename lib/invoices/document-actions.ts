@@ -37,8 +37,12 @@ export function calculateVat(amount: number, vatMode: VatMode) {
   }
 
   if (vatMode === "included-vat") {
-    const net = amount / 1.19;
-    return { vatAmount: roundMoney(amount - net), total: amount };
+    // Round the net first so subtotal + vat == total exactly on the legal PDF
+    // (which re-derives subtotal = total − vatAmount). Without rounding net, the
+    // three printed numbers could be a cent inconsistent.
+    const net = roundMoney(amount / 1.19);
+    const vatAmount = roundMoney(amount - net);
+    return { vatAmount, total: amount };
   }
 
   const vatAmount = roundMoney(amount * 0.19);

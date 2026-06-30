@@ -4,6 +4,9 @@ import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
 export function createDraftNumber(kind: DocumentKind, sequence: number): string {
   const prefix = kind === "invoice" ? "INV" : kind === "credit-note" ? "CN" : "RCPT";
   // Draft follows the real number sequence, with -DRAFT appended until Marios approves.
+  // Year is the current year: this function has no issueDate in its signature and every
+  // consumer of a draft number reads only the trailing digits (see extractSequence, which
+  // strips year/prefix/-DRAFT), so the embedded year is cosmetic and never gates sequencing.
   return `${prefix}-${new Date().getFullYear()}-${String(sequence).padStart(5, "0")}-DRAFT`;
 }
 
@@ -50,16 +53,20 @@ export function officialNumberOnApproval(documents: InvoiceDocument[], document:
   return getNextOfficialNumber(documents, document.kind);
 }
 
+/**
+ * Next official number for a kind. Draft-aware: it advances past every existing
+ * official AND draft sequence of this kind, so receipts/credit-notes (which call
+ * this directly, unlike invoices that go through officialNumberOnApproval) never
+ * regress below a draft sequence the agent already saw — mirroring getNextDraftSequence.
+ */
 export function getNextOfficialNumber(documents: InvoiceDocument[], kind: DocumentKind): string {
-  const numbers = documents
+  const sequences = documents
     .filter((document) => document.kind === kind)
-    .map((document) => document.officialNumber)
-    .filter((number): number is string => Boolean(number))
-    .map((number) => Number(number.replace(/\D/g, "")))
-    .filter((number) => Number.isFinite(number));
+    .flatMap((document) => [extractSequence(document.officialNumber), extractSequence(document.draftNumber)])
+    .filter((n) => Number.isFinite(n) && n > 0);
 
   const fallbackStart = kind === "credit-note" ? 10096 : kind === "receipt" ? 10386 : 11424;
-  const next = numbers.length > 0 ? Math.max(...numbers) + 1 : fallbackStart + 1;
+  const next = sequences.length > 0 ? Math.max(fallbackStart, ...sequences) + 1 : fallbackStart + 1;
 
   return String(next);
 }

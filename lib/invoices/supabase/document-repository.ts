@@ -91,10 +91,45 @@ async function loadApprovalsByDocument(
   return grouped;
 }
 
+/**
+ * How an official number on the document being saved should be treated on a
+ * collision against the (kind, official_number) unique index:
+ *
+ *  - "auto"   (default): the number was machine-assigned (approval / receipt /
+ *             credit-note auto-issue). A collision means a concurrent writer won
+ *             the same number — transparently re-allocate the next number via the
+ *             allocate_official_number RPC and retry the save once. This preserves
+ *             the existing happy-path retry behavior.
+ *  - "manual": an operator typed an EXACT legal number. We must NEVER silently
+ *             rewrite what they typed — a collision is a hard error the operator
+ *             has to resolve (it is already used by another document). Reject with
+ *             OfficialNumberCollisionError instead of reallocating.
+ */
+export type NumberingMode = "auto" | "manual";
+
+/**
+ * Thrown when a MANUALLY-entered official number collides with an existing
+ * live document of the same kind. The action layer catches this and surfaces a
+ * clear message to the operator rather than letting the save throw a raw
+ * Postgres unique-violation (and rather than the auto path silently renumbering).
+ */
+export class OfficialNumberCollisionError extends Error {
+  readonly kind: InvoiceDocument["kind"];
+  readonly officialNumber: string;
+  constructor(kind: InvoiceDocument["kind"], officialNumber: string) {
+    super(`Invoice number ${officialNumber} is already used by ${kind}.`);
+    this.name = "OfficialNumberCollisionError";
+    this.kind = kind;
+    this.officialNumber = officialNumber;
+  }
+}
+
 export async function saveInvoiceDocument(
   document: InvoiceDocument,
-  reason = "Document saved"
+  reason = "Document saved",
+  opts: { numbering?: NumberingMode } = {}
 ): Promise<DocumentRepositoryResult> {
+  const { numbering = "auto" } = opts;
   const supabase = createServiceSupabaseClient();
   if (!supabase) {
     upsertFallbackDocument(document);
@@ -110,11 +145,18 @@ export async function saveInvoiceDocument(
 
   // Official-number collision: the partial unique index invoice_documents_kind_official_number_key
   // (kind, official_number) makes a concurrent number race fail LOUDLY here instead of
-  // silently writing a duplicate legal number. Re-allocate transactionally via the
-  // allocate_official_number RPC (advisory-locked max+1 per kind) and retry the upsert
-  // once. The retry only re-numbers a NUMBERED document — drafts have no official_number
-  // and never collide on this index.
+  // silently writing a duplicate legal number.
   if (error && isOfficialNumberConflict(error) && document.officialNumber) {
+    // MANUAL entry must NOT be auto-rewritten: the operator typed an exact legal
+    // number that is already taken — reject so they can correct it, rather than
+    // saving a DIFFERENT number and reporting success (the silent-overwrite bug).
+    if (numbering === "manual") {
+      throw new OfficialNumberCollisionError(document.kind, document.officialNumber);
+    }
+    // AUTO path: re-allocate transactionally via the allocate_official_number RPC
+    // (advisory-locked max+1 per kind) and retry the upsert once. The retry only
+    // re-numbers a NUMBERED document — drafts have no official_number and never
+    // collide on this index.
     const reallocated = await reallocateOfficialNumber(supabase, document.kind);
     if (reallocated) {
       row = toDocumentRow({ ...document, officialNumber: reallocated });
@@ -153,6 +195,23 @@ async function reallocateOfficialNumber(
   const { data, error } = await supabase.rpc("allocate_official_number", { p_kind: kind });
   if (error || data === null || data === undefined) return null;
   return String(data);
+}
+
+/**
+ * Mint the next official number for a kind ATOMICALLY via the allocate_official_number
+ * RPC (migration 20260625120000): an advisory-locked max+1-of-trailing-digits per kind,
+ * with the same per-kind floors the app uses. This is the happy-path allocator — the
+ * AUTO/approval numbering path should call this UP-FRONT instead of computing Math.max+1
+ * over a possibly-stale in-memory document list (two concurrent approvals could read the
+ * same max and assign the same legal number; the partial unique index then makes one of
+ * them collide). Returns null when the RPC is unavailable (no service client, or the RPC
+ * not yet deployed) so callers fall back to the existing in-memory numbering — keeping
+ * behavior backward-compatible.
+ */
+export async function mintOfficialNumber(kind: InvoiceDocument["kind"]): Promise<string | null> {
+  const supabase = createServiceSupabaseClient();
+  if (!supabase) return null;
+  return reallocateOfficialNumber(supabase, kind);
 }
 
 export async function deleteInvoiceDocument(id: string): Promise<DocumentRepositoryResult> {
