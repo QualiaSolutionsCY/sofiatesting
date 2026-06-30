@@ -23,6 +23,25 @@ export function isValidCyprusCoord(lat: unknown, lon: unknown): boolean {
 }
 
 /**
+ * Bare district-centroid keys in DEFAULT_COORDINATES. When a location's ONLY
+ * coordinate match is one of these (e.g. "Anarita Village, Paphos" with no
+ * known sub-area), pinning the district town centre lands the marker kilometres
+ * from the real plot (Altia QA: Anarita → Paphos town, 2026-06-30). The
+ * centroid fallback skips these so such listings get NO pin (reviewer places
+ * it) instead of a confidently-wrong one. Specific sub-areas like
+ * "kato paphos" / "paphos town" are NOT in this set and still match.
+ */
+export const DISTRICT_CENTROID_KEYS = new Set([
+  "limassol",
+  "paphos",
+  "pafos",
+  "nicosia",
+  "larnaca",
+  "famagusta",
+  "ammochostos",
+]);
+
+/**
  * Extract area/neighborhood name from a Google Maps URL.
  * Google Maps encodes place names in the !2s... proto buffer segments.
  * E.g., "!2sKato+Paphos,+Paphos,+Cyprus" → "Kato Paphos, Paphos"

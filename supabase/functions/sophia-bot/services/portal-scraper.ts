@@ -424,6 +424,13 @@ export async function extractFromBankPortal(
     }
   }
 
+  // Final safety net: strip non-gallery images (agent headshots, avatars,
+  // logos, map thumbnails) that the Firecrawl LLM extract sometimes includes
+  // despite the schema instruction. Altia QA: an agent headshot leaked into
+  // the gallery (2026-06-30). Applied to ALL sources, not just the HTML
+  // fallback, and dedups.
+  result.imageUrls = sanitizeGalleryImages(result.imageUrls);
+
   const haveCore = !!(result.price || result.bedrooms || result.coveredArea);
   result.source = haveCore
     ? "firecrawl"
@@ -432,6 +439,26 @@ export async function extractFromBankPortal(
       : "url_pattern";
 
   return result;
+}
+
+/**
+ * Drop non-listing imagery from a scraped gallery list. Conservative — only
+ * removes URLs whose path clearly marks them as agent/UI/branding assets, never
+ * property photos (which live under property/image/media/cdn paths with IDs).
+ */
+const NON_GALLERY_IMAGE =
+  /logo|avatar|icon|sprite|pixel|agent|profile|staff|broker|headshot|placeholder|map[-_]?thumb/i;
+function sanitizeGalleryImages(urls: string[]): string[] {
+  return Array.from(
+    new Set(
+      (urls || []).filter(
+        (u) =>
+          typeof u === "string" &&
+          u.startsWith("https://") &&
+          !NON_GALLERY_IMAGE.test(u)
+      )
+    )
+  );
 }
 
 /**

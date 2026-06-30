@@ -11,7 +11,10 @@ import {
 } from "../../agents/identifier.ts";
 import { DEFAULT_COORDINATES } from "../../config/business-rules.ts";
 import { isBankPropertyUrl } from "../../rules/bank-detection.ts";
-import { isValidCyprusCoord } from "../validators/location.ts";
+import {
+  DISTRICT_CENTROID_KEYS,
+  isValidCyprusCoord,
+} from "../validators/location.ts";
 import { checkForDuplicates } from "../../services/duplicate-checker.ts";
 import {
   generateImageWarnings,
@@ -218,6 +221,9 @@ export async function handleCreatePropertyListing(
       } | null = null;
 
       for (const [key, coords] of Object.entries(DEFAULT_COORDINATES)) {
+        // Never pin a bare district centroid — a village without a known
+        // sub-area would otherwise land on the district town centre.
+        if (DISTRICT_CENTROID_KEYS.has(key)) continue;
         if (
           locationLower.includes(key) &&
           (!bestMatch || key.length > bestMatch.key.length)

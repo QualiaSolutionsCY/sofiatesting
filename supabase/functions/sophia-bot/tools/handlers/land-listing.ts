@@ -65,6 +65,7 @@ import {
   isLocationAStreetInUrl,
   isStreetAddress,
   isValidCyprusCoord,
+  DISTRICT_CENTROID_KEYS,
 } from "../validators/location.ts";
 import {
   acquireUploadLock,
@@ -736,6 +737,9 @@ export async function handleCreateLandListing(
       } | null = null;
 
       for (const [key, coords] of Object.entries(DEFAULT_COORDINATES)) {
+        // Never pin a bare district centroid — a village without a known
+        // sub-area would otherwise land on the district town centre.
+        if (DISTRICT_CENTROID_KEYS.has(key)) continue;
         if (
           locationLower.includes(key) &&
           (!bestMatch || key.length > bestMatch.key.length)
