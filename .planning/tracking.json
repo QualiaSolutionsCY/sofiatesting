@@ -103,20 +103,21 @@
   "gap_cycles": {
     "1": 0,
     "2": 0,
-    "3": 0
+    "3": 0,
+    "4": 0
   },
   "blockers": [],
   "session_started_at": "2026-06-09T07:29:56.378Z",
-  "last_updated": "2026-06-29T14:10:21.261Z",
+  "last_updated": "2026-06-30T10:15:33.870Z",
   "last_pushed_at": "2026-06-28T09:09:16Z",
   "last_commit": "a6b923e",
   "build_count": 4,
   "deploy_count": 0,
   "deployed_url": "https://sofiatesting.vercel.app",
-  "notes": "Fix: commission agent name exempt from full-name rule (no surname Q); deployed sophia-bot + cleared Marios chat_history",
+  "notes": "fix: Altia gallery harvest + agent-headshot drop via imgproxy decode",
   "submitted_by": "",
   "lifetime": {
-    "tasks_completed": 96,
+    "tasks_completed": 99,
     "phases_completed": 34,
     "milestones_completed": 8,
     "total_phases": 31,
@@ -124,6 +125,60 @@
     "updates_completed": 0,
     "offroad_count": 0
   },
-  "report_seq": 14,
-  "lifecycle": "build"
+  "report_seq": 15,
+  "lifecycle": "build",
+  "mode": "rolling",
+  "increments": [
+    {
+      "id": "inc-0001-polish",
+      "num": 1,
+      "title": "Polish",
+      "status": "verified",
+      "claimed_by": "",
+      "branch": "",
+      "verification": "pending"
+    },
+    {
+      "id": "inc-0002-content-seo",
+      "num": 2,
+      "title": "Content + SEO",
+      "status": "verified",
+      "claimed_by": "",
+      "branch": "",
+      "verification": "pending"
+    },
+    {
+      "id": "inc-0003-final-qa",
+      "num": 3,
+      "title": "Final QA",
+      "status": "verified",
+      "claimed_by": "",
+      "branch": "",
+      "verification": "pending"
+    },
+    {
+      "id": "inc-0004-handoff",
+      "num": 4,
+      "title": "Handoff",
+      "status": "setup",
+      "claimed_by": "",
+      "branch": "",
+      "verification": "pending"
+    }
+  ],
+  "releases": [
+    {
+      "id": "r1",
+      "type": "rolling",
+      "status": "active",
+      "increments": [
+        "inc-0001-polish",
+        "inc-0002-content-seo",
+        "inc-0003-final-qa",
+        "inc-0004-handoff"
+      ]
+    }
+  ],
+  "next_command": "/qualia-plan 4",
+  "last_activity": "fix: Altia gallery harvest + agent-headshot drop via imgproxy decode"
 }
