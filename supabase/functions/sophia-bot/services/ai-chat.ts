@@ -30,15 +30,11 @@ const OPENROUTER_CIRCUIT = {
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// TEMPORARY: free-tier models (via OpenRouter) while the paid OpenRouter
-// account is out of credits. OWNER-approved override 2026-06-29 of the
-// "Sonnet 4.6 only" rule — quality WILL regress; revert to
-// "anthropic/claude-sonnet-4.6" once credits are restored.
-// All three support tool calling (required by SOPHIA's tool loop).
-// Fallback is a different provider (Qwen) so an NVIDIA outage isn't total.
-const PRIMARY_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
-const PRO_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free";
-const FALLBACK_MODEL = "qwen/qwen3-next-80b-a3b-instruct:free";
+// Claude Sonnet 4.6 (via OpenRouter) for every channel — primary, pro, and fallback.
+// No free-tier models: quality is the priority for SOPHIA's chat.
+const PRIMARY_MODEL = "anthropic/claude-sonnet-4.6";
+const PRO_MODEL = "anthropic/claude-sonnet-4.6";
+const FALLBACK_MODEL = "anthropic/claude-sonnet-4.6";
 
 interface AIResponse {
   response: string;

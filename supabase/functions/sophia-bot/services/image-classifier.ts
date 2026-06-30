@@ -9,10 +9,7 @@ import { LogCategory, logger } from "../utils/logger.ts";
 
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-// TEMPORARY free-tier vision model (OpenRouter out of credits, OWNER override
-// 2026-06-29). Gemma 4 accepts image input + tools. Revert to
-// "anthropic/claude-sonnet-4.6" once credits are restored.
-const VISION_MODEL = "google/gemma-4-31b-it:free";
+const VISION_MODEL = "anthropic/claude-sonnet-4.6";
 const VISION_TIMEOUT_MS = 20_000;
 
 /** Block private/internal IPs and cloud metadata endpoints to prevent SSRF */

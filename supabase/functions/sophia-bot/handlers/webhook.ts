@@ -309,7 +309,7 @@ async function processRequest(
 
     // Add breadcrumb before AI call
     addBreadcrumb("Calling OpenRouter", "ai", {
-      model: "nvidia/nemotron-3-ultra-550b-a55b:free",
+      model: "anthropic/claude-sonnet-4.6",
     });
 
     // Call AI
