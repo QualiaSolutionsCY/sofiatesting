@@ -722,7 +722,7 @@ export const TOOLS: ToolDefinition[] = [
     function: {
       name: "manageInvoice",
       description:
-        "Manage invoices, credit notes, and receipts for CSC Zyprus (authorized staff only — Fawzi, Marios, Charalambos). Use when an authorized agent asks to create/draft an invoice, list open drafts, check an invoice's status, approve one, mark one paid, issue a receipt or credit note, or request a correction/resend. The system assigns all official sequence numbers — never invent a number yourself.",
+        "Manage invoices, credit notes, and receipts for CSC Zyprus (authorized staff only — Fawzi, Marios, Charalambos, Moayad). Use when an authorized agent asks to create/draft an invoice, list open drafts, check an invoice's status, approve one, mark one paid, issue a receipt or credit note, or request a correction/resend. The system assigns all official sequence numbers — never invent a number yourself.",
       parameters: {
         type: "object",
         properties: {
@@ -764,6 +764,11 @@ export const TOOLS: ToolDefinition[] = [
           description: {
             type: "string",
             description: "What is being billed (for create_draft)",
+          },
+          commissionPersonName: {
+            type: "string",
+            description:
+              "For create_draft of a COMMISSION invoice ONLY: the single agent who made the sale or rental, captured from 'Which agent made the sale or rental?'. Pass JUST the name (e.g. 'Christos') — never put it in the description. The system persists it so the accounting-group caption attributes the invoice at approval even if you don't repeat the name then. Omit for non-commission invoices.",
           },
           documentId: {
             type: "string",

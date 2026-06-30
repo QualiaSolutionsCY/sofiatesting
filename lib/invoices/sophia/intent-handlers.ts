@@ -37,6 +37,11 @@ export interface IntentParams {
   amount?: number;
   vatMode?: "plus" | "included" | "none";
   description?: string;
+  /** Agent who earned the commission, captured at draft time for a commission
+   * invoice. Persisted as the document's commissionPersonName so the accounting-
+   * group caption can attribute the invoice even if the LLM forgets to repeat the
+   * name at approval. */
+  commissionPersonName?: string;
   /** Recipient email for the invoice, captured the same way the dashboard's
    * recurring-email field captures it. Stored as the document's clientEmail so
    * a recurring invoice knows where each issue should be sent. Optional for
@@ -68,10 +73,19 @@ export interface IntentResult {
   error?: string;
 }
 
+/**
+ * Map the tool's VAT token to the document's VatMode. Only the three known enum
+ * tokens are mapped: "included" → included-vat, "plus" → plus-vat, "none" → no-vat.
+ * An unknown/empty token is NOT silently treated as plus-vat (the most expensive
+ * default, which would over-charge the client) — we log it and fall back to the
+ * safest behaviour (no-vat) so nothing extra is ever added without an explicit ask.
+ */
 function mapVat(v?: string): VatMode {
   if (v === "included") return "included-vat";
+  if (v === "plus") return "plus-vat";
   if (v === "none") return "no-vat";
-  return "plus-vat";
+  console.warn(`[invoice] mapVat: unrecognized VAT token ${JSON.stringify(v)} — defaulting to no-vat (safest); expected one of plus/included/none`);
+  return "no-vat";
 }
 
 function money(n: number): string {
@@ -214,6 +228,11 @@ export async function runIntent(
         dueDate: params.dueDate || dueBase.toISOString().slice(0, 10),
         recurrence: params.recurrence ?? "none",
         recurrenceDay: params.recurrenceDay,
+        // Persist the commission agent at draft time. createDocument() also flags
+        // requiresCommissionPerson from this, so a commission invoice carries the
+        // attribution forward to the approval group caption even if the LLM never
+        // repeats the name at approve.
+        commissionPersonName: params.commissionPersonName?.trim() || undefined,
       };
       const res = await createDocumentAction(input);
       const doc = res.documents.find((d) => d.id === res.selectedId);
@@ -277,50 +296,74 @@ export async function runIntent(
 
       // Approve (idempotent — skip re-approving if already numbered, so the
       // group-message follow-up call doesn't try to approve a second time).
+      // Track whether THIS call is the one that actually transitioned the document
+      // to approved/numbered — only then do we post to the accounting group, so a
+      // repeat approve (e.g. a follow-up with groupMessage) never re-posts the PDF.
+      const alreadyApproved = !!doc.officialNumber || doc.status === "numbered";
       let updated = doc;
-      if (!doc.officialNumber && doc.status !== "numbered") {
+      let justApproved = false;
+      if (!alreadyApproved) {
         const out = await approveDocumentAction(doc.id);
         updated = out.documents.find((d) => d.id === doc.id) ?? doc;
+        justApproved = true;
       }
       const pdf = await attachPdf(updated.id, updated);
       const num = updated.officialNumber ?? "assigned";
 
-      // Approving ALWAYS auto-sends a copy to the accounting group AND to Marios —
-      // never ask "what message should I send?". The group caption follows Marios's
-      // rule: an explicit typed override wins, otherwise it's the agent's name only
-      // when an agent exists (commission invoice), and blank for everything else.
+      // Approving auto-sends a copy to the accounting group AND to Marios — never ask
+      // "what message should I send?". The group caption follows Marios's rule: an
+      // explicit typed override wins, otherwise it's the agent's name only when an
+      // agent exists (commission invoice), and blank for everything else.
+      // DEDUPE: only post to the group on the call that actually approved the document.
+      // A repeat approve (already numbered) must NOT re-post the PDF.
       const caption =
         params.groupMessage?.trim() ||
         (updated.requiresCommissionPerson && updated.commissionPersonName
           ? updated.commissionPersonName
           : "");
-      const sentToGroup = await sendDocumentToAccountingGroup(updated, caption);
-      const mResult = await notifyMariosApprovedAction(updated.id);
-      const mariosOk = mResult.mariosNotified ?? false;
+      let sentToGroup = false;
+      let mariosOk = false;
+      if (justApproved) {
+        sentToGroup = await sendDocumentToAccountingGroup(updated, caption);
+        const mResult = await notifyMariosApprovedAction(updated.id);
+        mariosOk = mResult.mariosNotified ?? false;
+      }
 
       // Email the invoice to the CLIENT when an address was captured (Sophia asks
-      // for it on recurring/monthly invoices). marios@zyprus.com is ALWAYS CC'd by
-      // default. Best-effort — a failed client email never fails the approve itself.
+      // for it on recurring/monthly invoices). Marios is CC/BCC'd internally inside
+      // sendInvoiceEmailAction (from env) — do NOT pass a hardcoded address here.
+      // Auto-send applies to ALL invoice kinds (one-off, monthly, yearly). On send
+      // failure we surface a clear note in the reply instead of silently claiming
+      // success — the approve itself still succeeds (the email is best-effort).
       let clientEmailed = false;
+      let emailFailed = false;
       const clientEmail = updated.clientEmail?.trim();
-      if (updated.kind === "invoice" && clientEmail) {
+      if (justApproved && updated.kind === "invoice" && clientEmail) {
         try {
-          await sendInvoiceEmailAction(updated.id, [clientEmail, "marios@zyprus.com"]);
+          await sendInvoiceEmailAction(updated.id, [clientEmail]);
           clientEmailed = true;
         } catch {
-          // swallow — the approve already succeeded; the email is best-effort.
+          // approve already succeeded; flag the email failure so the reply is honest.
+          emailFailed = true;
         }
       }
+
+      const emailNote = clientEmailed
+        ? `; emailed to ${clientEmail}`
+        : emailFailed
+          ? `; (couldn't email ${clientEmail} — please retry)`
+          : "";
+      const deliveryLine = justApproved
+        ? `${mariosOk ? "Sent Marios his copy" : "Couldn't reach Marios"}; ` +
+          `${sentToGroup ? "posted to the accounting group" : "couldn't reach the group"}` +
+          `${emailNote}`
+        : "Already approved — not re-posting to the group";
 
       return {
         ok: true,
         documentId: updated.id,
         ...pdf,
-        reply:
-          `Approved ${updated.clientName} — № ${num}. ` +
-          `${mariosOk ? "Sent Marios his copy" : "Couldn't reach Marios"}; ` +
-          `${sentToGroup ? "posted to the accounting group" : "couldn't reach the group"}` +
-          `${clientEmailed ? `; emailed to ${clientEmail} (cc marios@zyprus.com)` : ""}.`,
+        reply: `Approved ${updated.clientName} — № ${num}. ${deliveryLine}.`,
       };
     }
 

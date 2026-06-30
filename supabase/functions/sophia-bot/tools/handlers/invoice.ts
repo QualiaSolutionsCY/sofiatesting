@@ -86,6 +86,10 @@ export async function handleManageInvoice(
     amount: args.amount,
     vatMode: args.vatMode,
     description: args.description,
+    // Forward the commission agent name so create_draft persists it on the
+    // document (commission_person_name). Without this the attribution is lost and
+    // the accounting-group caption at approval falls back to blank.
+    commissionPersonName: args.commissionPersonName,
     documentId: args.documentId,
     officialNumber: args.officialNumber,
     correctionReason: args.correctionReason,
@@ -177,6 +181,10 @@ export async function handleManageInvoice(
     result.pdfUrl &&
     !requesterDigits.endsWith("99921560")
   ) {
+    // Track the DM outcome so a silent failure to deliver Marios his copy is logged
+    // (and not reported as success). Best-effort still — the approve itself stands.
+    let mariosDmDelivered = false;
+    let lastMariosStatus: number | undefined;
     for (let attempt = 0; attempt < 4; attempt++) {
       await new Promise((r) => setTimeout(r, attempt === 0 ? 2500 : 4000));
       let mres: Response | undefined;
@@ -190,7 +198,21 @@ export async function handleManageInvoice(
       } catch (_e) {
         mres = undefined;
       }
-      if (mres?.ok || mres?.status !== 429) break; // stop unless it was a rate-limit
+      lastMariosStatus = mres?.status;
+      if (mres?.ok) {
+        mariosDmDelivered = true;
+        break;
+      }
+      if (mres?.status !== 429) break; // stop unless it was a rate-limit
+    }
+    if (mariosDmDelivered) {
+      logger.info("Marios approved-invoice DM delivered", { category: LogCategory.TOOL });
+    } else {
+      logger.warn("Marios approved-invoice DM NOT delivered", {
+        category: LogCategory.TOOL,
+        agentName: agent?.fullName,
+      });
+      console.error("Marios approved-invoice DM failed", { lastStatus: lastMariosStatus });
     }
   }
 
