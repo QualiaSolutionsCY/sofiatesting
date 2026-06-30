@@ -346,6 +346,16 @@ export async function extractFromBankPortal(
       if (typeof scraped.markdown === "string" && scraped.markdown.length > 0) {
         const before = describeResult(result);
         backfillFromMarkdown(scraped.markdown, result);
+        // Altia/imgproxy galleries are extension-less base64 CloudFront URLs
+        // the generic <img>/markdown extractors miss, so the LLM under-collects
+        // (Altia QA: missing photos). Harvest them directly from the rendered
+        // markdown; sanitizeGalleryImages() later decodes + de-dupes them.
+        const imgproxy = harvestImgproxyImages(scraped.markdown);
+        if (imgproxy.length > 0) {
+          result.imageUrls = Array.from(
+            new Set([...result.imageUrls, ...imgproxy])
+          );
+        }
         const after = describeResult(result);
         logger.info(
           `Markdown backfill for ${portal}: ${scraped.markdown.length}B in, before=${before}, after=${after}, sample=${JSON.stringify(scraped.markdown.slice(0, 240))}`,
@@ -441,24 +451,71 @@ export async function extractFromBankPortal(
   return result;
 }
 
-/**
- * Drop non-listing imagery from a scraped gallery list. Conservative — only
- * removes URLs whose path clearly marks them as agent/UI/branding assets, never
- * property photos (which live under property/image/media/cdn paths with IDs).
- */
+/** Plain-URL markers for non-gallery imagery (logos, UI sprites, map thumbs). */
 const NON_GALLERY_IMAGE =
   /logo|avatar|icon|sprite|pixel|agent|profile|staff|broker|headshot|placeholder|map[-_]?thumb/i;
-function sanitizeGalleryImages(urls: string[]): string[] {
-  return Array.from(
-    new Set(
-      (urls || []).filter(
-        (u) =>
-          typeof u === "string" &&
-          u.startsWith("https://") &&
-          !NON_GALLERY_IMAGE.test(u)
-      )
-    )
+
+/**
+ * Decode an imgproxy/CloudFront base64-token image URL to its real S3 key.
+ * Altia (and similar) serve photos as `{cdn}/{base64(JSON)}` where the JSON is
+ * `{bucket, key, edits}`. The base64 hides the path from a plain regex, so an
+ * agent headshot at `users/123/avatars/…jpg` slips past URL-based filters.
+ * Returns the lowercased `key`, or null if the URL isn't an imgproxy token.
+ */
+function decodeImgproxyKey(u: string): string | null {
+  const m = u.match(/cloudfront\.net\/([^\s"')<>]+)/i);
+  if (!m) return null;
+  try {
+    const b64 = m[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = JSON.parse(atob(b64));
+    return typeof json?.key === "string" ? String(json.key).toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Harvest extension-less imgproxy/CloudFront image URLs from rendered text. */
+function harvestImgproxyImages(text: string): string[] {
+  return (
+    text.match(/https:\/\/[a-z0-9]+\.cloudfront\.net\/[^\s"')<>]+/gi) || []
   );
+}
+
+/**
+ * Drop non-listing imagery from a scraped gallery list and de-duplicate.
+ * For imgproxy/CloudFront URLs we judge by the decoded S3 key (so the agent
+ * avatar at `users/…/avatars/…` is dropped — it can't be seen in the base64
+ * blob) and collapse multiple size variants of the same photo (same key,
+ * different `edits`). Plain URLs fall back to the regex marker test.
+ * Altia QA 2026-06-30: agent headshot leaked into the gallery.
+ */
+function sanitizeGalleryImages(urls: string[]): string[] {
+  const out: string[] = [];
+  const seenKeys = new Set<string>();
+  const seenUrls = new Set<string>();
+  for (const u of urls || []) {
+    if (typeof u !== "string" || !u.startsWith("https://")) continue;
+    const key = decodeImgproxyKey(u);
+    if (key) {
+      if (
+        /(^|\/)users\//.test(key) ||
+        /\/avatars?\//.test(key) ||
+        /logo|brand|watermark/.test(key)
+      ) {
+        continue; // agent headshot / branding — never a gallery photo
+      }
+      if (!/listings\/.*\/images\//.test(key)) continue; // only real photos
+      if (seenKeys.has(key)) continue; // collapse size variants of one photo
+      seenKeys.add(key);
+      out.push(u);
+      continue;
+    }
+    if (NON_GALLERY_IMAGE.test(u)) continue;
+    if (seenUrls.has(u)) continue;
+    seenUrls.add(u);
+    out.push(u);
+  }
+  return out;
 }
 
 /**
