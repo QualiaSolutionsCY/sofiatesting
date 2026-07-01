@@ -253,7 +253,14 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
   }
 
   const signOut = () => {
-    window.localStorage.removeItem("sophia.operator");
+    // localStorage can throw in Safari private mode / restricted contexts — never
+    // let logout bubble an exception up to the error boundary. Clearing the
+    // operator re-renders straight to the AccessGate.
+    try {
+      window.localStorage.removeItem("sophia.operator");
+    } catch (error) {
+      console.error("Could not clear stored operator on sign out", error);
+    }
     setOperator("");
   };
 
