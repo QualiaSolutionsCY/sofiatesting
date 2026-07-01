@@ -1,6 +1,6 @@
 "use client";
 
-import { FileCog, Plus, RefreshCw, Search, Settings as SettingsIcon } from "lucide-react";
+import { FileBarChart, FileCog, Plus, RefreshCw, Search, Settings as SettingsIcon } from "lucide-react";
 import type { Doc } from "@/lib/invoices/redesign/types";
 
 interface TopbarProps {
@@ -8,11 +8,12 @@ interface TopbarProps {
   onNew: () => void;
   onPalette: () => void;
   onOpenSettings: () => void;
+  onOpenStatements: () => void;
   onEditTemplate: () => void;
   onRefresh: () => void;
 }
 
-export function Topbar({ docs, onNew, onPalette, onOpenSettings, onEditTemplate, onRefresh }: TopbarProps) {
+export function Topbar({ docs, onNew, onPalette, onOpenSettings, onOpenStatements, onEditTemplate, onRefresh }: TopbarProps) {
   const needsReview = docs.filter((d) => d.stage === "sent-to-marios" || d.stage === "correction-needed").length;
 
   return (
@@ -43,6 +44,15 @@ export function Topbar({ docs, onNew, onPalette, onOpenSettings, onEditTemplate,
           aria-label="Refresh invoices"
         >
           <RefreshCw size={15} strokeWidth={1.6} />
+        </button>
+        <button
+          type="button"
+          className="icon-button topbar-settings"
+          onClick={onOpenStatements}
+          title="Statements — export an account ledger as PDF or Excel"
+          aria-label="Export a statement of account"
+        >
+          <FileBarChart size={15} strokeWidth={1.6} />
         </button>
         <button
           type="button"

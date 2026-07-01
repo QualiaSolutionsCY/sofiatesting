@@ -9,7 +9,9 @@ import type { InvoiceDocument } from "@/lib/invoices/types/invoice";
  */
 // Kept in sync with TEMPLATE_DEFAULTS (lib/invoices/redesign/template-context.tsx)
 // so the downloaded/WhatsApp PDF matches the on-screen A4 preview exactly.
-const ENTITY = {
+// Exported (additive) so the statement generator (lib/invoices/statement-pdf.ts)
+// renders the SAME letterhead without duplicating the constant.
+export const ENTITY = {
   name: "CSC ZYPRUS PROPERTY GROUP LTD",
   regNo: "HE344546",
   vatNo: "10344546O",
@@ -39,13 +41,17 @@ function charWidth(code: number, bold: boolean): number {
   return 500;
 }
 
-function textWidth(value: string, size: number, bold: boolean): number {
+// Exported (additive) so lib/invoices/statement-pdf.ts can right-align columns and
+// measure text against the same Times metrics the single-invoice PDF uses.
+export function textWidth(value: string, size: number, bold: boolean): number {
   let units = 0;
   for (const ch of value) units += charWidth(ch.codePointAt(0) ?? 32, bold);
   return (units / 1000) * size;
 }
 
-function wrapText(value: string, maxWidth: number, size: number, bold: boolean): string[] {
+// Exported (additive) — the statement generator wraps long descriptions with the
+// same width-aware algorithm.
+export function wrapText(value: string, maxWidth: number, size: number, bold: boolean): string[] {
   const lines: string[] = [];
   // Honour explicit line breaks (e.g. receipt: invoice-no line + description),
   // width-wrapping each paragraph independently.
@@ -71,7 +77,9 @@ function wrapText(value: string, maxWidth: number, size: number, bold: boolean):
 // COMMA decimal) and ALWAYS two decimals — e.g. €600,00 · €1.234,50. The € glyph is
 // mapped to WinAnsi 0x80 in winAnsi() and the fonts declare WinAnsiEncoding, so it
 // renders as € in spec-compliant viewers.
-function eur(value: number): string {
+// Exported (additive) so the statement generator formats money identically to the
+// single-invoice PDF (€1.234,50). Behaviour unchanged.
+export function eur(value: number): string {
   const num = Number(value) || 0;
   return `€${num.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -295,7 +303,9 @@ export function asArrayBuffer(bytes: Uint8Array): ArrayBuffer {
  * 1 char = 1 byte (keeps xref offsets and /Length byte-accurate). € → 0x80; smart
  * quotes/dashes are folded to ASCII; anything above 0xFF becomes "?".
  */
-function winAnsi(value: string): string {
+// Exported (additive) so the statement generator emits byte-accurate content
+// streams (1 char = 1 byte) with the same € / smart-quote folding.
+export function winAnsi(value: string): string {
   let out = "";
   for (const ch of value) {
     const code = ch.codePointAt(0) ?? 63;
@@ -309,12 +319,16 @@ function winAnsi(value: string): string {
   return out;
 }
 
-function latin1Bytes(value: string): Uint8Array {
+// Exported (additive) — the statement generator packs its assembled PDF string
+// into latin1 bytes so xref offsets and /Length stay byte-accurate.
+export function latin1Bytes(value: string): Uint8Array {
   const bytes = new Uint8Array(value.length);
   for (let i = 0; i < value.length; i++) bytes[i] = value.charCodeAt(i) & 0xff;
   return bytes;
 }
 
-function escapePdfText(value: string): string {
+// Exported (additive) so the statement generator escapes parentheses/backslashes
+// in text-show operators identically.
+export function escapePdfText(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
 }

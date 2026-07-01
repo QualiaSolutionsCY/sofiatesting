@@ -18,6 +18,18 @@ export function downloadBackupJson(documents: InvoiceDocument[]) {
   );
 }
 
+// Statement-of-account exports (M11 item 7). The blob is built by the caller
+// (StatementExporter modal) via buildStatementPdfBlob / buildStatementXlsBlob; these
+// helpers reuse the same blob→link.download pattern as downloadDocumentPdf so
+// statements download identically to single-invoice PDFs.
+export function downloadStatementPdf(blob: Blob, filename: string) {
+  downloadBlob(blob, filename);
+}
+
+export function downloadStatementXls(blob: Blob, filename: string) {
+  downloadBlob(blob, filename);
+}
+
 export function downloadDocumentsZip(documents: InvoiceDocument[]) {
   const files = documents.map((document) => ({
     name: getUnifiedFilename(document),

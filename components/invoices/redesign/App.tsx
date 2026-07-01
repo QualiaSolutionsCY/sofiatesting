@@ -51,6 +51,7 @@ import { TemplateEditor } from "./modals/TemplateEditor";
 import { TemplateProvider } from "@/lib/invoices/redesign/template-context";
 import { PDFLightbox } from "./modals/PDFLightbox";
 import { SettingsPanel } from "./modals/SettingsPanel";
+import { StatementExporter } from "./modals/StatementExporter";
 import { ShortcutsOverlay } from "./modals/ShortcutsOverlay";
 import { Toast } from "./modals/Toast";
 import { GuidedTour } from "./overlays/GuidedTour";
@@ -106,6 +107,9 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
 
   const [operator, setOperator] = useState<string>(preAuthed ? "Operator" : "");
   const [docs, setDocs] = useState<Doc[]>(initialDocs);
+  // Mirror of the client registry, kept in sync in reconcile() so the Statements
+  // exporter's client dropdown reflects clients discovered after mount.
+  const [clients, setClients] = useState<Client[]>(initialClients);
   const [selectedId, setSelectedId] = useState<string | null>(initialDocs[0]?.id ?? null);
   const [filters, setFilters] = useState<Filters>({ kind: "all", stage: "all", q: "", from: "", to: "" });
   const [sharedCc, setSharedCc] = useState("+357 99 040 117");
@@ -115,6 +119,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
   const [composerPrefill, setComposerPrefill] = useState<Partial<Doc> | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [statementsOpen, setStatementsOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [lightboxDoc, setLightboxDoc] = useState<Doc | null>(null);
@@ -222,6 +227,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
   function reconcile(invoices: InvoiceDocument[], selectId?: string) {
     const { docs: nextDocs, clients: nextClients } = invoicesToDocs(invoices);
     replaceClientRegistry(nextClients);
+    setClients(nextClients);
     setDocs(nextDocs);
     if (selectId) setSelectedId(selectId);
   }
@@ -977,6 +983,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           }}
           onPalette={() => setPaletteOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
+          onOpenStatements={() => setStatementsOpen(true)}
           onEditTemplate={() => setTemplateOpen(true)}
           onRefresh={refetchDocuments}
         />
@@ -1238,6 +1245,12 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
           setSettingsOpen(false);
           signOut();
         }}
+      />
+      <StatementExporter
+        open={statementsOpen}
+        onClose={() => setStatementsOpen(false)}
+        docs={docs}
+        clients={clients}
       />
       <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <ConfirmDialog state={confirmState} onClose={() => setConfirmState(null)} />
