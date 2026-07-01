@@ -33,7 +33,7 @@ import {
 import { storeDocumentPdfInSupabase } from "@/lib/invoices/storage";
 import { INVOICE_AUTHORIZED_AGENTS } from "@/lib/invoices/constants";
 import { getDisplayNumber, getUnifiedFilename } from "@/lib/invoices/format";
-import { buildInvoiceEmailBody } from "@/lib/invoices/email";
+import { buildInvoiceEmailBody, invoiceEmailBodyToHtml } from "@/lib/invoices/email";
 import { buildDocumentPdfBytes } from "@/lib/invoices/pdf";
 import { createLogger } from "@/lib/logger";
 import { getWhatsAppClient } from "@/lib/whatsapp/client";
@@ -496,16 +496,18 @@ export async function sendInvoiceEmailAction(
   const replyTo = process.env.INVOICE_REPLY_TO?.trim() || undefined;
 
   const resend = new Resend(apiKey);
+  // Default body = Marios's full CSC Zyprus letterhead (single source of truth in
+  // lib/invoices/email.ts). An explicit customMessage still wins per-send. The HTML
+  // twin bolds the do-not-reply line; Resend delivers both text + html.
+  const bodyText = customMessage && customMessage.trim() ? customMessage.trim() : buildInvoiceEmailBody(document);
   const { error } = await resend.emails.send({
     from: INVOICE_EMAIL_FROM,
     to: toList,
     ...(mariosCopy ? (isRecurring ? { bcc: [mariosCopy] } : { cc: [mariosCopy] }) : {}),
     ...(replyTo ? { replyTo } : {}),
     subject: `${label} ${number} — CSC Zyprus Property Group`,
-    // Default = Marios's full CSC Zyprus letterhead (single source of truth in
-    // lib/invoices/email.ts). An explicit customMessage still wins so an operator
-    // can override per-send.
-    text: customMessage && customMessage.trim() ? customMessage.trim() : buildInvoiceEmailBody(document),
+    text: bodyText,
+    html: invoiceEmailBodyToHtml(bodyText),
     attachments: [{ filename: getUnifiedFilename(document), content: pdf }],
   });
   if (error) {

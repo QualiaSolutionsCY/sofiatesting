@@ -73,6 +73,7 @@ export function buildInvoiceEmailBody(document: InvoiceDocument): string {
     "",
     "Kind regards,",
     "Sophia",
+    "Sophia is CSC Zyprus Property Group's AI assistant.",
     "",
     "Zyprus Property Group",
     "Tombs of the Kings Avenue 96, Office 21, 8046 Paphos, Cyprus",
@@ -85,4 +86,24 @@ export function buildInvoiceEmailBody(document: InvoiceDocument): string {
     "CSC Zyprus Property Group LTD",
     "CREA Reg. No. 742 and CREA Lic. No. 378/E"
   ].join("\n");
+}
+
+/**
+ * HTML rendering of an invoice email body — same content as the plain text (the
+ * letterhead default OR an operator's custom message), but with the "please don't
+ * reply to this email" line rendered in BOLD (Marios's ask) and line breaks kept.
+ * Derived from the text so the two never diverge; Resend sends both text + html.
+ */
+export function invoiceEmailBodyToHtml(text: string): string {
+  const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // Bold the do-not-reply notice (apostrophe stays literal — only & < > were escaped).
+  const withBold = escaped.replace(
+    "Please don't reply to this email.",
+    "<strong>Please don't reply to this email.</strong>"
+  );
+  return (
+    `<div style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.5; color: #111; white-space: pre-wrap;">` +
+    withBold +
+    `</div>`
+  );
 }

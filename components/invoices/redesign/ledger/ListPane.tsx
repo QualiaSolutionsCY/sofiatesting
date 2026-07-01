@@ -23,6 +23,15 @@ const STAGE_OPTIONS: Array<{ value: Filters["stage"]; label: string }> = [
   { value: "deleted", label: "Deleted" }
 ];
 
+// Numeric sequence from an official ("11479") or draft ("PREFIX-YYYY-11462-DRAFT")
+// number — used to sort newest → oldest. Drafts and officials share one sequence
+// (numbering.ts), so the highest number is always the most recently created.
+function docSeq(doc: Doc): number {
+  const raw = doc.officialNo ?? doc.draftNo ?? "";
+  const match = raw.match(/(\d+)(?=-DRAFT$)/) ?? raw.match(/(\d+)\s*$/);
+  return match ? Number(match[1]) : -1;
+}
+
 interface ListPaneProps {
   docs: Doc[];
   selectedId: string | null;
@@ -81,18 +90,11 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
         if (!matchesDocQuery(doc, filters.q)) return false;
         return true;
       })
-      // Newest first. DRAFTS (no official number) are the freshest, pending-action
-      // items — surface them at the TOP so a just-created invoice is visible under
-      // "All Invoices" without hunting, then numbered invoices by number desc.
-      // Editing never reorders, because neither sort key changes on edit.
-      .sort((a, b) => {
-        const an = a.officialNo ? Number(a.officialNo.replace(/\D/g, "")) : null;
-        const bn = b.officialNo ? Number(b.officialNo.replace(/\D/g, "")) : null;
-        if (an === null && bn === null) return (b.issued || "").localeCompare(a.issued || "");
-        if (an === null) return -1; // a is a draft → first
-        if (bn === null) return 1; // b is a draft → first
-        return bn - an; // both numbered → by number desc
-      });
+      // Newest → oldest by the invoice SEQUENCE number (drafts + officials share one
+      // sequence — numbering.ts), so the most recently created document is always at
+      // the top: a fresh draft OR a just-approved invoice. Editing never reorders,
+      // because the number doesn't change on edit.
+      .sort((a, b) => docSeq(b) - docSeq(a));
   }, [docs, filters]);
 
   const kindIcon = (kind: DocKind): ReactNode => {

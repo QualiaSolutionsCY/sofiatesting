@@ -386,8 +386,13 @@ async function processRequest(
     ];
 
     // Check for email sending intent
-    // IMPORTANT: Skip email detection if sendEmail tool was already called (prevents double emails)
-    const sendEmailAlreadyCalled = aiResult.toolsUsed?.includes("sendEmail");
+    // IMPORTANT: Skip email detection if an email was already sent this turn. That
+    // covers BOTH the generic sendEmail tool AND manageInvoice — the invoice tool
+    // emails the letterhead + PDF itself, so the heuristic below must NOT fire a
+    // second bare "Please see the attached" email (Marios received two: one without
+    // the attachment). manageInvoice owns its own client email.
+    const sendEmailAlreadyCalled =
+      aiResult.toolsUsed?.includes("sendEmail") || aiResult.toolsUsed?.includes("manageInvoice");
     if (!sendEmailAlreadyCalled) {
       const emailIntent = await detectEmailSendingIntent(
         aiResponse,
