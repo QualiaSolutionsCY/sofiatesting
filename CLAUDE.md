@@ -80,15 +80,15 @@ supabase secrets set SOPHIA_TELEGRAM_ENABLED=false --project-ref vceeheaxcrhmpqu
 
 | Channel | AI Provider | Implementation |
 |---------|-------------|----------------|
-| **WhatsApp (sophia-bot)** | OpenRouter -> Claude Sonnet 4.6 | `supabase/functions/sophia-bot/` calls OpenRouter directly |
-| **Email (sophia-bot /email)** | OpenRouter -> Claude Sonnet 4.6 | Same AI pipeline, triggered by email-router on Railway |
+| **WhatsApp (sophia-bot)** | OpenRouter -> Claude Sonnet 5 | `supabase/functions/sophia-bot/` calls OpenRouter directly |
+| **Email (sophia-bot /email)** | OpenRouter -> Claude Sonnet 5 | Same AI pipeline, triggered by email-router on Railway |
 
-**Primary Model** (via OpenRouter): `anthropic/claude-sonnet-4.6`
-**Pro Model** (for uploads): `anthropic/claude-sonnet-4.6`
-**Fallback Model**: `anthropic/claude-sonnet-4.6`
-**Vision Model** (image classification): `anthropic/claude-sonnet-4.6`
+**Primary Model** (via OpenRouter): `anthropic/claude-sonnet-5`
+**Pro Model** (for uploads): `anthropic/claude-sonnet-5`
+**Fallback Model**: `anthropic/claude-sonnet-5`
+**Vision Model** (image classification): `anthropic/claude-sonnet-5`
 
-> Sonnet 4.6 is the model for **every** channel — chat, uploads, vision. Do NOT swap SOPHIA's chat/vision models to free-tier models (e.g. `nvidia/nemotron-*:free`); quality regresses and she stops behaving "like herself". (Embeddings still use Google `gemini-embedding-001` — a chat model can't produce embeddings.)
+> Sonnet 5 is the model for **every** channel — chat, uploads, vision (upgraded from Sonnet 4.6 on 2026-07-01). Do NOT swap SOPHIA's chat/vision models to free-tier models (e.g. `nvidia/nemotron-*:free`); quality regresses and she stops behaving "like herself". (Embeddings still use Google `gemini-embedding-001` — a chat model can't produce embeddings.)
 
 > The **admin panel** (`app/(admin)/`) is LIVE, and `app/(auth)/` handles NextAuth. Root `/` redirects to `/admin`. All active development is on the WhatsApp bot in `supabase/functions/sophia-bot/`.
 

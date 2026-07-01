@@ -309,7 +309,7 @@ async function processRequest(
 
     // Add breadcrumb before AI call
     addBreadcrumb("Calling OpenRouter", "ai", {
-      model: "anthropic/claude-sonnet-4.6",
+      model: "anthropic/claude-sonnet-5",
     });
 
     // Call AI
