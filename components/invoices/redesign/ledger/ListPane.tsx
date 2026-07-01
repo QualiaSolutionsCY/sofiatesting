@@ -4,13 +4,16 @@ import { ChevronDown, FileMinus, FileText, Receipt as ReceiptIcon, Search } from
 import { useMemo, type ReactNode } from "react";
 import { STAGES, clientById, fmt } from "@/lib/invoices/redesign/data";
 import { addOneMonth, formatDate } from "@/lib/invoices/format";
+import { matchesDocQuery } from "@/lib/invoices/redesign/search";
 import type { Doc, DocKind, Filters } from "@/lib/invoices/redesign/types";
 
 const STAGE_OPTIONS: Array<{ value: Filters["stage"]; label: string }> = [
+  // "All Invoices" is the single main filter (Marios's 30-06 ask: drop the extra
+  // "Invoices" option that duplicated "All Invoices"). The approved-numbered filter
+  // logic below is kept but simply no longer offered as its own dropdown entry.
   { value: "all", label: "All Invoices" },
   { value: STAGES.DRAFT.id, label: STAGES.DRAFT.label },
   { value: STAGES.SENT_TO_MARIOS.id, label: STAGES.SENT_TO_MARIOS.label },
-  { value: "approved-numbered", label: "Invoices" },
   { value: STAGES.SENT_TO_ACCOUNTING.id, label: "Paid" },
   { value: "kind-receipt", label: "Receipts" },
   { value: STAGES.CREDITED.id, label: STAGES.CREDITED.label },
@@ -73,39 +76,9 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
           if (doc.kind !== "invoice") return false;
           if (doc.stage !== filters.stage) return false;
         }
-        if (filters.q) {
-          const q = filters.q.toLowerCase();
-          const cl = clientById(doc.client);
-          // Include the amount (raw, with and without thousands separators) so the
-          // search can match by value, e.g. "5950" or "5,950".
-          const total = Math.abs(doc.total || 0);
-          const amountForms = [
-            String(total),
-            total.toLocaleString("en-GB"),
-            total.toLocaleString("en-GB", { minimumFractionDigits: 2 })
-          ];
-          // Search across the client, the property identifier, document numbers,
-          // the description + line items (Marios #22), the amount, and BOTH the raw
-          // and the displayed date so typing either form matches.
-          const lineText = (doc.lines || []).map((l) => l.desc).join(" ");
-          const hay = [
-            cl.name,
-            cl.property,
-            doc.officialNo,
-            doc.draftNo,
-            doc.pdf,
-            doc.receiptNo,
-            doc.description,
-            lineText,
-            doc.issued,
-            formatDate(doc.issued),
-            ...amountForms
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
-          if (!hay.includes(q.replace(/[€,\s]/g, "") ) && !hay.includes(q)) return false;
-        }
+        // Free-text search across client / property / numbers / description /
+        // amount / date — shared with the ⌘K palette (redesign/search.ts).
+        if (!matchesDocQuery(doc, filters.q)) return false;
         return true;
       })
       // Latest → oldest by invoice NUMBER (Marios's rule): numbered invoices by

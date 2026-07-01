@@ -68,15 +68,24 @@ export function applyOfficialNumberToDocument(
   const trimmed = officialNumber.trim();
   if (!trimmed) return document;
 
+  const numbered: InvoiceDocument = {
+    ...document,
+    officialNumber: trimmed,
+    officialNumberPendingReason: undefined,
+    status: "numbered",
+    receiptNumber: document.kind === "receipt" ? trimmed : document.receiptNumber,
+    storageStatus: "needs-regeneration"
+  };
+
+  // Idempotent: record the "… number NNNNN applied" event only the FIRST time this
+  // exact number is applied. Re-approves / re-saves / recurring materializations
+  // re-run this with the SAME number, which used to stack a duplicate event every
+  // time and flood the History panel with identical rows.
+  if (document.officialNumber === trimmed) {
+    return numbered;
+  }
   return appendTimeline(
-    {
-      ...document,
-      officialNumber: trimmed,
-      officialNumberPendingReason: undefined,
-      status: "numbered",
-      receiptNumber: document.kind === "receipt" ? trimmed : document.receiptNumber,
-      storageStatus: "needs-regeneration"
-    },
+    numbered,
     `${documentKindLabel(document.kind)} number ${trimmed} applied`,
     "Sophia"
   );

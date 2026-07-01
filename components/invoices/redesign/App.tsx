@@ -848,6 +848,9 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
   function handlePaletteAction(item: PaletteItem) {
     setPaletteOpen(false);
     if (item.type === "doc" && item.target) {
+      // Reset the list filter to "All Invoices" so the picked invoice is guaranteed
+      // visible in the ledger even if a narrower filter was active.
+      setFilters((f) => ({ ...f, stage: "all" }));
       setSelectedId(item.target);
       return;
     }
@@ -1064,7 +1067,7 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         invoices={docs}
         busy={isPending}
       />
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onAction={handlePaletteAction} />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onAction={handlePaletteAction} docs={docs} />
       <PDFLightbox
         doc={lightboxDoc}
         allDocs={batchPreview ?? docs}

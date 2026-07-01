@@ -4,6 +4,7 @@ import {
   ChevronRight,
   Clock,
   Command,
+  FileText,
   Filter,
   Lock,
   Plus,
@@ -13,15 +14,19 @@ import {
   Sparkles
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { PaletteItem } from "@/lib/invoices/redesign/types";
+import { clientById, fmt } from "@/lib/invoices/redesign/data";
+import { formatDate } from "@/lib/invoices/format";
+import { matchesDocQuery } from "@/lib/invoices/redesign/search";
+import type { Doc, PaletteItem } from "@/lib/invoices/redesign/types";
 
 interface CommandPaletteProps {
   open: boolean;
   onClose: () => void;
   onAction: (item: PaletteItem) => void;
+  docs: Doc[];
 }
 
-export function CommandPalette({ open, onClose, onAction }: CommandPaletteProps) {
+export function CommandPalette({ open, onClose, onAction, docs }: CommandPaletteProps) {
   const [q, setQ] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);
 
@@ -46,8 +51,34 @@ export function CommandPalette({ open, onClose, onAction }: CommandPaletteProps)
       { id: "sign-out", type: "action" as const, action: "sign-out", title: "Sign out", subtitle: "Lock the ledger", icon: <Lock size={14} strokeWidth={1.6} /> }
     ] satisfies PaletteItem[]).filter((a) => !ql || (a.title + " " + a.subtitle).toLowerCase().includes(ql));
 
-    return [{ label: "Options & pages", items: actionList }];
-  }, [q]);
+    const groups: { label: string; items: PaletteItem[] }[] = [];
+
+    // Document matches — the top "Search or jump…" bar now finds actual invoices
+    // by client / number / date / amount / description (Marios #22), not just UI
+    // actions. Only when the operator has typed something, capped so the palette
+    // stays snappy. Selecting one routes through onAction (type: "doc").
+    if (ql) {
+      const docItems: PaletteItem[] = docs
+        .filter((d) => matchesDocQuery(d, q))
+        .slice(0, 8)
+        .map((d) => {
+          const cl = clientById(d.client);
+          const number = d.officialNo ? `№ ${d.officialNo}` : d.draftNo || "Draft";
+          return {
+            id: `doc-${d.id}`,
+            type: "doc" as const,
+            target: d.id,
+            title: `${cl.name} — ${number}`,
+            subtitle: `${formatDate(d.issued)} · ${fmt(Math.abs(d.total))}`,
+            icon: <FileText size={14} strokeWidth={1.6} />
+          };
+        });
+      if (docItems.length) groups.push({ label: "Invoices", items: docItems });
+    }
+
+    groups.push({ label: "Options & pages", items: actionList });
+    return groups;
+  }, [q, docs]);
 
   const items = useMemo(() => groups.flatMap((g) => g.items), [groups]);
 

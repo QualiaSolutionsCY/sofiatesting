@@ -28,12 +28,19 @@ function periodFromIssue(issueDate: string): string {
 }
 
 function timelineFromInvoice(invoice: InvoiceDocument): TimelineEvent[] {
-  return (invoice.approvalTimeline ?? []).map((event) => ({
-    at: event.at,
-    who: event.by,
-    what: event.label,
-    body: "—"
-  }));
+  // Collapse repeated identical events. Re-approves / re-saves / recurring
+  // materializations used to append a fresh "… number NNNNN applied" (and
+  // "Approved") row every time, which flooded the History panel with dozens of
+  // identical entries. Keep the first occurrence of each distinct label so
+  // already-polluted records read cleanly too (no DB migration needed).
+  const seen = new Set<string>();
+  const events: TimelineEvent[] = [];
+  for (const event of invoice.approvalTimeline ?? []) {
+    if (seen.has(event.label)) continue;
+    seen.add(event.label);
+    events.push({ at: event.at, who: event.by, what: event.label, body: "—" });
+  }
+  return events;
 }
 
 export function invoiceToDoc(invoice: InvoiceDocument): Doc {

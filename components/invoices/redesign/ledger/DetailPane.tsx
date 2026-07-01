@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CLIENTS, ENTITY, clientById, fmt, metrics } from "@/lib/invoices/redesign/data";
+import { formatDate } from "@/lib/invoices/format";
 import { STAGES } from "@/lib/invoices/redesign/data";
 import { nextNumber, primaryAction, stageHeadline } from "@/lib/invoices/redesign/stages";
 import type { Doc } from "@/lib/invoices/redesign/types";
@@ -844,7 +845,7 @@ function Timeline({ doc, events = [], onAct }: { doc: Doc; events?: Doc["timelin
                 ) : null}
               </div>
               <div className="row-date">
-                {e.at} · {e.who}
+                {formatDate(e.at)} · {e.who}
               </div>
             </div>
           ))
