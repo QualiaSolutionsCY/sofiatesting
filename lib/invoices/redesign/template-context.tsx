@@ -39,7 +39,10 @@ export const TEMPLATE_DEFAULTS: TemplateText = {
 
 const STORAGE_KEY = "sophia.invoice.template";
 
-const TemplateContext = createContext<{ text: TemplateText; setText: (next: TemplateText) => void }>({
+// Exported so the template editor can wrap its live preview in a provider fed by
+// the in-progress DRAFT (not the saved value) — the preview then updates on every
+// keystroke without committing the edit.
+export const TemplateContext = createContext<{ text: TemplateText; setText: (next: TemplateText) => void }>({
   text: TEMPLATE_DEFAULTS,
   setText: () => {}
 });

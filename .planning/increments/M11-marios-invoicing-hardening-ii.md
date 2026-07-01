@@ -39,6 +39,10 @@ Scope owner sign‑off: user approved route `/qualia-milestone` (run as incremen
 ### B6 — Verify yearly==monthly parity + VAT  (items 2, 3)  [read + live smoke; patch only if broken]
 - Prove: yearly recurring runs identically to monthly (`App.tsx:902‑951`), Marios copy parity (BCC both), and editing an **issued** monthly/yearly invoice reflects in the **next** period's upcoming preview. Verify incl‑VAT / plus‑VAT totals cent‑correct on a real PDF. Patch the single spot only if propagation is missing. No rewrite.
 
+### B7 — Live preview in the invoice-template editor  (item 10, added 2026-07-01)  [`components/invoices/redesign/modals/TemplateEditor.tsx`, `lib/invoices/redesign/template-context.tsx`]
+- Marios wants to SEE the invoice update live while he edits the template text fields (company name, address, bank, CREA, notes…). The editor had a form only, no preview.
+- Add a two-column layout: fields left, a scaled `TemplatePreview` right, wrapped in a `TemplateContext.Provider` fed by the editor's in-progress `draft` — so the preview re-renders on every keystroke without committing. Sample invoice content is fixed; only the template text is live. Inline styles only (no CSS-file churn). `TemplateContext` exported additively.
+
 ## Definition of Done
 - `npx tsc --noEmit` = 0; touched tests green; `deno check` clean for `sophia-bot`.
 - Each item verifiable by grep/read against its finding + a live smoke: email body renders with letterhead + no‑reply; amend reaches group + Marios; top‑bar search finds by number/date; single "All Invoices" filter; history shows distinct dated events; statement PDF+XLS download; logout no longer errors; yearly == monthly; VAT cent‑correct.
