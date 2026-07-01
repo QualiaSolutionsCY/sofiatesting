@@ -667,11 +667,11 @@ function DeliveryPlan({
       // Show the operator's edited message (the "Edit message" override) verbatim so
       // Marios sees exactly what the client will get before he sends. Falls back to
       // the default template when he hasn't edited it.
-      msg: clientMsg.trim()
-        ? clientMsg.trim()
-        : hasNumber
-          ? clientDeliveryMessage(doc, cl)
-          : "Disabled until the invoice is numbered.",
+      // Always show the letterhead default — even on a DRAFT — so Marios can preview
+      // and edit the client message BEFORE approving (Edit message / Edit email work
+      // on drafts; only "Send email" waits for the official number). His edited text
+      // is then what the auto-send uses on approval.
+      msg: clientMsg.trim() ? clientMsg.trim() : clientDeliveryMessage(doc, cl),
       actions: [
         // Sending waits for the official number, but setting the recipient email and
         // the message must work on a DRAFT too so the operator can prep delivery early.

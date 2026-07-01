@@ -81,16 +81,17 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
         if (!matchesDocQuery(doc, filters.q)) return false;
         return true;
       })
-      // Latest → oldest by invoice NUMBER (Marios's rule): numbered invoices by
-      // number desc, then drafts (no number) by issue date desc. Editing never
-      // reorders, because neither sort key changes on edit (unlike updated_at).
+      // Newest first. DRAFTS (no official number) are the freshest, pending-action
+      // items — surface them at the TOP so a just-created invoice is visible under
+      // "All Invoices" without hunting, then numbered invoices by number desc.
+      // Editing never reorders, because neither sort key changes on edit.
       .sort((a, b) => {
         const an = a.officialNo ? Number(a.officialNo.replace(/\D/g, "")) : null;
         const bn = b.officialNo ? Number(b.officialNo.replace(/\D/g, "")) : null;
-        if (an !== null && bn !== null) return bn - an;
-        if (an !== null) return -1;
-        if (bn !== null) return 1;
-        return (b.issued || "").localeCompare(a.issued || "");
+        if (an === null && bn === null) return (b.issued || "").localeCompare(a.issued || "");
+        if (an === null) return -1; // a is a draft → first
+        if (bn === null) return 1; // b is a draft → first
+        return bn - an; // both numbered → by number desc
       });
   }, [docs, filters]);
 

@@ -209,6 +209,20 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
     };
   }, [operator, composerOpen]);
 
+  // Keep the ledger live: poll for invoices created out-of-band (Sophia / WhatsApp)
+  // so they appear WITHOUT a manual Refresh. Skips while composing (never disrupts an
+  // in-progress draft) or when the tab is hidden. Pairs with the on-focus refresh
+  // above for the case where the operator leaves the panel open and idle.
+  useEffect(() => {
+    if (!operator) return;
+    const id = setInterval(() => {
+      if (composerOpen) return;
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      refetchDocuments();
+    }, 15000);
+    return () => clearInterval(id);
+  }, [operator, composerOpen]);
+
   // Load soft-deleted documents on demand when the "Deleted" view is opened (M4).
   useEffect(() => {
     if (filters.stage !== "deleted") return;
