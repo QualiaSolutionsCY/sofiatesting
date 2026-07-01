@@ -108,13 +108,13 @@
   },
   "blockers": [],
   "session_started_at": "2026-06-09T07:29:56.378Z",
-  "last_updated": "2026-07-01T10:59:12.401Z",
+  "last_updated": "2026-07-01T11:00:28.533Z",
   "last_pushed_at": "2026-06-28T09:09:16Z",
   "last_commit": "a6b923e",
   "build_count": 4,
   "deploy_count": 0,
   "deployed_url": "https://sofiatesting.vercel.app",
-  "notes": "Session report QS-REPORT-15 generated",
+  "notes": "Session report QS-REPORT-18 generated",
   "submitted_by": "",
   "lifetime": {
     "tasks_completed": 99,
@@ -166,19 +166,7 @@
       "verification": "pending"
     }
   ],
-  "releases": [
-    {
-      "id": "r1",
-      "type": "rolling",
-      "status": "active",
-      "increments": [
-        "inc-0001-polish",
-        "inc-0002-content-seo",
-        "inc-0003-final-qa",
-        "inc-0004-handoff"
-      ]
-    }
-  ],
+  "releases": [],
   "next_command": "/qualia-plan 4",
-  "last_activity": "Session report QS-REPORT-15 generated"
+  "last_activity": "Session report QS-REPORT-18 generated"
 }
