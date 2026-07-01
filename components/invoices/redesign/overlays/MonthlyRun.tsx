@@ -19,6 +19,14 @@ interface DeliveryDraft {
   sub?: number;
   recipients?: string;
   message?: string;
+  // The SOURCE (rolled-forward) value each source-derived field was diffed against
+  // when the draft was saved. On reopen, if the current source no longer matches
+  // this base, the operator has since edited the underlying monthly/yearly ledger
+  // invoice — the source wins and the stale draft field is dropped. This is what
+  // makes "edit the monthly invoice → it reflects on the upcoming preview" work,
+  // while still auto-saving in-overlay edits (source unchanged → draft restored).
+  descriptionBase?: string;
+  subBase?: number;
 }
 
 function readDeliveryDrafts(): Record<string, DeliveryDraft> {
@@ -144,8 +152,14 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
       if (!orig) return;
       const key = `${cad}:${r.id}`;
       const d: DeliveryDraft = {};
-      if (r.description !== orig.description) d.description = r.description;
-      if (r.sub !== orig.sub) d.sub = r.sub;
+      if (r.description !== orig.description) {
+        d.description = r.description;
+        d.descriptionBase = orig.description;
+      }
+      if (r.sub !== orig.sub) {
+        d.sub = r.sub;
+        d.subBase = orig.sub;
+      }
       if ((r.recipients || "") !== (orig.recipients || "")) d.recipients = r.recipients;
       if ((r.message || "") !== (orig.message || "")) d.message = r.message;
       if (Object.keys(d).length) map[key] = d;
@@ -165,19 +179,28 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
           const d = drafts[`${cadence}:${r.id}`];
           if (!d) return r;
           const next = { ...r };
-          if (d.description !== undefined) next.description = d.description;
+          // Source-derived fields (description/amount): restore the draft ONLY when the
+          // current source still matches the value the draft was based on. If the
+          // operator has since edited the monthly/yearly invoice in the ledger, the
+          // source wins and the stale draft field is dropped. A draft with no base
+          // (saved before this fix) has base === undefined, which never matches the
+          // real source value, so the source correctly shows through.
+          const descOk = d.description !== undefined && d.descriptionBase === r.description;
+          const subOk = d.sub !== undefined && d.subBase === r.sub;
+          if (descOk) next.description = d.description;
+          // recipients/message are overlay-only (never on the source) → always restore.
           if (d.recipients !== undefined) next.recipients = d.recipients;
           if (d.message !== undefined) next.message = d.message;
-          if (d.sub !== undefined) {
+          if (subOk) {
             // Recompute net/total from the saved net using the source row's VAT ratio.
             const rate = r.total && r.sub ? r.total / r.sub - 1 : 0.19;
-            next.sub = d.sub;
-            next.net = d.sub;
-            next.total = d.sub * (1 + rate);
+            next.sub = d.sub as number;
+            next.net = d.sub as number;
+            next.total = (d.sub as number) * (1 + rate);
           }
           // Keep line items in sync so the restored draft's preview matches the edits.
-          if (d.description !== undefined || d.sub !== undefined) {
-            next.lines = syncRowLines(next, { description: d.description !== undefined, sub: d.sub !== undefined });
+          if (descOk || subOk) {
+            next.lines = syncRowLines(next, { description: descOk, sub: subOk });
           }
           return next;
         })
@@ -254,7 +277,13 @@ export function MonthlyRunOverlay({ open, onClose, onApproveAll, onPreview, onPa
     saveTimers.current[id] = setTimeout(() => {
       const map = readDeliveryDrafts();
       const key = `${cadence}:${id}`;
-      map[key] = { ...(map[key] || {}), ...patch };
+      // Stamp the source value each source-derived field is diffed against, so a
+      // later ledger edit to this invoice wins over this draft on reopen.
+      const orig = stateRef.current.source.find((s) => s.id === id);
+      const withBase: DeliveryDraft = { ...patch };
+      if (patch.description !== undefined && orig) withBase.descriptionBase = orig.description;
+      if (patch.sub !== undefined && orig) withBase.subBase = orig.sub;
+      map[key] = { ...(map[key] || {}), ...withBase };
       writeDeliveryDrafts(map);
       // Flash "saved" for this row, then fade.
       setSavedRows((prev) => new Set(prev).add(id));
