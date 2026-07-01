@@ -1,5 +1,6 @@
 import type { Client, Doc, DocKind, Stage, TimelineEvent } from "./types";
 import type { InvoiceDocument, DocumentKind, ApprovalStatus, VatMode } from "@/lib/invoices/types/invoice";
+import { buildInvoiceEmailBody } from "@/lib/invoices/email";
 
 function clientIdFromName(name: string): string {
   return "client-" + name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -184,6 +185,16 @@ export function docToInvoiceDocument(doc: Doc, client: Client): InvoiceDocument 
     approvalTimeline: [],
     notes: []
   };
+}
+
+/**
+ * The default client-delivery message = the EXACT invoice-email letterhead
+ * (buildInvoiceEmailBody), so the client-delivery card AND the sent email both use
+ * Marios's default template instead of a short "on behalf of Marios … via Sophia"
+ * summary. Pure/client-safe (buildInvoiceEmailBody + docToInvoiceDocument are pure).
+ */
+export function clientDeliveryMessage(doc: Doc, client: Client): string {
+  return buildInvoiceEmailBody(docToInvoiceDocument(doc, client));
 }
 
 export { kindStorage, clientIdFromName };

@@ -19,6 +19,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CLIENTS, ENTITY, clientById, fmt, metrics } from "@/lib/invoices/redesign/data";
 import { formatDate } from "@/lib/invoices/format";
 import { STAGES } from "@/lib/invoices/redesign/data";
+import { clientDeliveryMessage } from "@/lib/invoices/redesign/adapter";
 import { nextNumber, primaryAction, stageHeadline } from "@/lib/invoices/redesign/stages";
 import type { Doc } from "@/lib/invoices/redesign/types";
 import { TemplatePreview } from "./TemplatePreview";
@@ -582,7 +583,6 @@ function DeliveryPlan({
 }) {
   const cl = clientById(doc.client);
   const hasNumber = !!doc.officialNo;
-  const clientHandle = cl.name.split(",")[0].split(" ")[0];
   // The REAL recipient email (the invoice's clientEmail, or the operator's
   // "Edit email" override) — never a fabricated placeholder. Empty until set.
   const clientPhone = hasNumber ? "+357 99 ••• 451" : "—";
@@ -670,11 +670,7 @@ function DeliveryPlan({
       msg: clientMsg.trim()
         ? clientMsg.trim()
         : hasNumber
-          ? `Hello ${clientHandle}, on behalf of Marios at CSC Zyprus — your ${
-              doc.kind === "credit" ? "credit note" : doc.kind === "receipt" ? "receipt" : "invoice"
-            } ${doc.officialNo} for ${doc.period} is attached. Total ${fmt(doc.total)}.${
-              doc.due && doc.kind === "invoice" ? ` Due ${doc.due}.` : ""
-            } — via Sophia`
+          ? clientDeliveryMessage(doc, cl)
           : "Disabled until the invoice is numbered.",
       actions: [
         // Sending waits for the official number, but setting the recipient email and
@@ -769,22 +765,58 @@ function DeliveryPlan({
 // the document's own facts (issued date, paid date, receipt + credit links) that
 // the approvalTimeline doesn't carry. The receipt entry is CLICKABLE — it opens the
 // issued receipt via the same "sent-to-accounting" action the detail header uses.
+// Exact timestamp for the expanded "more info" — shows the time when the event
+// carries one (ISO approval events), else just the day (date-only anchors).
+function formatDateTime(at: string): string {
+  if (!at) return "—";
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return at;
+  const hasTime = /T\d{2}:\d{2}/.test(at);
+  return hasTime
+    ? new Intl.DateTimeFormat("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      }).format(d)
+    : formatDate(at);
+}
+
 function Timeline({ doc, events = [], onAct }: { doc: Doc; events?: Doc["timeline"]; onAct: (action: string) => void }) {
-  type Row = { at: string; who: string; what: string; body?: string; onClick?: () => void };
+  type Row = { at: string; who: string; what: string; body?: string; detail?: string; onClick?: () => void };
   const rows: Row[] = [];
 
   // Anchor: the issued date — always known, even when no approval events exist.
   if (doc.issued) {
-    rows.push({ at: doc.issued, who: "Sophia", what: doc.officialNo ? `Issued as № ${doc.officialNo}` : "Draft created" });
+    rows.push({
+      at: doc.issued,
+      who: "Sophia",
+      what: doc.officialNo ? `Issued as № ${doc.officialNo}` : "Draft created",
+      detail: doc.officialNo
+        ? `The official invoice number ${doc.officialNo} was assigned and the PDF finalised — ready to send to the client and the accounting group.`
+        : "A working draft was created. It stays editable until Marios approves and numbers it."
+    });
   }
   // Raw approval events (email sent / approved / corrected …). Drop the placeholder
   // "—" body so empty bodies don't render a blank line.
   for (const e of events) {
-    rows.push({ at: e.at, who: e.who, what: e.what, body: e.body && e.body !== "—" ? e.body : undefined });
+    rows.push({
+      at: e.at,
+      who: e.who,
+      what: e.what,
+      body: e.body && e.body !== "—" ? e.body : undefined,
+      detail: `Recorded in the approval & delivery trail${e.who ? ` by ${e.who}` : ""}.`
+    });
   }
   // Derived summary facts the approvalTimeline doesn't include.
   if (doc.paidOn) {
-    rows.push({ at: doc.paidOn, who: "Sophia", what: "Payment received — marked paid" });
+    rows.push({
+      at: doc.paidOn,
+      who: "Sophia",
+      what: "Payment received — marked paid",
+      detail: "Marios recorded payment in full; a receipt can now be issued against this invoice."
+    });
   }
   if (doc.receiptNo) {
     // Clickable: opens the issued receipt (the detail header's "Open issued receipt"
@@ -794,12 +826,31 @@ function Timeline({ doc, events = [], onAct }: { doc: Doc; events?: Doc["timelin
       who: "Sophia",
       what: `Receipt № ${doc.receiptNo} issued`,
       body: "Open the receipt",
+      detail: `Receipt ${doc.receiptNo} was generated to confirm payment in full.`,
       onClick: () => onAct("sent-to-accounting")
     });
   }
   if (doc.creditedBy) {
-    rows.push({ at: doc.issued, who: "Sophia", what: "Cancelled via credit note", body: "Open the linked credit note", onClick: () => onAct("credited") });
+    rows.push({
+      at: doc.issued,
+      who: "Sophia",
+      what: "Cancelled via credit note",
+      body: "Open the linked credit note",
+      detail: "This invoice was voided by issuing a credit note for the full amount.",
+      onClick: () => onAct("credited")
+    });
   }
+
+  // Marios can expand any event to see the exact time, who did it, and a plain
+  // description — the clean list stays short, the detail is one click away.
+  const [openRows, setOpenRows] = useState<Set<number>>(() => new Set());
+  const toggle = (i: number) =>
+    setOpenRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
 
   return (
     <section className="timeline">
@@ -816,39 +867,86 @@ function Timeline({ doc, events = [], onAct }: { doc: Doc; events?: Doc["timelin
         rows
           .slice()
           .reverse()
-          .map((e, i) => (
-            <div key={i} className="timeline-event">
-              <span />
-              <div>
-                <strong>{e.what}</strong>
-                {e.body ? (
-                  e.onClick ? (
-                    <button
-                      type="button"
-                      className="timeline-link"
-                      onClick={e.onClick}
+          .map((e, i) => {
+            const isOpen = openRows.has(i);
+            return (
+              <div key={i} className="timeline-event">
+                <span />
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => toggle(i)}
+                    aria-expanded={isOpen}
+                    title="Click for more detail"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      font: "inherit",
+                      color: "inherit",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      textAlign: "left"
+                    }}
+                  >
+                    <strong>{e.what}</strong>
+                    <span
+                      aria-hidden
                       style={{
-                        background: "none",
-                        border: "none",
-                        padding: 0,
-                        color: "var(--brand-strong, #2563eb)",
-                        font: "inherit",
-                        textDecoration: "underline",
-                        cursor: "pointer"
+                        fontSize: "0.6rem",
+                        color: "var(--ink-soft)",
+                        display: "inline-block",
+                        transform: isOpen ? "rotate(90deg)" : "none",
+                        transition: "transform .12s"
                       }}
                     >
-                      {e.body}
-                    </button>
-                  ) : (
-                    <p>{e.body}</p>
-                  )
-                ) : null}
+                      ▶
+                    </span>
+                  </button>
+                  {e.body ? (
+                    e.onClick ? (
+                      <button
+                        type="button"
+                        className="timeline-link"
+                        onClick={e.onClick}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          padding: 0,
+                          color: "var(--brand-strong, #2563eb)",
+                          font: "inherit",
+                          textDecoration: "underline",
+                          cursor: "pointer"
+                        }}
+                      >
+                        {e.body}
+                      </button>
+                    ) : (
+                      <p>{e.body}</p>
+                    )
+                  ) : null}
+                  {isOpen ? (
+                    <p style={{ marginTop: 4, fontSize: "0.78rem", color: "var(--ink-soft)", lineHeight: 1.5 }}>
+                      {e.detail ? (
+                        <>
+                          {e.detail}
+                          <br />
+                        </>
+                      ) : null}
+                      <span style={{ opacity: 0.85 }}>
+                        {formatDateTime(e.at)} · by {e.who}
+                      </span>
+                    </p>
+                  ) : null}
+                </div>
+                <div className="row-date">
+                  {formatDate(e.at)} · {e.who}
+                </div>
               </div>
-              <div className="row-date">
-                {formatDate(e.at)} · {e.who}
-              </div>
-            </div>
-          ))
+            );
+          })
       )}
     </section>
   );

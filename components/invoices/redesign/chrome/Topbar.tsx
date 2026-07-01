@@ -25,9 +25,7 @@ export function Topbar({ docs, onNew, onPalette, onOpenSettings, onOpenStatement
             <span className="topbar-count-dot" aria-hidden />
             {needsReview} for review
           </span>
-        ) : (
-          <span className="topbar-count is-empty">All caught up</span>
-        )}
+        ) : null}
       </div>
       <div className="topbar-actions">
         <button type="button" className="palette-trigger" onClick={onPalette}>

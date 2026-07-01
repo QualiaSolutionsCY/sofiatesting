@@ -21,7 +21,7 @@ import {
   sendToMariosAction,
   updateDocumentAction
 } from "@/lib/invoices/actions/documents";
-import { docToInvoiceDocument, invoicesToDocs } from "@/lib/invoices/redesign/adapter";
+import { clientDeliveryMessage, docToInvoiceDocument, invoicesToDocs } from "@/lib/invoices/redesign/adapter";
 import { addOneMonth, addOneYear, rollDescriptionMonth, rollDescriptionYear } from "@/lib/invoices/format";
 import { downloadDocumentPdf } from "@/lib/invoices/downloads";
 import { clientById, fmt, nowStamp, replaceClientRegistry, todayStamp } from "@/lib/invoices/redesign/data";
@@ -655,16 +655,11 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
         const isRecurring = !!selected.recurrence && selected.recurrence !== "none";
         const recipients = isRecurring ? [to, "marios@zyprus.com"] : to;
         // The email body must match what the operator SEES in the client-delivery
-        // box: their saved "Edit message" override, else the SAME composed default
-        // the card shows (mirror of DetailPane's client card, lines ~626-634). Without
-        // this the send dropped the visible message and fell back to a generic template.
-        const clientHandle = clientById(selected.client).name.split(",")[0].split(" ")[0];
-        const kindNoun =
-          selected.kind === "credit" ? "credit note" : selected.kind === "receipt" ? "receipt" : "invoice";
+        // box: their saved "Edit message" override, else the SAME default the card
+        // shows — which is now Marios's full letterhead (clientDeliveryMessage),
+        // not a short summary. Without this the send dropped the visible message.
         const composedClientMessage = selected.officialNo
-          ? `Hello ${clientHandle}, on behalf of Marios at CSC Zyprus — your ${kindNoun} ${selected.officialNo} for ${selected.period} is attached. Total ${fmt(selected.total)}.${
-              selected.due && selected.kind === "invoice" ? ` Due ${selected.due}.` : ""
-            } — via Sophia`
+          ? clientDeliveryMessage(selected, clientById(selected.client))
           : undefined;
         startTransition(async () => {
           try {
