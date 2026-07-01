@@ -328,11 +328,43 @@ export default function App({ initialDocs, initialClients, persistenceMode, preA
                   const groupOk = await notifyAccountingGroupOfInvoiceAction(current.id, messageToUse);
                   const mResult = await notifyMariosApprovedAction(current.id, messageToUse);
                   const mariosOk = mResult.mariosNotified ?? false;
+
+                  // Auto-send the CLIENT email on approval (Marios's ask): the operator
+                  // shouldn't have to press "Send email" separately. Uses the recipient
+                  // from "Edit email" (kept as a local override) or the invoice's own
+                  // address, with the letterhead default (built server-side on the
+                  // now-numbered doc, so it shows the official №). Best-effort — never
+                  // blocks the approve.
+                  const clientTo = (clientEmailOverrides[current.id] || current.clientEmail || "").trim();
+                  let clientEmailed = false;
+                  if (clientTo && isValidEmail(clientTo)) {
+                    try {
+                      const recipients =
+                        current.recurrence && current.recurrence !== "none"
+                          ? [clientTo, "marios@zyprus.com"]
+                          : clientTo;
+                      const emailResult = await sendInvoiceEmailAction(
+                        current.id,
+                        recipients,
+                        clientMsgOverrides[current.id] || undefined
+                      );
+                      reconcile(emailResult.documents, current.id);
+                      clientEmailed = true;
+                    } catch (error) {
+                      console.error("Auto-send to client on approval failed", error);
+                    }
+                  }
+
                   setToast(
                     "Approved. " +
                       [
                         mariosOk ? "Sent to Marios" : "Marios delivery NOT confirmed",
-                        groupOk ? "posted to accounting group" : "accounting group NOT confirmed"
+                        groupOk ? "posted to accounting group" : "accounting group NOT confirmed",
+                        clientTo
+                          ? clientEmailed
+                            ? `emailed ${clientTo}`
+                            : `couldn't email ${clientTo}`
+                          : "no client email set"
                       ].join("; ") +
                       ". Mark as paid when payment arrives."
                   );

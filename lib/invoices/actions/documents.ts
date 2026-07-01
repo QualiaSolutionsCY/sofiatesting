@@ -264,30 +264,11 @@ export async function approveDocumentAction(id: string): Promise<DocumentsAction
     officialNumberOnApproval(current.documents, document);
   const numbered = applyOfficialNumberToDocument(approved, officialNumber);
   const result = await saveInvoiceDocument(numbered, "Approved and official number applied");
-
-  // AUTO-SEND on approval (admin panel): approving an invoice that carries a client
-  // email address emails it to the client automatically — Marios shouldn't have to
-  // separately press "Send email" in the client-delivery panel. Mirrors the Sophia
-  // approve flow (intent-handlers). Guards:
-  //  - INVOICE kind with a client email only (receipts/credit-notes and
-  //    email-less invoices are skipped),
-  //  - only when THIS call actually approved it (the document had no official
-  //    number yet) — a re-approve of an already-numbered invoice must NOT re-email,
-  //  - best-effort: the approve already succeeded, so an email failure is logged
-  //    (and left in the delivery audit trail) but never fails the approval.
-  const justApproved = !document.officialNumber;
-  const clientEmail = numbered.clientEmail?.trim();
-  if (justApproved && numbered.kind === "invoice" && clientEmail) {
-    try {
-      await sendInvoiceEmailAction(id, [clientEmail]);
-    } catch (error) {
-      sendEmailLogger.warn("Auto-send on approval failed (approval still succeeded)", {
-        documentId: id,
-        error: error instanceof Error ? error.message : String(error)
-      });
-    }
-  }
-
+  // NOTE: auto-send of the CLIENT email on approval is handled by the CALLERS, not
+  // here — the Sophia flow (intent-handlers) and the admin panel each own it, using
+  // the recipient address available at their layer (Sophia captures it on the draft;
+  // the panel keeps it in an "Edit email" override that never reaches this server
+  // action). Doing it here as well double-sent every Sophia invoice.
   return { ...result, selectedId: id };
 }
 
