@@ -40,31 +40,102 @@ function splitVat(doc: Doc): { subtotal: number; vat: number; total: number } {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-const HEADER_STYLE = {
-  font: { bold: true, color: { rgb: "FFFFFF" } },
-  fill: { fgColor: { rgb: "1F2937" } },
-  alignment: { vertical: "center" as const }
-};
-const TOTAL_STYLE = { font: { bold: true } };
 const MONEY_FMT = "#,##0.00";
 
+// Colours (ARGB hex, no leading #). Kept muted/professional to match the PDF.
+const INK = "1F2937"; // header fill
+const RULE = "D1D5DB"; // thin cell borders
+const ZEBRA = "F6F7F9"; // alternate-row fill
+const TITLE_INK = "111827";
+const META_INK = "6B7280";
+
+const thin = { style: "thin" as const, color: { rgb: RULE } };
+const CELL_BORDER = { top: thin, bottom: thin, left: thin, right: thin };
+
+const HEADER_STYLE = {
+  font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
+  fill: { fgColor: { rgb: INK } },
+  alignment: { vertical: "center" as const },
+  border: CELL_BORDER
+};
+const MONEY_HEADER_STYLE = {
+  ...HEADER_STYLE,
+  alignment: { vertical: "center" as const, horizontal: "right" as const }
+};
+const TITLE_STYLE = { font: { bold: true, sz: 16, color: { rgb: TITLE_INK } } };
+const SUBTITLE_STYLE = { font: { bold: true, sz: 10, color: { rgb: TITLE_INK } } };
+const META_STYLE = { font: { sz: 10, color: { rgb: META_INK } } };
+
+const textCell = (zebra: boolean) => ({
+  alignment: { horizontal: "left" as const, vertical: "center" as const },
+  border: CELL_BORDER,
+  ...(zebra ? { fill: { fgColor: { rgb: ZEBRA } } } : {})
+});
+const moneyCell = (zebra: boolean) => ({
+  alignment: { horizontal: "right" as const, vertical: "center" as const },
+  border: CELL_BORDER,
+  ...(zebra ? { fill: { fgColor: { rgb: ZEBRA } } } : {})
+});
+
+const TOTAL_TEXT_STYLE = {
+  font: { bold: true },
+  alignment: { horizontal: "right" as const },
+  border: { ...CELL_BORDER, top: { style: "medium" as const, color: { rgb: INK } } }
+};
+const TOTAL_MONEY_STYLE = {
+  font: { bold: true },
+  alignment: { horizontal: "right" as const },
+  border: { ...CELL_BORDER, top: { style: "medium" as const, color: { rgb: INK } } }
+};
+const TOTAL_BLANK_STYLE = {
+  border: { ...CELL_BORDER, top: { style: "medium" as const, color: { rgb: INK } } }
+};
+
 /**
- * Build an Excel (.xlsx) statement of account. Columns:
+ * Build an Excel (.xlsx) statement of account. A merged title / meta block sits
+ * above an eight-column ledger:
  * Date · Invoice № · Client · Description · Subtotal · VAT · Total · Status.
- * Bold, filled header row; a bold Totals row at the bottom summing Subtotal / VAT
- * / Total. Money cells carry a numeric value + a #,##0.00 format so Excel treats
- * them as numbers (sortable, summable), not text.
+ *
+ * Structure:
+ * - Rows 1–4: "STATEMENT OF ACCOUNT" title, company name, period, and account —
+ *   each a merged banner spanning all columns.
+ * - Header row: bold, dark-filled, frozen (freeze panes) so it stays visible when
+ *   scrolling; money headers right-aligned.
+ * - Data rows: zebra-striped, thin cell borders, money right-aligned and numeric
+ *   with a #,##0.00 format so Excel sorts/sums them as numbers (not text). Status
+ *   is a human-readable label (Paid / Unpaid / Cancelled / …).
+ * - Totals row: bold, medium top border, with live =SUM() formulas over the money
+ *   columns so the figures recalculate if a user edits a cell.
  */
 export function buildStatementXlsBlob(docs: Doc[], meta: StatementMeta): Blob {
   const sorted = [...docs].sort((a, b) => (a.issued || "").localeCompare(b.issued || ""));
 
   const header = ["Date", "Invoice №", "Client", "Description", "Subtotal", "VAT", "Total", "Status"];
+  const colCount = header.length; // 8
+  const moneyCols = [4, 5, 6]; // Subtotal, VAT, Total (0-based)
+
+  // ---- Title / meta banner (rows 0–3), each merged across all columns ----
+  const accountLine = meta.clientName ? meta.clientName : "All clients";
+  const periodLine = `Period: ${formatDate(meta.from)} — ${formatDate(meta.to)}`;
+  const bannerRows = [
+    ["STATEMENT OF ACCOUNT"],
+    ["CSC ZYPRUS PROPERTY GROUP LTD"],
+    [periodLine],
+    [`Account: ${accountLine}`]
+  ];
+  const BANNER_H = bannerRows.length; // 4
+  const HEADER_R = BANNER_H + 1; // one blank spacer row between banner and header
+
+  // ---- Build the sheet from an array-of-arrays so cell types are inferred ----
+  const aoa: (string | number)[][] = [];
+  for (const b of bannerRows) aoa.push([b[0]]);
+  aoa.push([]); // spacer row
+  aoa.push(header);
 
   let sumSub = 0;
   let sumVat = 0;
   let sumTotal = 0;
-
-  const dataRows = sorted.map((doc) => {
+  for (const doc of sorted) {
     const { subtotal, vat, total } = splitVat(doc);
     sumSub += subtotal;
     sumVat += vat;
@@ -72,7 +143,7 @@ export function buildStatementXlsBlob(docs: Doc[], meta: StatementMeta): Blob {
     const number = doc.officialNo ? doc.officialNo : doc.draftNo || "—";
     const description = (doc.description || (doc.lines || []).map((l) => l.desc).filter(Boolean).join("; ") || "—")
       .replace(/\s*\n+\s*/g, " · ");
-    return [
+    aoa.push([
       formatDate(doc.issued),
       number,
       clientById(doc.client).name,
@@ -81,49 +152,108 @@ export function buildStatementXlsBlob(docs: Doc[], meta: StatementMeta): Blob {
       round2(vat),
       round2(total),
       STATUS_LABEL[doc.stage] ?? doc.stage
-    ];
-  });
-
-  const totalsRow = ["", "", "", "Total", round2(sumSub), round2(sumVat), round2(sumTotal), ""];
-
-  const aoa = [header, ...dataRows, totalsRow];
-  const sheet = xlsxUtils.aoa_to_sheet(aoa);
-
-  const lastRow = aoa.length; // 1-based count of rows including header
-  const moneyCols = [4, 5, 6]; // Subtotal, VAT, Total (0-based)
-
-  // Style the header row.
-  for (let c = 0; c < header.length; c++) {
-    const addr = xlsxUtils.encode_cell({ r: 0, c });
-    const cell = sheet[addr];
-    if (cell) cell.s = HEADER_STYLE;
+    ]);
   }
 
-  // Number-format the money columns (data rows + totals row).
-  for (let r = 1; r < lastRow; r++) {
+  const firstDataR = HEADER_R + 1; // 0-based row index of the first data row
+  const lastDataR = firstDataR + sorted.length - 1; // -1 when empty (no data rows)
+  const totalsR = firstDataR + sorted.length; // row index of the Totals row
+
+  // Totals row: Excel =SUM() over the data range (numeric, live-recalculating).
+  const sumFormula = (c: number) =>
+    sorted.length > 0
+      ? { f: `SUM(${xlsxUtils.encode_cell({ r: firstDataR, c })}:${xlsxUtils.encode_cell({ r: lastDataR, c })})` }
+      : 0;
+  const totalsRow: (string | number)[] = ["", "", "", "TOTAL", 0, 0, 0, `${sorted.length} invoice${sorted.length === 1 ? "" : "s"}`];
+  aoa.push(totalsRow);
+
+  const sheet = xlsxUtils.aoa_to_sheet(aoa);
+
+  // Overwrite the totals money cells with live SUM formulas.
+  if (sorted.length > 0) {
     for (const c of moneyCols) {
-      const cell = sheet[xlsxUtils.encode_cell({ r, c })];
-      if (cell && cell.t === "n") cell.z = MONEY_FMT;
+      const addr = xlsxUtils.encode_cell({ r: totalsR, c });
+      sheet[addr] = { t: "n", ...(sumFormula(c) as { f: string }) } as typeof sheet[typeof addr];
     }
   }
 
-  // Bold the totals row.
-  for (let c = 0; c < header.length; c++) {
-    const cell = sheet[xlsxUtils.encode_cell({ r: lastRow - 1, c })];
-    if (cell) cell.s = { ...(cell.s ?? {}), ...TOTAL_STYLE };
+  // ---- Merges: each banner line spans all 8 columns ----
+  sheet["!merges"] = bannerRows.map((_row, r) => ({
+    s: { r, c: 0 },
+    e: { r, c: colCount - 1 }
+  }));
+
+  // ---- Style the banner ----
+  const styleAt = (r: number, c: number, style: Record<string, unknown>) => {
+    const addr = xlsxUtils.encode_cell({ r, c });
+    const cell = sheet[addr];
+    if (cell) cell.s = style;
+  };
+  styleAt(0, 0, TITLE_STYLE);
+  styleAt(1, 0, SUBTITLE_STYLE);
+  styleAt(2, 0, META_STYLE);
+  styleAt(3, 0, META_STYLE);
+
+  // ---- Header row: filled/bold, money headers right-aligned ----
+  for (let c = 0; c < colCount; c++) {
+    styleAt(HEADER_R, c, moneyCols.includes(c) ? MONEY_HEADER_STYLE : HEADER_STYLE);
   }
 
-  // Sensible column widths.
+  // ---- Data rows: zebra + borders + alignment; money numeric with #,##0.00 ----
+  for (let r = firstDataR; r <= lastDataR; r++) {
+    const zebra = (r - firstDataR) % 2 === 1;
+    for (let c = 0; c < colCount; c++) {
+      const addr = xlsxUtils.encode_cell({ r, c });
+      const cell = sheet[addr];
+      if (!cell) continue;
+      if (moneyCols.includes(c)) {
+        cell.s = moneyCell(zebra);
+        if (cell.t === "n") cell.z = MONEY_FMT;
+      } else {
+        cell.s = textCell(zebra);
+      }
+    }
+  }
+
+  // ---- Totals row: bold, medium top border, money right-aligned + formatted ----
+  for (let c = 0; c < colCount; c++) {
+    const addr = xlsxUtils.encode_cell({ r: totalsR, c });
+    const cell = sheet[addr];
+    if (!cell) continue;
+    if (moneyCols.includes(c)) {
+      cell.s = TOTAL_MONEY_STYLE;
+      cell.z = MONEY_FMT;
+    } else if (c === 3) {
+      cell.s = { ...TOTAL_TEXT_STYLE, alignment: { horizontal: "right" as const } };
+    } else if (c === colCount - 1) {
+      cell.s = { ...TOTAL_TEXT_STYLE, font: { bold: true }, alignment: { horizontal: "left" as const } };
+    } else {
+      cell.s = TOTAL_BLANK_STYLE;
+    }
+  }
+
+  // ---- Column widths ----
   sheet["!cols"] = [
     { wch: 18 }, // Date
-    { wch: 12 }, // Invoice №
-    { wch: 24 }, // Client
-    { wch: 40 }, // Description
-    { wch: 12 }, // Subtotal
+    { wch: 13 }, // Invoice №
+    { wch: 26 }, // Client
+    { wch: 42 }, // Description
+    { wch: 13 }, // Subtotal
     { wch: 12 }, // VAT
-    { wch: 12 }, // Total
-    { wch: 20 } // Status
+    { wch: 14 }, // Total
+    { wch: 22 } // Status
   ];
+
+  // ---- Row heights: taller title + header ----
+  sheet["!rows"] = [];
+  sheet["!rows"][0] = { hpt: 22 }; // title
+  sheet["!rows"][HEADER_R] = { hpt: 20 }; // header
+
+  // ---- Freeze the banner + header so rows scroll under a fixed heading ----
+  sheet["!freeze"] = { xSplit: 0, ySplit: HEADER_R + 1 };
+  sheet["!autofilter"] = {
+    ref: `${xlsxUtils.encode_cell({ r: HEADER_R, c: 0 })}:${xlsxUtils.encode_cell({ r: Math.max(HEADER_R, lastDataR), c: colCount - 1 })}`
+  };
 
   const wb = xlsxUtils.book_new();
   wb.Props = {
