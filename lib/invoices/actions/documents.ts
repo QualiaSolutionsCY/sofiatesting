@@ -33,6 +33,7 @@ import {
 import { storeDocumentPdfInSupabase } from "@/lib/invoices/storage";
 import { INVOICE_AUTHORIZED_AGENTS } from "@/lib/invoices/constants";
 import { getDisplayNumber, getUnifiedFilename } from "@/lib/invoices/format";
+import { buildInvoiceEmailBody } from "@/lib/invoices/email";
 import { buildDocumentPdfBytes } from "@/lib/invoices/pdf";
 import { createLogger } from "@/lib/logger";
 import { getWhatsAppClient } from "@/lib/whatsapp/client";
@@ -263,6 +264,30 @@ export async function approveDocumentAction(id: string): Promise<DocumentsAction
     officialNumberOnApproval(current.documents, document);
   const numbered = applyOfficialNumberToDocument(approved, officialNumber);
   const result = await saveInvoiceDocument(numbered, "Approved and official number applied");
+
+  // AUTO-SEND on approval (admin panel): approving an invoice that carries a client
+  // email address emails it to the client automatically — Marios shouldn't have to
+  // separately press "Send email" in the client-delivery panel. Mirrors the Sophia
+  // approve flow (intent-handlers). Guards:
+  //  - INVOICE kind with a client email only (receipts/credit-notes and
+  //    email-less invoices are skipped),
+  //  - only when THIS call actually approved it (the document had no official
+  //    number yet) — a re-approve of an already-numbered invoice must NOT re-email,
+  //  - best-effort: the approve already succeeded, so an email failure is logged
+  //    (and left in the delivery audit trail) but never fails the approval.
+  const justApproved = !document.officialNumber;
+  const clientEmail = numbered.clientEmail?.trim();
+  if (justApproved && numbered.kind === "invoice" && clientEmail) {
+    try {
+      await sendInvoiceEmailAction(id, [clientEmail]);
+    } catch (error) {
+      sendEmailLogger.warn("Auto-send on approval failed (approval still succeeded)", {
+        documentId: id,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
   return { ...result, selectedId: id };
 }
 
@@ -496,12 +521,10 @@ export async function sendInvoiceEmailAction(
     ...(mariosCopy ? (isRecurring ? { bcc: [mariosCopy] } : { cc: [mariosCopy] }) : {}),
     ...(replyTo ? { replyTo } : {}),
     subject: `${label} ${number} — CSC Zyprus Property Group`,
-    text:
-      customMessage && customMessage.trim()
-        ? customMessage.trim()
-        : `Dear ${document.clientName},\n\n` +
-          `Please find attached ${label.toLowerCase()} ${number} from CSC Zyprus Property Group.\n\n` +
-          `Kind regards,\nCSC Zyprus Property Group`,
+    // Default = Marios's full CSC Zyprus letterhead (single source of truth in
+    // lib/invoices/email.ts). An explicit customMessage still wins so an operator
+    // can override per-send.
+    text: customMessage && customMessage.trim() ? customMessage.trim() : buildInvoiceEmailBody(document),
     attachments: [{ filename: getUnifiedFilename(document), content: pdf }],
   });
   if (error) {
