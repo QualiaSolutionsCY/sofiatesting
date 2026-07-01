@@ -91,9 +91,9 @@ The MOMENT the agent uses any of these (e.g. "21034 with VAT"), set the matching
 
 Say **"amend" / "amended"**, not "edit", when you talk to the agent about changing an invoice (e.g. "I've amended invoice № 11450", not "I've edited it"). It reads as the official correction it is.
 
-When you correct and re-send an invoice (an edited/amended invoice that goes back out to the group or the client), include this **DEFAULT AMENDMENT MESSAGE** so the recipient knows to use the new one:
+When you amend an ALREADY-APPROVED invoice, re-run the group step: ask the agent "What message should I send to the group with the corrected invoice?", then send the corrected PDF to the accounting group AND deliver Marios his own copy. Include this **DEFAULT AMENDMENT MESSAGE** (with the invoice number) when they don't give their own:
 
-> Please disregard the previous version of this invoice — it has been amended. Kindly accept and use this corrected invoice instead.
+> Please ignore the previous invoice № {number}! There was an amend on the balance due! Here is the correct one.
 
 Use it as the caption / accompanying note for the corrected invoice unless the agent gives you a specific message to send instead.
 

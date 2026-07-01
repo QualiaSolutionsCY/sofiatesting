@@ -421,26 +421,41 @@ export async function runIntent(
         };
       }
 
-      // Approved invoice edited: ask Marios for the group message first, then post
-      // the edited invoice to the accounting group on the follow-up call.
+      // Approved invoice edited = an AMENDMENT. Re-run the approval-style flow:
+      // ask Marios which message to send to the group (proposing the default amend
+      // wording), then on the follow-up post the corrected PDF to the accounting
+      // group AND send Marios his own copy — same as a fresh approval.
+      const defaultAmendMessage =
+        `Please ignore the previous invoice ${numberOf(updated)}! There was an amend on the balance due! Here is the correct one.`;
+
       if (!params.groupMessage) {
         return {
           ok: true,
           documentId: doc.id,
           ...pdf,
-          reply: `Updated ${updated.clientName} — ${numberOf(updated)} — ${money(updated.total)}${dueLine}. What message should I send to the group along with the edited invoice?`,
+          reply:
+            `Updated ${updated.clientName} — ${numberOf(updated)} — ${money(updated.total)}${dueLine}. ` +
+            `What message should I send to the group with the corrected invoice? ` +
+            `(Or say "default" to use: "${defaultAmendMessage}")`,
         };
       }
 
-      const caption = `Edited invoice ${numberOf(updated)} — ${updated.clientName} (${money(updated.total)}). ${params.groupMessage}`;
-      const sentToGroup = await sendDocumentToAccountingGroup(updated, caption);
+      // Marios either typed a message or accepted the default.
+      const amendMessage = /^\s*(default|use default|the default|yes|send it|ok)\s*$/i.test(params.groupMessage)
+        ? defaultAmendMessage
+        : params.groupMessage;
+
+      // Post the corrected PDF to the accounting group AND deliver Marios his own
+      // copy (PDF + the same message). Mirrors the approve flow's dual send.
+      const sentToGroup = await sendDocumentToAccountingGroup(updated, amendMessage);
+      const mariosOk = (await notifyMariosApprovedAction(updated.id, amendMessage)).mariosNotified ?? false;
+      const groupLine = sentToGroup ? "sent the corrected invoice to the group" : "couldn't reach the group";
+      const mariosLine = mariosOk ? "sent you your copy" : "couldn't reach you on WhatsApp";
       return {
         ok: true,
         documentId: doc.id,
         ...pdf,
-        reply: sentToGroup
-          ? `Updated ${updated.clientName} — ${numberOf(updated)} — ${money(updated.total)}${dueLine}, and sent the edited invoice to the group.`
-          : `Updated ${updated.clientName} — ${numberOf(updated)} — ${money(updated.total)}${dueLine}. (I couldn't reach the group just now.)`,
+        reply: `Updated ${updated.clientName} — ${numberOf(updated)} — ${money(updated.total)}${dueLine}; ${groupLine} and ${mariosLine}.`,
       };
     }
 
