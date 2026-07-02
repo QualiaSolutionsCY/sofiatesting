@@ -40,9 +40,6 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
         <strong>{pdfName}</strong>
       </div>
 
-      {/* Title CENTRED at the top (matches Invoice 11491 + pdf.ts titleCenterX). */}
-      <h3 className="template-title">{title}</h3>
-
       <div className="template-header">
         <div>
           <div style={{ fontWeight: 700, fontSize: "1.05rem", marginBottom: 6 }}>{tpl.name}</div>
@@ -61,6 +58,8 @@ export function TemplatePreview({ doc, clientOverride }: TemplatePreviewProps) {
           </div>
         </div>
         <div>
+          {/* Title centred OVER the meta column (right), matching Invoice 11491. */}
+          <h3 className="template-title">{title}</h3>
           <dl className="template-meta">
             <div>
               <dt>No.</dt>

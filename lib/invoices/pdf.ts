@@ -107,12 +107,15 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
   const line = (x1: number, y1: number, x2: number, y2: number, width = 0.6, gray = 0.78) =>
     ops.push(`${gray} G ${width} w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
 
-  // ---- Header: title (centred, top) + letterhead (left) + meta (right) ----
+  // ---- Header: title (over the meta block, right) + letterhead (left) + meta (right) ----
   // Mirrors Marios's template (Invoice 11491): no status stamp; the document title
-  // is CENTRED at the top, the company letterhead on the left, the Date / No. / Due
-  // meta on the right (label + value, both left-aligned). Kept in sync with the
-  // on-screen preview's .template-title (text-align: center, TemplatePreview.tsx).
-  const titleCenterX = (ML + MR) / 2;
+  // is centred OVER the Date / No. / Due meta block on the RIGHT (not the whole
+  // page), the company letterhead on the left. Kept in sync with the on-screen
+  // preview's .template-title (centred within the right meta column). The meta
+  // labels right-align 100pt inside the right margin; the block spans from the
+  // widest label ("Invoice No.:") to the right edge (MR).
+  const metaBlockLeft = MR - 100 - textWidth("Invoice No.:", 9.5, false);
+  const titleCenterX = (metaBlockLeft + MR) / 2;
   text(titleCenterX - textWidth(title, 22, true) / 2, 768, title, 22, true, 0.1);
 
   // Company letterhead (left).
