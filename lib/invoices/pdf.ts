@@ -109,11 +109,11 @@ export function buildDocumentPdfBytes(document: InvoiceDocument): Uint8Array {
 
   // ---- Header: title (centred, top) + letterhead (left) + meta (right) ----
   // Mirrors Marios's template (Invoice 11491): no status stamp; the document title
-  // sits near the top, the company letterhead on the left, the Date / No. / Due
-  // meta on the right (label + value, both left-aligned).
-  // Title is RIGHT-anchored to the table's right margin (over the meta block),
-  // not centred — matches the preview h3 (text-align: right).
-  textRight(MR, 768, title, 22, true, 0.1);
+  // is CENTRED at the top, the company letterhead on the left, the Date / No. / Due
+  // meta on the right (label + value, both left-aligned). Kept in sync with the
+  // on-screen preview's .template-title (text-align: center, TemplatePreview.tsx).
+  const titleCenterX = (ML + MR) / 2;
+  text(titleCenterX - textWidth(title, 22, true) / 2, 768, title, 22, true, 0.1);
 
   // Company letterhead (left).
   let headerY = 708;

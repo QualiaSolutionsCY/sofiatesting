@@ -3131,7 +3131,8 @@ em, i, .filters-disclosure > summary em {
   grid-template-columns: 1fr auto;
   gap: 28px;
   align-items: start;
-  padding-top: 24px;
+  /* The centred .template-title now provides the top breathing room. */
+  padding-top: 6px;
 }
 
 .template-header div,
@@ -3141,15 +3142,16 @@ em, i, .filters-disclosure > summary em {
   gap: 3px;
 }
 
-.template-header h3 {
+.template-title {
   color: var(--ink);
-  /* Match the PDF title (Times-Bold, right-anchored to the right margin, pdf.ts). */
+  /* Match the PDF title (Times-Bold, CENTRED at the top, pdf.ts titleCenterX). */
   font-family: "Times New Roman", Times, serif;
   font-size: 1.85rem;
   font-weight: 700;
   letter-spacing: -0.01em;
-  margin-bottom: 10px;
-  text-align: right;
+  text-align: center;
+  margin: 0 26px 6px;
+  padding-top: 24px;
 }
 
 .template-meta {
@@ -3953,7 +3955,6 @@ em, i, .filters-disclosure > summary em {
     display: none;
   }
 
-  .template-header h3,
   .template-meta dd {
     text-align: left;
   }
