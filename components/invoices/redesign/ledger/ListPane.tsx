@@ -80,8 +80,18 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
         } else if (filters.stage === "deleted") {
           // The "Deleted" view is fed the already-soft-deleted set from the
           // server, so no extra stage filter is applied — show them all.
+        } else if (filters.stage === STAGES.SENT_TO_ACCOUNTING.id) {
+          // "Paid" = invoices ACTUALLY marked paid (a receipt was issued) — NOT
+          // merely approved. An invoice enters the sent-to-accounting stage on
+          // APPROVAL (markApproved), before any payment, so filtering by stage
+          // alone counted approved-but-unpaid invoices as "Paid" and pushed the
+          // count above the Receipts count. Payment is evidenced by paidOn /
+          // receiptNo, which markPaidWithReceipt sets atomically with the receipt,
+          // so this makes the Paid count match the Receipts count 1:1.
+          if (doc.kind !== "invoice") return false;
+          if (!doc.paidOn && !doc.receiptNo) return false;
         } else if (filters.stage !== "all") {
-          // Draft / Sent to Marios / Paid / Cancelled — invoices only, by stage.
+          // Draft / Sent to Marios — invoices only, by stage.
           if (doc.kind !== "invoice") return false;
           if (doc.stage !== filters.stage) return false;
         }
@@ -164,9 +174,14 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
                         if (doc.stage === STAGES.CANCELLED.id || doc.stage === STAGES.CREDITED.id) {
                           return <span className="row-pay is-cancelled">Cancelled</span>;
                         }
-                        const paid = !!doc.paidOn || !!doc.receiptNo || doc.stage === STAGES.SENT_TO_ACCOUNTING.id;
+                        // "Paid" reflects a real payment (paidOn / receiptNo set by
+                        // markPaidWithReceipt) — NOT the sent-to-accounting stage, which
+                        // is reached on approval before payment. Approved-but-unpaid
+                        // invoices read "Approved", not "Paid".
+                        const paid = !!doc.paidOn || !!doc.receiptNo;
                         if (paid) return <span className="row-pay is-paid">Paid</span>;
-                        if (doc.stage === STAGES.APPROVED.id) return <span className="row-pay is-approved">Approved</span>;
+                        if (doc.stage === STAGES.APPROVED.id || doc.stage === STAGES.SENT_TO_ACCOUNTING.id)
+                          return <span className="row-pay is-approved">Approved</span>;
                         return <span className="row-pay is-unpaid">Unpaid</span>;
                       })()
                     ) : null}
