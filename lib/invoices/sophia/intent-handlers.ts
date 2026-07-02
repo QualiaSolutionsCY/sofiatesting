@@ -422,24 +422,18 @@ export async function runIntent(
       }
 
       // Approved invoice edited = an AMENDMENT. The note that goes out is a FIXED
-      // template — only the REASON changes. We fill it with the amend reason Marios
-      // gave (correctionReason; groupMessage kept as a fallback), then post the
-      // corrected PDF to the accounting group AND send Marios his own copy. There is
-      // no "what message should I send / default" step — the reason is the variable.
-      const amendReason = (params.correctionReason || params.groupMessage || "").trim();
-
-      // No reason captured yet → ask for it once, previewing the exact note.
-      if (!amendReason) {
-        return {
-          ok: true,
-          documentId: doc.id,
-          ...pdf,
-          reply:
-            `Updated ${updated.clientName} — ${numberOf(updated)} — ${money(updated.total)}${dueLine}. ` +
-            `What's the reason for the amendment? I'll send: ` +
-            `"Please ignore the previous invoice ${numberOf(updated)}! There was an amend on [your reason]! Here is the correct one."`,
-        };
+      // template; the reason in it is simply THE FIELD THAT CHANGED — the change IS
+      // the reason (Marios says "amount to 2100" → the amend is on "the amount").
+      // Derive it from the field(s) Sophia passed (she sends only what changed), so
+      // there is NO separate "what's the reason?" step — apply + send in one go.
+      const changedFields: string[] = [];
+      if (typeof params.amount === "number") changedFields.push("the amount");
+      if (params.description !== undefined) changedFields.push("the description");
+      if (params.vatMode) changedFields.push("the VAT");
+      if ((typeof params.dueDays === "number" && Number.isFinite(params.dueDays)) || params.dueDate) {
+        changedFields.push("the due date");
       }
+      const amendReason = changedFields.length ? changedFields.join(" and ") : "the invoice";
 
       const amendMessage =
         `Please ignore the previous invoice ${numberOf(updated)}! There was an amend on ${amendReason}! Here is the correct one.`;

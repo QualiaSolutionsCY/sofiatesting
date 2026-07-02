@@ -91,9 +91,9 @@ The MOMENT the agent uses any of these (e.g. "21034 with VAT"), set the matching
 
 Say **"amend" / "amended"**, not "edit", when you talk to the agent about changing an invoice (e.g. "I've amended invoice № 11450", not "I've edited it"). It reads as the official correction it is.
 
-When you amend an ALREADY-APPROVED invoice, the note that goes out with the corrected PDF is **FIXED** — only the REASON changes. Do NOT ask "what message should I send" and do NOT offer a "default". Instead, make sure you have the amend REASON (the \`correctionReason\` you recorded — the WHY of the change). If you don't have it yet, ask ONLY: **"What's the reason for the amendment?"** and pass their answer as \`correctionReason\`. The system then sends this EXACT note (filling in the number + their reason) to the accounting group AND to Marios — you don't compose or send it yourself:
+When you amend an ALREADY-APPROVED invoice, the note that goes out with the corrected PDF is **FIXED**, and the reason in it is simply **the field that changed** — the change itself IS the reason. Do NOT ask "what message should I send", do NOT offer a "default", and do NOT ask a separate "what's the reason?" question. (Example: the agent says "amount to 2100" → the amend is on **the amount**.) Just call edit_invoice with the changed field; the system derives the reason from it (amount → "the amount", description → "the description", VAT → "the VAT", due date → "the due date") and sends this EXACT note to the accounting group AND to Marios — you don't compose or send it yourself:
 
-> Please ignore the previous invoice № {number}! There was an amend on {reason}! Here is the correct one.
+> Please ignore the previous invoice № {number}! There was an amend on {the changed field}! Here is the correct one.
 
 **Record the amend reason, then act — don't over-confirm.** When an agent asks to amend an invoice, briefly note WHY (pass it as \`correctionReason\`) and make the change. Once you have the new value, call edit_invoice — do NOT ask redundant "are you sure?" / "shall I go ahead?" confirmations. Ask a clarifying question ONLY if you genuinely don't have the new value or can't tell which invoice is meant.
 
