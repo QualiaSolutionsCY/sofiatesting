@@ -86,9 +86,12 @@ export function ListPane({ docs, selectedId, onSelect, filters, setFilters }: Li
           // APPROVAL (markApproved), before any payment, so filtering by stage
           // alone counted approved-but-unpaid invoices as "Paid" and pushed the
           // count above the Receipts count. Payment is evidenced by paidOn /
-          // receiptNo, which markPaidWithReceipt sets atomically with the receipt,
-          // so this makes the Paid count match the Receipts count 1:1.
+          // receiptNo, which markPaidWithReceipt sets atomically with the receipt.
           if (doc.kind !== "invoice") return false;
+          // Voided invoices live under Cancelled/Credited, NEVER Paid — even when
+          // they were paid before being voided (they keep their paidOn/receiptNo
+          // stamp, which would otherwise leak them into "Paid").
+          if (doc.stage === STAGES.CANCELLED.id || doc.stage === STAGES.CREDITED.id) return false;
           if (!doc.paidOn && !doc.receiptNo) return false;
         } else if (filters.stage !== "all") {
           // Draft / Sent to Marios — invoices only, by stage.
