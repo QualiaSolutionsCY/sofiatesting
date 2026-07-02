@@ -421,29 +421,28 @@ export async function runIntent(
         };
       }
 
-      // Approved invoice edited = an AMENDMENT. Re-run the approval-style flow:
-      // ask Marios which message to send to the group (proposing the default amend
-      // wording), then on the follow-up post the corrected PDF to the accounting
-      // group AND send Marios his own copy — same as a fresh approval.
-      const defaultAmendMessage =
-        `Please ignore the previous invoice ${numberOf(updated)}! There was an amend on the balance due! Here is the correct one.`;
+      // Approved invoice edited = an AMENDMENT. The note that goes out is a FIXED
+      // template — only the REASON changes. We fill it with the amend reason Marios
+      // gave (correctionReason; groupMessage kept as a fallback), then post the
+      // corrected PDF to the accounting group AND send Marios his own copy. There is
+      // no "what message should I send / default" step — the reason is the variable.
+      const amendReason = (params.correctionReason || params.groupMessage || "").trim();
 
-      if (!params.groupMessage) {
+      // No reason captured yet → ask for it once, previewing the exact note.
+      if (!amendReason) {
         return {
           ok: true,
           documentId: doc.id,
           ...pdf,
           reply:
             `Updated ${updated.clientName} — ${numberOf(updated)} — ${money(updated.total)}${dueLine}. ` +
-            `What message should I send to the group with the corrected invoice? ` +
-            `(Or say "default" to use: "${defaultAmendMessage}")`,
+            `What's the reason for the amendment? I'll send: ` +
+            `"Please ignore the previous invoice ${numberOf(updated)}! There was an amend on [your reason]! Here is the correct one."`,
         };
       }
 
-      // Marios either typed a message or accepted the default.
-      const amendMessage = /^\s*(default|use default|the default|yes|send it|ok)\s*$/i.test(params.groupMessage)
-        ? defaultAmendMessage
-        : params.groupMessage;
+      const amendMessage =
+        `Please ignore the previous invoice ${numberOf(updated)}! There was an amend on ${amendReason}! Here is the correct one.`;
 
       // Post the corrected PDF to the accounting group AND deliver Marios his own
       // copy (PDF + the same message). Mirrors the approve flow's dual send.
